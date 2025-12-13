@@ -1,0 +1,148 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class UserRoleManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function seedRoles(): void
+    {
+        if (Role::count() === 0) {
+            Role::create(['name' => 'guest', 'display_name' => 'Guest', 'description' => 'Guest']);
+            Role::create(['name' => 'admin', 'display_name' => 'Admin', 'description' => 'Admin']);
+            Role::create(['name' => 'operator', 'display_name' => 'Operator', 'description' => 'Operator']);
+            Role::create(['name' => 'pj', 'display_name' => 'PJ', 'description' => 'PJ']);
+            Role::create(['name' => 'approver', 'display_name' => 'Approver', 'description' => 'Approver']);
+        }
+    }
+
+    public function test_admin_can_view_users_list(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+        $admin->load('roles'); // Eager load roles
+
+        $this->assertTrue($admin->isAdmin(), 'User should be admin');
+
+        $response = $this->actingAs($admin)->get('/users');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('Users/Index'));
+    }
+
+    public function test_non_admin_cannot_view_users_list(): void
+    {
+        $this->seedRoles();
+        $user = User::factory()->operator()->create();
+
+        $response = $this->actingAs($user)->get('/users');
+
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_can_view_edit_user_roles_page(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($admin)->get("/users/{$user->id}/edit");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Users/Edit')
+            ->has('user')
+            ->has('allRoles'));
+    }
+
+    public function test_admin_can_update_user_roles(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $operatorRole = Role::where('name', 'operator')->first();
+        $pjRole = Role::where('name', 'pj')->first();
+
+        $response = $this->actingAs($admin)->patch("/users/{$user->id}", [
+            'roles' => [$operatorRole->id, $pjRole->id],
+        ]);
+
+        $response->assertRedirect('/users');
+        $response->assertSessionHas('success');
+
+        $this->assertTrue($user->fresh()->hasRole('operator'));
+        $this->assertTrue($user->fresh()->hasRole('pj'));
+    }
+
+    public function test_cannot_remove_last_admin_role(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+
+        // This is the only admin
+        $guestRole = Role::where('name', 'guest')->first();
+
+        $response = $this->actingAs($admin)->patch("/users/{$admin->id}", [
+            'roles' => [$guestRole->id],
+        ]);
+
+        $response->assertSessionHasErrors('roles');
+        $this->assertTrue($admin->fresh()->isAdmin());
+    }
+
+    public function test_user_must_have_at_least_one_role(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($admin)->patch("/users/{$user->id}", [
+            'roles' => [],
+        ]);
+
+        $response->assertSessionHasErrors('roles');
+    }
+
+    public function test_non_admin_cannot_update_user_roles(): void
+    {
+        $this->seedRoles();
+        $operator = User::factory()->operator()->create();
+        $user = User::factory()->create();
+
+        $adminRole = Role::where('name', 'admin')->first();
+
+        $response = $this->actingAs($operator)->patch("/users/{$user->id}", [
+            'roles' => [$adminRole->id],
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_user_can_have_multiple_roles(): void
+    {
+        $this->seedRoles();
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $operatorRole = Role::where('name', 'operator')->first();
+        $pjRole = Role::where('name', 'pj')->first();
+        $approverRole = Role::where('name', 'approver')->first();
+
+        $this->actingAs($admin)->patch("/users/{$user->id}", [
+            'roles' => [$operatorRole->id, $pjRole->id, $approverRole->id],
+        ]);
+
+        $user = $user->fresh();
+        $this->assertTrue($user->hasRole('operator'));
+        $this->assertTrue($user->hasRole('pj'));
+        $this->assertTrue($user->hasRole('approver'));
+        $this->assertTrue($user->hasAnyRole(['operator', 'pj', 'approver']));
+    }
+}

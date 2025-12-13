@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\HasHashedRouteKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Spk extends Model
+{
+    /** @use HasFactory<\Database\Factories\SpkFactory> */
+    use HasFactory, HasHashedRouteKey, SoftDeletes;
+
+    protected $table = 'spk';
+
+    protected $appends = ['hashed_id'];
+
+    protected function casts(): array
+    {
+        return [
+            'tanggal_spk' => 'date:Y-m-d',
+            'tanggal_mulai_kerja' => 'date:Y-m-d',
+            'tanggal_selesai_kerja' => 'date:Y-m-d',
+            'nilai_kontrak' => 'decimal:2',
+        ];
+    }
+
+    protected $fillable = [
+        'nomor_spk',
+        'sk_kpa_id',
+        'alokasi_mitra_id',
+        'tanggal_spk',
+        'tanggal_mulai_kerja',
+        'tanggal_selesai_kerja',
+        'uraian_pekerjaan',
+        'nilai_kontrak',
+        'nama_ppk',
+        'nip_ppk',
+        'file_path',
+        'status',
+        'created_by',
+    ];
+
+    public function skKpa(): BelongsTo
+    {
+        return $this->belongsTo(SkKpa::class);
+    }
+
+    /**
+     * Prepare a date for array / JSON serialization.
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d');
+    }
+
+    public function alokasiMitra(): BelongsTo
+    {
+        return $this->belongsTo(AlokasiMitra::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function bast(): HasMany
+    {
+        return $this->hasMany(Bast::class);
+    }
+}

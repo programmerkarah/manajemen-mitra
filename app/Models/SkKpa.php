@@ -1,0 +1,67 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\HasHashedRouteKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class SkKpa extends Model
+{
+    /** @use HasFactory<\Database\Factories\SkKpaFactory> */
+    use HasFactory, HasHashedRouteKey, SoftDeletes;
+
+    protected $table = 'sk_kpa';
+
+    protected $appends = ['hashed_id'];
+
+    protected function casts(): array
+    {
+        return [
+            'tanggal_sk' => 'date:Y-m-d',
+            'bulan' => 'integer',
+            'tahun' => 'integer',
+        ];
+    }
+
+    protected $fillable = [
+        'nomor_sk',
+        'kegiatan_id',
+        'bulan',
+        'tahun',
+        'tanggal_sk',
+        'nama_kpa',
+        'nip_kpa',
+        'perihal',
+        'dasar_hukum',
+        'file_path',
+        'status',
+        'created_by',
+    ];
+
+    public function kegiatan(): BelongsTo
+    {
+        return $this->belongsTo(Kegiatan::class);
+    }
+
+    /**
+     * Prepare a date for array / JSON serialization.
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function spk(): HasMany
+    {
+        return $this->hasMany(Spk::class);
+    }
+}

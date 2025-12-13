@@ -1,0 +1,292 @@
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
+
+interface Mitra {
+    id: number;
+    hashed_id: string;
+    nama: string;
+    nik: string;
+    email: string;
+    telepon: string;
+    alamat: string;
+    pendidikan: string;
+    tahun_bergabung: number;
+    npwp: string | null;
+    bank: string | null;
+    no_rekening: string | null;
+    nama_rekening: string | null;
+    status: string;
+}
+
+interface EditProps {
+    mitra: Mitra;
+}
+
+const pendidikanOptions = ['SD', 'SMP', 'SMA', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'];
+
+export default function Edit({ mitra }: EditProps) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Mitra', href: '/mitra' },
+        { title: 'Edit', href: `/mitra/${mitra.hashed_id}/edit` },
+    ];
+
+    const { data, setData, put, processing, errors } = useForm({
+        nama: mitra.nama,
+        nik: mitra.nik,
+        email: mitra.email,
+        telepon: mitra.telepon,
+        alamat: mitra.alamat,
+        pendidikan: mitra.pendidikan,
+        tahun_bergabung: mitra.tahun_bergabung,
+        npwp: mitra.npwp || '',
+        bank: mitra.bank || '',
+        no_rekening: mitra.no_rekening || '',
+        nama_rekening: mitra.nama_rekening || '',
+        status: mitra.status,
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        put(`/mitra/${mitra.hashed_id}`);
+    };
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`Edit Mitra - ${mitra.nama}`} />
+
+            <div className="flex h-full flex-1 flex-col gap-4 p-4">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold">Edit Mitra</h1>
+                </div>
+
+                <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* Nama */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Nama Lengkap <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.nama}
+                                    onChange={(e) => setData('nama', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.nama && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.nama}</p>
+                                )}
+                            </div>
+
+                            {/* NIK */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    NIK <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.nik}
+                                    onChange={(e) => setData('nik', e.target.value)}
+                                    maxLength={16}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.nik && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.nik}</p>
+                                )}
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Email <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                    type="email"
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.email && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                                )}
+                            </div>
+
+                            {/* Telepon */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Telepon <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.telepon}
+                                    onChange={(e) => setData('telepon', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.telepon && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.telepon}</p>
+                                )}
+                            </div>
+
+                            {/* Pendidikan */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Pendidikan <span className="text-red-600">*</span>
+                                </label>
+                                <select
+                                    value={data.pendidikan}
+                                    onChange={(e) => setData('pendidikan', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <option value="">Pilih Pendidikan</option>
+                                    {pendidikanOptions.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.pendidikan && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.pendidikan}</p>
+                                )}
+                            </div>
+
+                            {/* Tahun Bergabung */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Tahun Bergabung <span className="text-red-600">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    value={data.tahun_bergabung}
+                                    onChange={(e) => setData('tahun_bergabung', parseInt(e.target.value))}
+                                    min="2000"
+                                    max={new Date().getFullYear()}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.tahun_bergabung && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.tahun_bergabung}</p>
+                                )}
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Status <span className="text-red-600">*</span>
+                                </label>
+                                <select
+                                    value={data.status}
+                                    onChange={(e) => setData('status', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <option value="aktif">Aktif</option>
+                                    <option value="nonaktif">Nonaktif</option>
+                                </select>
+                                {errors.status && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.status}</p>
+                                )}
+                            </div>
+
+                            {/* Alamat - Full Width */}
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium">
+                                    Alamat <span className="text-red-600">*</span>
+                                </label>
+                                <textarea
+                                    value={data.alamat}
+                                    onChange={(e) => setData('alamat', e.target.value)}
+                                    rows={3}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                {errors.alamat && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.alamat}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Data Bank */}
+                        <div className="space-y-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                            <h3 className="font-semibold">Data Bank (Opsional)</h3>
+                            
+                            <div className="grid gap-6 md:grid-cols-2">
+                                {/* NPWP */}
+                                <div>
+                                    <label className="block text-sm font-medium">NPWP</label>
+                                    <input
+                                        type="text"
+                                        value={data.npwp}
+                                        onChange={(e) => setData('npwp', e.target.value)}
+                                        maxLength={15}
+                                        className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                    />
+                                    {errors.npwp && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.npwp}</p>
+                                    )}
+                                </div>
+
+                                {/* Bank */}
+                                <div>
+                                    <label className="block text-sm font-medium">Bank</label>
+                                    <input
+                                        type="text"
+                                        value={data.bank}
+                                        onChange={(e) => setData('bank', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                    />
+                                    {errors.bank && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.bank}</p>
+                                    )}
+                                </div>
+
+                                {/* Nomor Rekening */}
+                                <div>
+                                    <label className="block text-sm font-medium">Nomor Rekening</label>
+                                    <input
+                                        type="text"
+                                        value={data.no_rekening}
+                                        onChange={(e) => setData('no_rekening', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                    />
+                                    {errors.no_rekening && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.no_rekening}</p>
+                                    )}
+                                </div>
+
+                                {/* Nama Rekening */}
+                                <div>
+                                    <label className="block text-sm font-medium">Nama Rekening</label>
+                                    <input
+                                        type="text"
+                                        value={data.nama_rekening}
+                                        onChange={(e) => setData('nama_rekening', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                    />
+                                    {errors.nama_rekening && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.nama_rekening}</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            </button>
+                            <a
+                                href="/mitra"
+                                className="rounded-lg border border-neutral-300 px-4 py-2 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                            >
+                                Batal
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </AppLayout>
+    );
+}
