@@ -23,7 +23,7 @@ class AlokasiMitraController extends Controller
     public function index(Request $request): Response
     {
         $query = Kegiatan::query()
-            ->with(['penanggungJawab'])
+            ->with(['ketuaTim'])
             ->withCount('alokasi');
 
         // Search
@@ -63,7 +63,7 @@ class AlokasiMitraController extends Controller
      */
     public function manage(Kegiatan $kegiatan): Response
     {
-        $kegiatan->load(['penanggungJawab', 'rateHonor.satuan', 'alokasi.mitra']);
+        $kegiatan->load(['ketuaTim', 'rateHonor.satuan', 'alokasi.mitra']);
 
         $mitras = Mitra::where('status', 'aktif')
             ->select('id', 'nama', 'nik', 'email')
@@ -228,7 +228,7 @@ class AlokasiMitraController extends Controller
     public function show(AlokasiMitra $alokasi): Response
     {
         $alokasi->load([
-            'kegiatan.penanggungJawab',
+            'kegiatan.ketuaTim',
             'kegiatan.rateHonor.satuan',
             'mitra',
             'submittedBy',
