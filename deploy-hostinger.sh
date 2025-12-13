@@ -21,9 +21,16 @@ fi
 
 # Set permissions
 echo "🔐 Setting permissions..."
-chmod -R 755 storage bootstrap/cache
-find storage -type f -exec chmod 644 {} \;
-find bootstrap/cache -type f -exec chmod 644 {} \;
+# Set directory permissions
+find . -type d -exec chmod 755 {} \;
+# Set file permissions
+find . -type f -exec chmod 644 {} \;
+# Storage and cache need write permissions
+chmod -R 775 storage bootstrap/cache
+# Make sure index.php is readable
+chmod 644 public/index.php
+# Make sure .htaccess files are readable
+find . -name ".htaccess" -exec chmod 644 {} \;
 
 # Run migrations
 echo "🗄️  Running migrations..."
