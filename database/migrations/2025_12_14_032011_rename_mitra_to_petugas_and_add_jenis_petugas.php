@@ -11,9 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, drop unique constraint and foreign keys
+        // First, drop foreign key constraint on mitra_id
         Schema::table('alokasi_mitra', function (Blueprint $table) {
+            // Drop foreign key using column name (Laravel will find the constraint automatically)
             $table->dropForeign(['mitra_id']);
+        });
+
+        // Drop unique constraint separately
+        Schema::table('alokasi_mitra', function (Blueprint $table) {
             $table->dropUnique('unique_alokasi');
         });
 
@@ -48,6 +53,9 @@ return new class extends Migration
         // Drop foreign key and unique constraint
         Schema::table('alokasi_petugas', function (Blueprint $table) {
             $table->dropForeign(['petugas_id']);
+        });
+
+        Schema::table('alokasi_petugas', function (Blueprint $table) {
             $table->dropUnique('unique_alokasi');
         });
 
