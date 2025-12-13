@@ -37,9 +37,9 @@ class DashboardController extends Controller
             ->get();
 
         $recentKegiatan = Kegiatan::query()
-            ->with('penanggungJawab')
-            ->when($user->isPJ(), function ($query) use ($user) {
-                $query->where('pj_user_id', $user->id);
+            ->with('ketuaTim')
+            ->when($user->isKetuaTim(), function ($query) use ($user) {
+                $query->where('ketua_tim_user_id', $user->id);
             })
             ->latest()
             ->limit(5)

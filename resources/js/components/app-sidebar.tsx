@@ -24,6 +24,8 @@ import {
     FileText,
     ClipboardList,
     Package,
+    Calculator,
+    BarChart3,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -42,14 +44,14 @@ const footerNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
-    const user = auth.user;
+    const activeRole = auth.activeRole;
 
-    // Helper function to check if user has role
-    const hasRole = (roleName: string): boolean => {
-        return user.roles?.some((role: any) => role.name === roleName) || false;
+    // Helper function to check if active role matches
+    const hasActiveRole = (roleName: string): boolean => {
+        return activeRole?.name === roleName;
     };
 
-    // Build menu items based on user roles
+    // Build menu items based on active role
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -59,7 +61,7 @@ export function AppSidebar() {
     ];
 
     // Admin can see all menus
-    if (hasRole('admin')) {
+    if (hasActiveRole('admin')) {
         mainNavItems.push(
             {
                 title: 'Manajemen Mitra',
@@ -77,14 +79,14 @@ export function AppSidebar() {
                 icon: UserCheck,
             },
             {
-                title: 'Rate Honor',
-                href: '/rate-honor',
-                icon: DollarSign,
+                title: 'SBML',
+                href: '/sbml',
+                icon: Calculator,
             },
             {
-                title: 'Satuan',
-                href: '/satuan',
-                icon: Package,
+                title: 'Laporan SBML',
+                href: '/sbml-report',
+                icon: BarChart3,
             },
             {
                 title: 'SK KPA',
@@ -107,32 +109,36 @@ export function AppSidebar() {
                 icon: Users,
             }
         );
-    } else {
+    } else if (hasActiveRole('pj')) {
         // PJ can see Kegiatan and Alokasi
-        if (hasRole('pj')) {
-            mainNavItems.push(
-                {
-                    title: 'Kegiatan',
-                    href: '/kegiatan',
-                    icon: Briefcase,
-                },
-                {
-                    title: 'Alokasi Mitra',
-                    href: '/alokasi',
-                    icon: UserCheck,
-                }
-            );
-        }
-
-        // Operator and Approver can see Alokasi
-        if (hasRole('operator') || hasRole('approver')) {
-            mainNavItems.push({
+        mainNavItems.push(
+            {
+                title: 'Kegiatan',
+                href: '/kegiatan',
+                icon: Briefcase,
+            },
+            {
                 title: 'Alokasi Mitra',
                 href: '/alokasi',
                 icon: UserCheck,
-            });
-        }
+            }
+        );
+    } else if (hasActiveRole('operator') || hasActiveRole('approver')) {
+        // Operator and Approver can see Alokasi, Rate Honor Management, and SBML Report
+        mainNavItems.push(
+            {
+                title: 'Alokasi Mitra',
+                href: '/alokasi',
+                icon: UserCheck,
+            },
+            {
+                title: 'Laporan SBML',
+                href: '/sbml-report',
+                icon: BarChart3,
+            }
+        );
     }
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>

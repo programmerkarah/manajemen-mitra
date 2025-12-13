@@ -1,8 +1,8 @@
-import { Head, Link, useForm, router } from '@inertiajs/react'
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import InputError from '@/components/input-error'
-import type { Kegiatan, Mitra, RateHonor, Satuan, AlokasiMitra } from '@/types'
+import type { Kegiatan, Mitra, RateHonor, Satuan, AlokasiMitra, SharedData } from '@/types'
 import { useState } from 'react'
 
 interface Props {
@@ -12,37 +12,31 @@ interface Props {
             name: string
             email: string
         }
+        rate_honor?: RateHonor & {
+            satuan: Satuan
+        }
         alokasi: Array<
             AlokasiMitra & {
                 mitra: Mitra
-                rate_honor: RateHonor & {
-                    satuan: Satuan
-                }
             }
         >
     }
     mitras: Mitra[]
-    rateHonors: Array<
-        RateHonor & {
-            satuan: Satuan
-        }
-    >
 }
 
 interface AlokasiForm {
     mitra_id: string
-    rate_honor_id: string
     bulan: number
     tahun: number
     jumlah_satuan: string
     catatan: string
 }
 
-export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
+export default function Manage({ kegiatan, mitras }: Props) {
+    const { auth } = usePage<SharedData>().props
     const [alokasiList, setAlokasiList] = useState<AlokasiForm[]>([
         {
             mitra_id: '',
-            rate_honor_id: '',
             bulan: new Date().getMonth() + 1,
             tahun: new Date().getFullYear(),
             jumlah_satuan: '',
@@ -57,7 +51,6 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
     const addAlokasi = () => {
         const newAlokasi: AlokasiForm = {
             mitra_id: '',
-            rate_honor_id: '',
             bulan: new Date().getMonth() + 1,
             tahun: new Date().getFullYear(),
             jumlah_satuan: '',
@@ -81,7 +74,7 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
         setData('alokasi', updated)
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmitForm = (e: React.FormEvent) => {
         e.preventDefault()
         post(`/alokasi/kegiatan/${kegiatan.hashed_id}/store-multiple`)
     }
@@ -89,6 +82,14 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
     const handleDelete = (alokasiId: string) => {
         if (confirm('Apakah Anda yakin ingin menghapus alokasi ini?')) {
             router.delete(`/alokasi/${alokasiId}`, {
+                preserveScroll: true,
+            })
+        }
+    }
+
+    const handleSubmitForApproval = (alokasiId: string) => {
+        if (confirm('Apakah Anda yakin ingin mengajukan alokasi ini untuk persetujuan?')) {
+            router.post(`/alokasi/${alokasiId}/submit`, {}, {
                 preserveScroll: true,
             })
         }
@@ -102,10 +103,9 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
         }).format(amount)
     }
 
-    const calculateTotal = (rateHonorId: string, jumlahSatuan: string) => {
-        const rateHonor = rateHonors.find((r) => r.id === rateHonorId)
-        if (rateHonor && jumlahSatuan) {
-            return rateHonor.honor_satuan * Number(jumlahSatuan)
+    const calculateTotal = (jumlahSatuan: string) => {
+        if (kegiatan.rate_honor && jumlahSatuan) {
+            return kegiatan.rate_honor.rate * Number(jumlahSatuan)
         }
         return 0
     }
@@ -180,7 +180,7 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                                 Pagu Anggaran
                             </label>
                             <p className="mt-1 text-gray-900 dark:text-white">
-                                {formatCurrency(kegiatan.pagu_anggaran)}
+                                {formatCurrency(kegiatan.pagu_anggaran || 0)}
                             </p>
                         </div>
                     </div>
@@ -233,14 +233,13 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {alokasi.rate_honor.nama}
+                                                {kegiatan.rate_honor?.posisi || '-'}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
                                                 {months[alokasi.bulan - 1]?.label} {alokasi.tahun}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {alokasi.jumlah_satuan}{' '}
-                                                {alokasi.rate_honor.satuan.nama}
+                                                {alokasi.jumlah_satuan} {kegiatan.rate_honor?.satuan.nama}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                                                 {formatCurrency(alokasi.total_honor)}
@@ -265,14 +264,24 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                                                         </Button>
                                                     </Link>
                                                     {alokasi.status === 'draft' && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleDelete(alokasi.id)}
-                                                            className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400"
-                                                        >
-                                                            Hapus
-                                                        </Button>
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleSubmitForApproval(alokasi.hashed_id)}
+                                                                className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400"
+                                                            >
+                                                                Ajukan
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleDelete(alokasi.hashed_id)}
+                                                                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+                                                            >
+                                                                Hapus
+                                                            </Button>
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>
@@ -284,8 +293,78 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                     </div>
                 )}
 
+                {/* Rate Honor Info */}
+                {kegiatan.rate_honor ? (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0">
+                                <svg
+                                    className="h-5 w-5 text-blue-400"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                    Rate Honor untuk Kegiatan Ini
+                                </h3>
+                                <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                                    <p className="font-semibold">
+                                        {kegiatan.rate_honor.posisi} - {formatCurrency(kegiatan.rate_honor.rate)}/
+                                        {kegiatan.rate_honor.satuan.nama}
+                                    </p>
+                                    <p className="mt-1">
+                                        Semua mitra dalam kegiatan ini akan menggunakan rate honor yang sama.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0">
+                                <svg
+                                    className="h-5 w-5 text-red-400"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
+                                    Rate Honor Belum Ditentukan
+                                </h3>
+                                <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                                    <p>
+                                        Silakan set rate honor pada kegiatan terlebih dahulu sebelum menambahkan
+                                        alokasi mitra.
+                                    </p>
+                                    <Link
+                                        href={`/kegiatan/${kegiatan.hashed_id}/edit`}
+                                        className="mt-2 inline-block font-medium underline"
+                                    >
+                                        Edit Kegiatan
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Add New Alokasi Form */}
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmitForm}>
                     <div className="space-y-4">
                         <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                             <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
@@ -348,40 +427,6 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                                                 </select>
                                                 <InputError
                                                     message={errors[`alokasi.${index}.mitra_id`]}
-                                                    className="mt-2"
-                                                />
-                                            </div>
-
-                                            {/* Rate Honor */}
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Rate Honor{' '}
-                                                    <span className="text-red-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={alokasi.rate_honor_id}
-                                                    onChange={(e) =>
-                                                        updateAlokasi(
-                                                            index,
-                                                            'rate_honor_id',
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                                >
-                                                    <option value="">Pilih Rate Honor</option>
-                                                    {rateHonors.map((rate) => (
-                                                        <option key={rate.id} value={rate.id}>
-                                                            {rate.nama} -{' '}
-                                                            {formatCurrency(rate.honor_satuan)}/
-                                                            {rate.satuan.nama}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <InputError
-                                                    message={
-                                                        errors[`alokasi.${index}.rate_honor_id`]
-                                                    }
                                                     className="mt-2"
                                                 />
                                             </div>
@@ -472,10 +517,7 @@ export default function Manage({ kegiatan, mitras, rateHonors }: Props) {
                                                 </label>
                                                 <div className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-lg font-bold text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-blue-400">
                                                     {formatCurrency(
-                                                        calculateTotal(
-                                                            alokasi.rate_honor_id,
-                                                            alokasi.jumlah_satuan
-                                                        )
+                                                        calculateTotal(alokasi.jumlah_satuan)
                                                     )}
                                                 </div>
                                             </div>

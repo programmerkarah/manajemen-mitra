@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import InputError from '@/components/input-error';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type RateHonor, type Satuan } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -16,11 +16,12 @@ interface User {
 }
 
 interface KegiatanCreateProps {
-    pjUsers: User[];
+    ketuaTimUsers: User[];
+    rateHonors: Array<RateHonor & { satuan: Satuan }>;
     tahunOptions: number[];
 }
 
-export default function Create({ pjUsers, tahunOptions }: KegiatanCreateProps) {
+export default function Create({ ketuaTimUsers, rateHonors, tahunOptions }: KegiatanCreateProps) {
     // Format currency untuk display
     const formatCurrency = (value: string): string => {
         const number = value.replace(/\D/g, '')
@@ -34,10 +35,12 @@ export default function Create({ pjUsers, tahunOptions }: KegiatanCreateProps) {
 
     const { data, setData, post, processing, errors } = useForm({
         nama_kegiatan: '',
+        jenis_kegiatan: 'survei' as 'sensus' | 'survei',
         deskripsi: '',
         tahun_anggaran: new Date().getFullYear(),
         pagu_anggaran: '',
-        pj_user_id: '',
+        ketua_tim_user_id: '',
+        rate_honor_id: '',
         tanggal_mulai: '',
         tanggal_selesai: '',
     });
@@ -124,6 +127,29 @@ export default function Create({ pjUsers, tahunOptions }: KegiatanCreateProps) {
                                 <InputError message={errors.nama_kegiatan} className="mt-2" />
                             </div>
 
+                            {/* Jenis Kegiatan */}
+                            <div>
+                                <label
+                                    htmlFor="jenis_kegiatan"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                    Jenis Kegiatan <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="jenis_kegiatan"
+                                    value={data.jenis_kegiatan}
+                                    onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                >
+                                    <option value="survei">Survei</option>
+                                    <option value="sensus">Sensus</option>
+                                </select>
+                                <InputError message={errors.jenis_kegiatan} className="mt-2" />
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Jenis kegiatan akan menentukan rate honor yang tersedia
+                                </p>
+                            </div>
+
                             {/* Deskripsi */}
                             <div>
                                 <label
@@ -192,28 +218,56 @@ export default function Create({ pjUsers, tahunOptions }: KegiatanCreateProps) {
                                 </div>
                             </div>
 
-                            {/* Penanggung Jawab */}
+                            {/* Ketua Tim */}
                             <div>
                                 <label
-                                    htmlFor="pj_user_id"
+                                    htmlFor="ketua_tim_user_id"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Penanggung Jawab <span className="text-red-500">*</span>
+                                    Ketua Tim <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    id="pj_user_id"
-                                    value={data.pj_user_id}
-                                    onChange={(e) => setData('pj_user_id', e.target.value)}
+                                    id="ketua_tim_user_id"
+                                    value={data.ketua_tim_user_id}
+                                    onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
                                 >
-                                    <option value="">Pilih Penanggung Jawab</option>
-                                    {pjUsers.map((user) => (
+                                    <option value="">Pilih Ketua Tim</option>
+                                    {ketuaTimUsers.map((user) => (
                                         <option key={user.id} value={user.id}>
                                             {user.name} - {user.email}
                                         </option>
                                     ))}
                                 </select>
-                                <InputError message={errors.pj_user_id} className="mt-2" />
+                                <InputError message={errors.ketua_tim_user_id} className="mt-2" />
+                            </div>
+
+                            {/* Rate Honor */}
+                            <div>
+                                <label
+                                    htmlFor="rate_honor_id"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                    Rate Honor <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="rate_honor_id"
+                                    value={data.rate_honor_id}
+                                    onChange={(e) => setData('rate_honor_id', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                >
+                                    <option value="">Pilih Rate Honor</option>
+                                    {rateHonors.map((rate) => (
+                                        <option key={rate.id} value={rate.id}>
+                                            {rate.posisi} - Rp {rate.rate.toLocaleString('id-ID')}/
+                                            {rate.satuan.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.rate_honor_id} className="mt-2" />
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Rate honor ini akan berlaku untuk semua mitra dalam kegiatan ini
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

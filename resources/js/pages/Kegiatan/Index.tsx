@@ -22,7 +22,7 @@ interface Kegiatan {
     tahun_anggaran: number;
     pagu_anggaran: number | null;
     status: string;
-    penanggung_jawab: User;
+    ketua_tim: User;
 }
 
 interface KegiatanIndexProps {
@@ -42,6 +42,10 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
     const [tahun, setTahun] = useState(filters.tahun || '');
+
+    // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
+    const currentYear = new Date().getFullYear();
+    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,13 +143,18 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <option value="selesai">Selesai</option>
                                     <option value="dibatalkan">Dibatalkan</option>
                                 </select>
-                                <input
-                                    type="number"
+                                <select
                                     value={tahun}
                                     onChange={(e) => setTahun(e.target.value)}
-                                    placeholder="Tahun Anggaran"
                                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                />
+                                >
+                                    <option value="">Semua Tahun</option>
+                                    {tahunOptions.map((year) => (
+                                        <option key={year} value={year}>
+                                            {year}
+                                        </option>
+                                    ))}
+                                </select>
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
@@ -187,7 +196,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                         Pagu Anggaran
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        PJ
+                                        Ketua Tim
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Status
@@ -226,7 +235,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                 {formatCurrency(kegiatan.pagu_anggaran)}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                {kegiatan.penanggung_jawab.name}
+                                                {kegiatan.ketua_tim.name}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                                                 <span

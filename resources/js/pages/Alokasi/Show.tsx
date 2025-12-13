@@ -1,7 +1,7 @@
-import { Head, Link, router, useForm } from '@inertiajs/react'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import type { AlokasiMitra, Kegiatan, Mitra, RateHonor, Satuan } from '@/types'
+import type { AlokasiMitra, Kegiatan, Mitra, RateHonor, Satuan, SharedData } from '@/types'
 import { useState } from 'react'
 import InputError from '@/components/input-error'
 
@@ -13,11 +13,11 @@ interface Props {
                 name: string
                 email: string
             }
+            rate_honor: RateHonor & {
+                satuan: Satuan
+            }
         }
         mitra: Mitra
-        rate_honor: RateHonor & {
-            satuan: Satuan
-        }
         submitted_by?: {
             id: number
             name: string
@@ -32,8 +32,11 @@ interface Props {
 }
 
 export default function Show({ alokasi }: Props) {
+    const { auth } = usePage<SharedData>().props
     const [showApprovalModal, setShowApprovalModal] = useState(false)
-    const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve')
+    const [approvalAction, setApprovalAction] = useState<'approve' | 'approve-pj' | 'reject'>(
+        'approve'
+    )
 
     const { data, setData, post, processing, errors, reset } = useForm({
         catatan_approval: '',
@@ -102,10 +105,13 @@ export default function Show({ alokasi }: Props) {
 
     const handleApproval = (e: React.FormEvent) => {
         e.preventDefault()
-        const endpoint =
-            approvalAction === 'approve'
-                ? `/alokasi/${alokasi.hashed_id}/approve`
-                : `/alokasi/${alokasi.hashed_id}/reject`
+        let endpoint = `/alokasi/${alokasi.hashed_id}/approve`
+        
+        if (approvalAction === 'approve-pj') {
+            endpoint = `/alokasi/${alokasi.hashed_id}/approve-pj`
+        } else if (approvalAction === 'reject') {
+            endpoint = `/alokasi/${alokasi.hashed_id}/reject`
+        }
 
         post(endpoint, {
             onSuccess: () => {
@@ -115,10 +121,23 @@ export default function Show({ alokasi }: Props) {
         })
     }
 
-    const openApprovalModal = (action: 'approve' | 'reject') => {
+    const openApprovalModal = (action: 'approve' | 'approve-pj' | 'reject') => {
         setApprovalAction(action)
         setShowApprovalModal(true)
     }
+
+    // Check permissions based on active role
+    const canEditDraft = alokasi.status === 'draft' && auth.activeRole?.name !== 'guest'
+    const canSubmitDraft = alokasi.status === 'draft' && auth.activeRole?.name !== 'guest'
+    
+    const canApprovePj =
+        alokasi.status === 'diajukan' &&
+        auth.activeRole?.name === 'pj' &&
+        auth.user.id === alokasi.kegiatan.penanggung_jawab?.id
+    
+    const canApprove =
+        (alokasi.status === 'diajukan' || alokasi.status === 'disetujui_pj') &&
+        auth.activeRole?.name === 'approver'
 
     return (
         <AppLayout>
@@ -139,15 +158,33 @@ export default function Show({ alokasi }: Props) {
                         <Link href="/alokasi">
                             <Button variant="outline">Kembali</Button>
                         </Link>
-                        {alokasi.status === 'draft' && (
+                        
+                        {canEditDraft && (
+                            <Link href={`/alokasi/${alokasi.hashed_id}/edit`}>
+                                <Button variant="outline">Edit</Button>
+                            </Link>
+                        )}
+                        
+                        {canSubmitDraft && (
+                            <Button onClick={handleSubmit}>Ajukan Persetujuan</Button>
+                        )}
+                        
+                        {canApprovePj && (
                             <>
-                                <Link href={`/alokasi/${alokasi.hashed_id}/edit`}>
-                                    <Button variant="outline">Edit</Button>
-                                </Link>
-                                <Button onClick={handleSubmit}>Ajukan Persetujuan</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => openApprovalModal('reject')}
+                                    className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+                                >
+                                    Tolak
+                                </Button>
+                                <Button onClick={() => openApprovalModal('approve-pj')}>
+                                    Setujui (PJ)
+                                </Button>
                             </>
                         )}
-                        {alokasi.status === 'diajukan' && (
+                        
+                        {canApprove && (
                             <>
                                 <Button
                                     variant="outline"
@@ -157,7 +194,7 @@ export default function Show({ alokasi }: Props) {
                                     Tolak
                                 </Button>
                                 <Button onClick={() => openApprovalModal('approve')}>
-                                    Setujui
+                                    Setujui Final
                                 </Button>
                             </>
                         )}
@@ -230,11 +267,11 @@ export default function Show({ alokasi }: Props) {
                                     Rate Honor
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {alokasi.rate_honor.nama}
+                                    {alokasi.kegiatan.rate_honor.posisi}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {formatCurrency(alokasi.rate_honor.honor_satuan)}/
-                                    {alokasi.rate_honor.satuan.nama}
+                                    {formatCurrency(alokasi.kegiatan.rate_honor.rate)}/
+                                    {alokasi.kegiatan.rate_honor.satuan.nama}
                                 </p>
                             </div>
 
@@ -252,7 +289,7 @@ export default function Show({ alokasi }: Props) {
                                     Volume
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {alokasi.jumlah_satuan} {alokasi.rate_honor.satuan.nama}
+                                    {alokasi.jumlah_satuan} {alokasi.kegiatan.rate_honor.satuan.nama}
                                 </p>
                             </div>
 
@@ -385,7 +422,9 @@ export default function Show({ alokasi }: Props) {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {approvalAction === 'approve' ? 'Setujui Alokasi' : 'Tolak Alokasi'}
+                            {approvalAction === 'approve' && 'Setujui Final Alokasi'}
+                            {approvalAction === 'approve-pj' && 'Setujui Alokasi (PJ)'}
+                            {approvalAction === 'reject' && 'Tolak Alokasi'}
                         </h3>
                         <form onSubmit={handleApproval} className="mt-4">
                             <div>
@@ -428,8 +467,10 @@ export default function Show({ alokasi }: Props) {
                                     {processing
                                         ? 'Memproses...'
                                         : approvalAction === 'approve'
-                                          ? 'Setujui'
-                                          : 'Tolak'}
+                                          ? 'Setujui Final'
+                                          : approvalAction === 'approve-pj'
+                                            ? 'Setujui (PJ)'
+                                            : 'Tolak'}
                                 </Button>
                             </div>
                         </form>

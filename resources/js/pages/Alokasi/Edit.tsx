@@ -14,6 +14,13 @@ interface Kegiatan {
     id: string
     kode_kegiatan: string
     nama_kegiatan: string
+    rate_honor?: {
+        posisi: string
+        rate: number
+        satuan: {
+            nama: string
+        }
+    } | null
 }
 
 interface Mitra {
@@ -44,7 +51,6 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
     const { data, setData, put, processing, errors } = useForm({
         kegiatan_id: alokasi.kegiatan_id || '',
         mitra_id: alokasi.mitra_id || '',
-        rate_honor_id: alokasi.rate_honor_id || '',
         bulan: alokasi.bulan || new Date().getMonth() + 1,
         tahun: alokasi.tahun || new Date().getFullYear(),
         jumlah_satuan: alokasi.jumlah_satuan.toString() || '',
@@ -54,22 +60,15 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
     const [selectedRateHonor, setSelectedRateHonor] = useState<RateHonor | null>(null)
     const [estimatedTotal, setEstimatedTotal] = useState(0)
 
-    // Update selected rate honor and calculate total
+    // Calculate total based on kegiatan's rate honor
     useEffect(() => {
-        if (data.rate_honor_id) {
-            const rateHonor = rateHonors.find((r) => r.id === data.rate_honor_id)
-            setSelectedRateHonor(rateHonor || null)
-
-            if (rateHonor && data.jumlah_satuan) {
-                setEstimatedTotal(rateHonor.honor_satuan * Number(data.jumlah_satuan))
-            } else {
-                setEstimatedTotal(0)
-            }
+        const selectedKegiatan = kegiatans.find((k) => k.id === data.kegiatan_id)
+        if (selectedKegiatan?.rate_honor && data.jumlah_satuan) {
+            setEstimatedTotal(selectedKegiatan.rate_honor.rate * Number(data.jumlah_satuan))
         } else {
-            setSelectedRateHonor(null)
             setEstimatedTotal(0)
         }
-    }, [data.rate_honor_id, data.jumlah_satuan, rateHonors])
+    }, [data.kegiatan_id, data.jumlah_satuan, kegiatans])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -178,36 +177,20 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
                                 <InputError message={errors.mitra_id} className="mt-2" />
                             </div>
 
-                            {/* Rate Honor */}
-                            <div>
-                                <label
-                                    htmlFor="rate_honor_id"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Rate Honor <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="rate_honor_id"
-                                    value={data.rate_honor_id}
-                                    onChange={(e) => setData('rate_honor_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                >
-                                    <option value="">Pilih Rate Honor</option>
-                                    {rateHonors.map((rate) => (
-                                        <option key={rate.id} value={rate.id}>
-                                            {rate.nama} - {formatCurrency(rate.honor_satuan)}/
-                                            {rate.satuan.nama}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.rate_honor_id} className="mt-2" />
-                                {selectedRateHonor && (
-                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                        Honor per {selectedRateHonor.satuan.nama}:{' '}
-                                        {formatCurrency(selectedRateHonor.honor_satuan)}
+                            {/* Info Rate Honor dari Kegiatan */}
+                            {kegiatans.find((k) => k.id === data.kegiatan_id)?.rate_honor && (
+                                <div className="rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+                                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                                        <strong>Rate Honor:</strong>{' '}
+                                        {kegiatans.find((k) => k.id === data.kegiatan_id)?.rate_honor?.posisi} -{' '}
+                                        {formatCurrency(kegiatans.find((k) => k.id === data.kegiatan_id)?.rate_honor?.rate || 0)}/
+                                        {kegiatans.find((k) => k.id === data.kegiatan_id)?.rate_honor?.satuan.nama}
                                     </p>
-                                )}
-                            </div>
+                                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-500">
+                                        Rate honor ditentukan oleh kegiatan yang dipilih
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Grid untuk periode */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

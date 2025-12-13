@@ -38,6 +38,10 @@ export default function Index({ kegiatans, filters }: Props) {
     const [status, setStatus] = useState(filters.status || '')
     const [tahun, setTahun] = useState(filters.tahun?.toString() || '')
 
+    // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
+    const currentYear = new Date().getFullYear()
+    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
+
     const handleFilter = () => {
         router.get(
             '/alokasi',
@@ -130,15 +134,18 @@ export default function Index({ kegiatans, filters }: Props) {
                             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Tahun
                             </label>
-                            <input
-                                type="number"
+                            <select
                                 value={tahun}
                                 onChange={(e) => setTahun(e.target.value)}
-                                placeholder="2024"
                                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                min="2020"
-                                max="2099"
-                            />
+                            >
+                                <option value="">Semua Tahun</option>
+                                {tahunOptions.map((year) => (
+                                    <option key={year} value={year}>
+                                        {year}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="flex items-end gap-2">
@@ -216,7 +223,7 @@ export default function Index({ kegiatans, filters }: Props) {
                                                 {kegiatan.tahun_anggaran}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {formatCurrency(kegiatan.pagu_anggaran)}
+                                                {kegiatan.pagu_anggaran ? formatCurrency(kegiatan.pagu_anggaran) : '-'}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-300">

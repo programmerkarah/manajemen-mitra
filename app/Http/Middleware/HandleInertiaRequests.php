@@ -46,6 +46,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $user ? $user->load('roles') : null,
+                'activeRole' => $user ? $user->getActiveRole() : null,
+                'userRoles' => $user ? $user->roles : [],
                 'emailVerified' => $user?->hasVerifiedEmail() ?? false,
                 'twoFactorEnabled' => $user?->hasEnabledTwoFactorAuthentication() ?? false,
             ],

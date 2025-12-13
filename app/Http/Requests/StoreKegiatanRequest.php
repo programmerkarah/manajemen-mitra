@@ -11,7 +11,7 @@ class StoreKegiatanRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->isAdmin() || $this->user()->isPj();
+        return $this->user()->isAdmin() || $this->user()->isKetuaTim();
     }
 
     /**
@@ -24,12 +24,14 @@ class StoreKegiatanRequest extends FormRequest
         return [
             // kode_kegiatan will be generated automatically
             'nama_kegiatan' => ['required', 'string', 'max:255'],
+            'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'deskripsi' => ['nullable', 'string'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
             'tahun_anggaran' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 5)],
             'pagu_anggaran' => ['nullable', 'numeric', 'min:0'],
-            'pj_user_id' => ['required', 'exists:users,id'],
+            'ketua_tim_user_id' => ['required', 'exists:users,id'],
+            'rate_honor_id' => ['required', 'exists:rate_honor,id'],
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
         ];
     }
@@ -41,6 +43,8 @@ class StoreKegiatanRequest extends FormRequest
     {
         return [
             'nama_kegiatan.required' => 'Nama kegiatan wajib diisi.',
+            'jenis_kegiatan.required' => 'Jenis kegiatan wajib dipilih.',
+            'jenis_kegiatan.in' => 'Jenis kegiatan harus Sensus atau Survei.',
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
             'tanggal_selesai.required' => 'Tanggal selesai wajib diisi.',
             'tanggal_selesai.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
@@ -49,8 +53,10 @@ class StoreKegiatanRequest extends FormRequest
             'tahun_anggaran.max' => 'Tahun anggaran maksimal 5 tahun ke depan.',
             'pagu_anggaran.numeric' => 'Pagu anggaran harus berupa angka.',
             'pagu_anggaran.min' => 'Pagu anggaran minimal 0.',
-            'pj_user_id.required' => 'Penanggung jawab wajib dipilih.',
-            'pj_user_id.exists' => 'Penanggung jawab tidak valid.',
+            'ketua_tim_user_id.required' => 'Ketua tim wajib dipilih.',
+            'ketua_tim_user_id.exists' => 'Ketua tim tidak valid.',
+            'rate_honor_id.required' => 'Rate honor wajib dipilih.',
+            'rate_honor_id.exists' => 'Rate honor tidak valid.',
             'status.in' => 'Status tidak valid.',
         ];
     }

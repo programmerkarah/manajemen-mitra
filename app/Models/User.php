@@ -57,7 +57,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function kegiatanDikelola(): HasMany
     {
-        return $this->hasMany(Kegiatan::class, 'pj_user_id');
+        return $this->hasMany(Kegiatan::class, 'ketua_tim_user_id');
     }
 
     public function alokasiDiajukan(): HasMany
@@ -139,8 +139,70 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasRole('pj');
     }
 
+    public function isKetuaTim(): bool
+    {
+        return $this->hasRole('ketua_tim');
+    }
+
     public function isApprover(): bool
     {
         return $this->hasRole('approver');
+    }
+
+    /**
+     * Get the user's active role from session.
+     */
+    public function getActiveRole(): ?Role
+    {
+        $activeRoleId = session('active_role_id');
+
+        if (! $activeRoleId) {
+            // Default to first role if not set
+            $firstRole = $this->roles()->first();
+            if ($firstRole) {
+                session(['active_role_id' => $firstRole->id]);
+
+                return $firstRole;
+            }
+
+            return null;
+        }
+
+        return $this->roles()->find($activeRoleId);
+    }
+
+    /**
+     * Set the user's active role in session.
+     */
+    public function setActiveRole(int $roleId): bool
+    {
+        // Verify user has this role
+        if ($this->roles()->where('role_id', $roleId)->exists()) {
+            session(['active_role_id' => $roleId]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user's active role matches the given role name.
+     */
+    public function hasActiveRole(string $roleName): bool
+    {
+        $activeRole = $this->getActiveRole();
+
+        return $activeRole && $activeRole->name === $roleName;
+    }
+
+    /**
+     * Check if user's active role is one of the given roles.
+     */
+    public function hasAnyActiveRole(array $roleNames): bool
+    {
+        $activeRole = $this->getActiveRole();
+
+        return $activeRole && in_array($activeRole->name, $roleNames);
     }
 }

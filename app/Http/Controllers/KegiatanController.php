@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreKegiatanRequest;
 use App\Http\Requests\UpdateKegiatanRequest;
 use App\Models\Kegiatan;
+use App\Models\RateHonor;
+use App\Models\Satuan;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +20,7 @@ class KegiatanController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = Kegiatan::query()->with('penanggungJawab');
+        $query = Kegiatan::query()->with('ketuaTim');
 
         // Search
         if ($request->filled('search')) {
@@ -39,9 +41,9 @@ class KegiatanController extends Controller
             $query->where('tahun_anggaran', $request->tahun);
         }
 
-        // Filter by PJ for PJ role
-        if ($request->user()->isPJ()) {
-            $query->where('pj_user_id', $request->user()->id);
+        // Filter by Ketua Tim for ketua_tim role
+        if ($request->user()->isKetuaTim()) {
+            $query->where('ketua_tim_user_id', $request->user()->id);
         }
 
         $kegiatans = $query->latest()->paginate(15)->withQueryString();
@@ -57,9 +59,14 @@ class KegiatanController extends Controller
      */
     public function create(): Response
     {
-        $pjUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'pj'))
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
+            ->get();
+
+        $rateHonors = RateHonor::with('satuan')
+            ->where('status', 'aktif')
+            ->where('tahun_berlaku', now()->year)
             ->get();
 
         // Generate tahun options (current year - 2 to current year + 5)
@@ -67,7 +74,8 @@ class KegiatanController extends Controller
         $tahunOptions = range($currentYear - 2, $currentYear + 5);
 
         return Inertia::render('Kegiatan/Create', [
-            'pjUsers' => $pjUsers,
+            'ketuaTimUsers' => $ketuaTimUsers,
+            'rateHonors' => $rateHonors,
             'tahunOptions' => $tahunOptions,
         ]);
     }
@@ -122,9 +130,9 @@ class KegiatanController extends Controller
     public function show(Kegiatan $kegiatan): Response
     {
         $kegiatan->load([
-            'penanggungJawab',
+            'ketuaTim',
+            'rateHonor.satuan',
             'alokasi.mitra',
-            'alokasi.rateHonor.satuan',
         ]);
 
         return Inertia::render('Kegiatan/Show', [
@@ -137,7 +145,7 @@ class KegiatanController extends Controller
      */
     public function edit(Kegiatan $kegiatan): Response
     {
-        $pjUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'pj'))
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -148,7 +156,7 @@ class KegiatanController extends Controller
 
         return Inertia::render('Kegiatan/Edit', [
             'kegiatan' => $kegiatan,
-            'pjUsers' => $pjUsers,
+            'ketuaTimUsers' => $ketuaTimUsers,
             'tahunOptions' => $tahunOptions,
         ]);
     }
@@ -160,8 +168,8 @@ class KegiatanController extends Controller
     {
         $data = $request->validated();
 
-        // PJ can validate kegiatan
-        if ($request->user()->isPj() && $request->filled('validate')) {
+        // Ketua Tim can validate kegiatan
+        if ($request->user()->isKetuaTim() && $request->filled('validate')) {
             $data['status'] = 'divalidasi';
             $data['tanggal_validasi'] = now();
         }
@@ -181,5 +189,82 @@ class KegiatanController extends Controller
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Kegiatan berhasil dihapus.');
+    }
+
+    /**
+     * Show form to manage rate honors for a kegiatan
+     */
+    public function manageRateHonor(Kegiatan $kegiatan): Response
+    {
+        // Load existing rate honors for this kegiatan
+        $kegiatan->load(['rateHonors' => function ($query) {
+            $query->orderBy('status_kepegawaian')
+                ->orderBy('jenis_penugasan');
+        }]);
+
+        return Inertia::render('Kegiatan/ManageRateHonor', [
+            'kegiatan' => $kegiatan,
+        ]);
+    }
+
+    /**
+     * Bulk update rate honors for a kegiatan
+     */
+    public function bulkUpdateRateHonor(Request $request, Kegiatan $kegiatan): RedirectResponse
+    {
+        $request->validate([
+            'rate_honors' => ['required', 'array'],
+            'rate_honors.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
+            'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
+            'rate_honors.*.rate' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        // Get default satuan (OHK - Orang Hari Kerja)
+        $satuan = Satuan::where('nama', 'OHK')->orWhere('nama', 'Hari')->first();
+        if (! $satuan) {
+            $satuan = Satuan::first(); // Fallback ke satuan pertama jika OHK tidak ada
+        }
+
+        if (! $satuan) {
+            return redirect()->back()
+                ->withErrors(['error' => 'Satuan tidak ditemukan. Pastikan master satuan sudah diisi.']);
+        }
+
+        // Delete existing rate honors for this kegiatan
+        RateHonor::where('kegiatan_id', $kegiatan->id)->delete();
+
+        // Create new rate honors
+        foreach ($request->rate_honors as $rateHonorData) {
+            if ($rateHonorData['rate'] > 0) {
+                // Generate posisi label
+                $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
+                    ? 'Organik (PNS/PPPK)'
+                    : 'Non-Organik';
+
+                $penugasanLabels = [
+                    'pcl_ppl' => 'PCL/PPL',
+                    'pml' => 'PML',
+                    'pengolahan' => 'Pengolahan',
+                    'pengawas_pengolahan' => 'Pengawas Pengolahan',
+                ];
+                $penugasanLabel = $penugasanLabels[$rateHonorData['jenis_penugasan']] ?? $rateHonorData['jenis_penugasan'];
+
+                RateHonor::create([
+                    'kegiatan_id' => $kegiatan->id,
+                    'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                    'posisi' => "{$kegiatan->nama_kegiatan} - {$statusLabel} - {$penugasanLabel}",
+                    'jenis_penugasan' => $rateHonorData['jenis_penugasan'],
+                    'status_kepegawaian' => $rateHonorData['status_kepegawaian'],
+                    'deskripsi' => "Rate honor untuk kegiatan {$kegiatan->kode_kegiatan}",
+                    'rate' => $rateHonorData['rate'],
+                    'satuan_id' => $satuan->id,
+                    'tahun_berlaku' => $kegiatan->tahun_anggaran,
+                    'status' => 'aktif',
+                ]);
+            }
+        }
+
+        return redirect()->route('kegiatan.show', $kegiatan->hashed_id)
+            ->with('success', 'Rate honor berhasil disimpan.');
     }
 }

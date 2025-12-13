@@ -37,11 +37,12 @@ interface AlokasiCreateProps {
     kegiatans: Kegiatan[]
     mitras: Mitra[]
     rateHonors: RateHonor[]
+    selectedKegiatan?: Kegiatan | null
 }
 
-export default function Create({ kegiatans, mitras, rateHonors }: AlokasiCreateProps) {
+export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan }: AlokasiCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
-        kegiatan_id: '',
+        kegiatan_id: selectedKegiatan?.id || '',
         mitra_id: '',
         rate_honor_id: '',
         bulan: new Date().getMonth() + 1,

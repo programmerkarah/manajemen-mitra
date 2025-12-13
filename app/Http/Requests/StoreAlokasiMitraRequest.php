@@ -28,6 +28,7 @@ class StoreAlokasiMitraRequest extends FormRequest
             'bulan' => ['required', 'integer', 'min:1', 'max:12'],
             'tahun' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 1)],
             'jumlah_satuan' => ['required', 'integer', 'min:1'],
+            'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
     }
@@ -52,6 +53,8 @@ class StoreAlokasiMitraRequest extends FormRequest
             'tahun.max' => 'Tahun maksimal 1 tahun ke depan.',
             'jumlah_satuan.required' => 'Jumlah satuan wajib diisi.',
             'jumlah_satuan.min' => 'Jumlah satuan minimal 1.',
+            'jenis_kegiatan.required' => 'Jenis kegiatan wajib dipilih.',
+            'jenis_kegiatan.in' => 'Jenis kegiatan harus Sensus atau Survei.',
             'status.in' => 'Status tidak valid.',
         ];
     }

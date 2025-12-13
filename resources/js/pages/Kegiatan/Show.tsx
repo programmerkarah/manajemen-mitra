@@ -18,10 +18,13 @@ interface Alokasi {
 
 interface Props {
     kegiatan: Kegiatan & {
-        penanggung_jawab: {
+        ketua_tim: {
             id: number
             name: string
             email: string
+        }
+        rate_honor?: RateHonor & {
+            satuan: Satuan
         }
         alokasi: Alokasi[]
     }
@@ -86,6 +89,9 @@ export default function Show({ kegiatan }: Props) {
                     <div className="flex gap-3">
                         <Link href="/kegiatan">
                             <Button variant="outline">Kembali</Button>
+                        </Link>
+                        <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
+                            <Button variant="outline">Kelola Rate Honor</Button>
                         </Link>
                         <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
                             <Button>Edit Kegiatan</Button>
@@ -165,14 +171,35 @@ export default function Show({ kegiatan }: Props) {
 
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Penanggung Jawab
+                                    Ketua Tim
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.penanggung_jawab?.name || '-'}
+                                    {kegiatan.ketua_tim?.name || '-'}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {kegiatan.penanggung_jawab?.email || ''}
+                                    {kegiatan.ketua_tim?.email || ''}
                                 </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Rate Honor
+                                </label>
+                                {kegiatan.rate_honor ? (
+                                    <>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.rate_honor.posisi}
+                                        </p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {formatCurrency(kegiatan.rate_honor.rate)}/
+                                            {kegiatan.rate_honor.satuan.nama}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="mt-1 text-gray-500 dark:text-gray-400">
+                                        Belum ditentukan
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -214,7 +241,7 @@ export default function Show({ kegiatan }: Props) {
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                             Alokasi Mitra ({kegiatan.alokasi.length})
                         </h2>
-                        <Link href={`/alokasi/create?kegiatan_id=${kegiatan.id}`}>
+                        <Link href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}>
                             <Button size="sm">Tambah Alokasi</Button>
                         </Link>
                     </div>
@@ -225,7 +252,7 @@ export default function Show({ kegiatan }: Props) {
                                 Belum ada alokasi mitra untuk kegiatan ini
                             </p>
                             <Link
-                                href={`/alokasi/create?kegiatan_id=${kegiatan.id}`}
+                                href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
                                 className="mt-4 inline-block"
                             >
                                 <Button variant="outline" size="sm">
@@ -274,11 +301,11 @@ export default function Show({ kegiatan }: Props) {
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <div>
                                                     <div className="text-gray-900 dark:text-white">
-                                                        {alokasi.rate_honor.nama}
+                                                        {alokasi.rate_honor.posisi}
                                                     </div>
                                                     <div className="text-sm text-gray-500 dark:text-gray-400">
                                                         {formatCurrency(
-                                                            alokasi.rate_honor.honor_satuan
+                                                            alokasi.rate_honor.rate
                                                         )}
                                                         /{alokasi.rate_honor.satuan.nama}
                                                     </div>

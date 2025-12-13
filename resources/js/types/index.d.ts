@@ -1,8 +1,19 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+export interface Role {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+}
+
 export interface Auth {
     user: User;
+    activeRole: Role | null;
+    userRoles: Role[];
+    emailVerified: boolean;
+    twoFactorEnabled: boolean;
 }
 
 export interface BreadcrumbItem {
@@ -37,7 +48,7 @@ export interface User {
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
-    roles?: Array<{ id: number; name: string }>;
+    roles?: Role[];
     created_at: string;
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
@@ -48,10 +59,16 @@ export interface Kegiatan {
     hashed_id: string;
     kode_kegiatan: string;
     nama_kegiatan: string;
+    jenis_kegiatan: 'sensus' | 'survei';
     deskripsi: string | null;
     tahun_anggaran: number;
     pagu_anggaran: number | null;
-    pj_user_id: number;
+    ketua_tim_user_id: number;
+    rate_honor_id: string | null;
+    rate_honor_status: 'pending' | 'approved' | 'rejected' | null;
+    rate_honor_approved_by: number | null;
+    rate_honor_approved_at: string | null;
+    rate_honor_notes: string | null;
     tanggal_mulai: string;
     tanggal_selesai: string;
     status: 'draft' | 'divalidasi' | 'selesai' | 'dibatalkan';
@@ -80,9 +97,16 @@ export interface Mitra {
 export interface RateHonor {
     id: string;
     hashed_id: string;
-    nama: string;
-    honor_satuan: number;
+    posisi: string;
+    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    status_kepegawaian: 'organik' | 'non_organik';
+    deskripsi: string | null;
+    rate: number;
     satuan_id: string;
+    tahun_berlaku: number;
+    status: 'aktif' | 'nonaktif';
+    kegiatan_id?: string | null;
+    jenis_kegiatan?: 'sensus' | 'survei' | null;
     created_at: string;
     updated_at: string;
 }
@@ -100,11 +124,13 @@ export interface AlokasiMitra {
     hashed_id: string;
     kegiatan_id: string;
     mitra_id: string;
-    rate_honor_id: string;
     bulan: number;
     tahun: number;
     jumlah_satuan: number;
     total_honor: number;
+    peran: 'pcl_ppl' | 'pml' | 'pengolahan';
+    jenis_kegiatan: 'sensus' | 'survei';
+    status_kepegawaian: 'organik' | 'non_organik';
     status: 'draft' | 'diajukan' | 'disetujui_pj' | 'disetujui' | 'ditolak';
     submitted_by: number | null;
     submitted_at: string | null;
@@ -112,6 +138,20 @@ export interface AlokasiMitra {
     approved_at: string | null;
     catatan_approval: string | null;
     catatan: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Sbml {
+    id: number;
+    hashed_id: string;
+    tahun_anggaran: number;
+    jenis_kegiatan: 'sensus' | 'survei';
+    status_kepegawaian: 'organik' | 'non_organik';
+    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    honor_max: number;
+    keterangan: string | null;
+    status: 'aktif' | 'nonaktif';
     created_at: string;
     updated_at: string;
 }

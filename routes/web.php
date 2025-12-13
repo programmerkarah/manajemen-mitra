@@ -5,8 +5,9 @@ use App\Http\Controllers\BastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\MitraController;
-use App\Http\Controllers\RateHonorController;
-use App\Http\Controllers\SatuanController;
+use App\Http\Controllers\RoleSwitchController;
+use App\Http\Controllers\SbmlController;
+use App\Http\Controllers\SbmlReportController;
 use App\Http\Controllers\SkKpaController;
 use App\Http\Controllers\SpkController;
 use App\Http\Controllers\TwoFactorPromptController;
@@ -31,13 +32,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Role Switching
+    Route::post('switch-role', [RoleSwitchController::class, 'switch'])->name('role.switch');
+
     // Mitra Management (Admin only)
-    Route::middleware(['can:admin'])->group(function () {
+    Route::middleware(['active.role:admin'])->group(function () {
         Route::get('mitra/template/download', [MitraController::class, 'downloadTemplate'])->name('mitra.template');
         Route::post('mitra/import', [MitraController::class, 'import'])->name('mitra.import');
         Route::resource('mitra', MitraController::class);
-        Route::resource('satuan', SatuanController::class);
-        Route::resource('rate-honor', RateHonorController::class);
 
         // User Role Management
         Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
@@ -45,8 +47,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
     });
 
-    // Kegiatan Management (Admin and PJ)
-    Route::middleware(['can:admin-or-pj'])->group(function () {
+    // Rate Honor Management per Kegiatan
+    // IMPORTANT: Must be defined BEFORE kegiatan resource routes to avoid conflict
+    Route::get('kegiatan/{kegiatan}/rate-honor/manage', [KegiatanController::class, 'manageRateHonor'])
+        ->name('kegiatan.rate-honor.manage')
+        ->middleware('active.role:operator,admin,ketua_tim');
+    Route::post('kegiatan/{kegiatan}/rate-honor/bulk', [KegiatanController::class, 'bulkUpdateRateHonor'])
+        ->name('kegiatan.rate-honor.bulk')
+        ->middleware('active.role:operator,admin,ketua_tim');
+
+    // Kegiatan Management (Admin and Ketua Tim)
+    Route::middleware(['active.role:admin,ketua_tim'])->group(function () {
         Route::resource('kegiatan', KegiatanController::class);
     });
 
@@ -56,17 +67,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiMitraController::class, 'storeMultiple'])
         ->name('alokasi.store-multiple');
     Route::resource('alokasi', AlokasiMitraController::class);
+
+    // Alokasi Approval Workflow
     Route::post('alokasi/{alokasi}/submit', [AlokasiMitraController::class, 'submit'])
         ->name('alokasi.submit');
+    Route::post('alokasi/{alokasi}/approve-pj', [AlokasiMitraController::class, 'approvePj'])
+        ->name('alokasi.approve-pj')
+        ->middleware('active.role:pj');
     Route::post('alokasi/{alokasi}/approve', [AlokasiMitraController::class, 'approve'])
         ->name('alokasi.approve')
-        ->middleware('can:approver');
+        ->middleware('active.role:approver');
     Route::post('alokasi/{alokasi}/reject', [AlokasiMitraController::class, 'reject'])
         ->name('alokasi.reject')
-        ->middleware('can:approver');
+        ->middleware('active.role:approver');
 
-    // Document Management
-    Route::middleware(['can:admin-or-approver'])->group(function () {
+    // SBML Management (Admin only)
+    Route::middleware(['active.role:admin'])->group(function () {
+        Route::delete('sbml/year/{tahun}', [SbmlController::class, 'destroyYear'])->name('sbml.destroyYear');
+        Route::resource('sbml', SbmlController::class);
+    });
+
+    // SBML Report (Admin, Operator, Approver)
+    Route::get('sbml-report', [SbmlReportController::class, 'index'])
+        ->name('sbml.report')
+        ->middleware('active.role:admin,operator,approver');
+
+    // Document Management (Admin or Approver)
+    Route::middleware(['active.role:admin,approver'])->group(function () {
         Route::resource('sk-kpa', SkKpaController::class);
         Route::resource('spk', SpkController::class);
         Route::resource('bast', BastController::class);

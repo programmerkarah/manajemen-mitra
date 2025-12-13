@@ -24,6 +24,7 @@ class Kegiatan extends Model
             'tanggal_mulai' => 'date:Y-m-d',
             'tanggal_selesai' => 'date:Y-m-d',
             'tanggal_validasi' => 'date:Y-m-d',
+            'rate_honor_approved_at' => 'datetime',
             'tahun_anggaran' => 'integer',
             'anggaran' => 'decimal:2',
         ];
@@ -32,21 +33,37 @@ class Kegiatan extends Model
     protected $fillable = [
         'kode_kegiatan',
         'nama_kegiatan',
+        'jenis_kegiatan',
         'deskripsi',
         'tanggal_mulai',
         'tanggal_selesai',
         'tahun_anggaran',
         'anggaran',
         'pagu_anggaran', // alias for anggaran
-        'pj_user_id',
+        'ketua_tim_user_id',
+        'rate_honor_id',
+        'rate_honor_status',
+        'rate_honor_approved_by',
+        'rate_honor_approved_at',
+        'rate_honor_notes',
         'status',
         'tanggal_validasi',
         'catatan',
     ];
 
-    public function penanggungJawab(): BelongsTo
+    public function ketuaTim(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'pj_user_id');
+        return $this->belongsTo(User::class, 'ketua_tim_user_id');
+    }
+
+    public function rateHonor(): BelongsTo
+    {
+        return $this->belongsTo(RateHonor::class);
+    }
+
+    public function rateHonors(): HasMany
+    {
+        return $this->hasMany(RateHonor::class, 'kegiatan_id');
     }
 
     // Accessor untuk pagu_anggaran (alias untuk anggaran)
@@ -72,6 +89,11 @@ class Kegiatan extends Model
     public function alokasi(): HasMany
     {
         return $this->hasMany(AlokasiMitra::class);
+    }
+
+    public function rateHonorApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rate_honor_approved_by');
     }
 
     public function skKpa(): HasMany

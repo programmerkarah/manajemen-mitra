@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CheckActiveRole;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'sanitize' => SanitizeInput::class,
+            'active.role' => CheckActiveRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

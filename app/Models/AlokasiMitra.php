@@ -33,11 +33,13 @@ class AlokasiMitra extends Model
     protected $fillable = [
         'kegiatan_id',
         'mitra_id',
-        'rate_honor_id',
         'bulan',
         'tahun',
         'jumlah_satuan',
         'total_honor',
+        'peran',
+        'jenis_kegiatan',
+        'status_kepegawaian',
         'status',
         'submitted_by',
         'submitted_at',
@@ -55,11 +57,6 @@ class AlokasiMitra extends Model
     public function mitra(): BelongsTo
     {
         return $this->belongsTo(Mitra::class);
-    }
-
-    public function rateHonor(): BelongsTo
-    {
-        return $this->belongsTo(RateHonor::class);
     }
 
     public function submittedBy(): BelongsTo

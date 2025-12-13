@@ -17,11 +17,11 @@ interface User {
 
 interface KegiatanEditProps {
     kegiatan: Kegiatan
-    pjUsers: User[]
+    ketuaTimUsers: User[]
     tahunOptions: number[]
 }
 
-export default function Edit({ kegiatan, pjUsers, tahunOptions }: KegiatanEditProps) {
+export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: KegiatanEditProps) {
     // Format tanggal dari Carbon ke Y-m-d format
     const formatDateForInput = (dateString: string | null): string => {
         if (!dateString) return ''
@@ -43,10 +43,11 @@ export default function Edit({ kegiatan, pjUsers, tahunOptions }: KegiatanEditPr
     const { data, setData, put, processing, errors } = useForm({
         kode_kegiatan: kegiatan.kode_kegiatan || '',
         nama_kegiatan: kegiatan.nama_kegiatan || '',
+        jenis_kegiatan: kegiatan.jenis_kegiatan || 'survei',
         deskripsi: kegiatan.deskripsi || '',
         tahun_anggaran: kegiatan.tahun_anggaran || new Date().getFullYear(),
         pagu_anggaran: kegiatan.pagu_anggaran?.toString() || '',
-        pj_user_id: kegiatan.pj_user_id?.toString() || '',
+        ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
         tanggal_mulai: formatDateForInput(kegiatan.tanggal_mulai),
         tanggal_selesai: formatDateForInput(kegiatan.tanggal_selesai),
     })
@@ -126,6 +127,29 @@ export default function Edit({ kegiatan, pjUsers, tahunOptions }: KegiatanEditPr
                                 <InputError message={errors.nama_kegiatan} className="mt-2" />
                             </div>
 
+                            {/* Jenis Kegiatan */}
+                            <div>
+                                <label
+                                    htmlFor="jenis_kegiatan"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                    Jenis Kegiatan <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="jenis_kegiatan"
+                                    value={data.jenis_kegiatan}
+                                    onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                >
+                                    <option value="survei">Survei</option>
+                                    <option value="sensus">Sensus</option>
+                                </select>
+                                <InputError message={errors.jenis_kegiatan} className="mt-2" />
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Jenis kegiatan akan menentukan rate honor yang tersedia
+                                </p>
+                            </div>
+
                             {/* Deskripsi */}
                             <div>
                                 <label
@@ -195,28 +219,28 @@ export default function Edit({ kegiatan, pjUsers, tahunOptions }: KegiatanEditPr
                                 </div>
                             </div>
 
-                            {/* Penanggung Jawab */}
+                            {/* Ketua Tim */}
                             <div>
                                 <label
-                                    htmlFor="pj_user_id"
+                                    htmlFor="ketua_tim_user_id"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Penanggung Jawab <span className="text-red-500">*</span>
+                                    Ketua Tim <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    id="pj_user_id"
-                                    value={data.pj_user_id}
-                                    onChange={(e) => setData('pj_user_id', e.target.value)}
+                                    id="ketua_tim_user_id"
+                                    value={data.ketua_tim_user_id}
+                                    onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                 >
-                                    <option value="">Pilih Penanggung Jawab</option>
-                                    {pjUsers.map((user) => (
+                                    <option value="">Pilih Ketua Tim</option>
+                                    {ketuaTimUsers.map((user) => (
                                         <option key={user.id} value={user.id}>
                                             {user.name} ({user.email})
                                         </option>
                                     ))}
                                 </select>
-                                <InputError message={errors.pj_user_id} className="mt-2" />
+                                <InputError message={errors.ketua_tim_user_id} className="mt-2" />
                             </div>
 
                             {/* Grid untuk tanggal */}
