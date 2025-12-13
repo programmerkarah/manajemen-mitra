@@ -14,8 +14,9 @@ import {
 } from '@/components/ui/input-otp';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
+import { dashboard } from '@/routes';
 import { confirm } from '@/routes/two-factor';
-import { Form } from '@inertiajs/react';
+import { Form, router } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Check, Copy, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -133,9 +134,13 @@ function TwoFactorSetupStep({
 function TwoFactorVerificationStep({
     onClose,
     onBack,
+    requiresConfirmation,
+    isRequired,
 }: {
     onClose: () => void;
     onBack: () => void;
+    requiresConfirmation: boolean;
+    isRequired: boolean;
 }) {
     const [code, setCode] = useState<string>('');
     const pinInputContainerRef = useRef<HTMLDivElement>(null);
@@ -149,7 +154,13 @@ function TwoFactorVerificationStep({
     return (
         <Form
             {...confirm.form()}
-            onSuccess={() => onClose()}
+            onSuccess={() => {
+                onClose();
+                // Redirect to dashboard after successful 2FA confirmation if it's required
+                if (requiresConfirmation && isRequired) {
+                    router.visit(dashboard());
+                }
+            }}
             resetOnError
             resetOnSuccess
         >
@@ -230,6 +241,7 @@ interface TwoFactorSetupModalProps {
     clearSetupData: () => void;
     fetchSetupData: () => Promise<void>;
     errors: string[];
+    isRequired?: boolean;
 }
 
 export default function TwoFactorSetupModal({
@@ -242,6 +254,7 @@ export default function TwoFactorSetupModal({
     clearSetupData,
     fetchSetupData,
     errors,
+    isRequired = false,
 }: TwoFactorSetupModalProps) {
     const [showVerificationStep, setShowVerificationStep] =
         useState<boolean>(false);
@@ -296,10 +309,10 @@ export default function TwoFactorSetupModal({
     }, [twoFactorEnabled, clearSetupData]);
 
     useEffect(() => {
-        if (isOpen && !qrCodeSvg) {
+        if (isOpen && (!qrCodeSvg || !manualSetupKey)) {
             fetchSetupData();
         }
-    }, [isOpen, qrCodeSvg, fetchSetupData]);
+    }, [isOpen, qrCodeSvg, manualSetupKey, fetchSetupData]);
 
     const handleClose = useCallback(() => {
         resetModalState();
@@ -322,6 +335,8 @@ export default function TwoFactorSetupModal({
                         <TwoFactorVerificationStep
                             onClose={onClose}
                             onBack={() => setShowVerificationStep(false)}
+                            requiresConfirmation={requiresConfirmation}
+                            isRequired={isRequired}
                         />
                     ) : (
                         <TwoFactorSetupStep

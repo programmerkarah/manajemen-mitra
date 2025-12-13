@@ -32,7 +32,9 @@ class EnsureTwoFactorEnabled
             $request->routeIs('verification.*') ||
             $request->routeIs('logout') ||
             $request->routeIs('user.*') ||
-            str_starts_with($request->path(), 'settings/')
+            $request->routeIs('password.confirm') ||
+            str_starts_with($request->path(), 'settings/') ||
+            str_starts_with($request->path(), 'user/')
         ) {
             return $next($request);
         }

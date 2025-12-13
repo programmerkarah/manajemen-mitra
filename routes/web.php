@@ -32,6 +32,11 @@ Route::get('/debug', function () {
     ]);
 });
 
+// Simple HTML test without Inertia
+Route::get('/simple', function () {
+    return view('simple-test');
+});
+
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');

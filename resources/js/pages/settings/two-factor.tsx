@@ -8,7 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { disable, enable, show } from '@/routes/two-factor';
 import { type BreadcrumbItem } from '@/types';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { ShieldBan, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,6 +28,9 @@ export default function TwoFactor({
     requiresConfirmation = false,
     twoFactorEnabled = false,
 }: TwoFactorProps) {
+    const { url } = usePage();
+    const isRequired = new URLSearchParams(url.split('?')[1] || '').get('required') === 'true';
+    
     const {
         qrCodeSvg,
         hasSetupData,
@@ -100,9 +103,10 @@ export default function TwoFactor({
                                 ) : (
                                     <Form
                                         {...enable.form()}
-                                        onSuccess={() =>
-                                            setShowSetupModal(true)
-                                        }
+                                        onSuccess={async () => {
+                                            await fetchSetupData();
+                                            setShowSetupModal(true);
+                                        }}
                                     >
                                         {({ processing }) => (
                                             <Button
@@ -129,6 +133,7 @@ export default function TwoFactor({
                         clearSetupData={clearSetupData}
                         fetchSetupData={fetchSetupData}
                         errors={errors}
+                        isRequired={isRequired}
                     />
                 </div>
             </SettingsLayout>

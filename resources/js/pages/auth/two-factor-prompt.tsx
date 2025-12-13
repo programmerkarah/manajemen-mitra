@@ -48,7 +48,7 @@ export default function TwoFactorPrompt() {
                 </div>
 
                 <div className="pt-4">
-                    <Link href={show.url()}>
+                    <Link href={show.url({ query: { required: 'true' } })}>
                         <Button className="w-full" size="lg">
                             <ShieldCheck />
                             Enable Two-Factor Authentication
