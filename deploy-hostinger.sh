@@ -10,6 +10,11 @@ git pull origin main
 echo "📦 Installing Composer dependencies..."
 composer install --optimize-autoloader --no-dev
 
+# Build frontend assets
+echo "🎨 Building frontend assets..."
+npm ci
+npm run build
+
 # Create storage symlink manually (exec is disabled on Hostinger)
 echo "🔗 Creating storage symlink..."
 if [ ! -L public/storage ]; then
