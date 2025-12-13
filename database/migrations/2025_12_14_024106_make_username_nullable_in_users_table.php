@@ -12,12 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Set default value untuk existing rows yang tidak punya username
+        DB::statement('UPDATE users SET username = LOWER(REPLACE(name, " ", "")) WHERE username IS NULL OR username = ""');
+        
         Schema::table('users', function (Blueprint $table) {
-            // Set default value untuk existing rows yang tidak punya username
-            DB::statement('UPDATE users SET username = LOWER(REPLACE(name, " ", "")) WHERE username IS NULL OR username = ""');
-            
-            // Ensure username is NOT NULL with unique constraint
-            $table->string('username')->nullable(false)->unique()->change();
+            // Hanya change nullable, tanpa menambah unique lagi (sudah ada dari migration sebelumnya)
+            $table->string('username')->nullable(false)->change();
         });
     }
 
