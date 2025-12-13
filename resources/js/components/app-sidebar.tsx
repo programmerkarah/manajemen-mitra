@@ -121,26 +121,48 @@ export function AppSidebar() {
             }
         );
     } else if (hasActiveRole('ketua_tim')) {
-        // Ketua Tim can see Kegiatan and Alokasi for their own kegiatan
+        // Ketua Tim can see Master (Kegiatan only) and Petugas (Alokasi only)
         mainNavItems.push(
             {
-                title: 'Kegiatan',
-                href: '/kegiatan',
-                icon: Briefcase,
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                ],
             },
             {
-                title: 'Alokasi Petugas',
-                href: '/alokasi',
-                icon: UserCheck,
+                title: 'Petugas',
+                href: '#',
+                icon: Users,
+                items: [
+                    {
+                        title: 'Alokasi Petugas',
+                        href: '/alokasi',
+                    },
+                ],
             }
         );
     } else if (hasActiveRole('operator')) {
-        // Operator can see Kegiatan and SBML Report
+        // Operator can see Master (Kegiatan, SBML) and Laporan SBML
         mainNavItems.push(
             {
-                title: 'Kegiatan',
-                href: '/kegiatan',
-                icon: Briefcase,
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                    {
+                        title: 'SBML',
+                        href: '/sbml',
+                    },
+                ],
             },
             {
                 title: 'Laporan SBML',

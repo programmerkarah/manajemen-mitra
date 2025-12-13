@@ -92,8 +92,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('alokasi.reject')
         ->middleware('active.role:approver');
 
-    // SBML Management (Admin only)
-    Route::middleware(['active.role:admin'])->group(function () {
+    // SBML Management (Admin, Operator)
+    Route::middleware(['active.role:admin,operator'])->group(function () {
         Route::delete('sbml/year/{tahun}', [SbmlController::class, 'destroyYear'])->name('sbml.destroyYear');
         Route::resource('sbml', SbmlController::class);
     });

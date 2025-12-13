@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout'
 import InputError from '@/components/input-error'
-import { type BreadcrumbItem, type Kegiatan } from '@/types'
-import { Head, Link, useForm } from '@inertiajs/react'
+import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types'
+import { Head, Link, useForm, usePage } from '@inertiajs/react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -22,6 +22,9 @@ interface KegiatanEditProps {
 }
 
 export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: KegiatanEditProps) {
+    const { auth } = usePage<SharedData>().props
+    const isKetuaTim = auth.activeRole?.name === 'ketua_tim'
+
     // Format tanggal dari Carbon ke Y-m-d format
     const formatDateForInput = (dateString: string | null): string => {
         if (!dateString) return ''
@@ -219,29 +222,31 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                                 </div>
                             </div>
 
-                            {/* Ketua Tim */}
-                            <div>
-                                <label
-                                    htmlFor="ketua_tim_user_id"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Ketua Tim <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="ketua_tim_user_id"
-                                    value={data.ketua_tim_user_id}
-                                    onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                >
-                                    <option value="">Pilih Ketua Tim</option>
-                                    {ketuaTimUsers.map((user) => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.name} ({user.email})
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.ketua_tim_user_id} className="mt-2" />
-                            </div>
+                            {/* Ketua Tim - Hidden for ketua_tim role */}
+                            {!isKetuaTim && (
+                                <div>
+                                    <label
+                                        htmlFor="ketua_tim_user_id"
+                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >
+                                        Ketua Tim <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        id="ketua_tim_user_id"
+                                        value={data.ketua_tim_user_id}
+                                        onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                    >
+                                        <option value="">Pilih Ketua Tim</option>
+                                        {ketuaTimUsers.map((user) => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name} ({user.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.ketua_tim_user_id} className="mt-2" />
+                                </div>
+                            )}
 
                             {/* Grid untuk tanggal */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
