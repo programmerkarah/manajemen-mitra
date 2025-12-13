@@ -18,6 +18,20 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
+// Debug route - remove after deployment works
+Route::get('/debug', function () {
+    return response()->json([
+        'status' => 'OK',
+        'laravel_version' => app()->version(),
+        'environment' => app()->environment(),
+        'debug_mode' => config('app.debug'),
+        'url' => config('app.url'),
+        'session_driver' => config('session.driver'),
+        'cache_driver' => config('cache.default'),
+        'can_register' => Features::enabled(Features::registration()),
+    ]);
+});
+
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
