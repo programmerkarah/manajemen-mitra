@@ -11,7 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop the unique constraint (no foreign keys exist for kegiatan_id and mitra_id)
+        // Drop foreign keys first (they may or may not exist depending on migration history)
+        Schema::table('alokasi_mitra', function (Blueprint $table) {
+            // Try to drop foreign keys - use DB::statement for conditional drop
+            $table->dropForeign(['kegiatan_id']);
+            $table->dropForeign(['mitra_id']);
+        });
+
+        // Now we can safely drop the unique constraint
         Schema::table('alokasi_mitra', function (Blueprint $table) {
             $table->dropUnique('unique_alokasi');
         });
