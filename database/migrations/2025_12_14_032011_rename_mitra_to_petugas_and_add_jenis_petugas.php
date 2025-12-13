@@ -11,13 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, drop foreign key constraint on mitra_id
-        Schema::table('alokasi_mitra', function (Blueprint $table) {
-            // Drop foreign key using column name (Laravel will find the constraint automatically)
-            $table->dropForeign(['mitra_id']);
-        });
-
-        // Drop unique constraint separately
+        // Drop the unique constraint (no foreign keys exist for kegiatan_id and mitra_id)
         Schema::table('alokasi_mitra', function (Blueprint $table) {
             $table->dropUnique('unique_alokasi');
         });
@@ -38,8 +32,9 @@ return new class extends Migration
             $table->renameColumn('mitra_id', 'petugas_id');
         });
 
-        // Re-add foreign key and unique constraint with new names
+        // Re-add foreign keys and unique constraint with new names
         Schema::table('alokasi_petugas', function (Blueprint $table) {
+            $table->foreign('kegiatan_id')->references('id')->on('kegiatan')->onDelete('cascade');
             $table->foreign('petugas_id')->references('id')->on('petugas')->onDelete('cascade');
             $table->unique(['kegiatan_id', 'petugas_id', 'bulan', 'tahun'], 'unique_alokasi');
         });
@@ -50,12 +45,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop foreign key and unique constraint
+        // Drop foreign keys and unique constraint
         Schema::table('alokasi_petugas', function (Blueprint $table) {
+            $table->dropForeign(['kegiatan_id']);
             $table->dropForeign(['petugas_id']);
-        });
-
-        Schema::table('alokasi_petugas', function (Blueprint $table) {
             $table->dropUnique('unique_alokasi');
         });
 
@@ -75,9 +68,8 @@ return new class extends Migration
         // Rename petugas table back to mitra
         Schema::rename('petugas', 'mitra');
 
-        // Re-add foreign key and unique constraint with old names
+        // Re-add unique constraint only (foreign keys were not present in original state)
         Schema::table('alokasi_mitra', function (Blueprint $table) {
-            $table->foreign('mitra_id')->references('id')->on('mitra')->onDelete('cascade');
             $table->unique(['kegiatan_id', 'mitra_id', 'bulan', 'tahun'], 'unique_alokasi');
         });
     }
