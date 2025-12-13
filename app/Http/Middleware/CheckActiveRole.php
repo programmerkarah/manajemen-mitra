@@ -32,10 +32,8 @@ class CheckActiveRole
 
         // Check if user's active role matches any of the specified roles
         if (! $user->hasAnyActiveRole($roles)) {
-            $activeRole = $user->getActiveRole();
-            $activeRoleName = $activeRole ? $activeRole->display_name : 'None';
-
-            abort(403, "Akses ditolak. Role aktif Anda ({$activeRoleName}) tidak memiliki izin untuk halaman ini.");
+            return redirect()->route('dashboard')
+                ->with('error', 'Anda tidak memiliki akses ke halaman tersebut dengan role saat ini.');
         }
 
         return $next($request);

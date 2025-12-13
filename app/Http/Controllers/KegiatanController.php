@@ -111,6 +111,11 @@ class KegiatanController extends Controller
     {
         $data = $request->validated();
 
+        // If ketua_tim creates kegiatan, automatically assign themselves as ketua_tim
+        if ($request->user()->isKetuaTim()) {
+            $data['ketua_tim_user_id'] = $request->user()->id;
+        }
+
         // Generate kode kegiatan otomatis
         $data['kode_kegiatan'] = $this->generateKodeKegiatan($data['tahun_anggaran']);
 
@@ -127,12 +132,17 @@ class KegiatanController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Kegiatan $kegiatan): Response
+    public function show(Request $request, Kegiatan $kegiatan): Response
     {
+        // Ketua Tim can only view their own kegiatan
+        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+            abort(403, 'Anda tidak memiliki akses untuk melihat kegiatan ini.');
+        }
+
         $kegiatan->load([
             'ketuaTim',
-            'rateHonor.satuan',
-            'alokasi.mitra',
+            'rateHonors.satuan',
+            'alokasi.petugas',
         ]);
 
         return Inertia::render('Kegiatan/Show', [
@@ -143,8 +153,12 @@ class KegiatanController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Kegiatan $kegiatan): Response
+    public function edit(Request $request, Kegiatan $kegiatan): Response
     {
+        // Ketua Tim can only edit their own kegiatan
+        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+            abort(403, 'Anda tidak memiliki akses untuk mengedit kegiatan ini.');
+        }
         $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
@@ -166,6 +180,11 @@ class KegiatanController extends Controller
      */
     public function update(UpdateKegiatanRequest $request, Kegiatan $kegiatan): RedirectResponse
     {
+        // Ketua Tim can only update their own kegiatan
+        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+            abort(403, 'Anda tidak memiliki akses untuk mengupdate kegiatan ini.');
+        }
+
         $data = $request->validated();
 
         // Ketua Tim can validate kegiatan
@@ -183,8 +202,12 @@ class KegiatanController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Kegiatan $kegiatan): RedirectResponse
+    public function destroy(Request $request, Kegiatan $kegiatan): RedirectResponse
     {
+        // Only admin can delete kegiatan
+        if (! $request->user()->isAdmin()) {
+            abort(403, 'Anda tidak memiliki akses untuk menghapus kegiatan ini.');
+        }
         $kegiatan->delete();
 
         return redirect()->route('kegiatan.index')
@@ -202,8 +225,12 @@ class KegiatanController extends Controller
                 ->orderBy('jenis_penugasan');
         }]);
 
+        // Get all available satuan
+        $satuans = Satuan::where('status', 'aktif')->get();
+
         return Inertia::render('Kegiatan/ManageRateHonor', [
             'kegiatan' => $kegiatan,
+            'satuans' => $satuans,
         ]);
     }
 
@@ -217,51 +244,39 @@ class KegiatanController extends Controller
             'rate_honors.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
             'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
             'rate_honors.*.rate' => ['required', 'numeric', 'min:0'],
+            'rate_honors.*.satuan_id' => ['required', 'exists:satuan,id'],
         ]);
-
-        // Get default satuan (OHK - Orang Hari Kerja)
-        $satuan = Satuan::where('nama', 'OHK')->orWhere('nama', 'Hari')->first();
-        if (! $satuan) {
-            $satuan = Satuan::first(); // Fallback ke satuan pertama jika OHK tidak ada
-        }
-
-        if (! $satuan) {
-            return redirect()->back()
-                ->withErrors(['error' => 'Satuan tidak ditemukan. Pastikan master satuan sudah diisi.']);
-        }
 
         // Delete existing rate honors for this kegiatan
         RateHonor::where('kegiatan_id', $kegiatan->id)->delete();
 
         // Create new rate honors
         foreach ($request->rate_honors as $rateHonorData) {
-            if ($rateHonorData['rate'] > 0) {
-                // Generate posisi label
-                $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
-                    ? 'Organik (PNS/PPPK)'
-                    : 'Non-Organik';
+            // Generate posisi label
+            $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
+                ? 'Organik (PNS/PPPK)'
+                : 'Non-Organik';
 
-                $penugasanLabels = [
-                    'pcl_ppl' => 'PCL/PPL',
-                    'pml' => 'PML',
-                    'pengolahan' => 'Pengolahan',
-                    'pengawas_pengolahan' => 'Pengawas Pengolahan',
-                ];
-                $penugasanLabel = $penugasanLabels[$rateHonorData['jenis_penugasan']] ?? $rateHonorData['jenis_penugasan'];
+            $penugasanLabels = [
+                'pcl_ppl' => 'PCL/PPL',
+                'pml' => 'PML',
+                'pengolahan' => 'Pengolahan',
+                'pengawas_pengolahan' => 'Pengawas Pengolahan',
+            ];
+            $penugasanLabel = $penugasanLabels[$rateHonorData['jenis_penugasan']] ?? $rateHonorData['jenis_penugasan'];
 
-                RateHonor::create([
-                    'kegiatan_id' => $kegiatan->id,
-                    'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
-                    'posisi' => "{$kegiatan->nama_kegiatan} - {$statusLabel} - {$penugasanLabel}",
-                    'jenis_penugasan' => $rateHonorData['jenis_penugasan'],
-                    'status_kepegawaian' => $rateHonorData['status_kepegawaian'],
-                    'deskripsi' => "Rate honor untuk kegiatan {$kegiatan->kode_kegiatan}",
-                    'rate' => $rateHonorData['rate'],
-                    'satuan_id' => $satuan->id,
-                    'tahun_berlaku' => $kegiatan->tahun_anggaran,
-                    'status' => 'aktif',
-                ]);
-            }
+            RateHonor::create([
+                'kegiatan_id' => $kegiatan->id,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'posisi' => "{$kegiatan->nama_kegiatan} - {$statusLabel} - {$penugasanLabel}",
+                'jenis_penugasan' => $rateHonorData['jenis_penugasan'],
+                'status_kepegawaian' => $rateHonorData['status_kepegawaian'],
+                'deskripsi' => "Rate honor untuk kegiatan {$kegiatan->kode_kegiatan}",
+                'rate' => $rateHonorData['rate'],
+                'satuan_id' => $rateHonorData['satuan_id'],
+                'tahun_berlaku' => $kegiatan->tahun_anggaran,
+                'status' => 'aktif',
+            ]);
         }
 
         return redirect()->route('kegiatan.show', $kegiatan->hashed_id)

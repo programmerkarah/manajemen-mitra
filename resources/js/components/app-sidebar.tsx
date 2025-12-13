@@ -1,6 +1,7 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { YearSwitcher } from '@/components/year-switcher';
 import {
     Sidebar,
     SidebarContent,
@@ -64,24 +65,34 @@ export function AppSidebar() {
     if (hasActiveRole('admin')) {
         mainNavItems.push(
             {
-                title: 'Manajemen Mitra',
-                href: '/mitra',
+                title: 'Petugas',
+                href: '#',
                 icon: Users,
+                items: [
+                    {
+                        title: 'Manajemen Petugas',
+                        href: '/petugas',
+                    },
+                    {
+                        title: 'Alokasi Petugas',
+                        href: '/alokasi',
+                    },
+                ],
             },
             {
-                title: 'Kegiatan',
-                href: '/kegiatan',
-                icon: Briefcase,
-            },
-            {
-                title: 'Alokasi Mitra',
-                href: '/alokasi',
-                icon: UserCheck,
-            },
-            {
-                title: 'SBML',
-                href: '/sbml',
-                icon: Calculator,
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                    {
+                        title: 'SBML',
+                        href: '/sbml',
+                    },
+                ],
             },
             {
                 title: 'Laporan SBML',
@@ -109,8 +120,8 @@ export function AppSidebar() {
                 icon: Users,
             }
         );
-    } else if (hasActiveRole('pj')) {
-        // PJ can see Kegiatan and Alokasi
+    } else if (hasActiveRole('ketua_tim')) {
+        // Ketua Tim can see Kegiatan and Alokasi for their own kegiatan
         mainNavItems.push(
             {
                 title: 'Kegiatan',
@@ -118,18 +129,18 @@ export function AppSidebar() {
                 icon: Briefcase,
             },
             {
-                title: 'Alokasi Mitra',
+                title: 'Alokasi Petugas',
                 href: '/alokasi',
                 icon: UserCheck,
             }
         );
-    } else if (hasActiveRole('operator') || hasActiveRole('approver')) {
-        // Operator and Approver can see Alokasi, Rate Honor Management, and SBML Report
+    } else if (hasActiveRole('operator')) {
+        // Operator can see Kegiatan and SBML Report
         mainNavItems.push(
             {
-                title: 'Alokasi Mitra',
-                href: '/alokasi',
-                icon: UserCheck,
+                title: 'Kegiatan',
+                href: '/kegiatan',
+                icon: Briefcase,
             },
             {
                 title: 'Laporan SBML',
@@ -137,6 +148,17 @@ export function AppSidebar() {
                 icon: BarChart3,
             }
         );
+    } else if (hasActiveRole('approver')) {
+        // Approver can see SBML Report
+        mainNavItems.push(
+            {
+                title: 'Laporan SBML',
+                href: '/sbml-report',
+                icon: BarChart3,
+            }
+        );
+    } else if (hasActiveRole('pj')) {
+        // PJ - no additional menus (just dashboard)
     }
 
     return (
@@ -159,6 +181,7 @@ export function AppSidebar() {
 
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
+                <YearSwitcher />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

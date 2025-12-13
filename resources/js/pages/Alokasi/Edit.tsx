@@ -1,12 +1,12 @@
 import AppLayout from '@/layouts/app-layout'
 import InputError from '@/components/input-error'
-import { type BreadcrumbItem, type AlokasiMitra } from '@/types'
+import { type BreadcrumbItem, type AlokasiPetugas } from '@/types'
 import { Head, Link, useForm } from '@inertiajs/react'
 import { useEffect, useState } from 'react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Alokasi Mitra', href: '/alokasi' },
+    { title: 'Alokasi petugas', href: '/alokasi' },
     { title: 'Edit Alokasi', href: '#' },
 ]
 
@@ -23,7 +23,7 @@ interface Kegiatan {
     } | null
 }
 
-interface Mitra {
+interface petugas {
     id: string
     nama: string
     nik: string
@@ -41,16 +41,16 @@ interface RateHonor {
 }
 
 interface AlokasiEditProps {
-    alokasi: AlokasiMitra
+    alokasi: AlokasiPetugas
     kegiatans: Kegiatan[]
-    mitras: Mitra[]
+    Petugas: petugas[]
     rateHonors: RateHonor[]
 }
 
-export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: AlokasiEditProps) {
+export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: AlokasiEditProps) {
     const { data, setData, put, processing, errors } = useForm({
         kegiatan_id: alokasi.kegiatan_id || '',
-        mitra_id: alokasi.mitra_id || '',
+        petugas_id: alokasi.petugas_id || '',
         bulan: alokasi.bulan || new Date().getMonth() + 1,
         tahun: alokasi.tahun || new Date().getFullYear(),
         jumlah_satuan: alokasi.jumlah_satuan.toString() || '',
@@ -100,7 +100,7 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Edit Alokasi Mitra" />
+            <Head title="Edit Alokasi petugas" />
 
             <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
                 {/* Header */}
@@ -109,10 +109,10 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Edit Alokasi Mitra
+                                    Edit Alokasi petugas
                                 </h2>
                                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Ubah informasi alokasi mitra
+                                    Ubah informasi alokasi petugas
                                 </p>
                             </div>
                             <Link
@@ -153,28 +153,28 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
                                 <InputError message={errors.kegiatan_id} className="mt-2" />
                             </div>
 
-                            {/* Mitra */}
+                            {/* petugas */}
                             <div>
                                 <label
-                                    htmlFor="mitra_id"
+                                    htmlFor="petugas_id"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Mitra <span className="text-red-500">*</span>
+                                    petugas <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    id="mitra_id"
-                                    value={data.mitra_id}
-                                    onChange={(e) => setData('mitra_id', e.target.value)}
+                                    id="petugas_id"
+                                    value={data.petugas_id}
+                                    onChange={(e) => setData('petugas_id', e.target.value)}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                 >
-                                    <option value="">Pilih Mitra</option>
-                                    {mitras.map((mitra) => (
-                                        <option key={mitra.id} value={mitra.id}>
-                                            {mitra.nama} - {mitra.nik}
+                                    <option value="">Pilih petugas</option>
+                                    {Petugas.map((petugas) => (
+                                        <option key={petugas.id} value={petugas.id}>
+                                            {petugas.nama} - {petugas.nik}
                                         </option>
                                     ))}
                                 </select>
-                                <InputError message={errors.mitra_id} className="mt-2" />
+                                <InputError message={errors.petugas_id} className="mt-2" />
                             </div>
 
                             {/* Info Rate Honor dari Kegiatan */}
@@ -268,7 +268,7 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
                                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                            Estimasi Total Honor:
+                                            Estimasi Honor:
                                         </span>
                                         <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
                                             {formatCurrency(estimatedTotal)}
@@ -319,3 +319,4 @@ export default function Edit({ alokasi, kegiatans, mitras, rateHonors }: Alokasi
         </AppLayout>
     )
 }
+

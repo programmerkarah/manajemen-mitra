@@ -5,21 +5,21 @@ import { Form } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Mitra', href: '/mitra' },
-    { title: 'Tambah Mitra', href: '/mitra/create' },
+    { title: 'Petugas', href: '/petugas' },
+    { title: 'Tambah Petugas', href: '/petugas/create' },
 ];
 
 export default function Create() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tambah Mitra" />
+            <Head title="Tambah Petugas" />
             <div className="p-6">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold">Tambah Mitra Baru</h1>
+                    <h1 className="text-2xl font-bold">Tambah Petugas Baru</h1>
                 </div>
 
                 <Form
-                    action="/mitra"
+                    action="/petugas"
                     method="post"
                     className="rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900"
                 >
@@ -170,6 +170,27 @@ export default function Create() {
                                     )}
                                 </div>
 
+                                {/* Jenis Petugas */}
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium">
+                                        Jenis Petugas <span className="text-red-600">*</span>
+                                    </label>
+                                    <select
+                                        name="jenis_petugas"
+                                        required
+                                        defaultValue="non-organik"
+                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                    >
+                                        <option value="organik">Organik</option>
+                                        <option value="non-organik">Non-Organik</option>
+                                    </select>
+                                    {errors.jenis_petugas && (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {errors.jenis_petugas}
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* NPWP */}
                                 <div>
                                     <label className="mb-2 block text-sm font-medium">
@@ -283,7 +304,7 @@ export default function Create() {
                                     {processing ? 'Menyimpan...' : 'Simpan'}
                                 </button>
                                 <a
-                                    href="/mitra"
+                                    href="/petugas"
                                     className="rounded-lg border border-neutral-300 px-6 py-2 hover:bg-neutral-50 dark:border-neutral-600 dark:hover:bg-neutral-800"
                                 >
                                     Batal
@@ -296,3 +317,5 @@ export default function Create() {
         </AppLayout>
     );
 }
+
+

@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
-interface Mitra {
+interface Petugas {
     id: number;
     hashed_id: string;
     nama: string;
@@ -12,6 +12,7 @@ interface Mitra {
     alamat: string;
     pendidikan: string;
     tahun_bergabung: number;
+    jenis_petugas: 'organik' | 'non-organik';
     npwp_masked: string | null;
     bank: string | null;
     no_rekening_masked: string | null;
@@ -42,7 +43,7 @@ interface Mitra {
 }
 
 interface ShowProps {
-    mitra: Mitra;
+    petugas: Petugas;
 }
 
 const bulanNames = [
@@ -50,11 +51,11 @@ const bulanNames = [
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-export default function Show({ mitra }: ShowProps) {
+export default function Show({ petugas }: ShowProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Mitra', href: '/mitra' },
-        { title: mitra.nama, href: `/mitra/${mitra.hashed_id}` },
+        { title: 'Petugas', href: '/petugas' },
+        { title: petugas.nama, href: `/petugas/${petugas.hashed_id}` },
     ];
 
     const formatRupiah = (amount: number) => {
@@ -65,21 +66,21 @@ export default function Show({ mitra }: ShowProps) {
     };
 
     const handleDelete = () => {
-        if (confirm('Apakah Anda yakin ingin menghapus mitra ini?')) {
-            router.delete(`/mitra/${mitra.hashed_id}`);
+        if (confirm('Apakah Anda yakin ingin menghapus Petugas ini?')) {
+            router.delete(`/petugas/${petugas.hashed_id}`);
         }
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Mitra - ${mitra.nama}`} />
+            <Head title={`Petugas - ${petugas.nama}`} />
 
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">{mitra.nama}</h1>
+                    <h1 className="text-2xl font-bold">{petugas.nama}</h1>
                     <div className="flex gap-2">
                         <Link
-                            href={`/mitra/${mitra.hashed_id}/edit`}
+                            href={`/petugas/${petugas.hashed_id}/edit`}
                             className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                         >
                             Edit
@@ -99,70 +100,82 @@ export default function Show({ mitra }: ShowProps) {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">NIK</p>
-                            <p className="font-medium">{mitra.nik_masked}</p>
+                            <p className="font-medium">{petugas.nik_masked}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Email</p>
-                            <p className="font-medium">{mitra.email}</p>
+                            <p className="font-medium">{petugas.email}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Telepon</p>
-                            <p className="font-medium">{mitra.telepon}</p>
+                            <p className="font-medium">{petugas.telepon}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Pendidikan</p>
-                            <p className="font-medium">{mitra.pendidikan}</p>
+                            <p className="font-medium">{petugas.pendidikan}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Tahun Bergabung</p>
-                            <p className="font-medium">{mitra.tahun_bergabung}</p>
+                            <p className="font-medium">{petugas.tahun_bergabung}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Status</p>
                             <span
                                 className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                    mitra.status === 'aktif'
+                                    petugas.status === 'aktif'
                                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                         : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                 }`}
                             >
-                                {mitra.status}
+                                {petugas.status}
+                            </span>
+                        </div>
+                        <div>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">Jenis Petugas</p>
+                            <span
+                                className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                    petugas.jenis_petugas === 'organik'
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                        : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                }`}
+                            >
+                                {petugas.jenis_petugas === 'organik' ? 'Pegawai Organik' : 'Non-Organik (Mitra)'}
                             </span>
                         </div>
                         <div className="md:col-span-2">
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">Alamat</p>
-                            <p className="font-medium">{mitra.alamat}</p>
+                            <p className="font-medium">{petugas.alamat}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Data Bank */}
-                {(mitra.npwp_masked || mitra.bank || mitra.no_rekening_masked) && (
+                {(petugas.npwp_masked || petugas.bank || petugas.no_rekening_masked) && (
                     <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
                         <h2 className="mb-4 text-lg font-semibold">Data Bank</h2>
                         <div className="grid gap-4 md:grid-cols-2">
-                            {mitra.npwp_masked && (
+                            {petugas.npwp_masked && (
                                 <div>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">NPWP</p>
-                                    <p className="font-medium">{mitra.npwp_masked}</p>
+                                    <p className="font-medium">{petugas.npwp_masked}</p>
                                 </div>
                             )}
-                            {mitra.bank && (
+                            {petugas.bank && (
                                 <div>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Bank</p>
-                                    <p className="font-medium">{mitra.bank}</p>
+                                    <p className="font-medium">{petugas.bank}</p>
                                 </div>
                             )}
-                            {mitra.no_rekening_masked && (
+                            {petugas.no_rekening_masked && (
                                 <div>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Nomor Rekening</p>
-                                    <p className="font-medium">{mitra.no_rekening_masked}</p>
+                                    <p className="font-medium">{petugas.no_rekening_masked}</p>
                                 </div>
                             )}
-                            {mitra.nama_rekening && (
+                            {petugas.nama_rekening && (
                                 <div>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Nama Rekening</p>
-                                    <p className="font-medium">{mitra.nama_rekening}</p>
+                                    <p className="font-medium">{petugas.nama_rekening}</p>
                                 </div>
                             )}
                         </div>
@@ -172,7 +185,7 @@ export default function Show({ mitra }: ShowProps) {
                 {/* Riwayat Alokasi */}
                 <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
                     <h2 className="mb-4 text-lg font-semibold">Riwayat Alokasi</h2>
-                    {mitra.alokasi && mitra.alokasi.length > 0 ? (
+                    {petugas.alokasi && petugas.alokasi.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                 <thead>
@@ -198,7 +211,7 @@ export default function Show({ mitra }: ShowProps) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-                                    {mitra.alokasi.map((alokasi) => (
+                                    {petugas.alokasi.map((alokasi) => (
                                         <tr key={alokasi.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="font-medium">{alokasi.kegiatan.nama_kegiatan}</div>
@@ -244,3 +257,5 @@ export default function Show({ mitra }: ShowProps) {
         </AppLayout>
     );
 }
+
+

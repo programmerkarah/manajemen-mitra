@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import InputError from '@/components/input-error';
-import { type BreadcrumbItem, type RateHonor, type Satuan } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -17,11 +17,13 @@ interface User {
 
 interface KegiatanCreateProps {
     ketuaTimUsers: User[];
-    rateHonors: Array<RateHonor & { satuan: Satuan }>;
     tahunOptions: number[];
 }
 
-export default function Create({ ketuaTimUsers, rateHonors, tahunOptions }: KegiatanCreateProps) {
+export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreateProps) {
+    const { auth } = usePage<SharedData>().props;
+    const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
+    
     // Format currency untuk display
     const formatCurrency = (value: string): string => {
         const number = value.replace(/\D/g, '')
@@ -40,7 +42,6 @@ export default function Create({ ketuaTimUsers, rateHonors, tahunOptions }: Kegi
         tahun_anggaran: new Date().getFullYear(),
         pagu_anggaran: '',
         ketua_tim_user_id: '',
-        rate_honor_id: '',
         tanggal_mulai: '',
         tanggal_selesai: '',
     });
@@ -218,57 +219,31 @@ export default function Create({ ketuaTimUsers, rateHonors, tahunOptions }: Kegi
                                 </div>
                             </div>
 
-                            {/* Ketua Tim */}
-                            <div>
-                                <label
-                                    htmlFor="ketua_tim_user_id"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Ketua Tim <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="ketua_tim_user_id"
-                                    value={data.ketua_tim_user_id}
-                                    onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                >
-                                    <option value="">Pilih Ketua Tim</option>
-                                    {ketuaTimUsers.map((user) => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.name} - {user.email}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.ketua_tim_user_id} className="mt-2" />
-                            </div>
-
-                            {/* Rate Honor */}
-                            <div>
-                                <label
-                                    htmlFor="rate_honor_id"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Rate Honor <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="rate_honor_id"
-                                    value={data.rate_honor_id}
-                                    onChange={(e) => setData('rate_honor_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                >
-                                    <option value="">Pilih Rate Honor</option>
-                                    {rateHonors.map((rate) => (
-                                        <option key={rate.id} value={rate.id}>
-                                            {rate.posisi} - Rp {rate.rate.toLocaleString('id-ID')}/
-                                            {rate.satuan.nama}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.rate_honor_id} className="mt-2" />
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    Rate honor ini akan berlaku untuk semua mitra dalam kegiatan ini
-                                </p>
-                            </div>
+                            {/* Ketua Tim - Hidden for ketua_tim role */}
+                            {!isKetuaTim && (
+                                <div>
+                                    <label
+                                        htmlFor="ketua_tim_user_id"
+                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >
+                                        Ketua Tim <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        id="ketua_tim_user_id"
+                                        value={data.ketua_tim_user_id}
+                                        onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    >
+                                        <option value="">Pilih Ketua Tim</option>
+                                        {ketuaTimUsers.map((user) => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name} - {user.email}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.ketua_tim_user_id} className="mt-2" />
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Tanggal Mulai */}
@@ -331,3 +306,4 @@ export default function Create({ ketuaTimUsers, rateHonors, tahunOptions }: Kegi
         </AppLayout>
     );
 }
+

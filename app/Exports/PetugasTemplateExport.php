@@ -9,7 +9,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MitraTemplateExport implements FromArray, WithHeadings, WithStyles, WithTitle
+class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, WithTitle
 {
     public function array(): array
     {
@@ -102,6 +102,6 @@ class MitraTemplateExport implements FromArray, WithHeadings, WithStyles, WithTi
 
     public function title(): string
     {
-        return 'Template Import Mitra';
+        return 'Template Import Petugas';
     }
 }

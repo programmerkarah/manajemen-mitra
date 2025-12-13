@@ -31,7 +31,7 @@ class StoreKegiatanRequest extends FormRequest
             'tahun_anggaran' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 5)],
             'pagu_anggaran' => ['nullable', 'numeric', 'min:0'],
             'ketua_tim_user_id' => ['required', 'exists:users,id'],
-            'rate_honor_id' => ['required', 'exists:rate_honor,id'],
+            'rate_honor_id' => ['nullable', 'exists:rate_honor,id'],
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
         ];
     }
@@ -55,7 +55,6 @@ class StoreKegiatanRequest extends FormRequest
             'pagu_anggaran.min' => 'Pagu anggaran minimal 0.',
             'ketua_tim_user_id.required' => 'Ketua tim wajib dipilih.',
             'ketua_tim_user_id.exists' => 'Ketua tim tidak valid.',
-            'rate_honor_id.required' => 'Rate honor wajib dipilih.',
             'rate_honor_id.exists' => 'Rate honor tidak valid.',
             'status.in' => 'Status tidak valid.',
         ];

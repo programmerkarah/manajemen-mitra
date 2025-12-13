@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 
-interface Mitra {
+interface Petugas {
     id: number;
     hashed_id: string;
     nama: string;
@@ -12,6 +12,7 @@ interface Mitra {
     alamat: string;
     pendidikan: string;
     tahun_bergabung: number;
+    jenis_petugas: 'organik' | 'non-organik';
     npwp: string | null;
     bank: string | null;
     no_rekening: string | null;
@@ -20,45 +21,46 @@ interface Mitra {
 }
 
 interface EditProps {
-    mitra: Mitra;
+    petugas: Petugas;
 }
 
 const pendidikanOptions = ['SD', 'SMP', 'SMA', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'];
 
-export default function Edit({ mitra }: EditProps) {
+export default function Edit({ petugas }: EditProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Mitra', href: '/mitra' },
-        { title: 'Edit', href: `/mitra/${mitra.hashed_id}/edit` },
+        { title: 'Petugas', href: '/petugas' },
+        { title: 'Edit', href: `/petugas/${petugas.hashed_id}/edit` },
     ];
 
     const { data, setData, put, processing, errors } = useForm({
-        nama: mitra.nama,
-        nik: mitra.nik,
-        email: mitra.email,
-        telepon: mitra.telepon,
-        alamat: mitra.alamat,
-        pendidikan: mitra.pendidikan,
-        tahun_bergabung: mitra.tahun_bergabung,
-        npwp: mitra.npwp || '',
-        bank: mitra.bank || '',
-        no_rekening: mitra.no_rekening || '',
-        nama_rekening: mitra.nama_rekening || '',
-        status: mitra.status,
+        nama: petugas.nama,
+        nik: petugas.nik,
+        email: petugas.email,
+        telepon: petugas.telepon,
+        alamat: petugas.alamat,
+        pendidikan: petugas.pendidikan,
+        tahun_bergabung: petugas.tahun_bergabung,
+        jenis_petugas: petugas.jenis_petugas,
+        npwp: petugas.npwp || '',
+        bank: petugas.bank || '',
+        no_rekening: petugas.no_rekening || '',
+        nama_rekening: petugas.nama_rekening || '',
+        status: petugas.status,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/mitra/${mitra.hashed_id}`);
+        put(`/petugas/${Petugas.hashed_id}`);
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit Mitra - ${mitra.nama}`} />
+            <Head title={`Edit Petugas - ${Petugas.nama}`} />
 
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Edit Mitra</h1>
+                    <h1 className="text-2xl font-bold">Edit Petugas</h1>
                 </div>
 
                 <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
@@ -187,6 +189,24 @@ export default function Edit({ mitra }: EditProps) {
                                 )}
                             </div>
 
+                            {/* Jenis Petugas */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Jenis Petugas <span className="text-red-600">*</span>
+                                </label>
+                                <select
+                                    value={data.jenis_petugas}
+                                    onChange={(e) => setData('jenis_petugas', e.target.value as 'organik' | 'non-organik')}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <option value="organik">Organik</option>
+                                    <option value="non-organik">Non-Organik</option>
+                                </select>
+                                {errors.jenis_petugas && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.jenis_petugas}</p>
+                                )}
+                            </div>
+
                             {/* Alamat - Full Width */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium">
@@ -278,7 +298,7 @@ export default function Edit({ mitra }: EditProps) {
                                 {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                             </button>
                             <a
-                                href="/mitra"
+                                href="/petugas"
                                 className="rounded-lg border border-neutral-300 px-4 py-2 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
                             >
                                 Batal
@@ -290,3 +310,5 @@ export default function Edit({ mitra }: EditProps) {
         </AppLayout>
     );
 }
+
+

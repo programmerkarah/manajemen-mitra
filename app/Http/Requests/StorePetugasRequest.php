@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreMitraRequest extends FormRequest
+class StorePetugasRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,13 +23,14 @@ class StoreMitraRequest extends FormRequest
     {
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'nik' => ['required', 'string', 'size:16', 'unique:mitra,nik'],
-            'email' => ['required', 'email', 'max:255', 'unique:mitra,email'],
+            'nik' => ['required', 'string', 'size:16', 'unique:petugas,nik'],
+            'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
             'telepon' => ['required', 'string', 'max:20'],
             'alamat' => ['required', 'string'],
             'pendidikan' => ['required', 'in:SD,SMP,SMA,D1,D2,D3,D4,S1,S2,S3'],
             'tahun_bergabung' => ['required', 'integer', 'min:2000', 'max:'.date('Y')],
-            'npwp' => ['nullable', 'string', 'size:15', 'unique:mitra,npwp'],
+            'jenis_petugas' => ['required', 'in:organik,non-organik'],
+            'npwp' => ['nullable', 'string', 'size:15', 'unique:petugas,npwp'],
             'bank' => ['nullable', 'string', 'max:100'],
             'no_rekening' => ['nullable', 'string', 'max:50'],
             'nama_rekening' => ['nullable', 'string', 'max:255'],
@@ -43,7 +44,7 @@ class StoreMitraRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama.required' => 'Nama mitra wajib diisi.',
+            'nama.required' => 'Nama petugas wajib diisi.',
             'nik.required' => 'NIK wajib diisi.',
             'nik.size' => 'NIK harus 16 digit.',
             'nik.unique' => 'NIK sudah terdaftar.',
@@ -57,6 +58,8 @@ class StoreMitraRequest extends FormRequest
             'tahun_bergabung.required' => 'Tahun bergabung wajib diisi.',
             'tahun_bergabung.min' => 'Tahun bergabung minimal 2000.',
             'tahun_bergabung.max' => 'Tahun bergabung tidak boleh melebihi tahun saat ini.',
+            'jenis_petugas.required' => 'Jenis petugas wajib dipilih.',
+            'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik.',
             'npwp.size' => 'NPWP harus 15 digit.',
             'npwp.unique' => 'NPWP sudah terdaftar.',
             'status.required' => 'Status wajib dipilih.',

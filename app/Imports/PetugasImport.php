@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\Mitra;
+use App\Models\Petugas;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Concerns\Importable;
@@ -14,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
 
-class MitraImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithHeadingRow, WithValidation
+class PetugasImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithHeadingRow, WithValidation
 {
     use Importable;
 
@@ -31,7 +31,7 @@ class MitraImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCol
     {
         foreach ($rows as $row) {
             try {
-                Mitra::create([
+                Petugas::create([
                     'nama' => $row['nama'],
                     'nik' => $row['nik'],
                     'email' => $row['email'],
@@ -58,8 +58,8 @@ class MitraImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCol
     {
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'nik' => ['required', 'string', 'size:16', 'unique:mitra,nik'],
-            'email' => ['required', 'email', 'max:255', 'unique:mitra,email'],
+            'nik' => ['required', 'string', 'size:16', 'unique:petugas,nik'],
+            'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
             'telepon' => ['nullable', 'string', 'max:15'],
             'alamat' => ['nullable', 'string'],
             'pendidikan' => ['required', Rule::in(['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3'])],

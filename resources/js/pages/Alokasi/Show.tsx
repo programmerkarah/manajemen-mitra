@@ -1,12 +1,12 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import type { AlokasiMitra, Kegiatan, Mitra, RateHonor, Satuan, SharedData } from '@/types'
+import type { AlokasiPetugas, Kegiatan, Petugas, RateHonor, Satuan, SharedData } from '@/types'
 import { useState } from 'react'
 import InputError from '@/components/input-error'
 
 interface Props {
-    alokasi: AlokasiMitra & {
+    alokasi: AlokasiPetugas & {
         kegiatan: Kegiatan & {
             penanggung_jawab: {
                 id: number
@@ -17,7 +17,7 @@ interface Props {
                 satuan: Satuan
             }
         }
-        mitra: Mitra
+        petugas: Petugas
         submitted_by?: {
             id: number
             name: string
@@ -141,17 +141,17 @@ export default function Show({ alokasi }: Props) {
 
     return (
         <AppLayout>
-            <Head title={`Detail Alokasi - ${alokasi.mitra.nama}`} />
+            <Head title={`Detail Alokasi - ${alokasi.petugas.nama}`} />
 
             <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Detail Alokasi Mitra
+                            Detail Alokasi Petugas
                         </h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Informasi lengkap alokasi mitra ke kegiatan
+                            Informasi lengkap alokasi petugas ke kegiatan
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -237,16 +237,16 @@ export default function Show({ alokasi }: Props) {
 
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Mitra
+                                    Petugas
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {alokasi.mitra.nama}
+                                    {alokasi.petugas.nama}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    NIK: {alokasi.mitra.nik}
+                                    NIK: {alokasi.petugas.nik}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {alokasi.mitra.email}
+                                    {alokasi.petugas.email}
                                 </p>
                             </div>
 
@@ -480,3 +480,4 @@ export default function Show({ alokasi }: Props) {
         </AppLayout>
     )
 }
+

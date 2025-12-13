@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AlokasiMitra;
+use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\Kegiatan;
-use App\Models\Mitra;
+use App\Models\Petugas;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,15 +17,15 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $stats = [
-            'total_mitra' => Mitra::where('status', 'aktif')->count(),
+            'total_petugas' => Petugas::where('status', 'aktif')->count(),
             'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count(),
-            'alokasi_pending' => AlokasiMitra::where('status', 'diajukan')->count(),
+            'alokasi_pending' => AlokasiPetugas::where('status', 'diajukan')->count(),
             'bast_pending' => Bast::where('status', 'draft')->count(),
         ];
 
         // Get recent activities based on user role
-        $recentAlokasi = AlokasiMitra::query()
-            ->with(['kegiatan', 'mitra', 'rateHonor.satuan'])
+        $recentAlokasi = AlokasiPetugas::query()
+            ->with(['kegiatan', 'petugas', 'rateHonor.satuan'])
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);
             })

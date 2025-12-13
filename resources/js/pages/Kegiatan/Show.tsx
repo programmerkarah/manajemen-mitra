@@ -1,12 +1,12 @@
 import { Head, Link } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import type { Kegiatan, Mitra, RateHonor, Satuan } from '@/types'
+import type { Kegiatan, petugas, RateHonor, Satuan } from '@/types'
 
 interface Alokasi {
     id: string
     hashed_id: string
-    mitra: Mitra
+    petugas: petugas
     rate_honor: RateHonor & {
         satuan: Satuan
     }
@@ -83,7 +83,7 @@ export default function Show({ kegiatan }: Props) {
                             Detail Kegiatan
                         </h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Informasi lengkap kegiatan dan alokasi mitra
+                            Informasi lengkap kegiatan dan alokasi petugas
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -235,28 +235,28 @@ export default function Show({ kegiatan }: Props) {
                     </div>
                 </div>
 
-                {/* Alokasi Mitra */}
+                {/* Alokasi petugas */}
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            Alokasi Mitra ({kegiatan.alokasi.length})
+                            Alokasi petugas ({kegiatan.alokasi.length})
                         </h2>
-                        <Link href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}>
-                            <Button size="sm">Tambah Alokasi</Button>
+                        <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
+                            <Button size="sm">Kelola Alokasi</Button>
                         </Link>
                     </div>
 
                     {kegiatan.alokasi.length === 0 ? (
                         <div className="px-6 py-12 text-center">
                             <p className="text-gray-500 dark:text-gray-400">
-                                Belum ada alokasi mitra untuk kegiatan ini
+                                Belum ada alokasi petugas untuk kegiatan ini
                             </p>
                             <Link
-                                href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
+                                href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}
                                 className="mt-4 inline-block"
                             >
                                 <Button variant="outline" size="sm">
-                                    Tambah Alokasi Pertama
+                                    Kelola Alokasi
                                 </Button>
                             </Link>
                         </div>
@@ -266,7 +266,7 @@ export default function Show({ kegiatan }: Props) {
                                 <thead className="bg-gray-50 dark:bg-gray-900">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Mitra
+                                            petugas
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                             Rate Honor
@@ -291,10 +291,10 @@ export default function Show({ kegiatan }: Props) {
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <div>
                                                     <div className="font-medium text-gray-900 dark:text-white">
-                                                        {alokasi.mitra.nama}
+                                                        {alokasi.petugas.nama}
                                                     </div>
                                                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        NIK: {alokasi.mitra.nik}
+                                                        NIK: {alokasi.petugas.nik}
                                                     </div>
                                                 </div>
                                             </td>
@@ -348,3 +348,4 @@ export default function Show({ kegiatan }: Props) {
         </AppLayout>
     )
 }
+

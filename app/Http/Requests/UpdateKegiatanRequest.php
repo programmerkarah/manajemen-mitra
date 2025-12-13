@@ -55,8 +55,6 @@ class UpdateKegiatanRequest extends FormRequest
             'pagu_anggaran.min' => 'Pagu anggaran minimal 0.',
             'ketua_tim_user_id.required' => 'Ketua tim wajib dipilih.',
             'ketua_tim_user_id.exists' => 'Ketua tim tidak valid.',
-            'rate_honor_id.required' => 'Rate honor wajib dipilih.',
-            'rate_honor_id.exists' => 'Rate honor tidak valid.',
             'status.in' => 'Status tidak valid.',
         ];
     }

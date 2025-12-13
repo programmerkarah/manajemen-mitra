@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ActiveYearService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -51,6 +52,8 @@ class HandleInertiaRequests extends Middleware
                 'emailVerified' => $user?->hasVerifiedEmail() ?? false,
                 'twoFactorEnabled' => $user?->hasEnabledTwoFactorAuthentication() ?? false,
             ],
+            'activeYear' => ActiveYearService::get(),
+            'availableYears' => ActiveYearService::getAvailableYears(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

@@ -37,6 +37,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    activeYear: number;
+    availableYears: number[];
     sidebarOpen: boolean;
     [key: string]: unknown;
 }
@@ -77,7 +79,7 @@ export interface Kegiatan {
     updated_at: string;
 }
 
-export interface Mitra {
+export interface Petugas {
     id: string;
     hashed_id: string;
     nama: string;
@@ -89,6 +91,7 @@ export interface Mitra {
     pendidikan: 'SD' | 'SMP' | 'SMA' | 'D3' | 'S1' | 'S2' | 'S3';
     keahlian: string | null;
     tahun_bergabung: number | null;
+    jenis_petugas: 'organik' | 'non-organik';
     status: 'aktif' | 'nonaktif';
     created_at: string;
     updated_at: string;
@@ -119,11 +122,11 @@ export interface Satuan {
     updated_at: string;
 }
 
-export interface AlokasiMitra {
+export interface AlokasiPetugas {
     id: string;
     hashed_id: string;
     kegiatan_id: string;
-    mitra_id: string;
+    petugas_id: string;
     bulan: number;
     tahun: number;
     jumlah_satuan: number;

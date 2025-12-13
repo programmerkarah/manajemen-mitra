@@ -2,7 +2,7 @@ import { Head, Link, useForm, router, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import InputError from '@/components/input-error'
-import type { Kegiatan, Mitra, RateHonor, Satuan, AlokasiMitra, SharedData } from '@/types'
+import type { Kegiatan, Petugas, RateHonor, Satuan, AlokasiPetugas, SharedData } from '@/types'
 import { useState } from 'react'
 
 interface Props {
@@ -12,66 +12,127 @@ interface Props {
             name: string
             email: string
         }
-        rate_honor?: RateHonor & {
+        rate_honors?: Array<RateHonor & {
             satuan: Satuan
-        }
+        }>
         alokasi: Array<
-            AlokasiMitra & {
-                mitra: Mitra
+            AlokasiPetugas & {
+                petugas: Petugas
             }
         >
     }
-    mitras: Mitra[]
+    petugas: Petugas[]
 }
 
 interface AlokasiForm {
-    mitra_id: string
-    bulan: number
-    tahun: number
+    petugas_id: string
     jumlah_satuan: string
     catatan: string
 }
 
-export default function Manage({ kegiatan, mitras }: Props) {
-    const { auth } = usePage<SharedData>().props
+export default function Manage({ kegiatan, petugas }: Props) {
+    const { auth, activeYear } = usePage<SharedData>().props
+    
+    // Global bulan for all allocations, tahun uses activeYear from global state
+    const [selectedBulan, setSelectedBulan] = useState<number>(new Date().getMonth() + 1)
+    
     const [alokasiList, setAlokasiList] = useState<AlokasiForm[]>([
         {
-            mitra_id: '',
-            bulan: new Date().getMonth() + 1,
-            tahun: new Date().getFullYear(),
+            petugas_id: '',
             jumlah_satuan: '',
             catatan: '',
         },
     ])
 
+    // Get available months based on kegiatan dates
+    const getAvailableMonths = () => {
+        if (!kegiatan.tanggal_mulai || !kegiatan.tanggal_selesai) {
+            return Array.from({ length: 12 }, (_, i) => i + 1)
+        }
+
+        const startDate = new Date(kegiatan.tanggal_mulai)
+        const endDate = new Date(kegiatan.tanggal_selesai)
+        const startMonth = startDate.getMonth() + 1
+        const endMonth = endDate.getMonth() + 1
+        const startYear = startDate.getFullYear()
+        const endYear = endDate.getFullYear()
+
+        if (activeYear < startYear || activeYear > endYear) {
+            return []
+        }
+
+        if (startYear === endYear) {
+            return Array.from({ length: endMonth - startMonth + 1 }, (_, i) => startMonth + i)
+        }
+
+        if (activeYear === startYear) {
+            return Array.from({ length: 12 - startMonth + 1 }, (_, i) => startMonth + i)
+        }
+
+        if (activeYear === endYear) {
+            return Array.from({ length: endMonth }, (_, i) => i + 1)
+        }
+
+        return Array.from({ length: 12 }, (_, i) => i + 1)
+    }
+
     const { data, setData, post, processing, errors, reset } = useForm({
-        alokasi: alokasiList,
+        alokasi: alokasiList.map(item => ({
+            ...item,
+            bulan: selectedBulan,
+            tahun: activeYear,
+            jenis_kegiatan: kegiatan.jenis_kegiatan,
+        })),
     })
 
     const addAlokasi = () => {
         const newAlokasi: AlokasiForm = {
-            mitra_id: '',
-            bulan: new Date().getMonth() + 1,
-            tahun: new Date().getFullYear(),
+            petugas_id: '',
             jumlah_satuan: '',
             catatan: '',
         }
         const updated = [...alokasiList, newAlokasi]
         setAlokasiList(updated)
-        setData('alokasi', updated)
+        setData('alokasi', updated.map(item => ({
+            ...item,
+            bulan: selectedBulan,
+            tahun: activeYear,
+            jenis_kegiatan: kegiatan.jenis_kegiatan,
+        })))
     }
 
     const removeAlokasi = (index: number) => {
         const updated = alokasiList.filter((_, i) => i !== index)
         setAlokasiList(updated)
-        setData('alokasi', updated)
+        setData('alokasi', updated.map(item => ({
+            ...item,
+            bulan: selectedBulan,
+            tahun: activeYear,
+            jenis_kegiatan: kegiatan.jenis_kegiatan,
+        })))
     }
 
     const updateAlokasi = (index: number, field: keyof AlokasiForm, value: string | number) => {
         const updated = [...alokasiList]
         updated[index] = { ...updated[index], [field]: value }
         setAlokasiList(updated)
-        setData('alokasi', updated)
+        setData('alokasi', updated.map(item => ({
+            ...item,
+            bulan: selectedBulan,
+            tahun: activeYear,
+            jenis_kegiatan: kegiatan.jenis_kegiatan,
+        })))
+    }
+
+    // Update form data when bulan changes
+    const handleBulanChange = (bulan: number) => {
+        setSelectedBulan(bulan)
+        setData('alokasi', alokasiList.map(item => ({
+            ...item,
+            bulan,
+            tahun: activeYear,
+            jenis_kegiatan: kegiatan.jenis_kegiatan,
+        })))
     }
 
     const handleSubmitForm = (e: React.FormEvent) => {
@@ -103,11 +164,56 @@ export default function Manage({ kegiatan, mitras }: Props) {
         }).format(amount)
     }
 
-    const calculateTotal = (jumlahSatuan: string) => {
-        if (kegiatan.rate_honor && jumlahSatuan) {
-            return kegiatan.rate_honor.rate * Number(jumlahSatuan)
+    const calculateTotal = (petugasId: string, jumlahSatuan: string) => {
+        if (!kegiatan.rate_honors || kegiatan.rate_honors.length === 0 || !jumlahSatuan || !petugasId) {
+            return 0
         }
-        return 0
+
+        const jumlah = Number(jumlahSatuan)
+        if (isNaN(jumlah) || jumlah <= 0) {
+            return 0
+        }
+
+        // Find the selected petugas
+        const selectedPetugas = petugas.find(p => p.id === petugasId)
+        if (!selectedPetugas) {
+            return 0
+        }
+
+        // Find matching rate honor based on petugas type
+        const petugasType = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
+        const matchingRateHonor = kegiatan.rate_honors.find(rh => rh.status_kepegawaian === petugasType)
+
+        if (!matchingRateHonor) {
+            return 0
+        }
+
+        const rate = Number(matchingRateHonor.rate)
+        if (isNaN(rate)) {
+            return 0
+        }
+
+        return rate * jumlah
+    }
+
+    const getPetugasTypeWarning = (petugasId: string) => {
+        if (!petugasId || !kegiatan.rate_honors || kegiatan.rate_honors.length === 0) {
+            return null
+        }
+
+        const selectedPetugas = petugas.find(p => p.id === petugasId)
+        if (!selectedPetugas) {
+            return null
+        }
+
+        const petugasType = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
+        const matchingRateHonor = kegiatan.rate_honors.find(rh => rh.status_kepegawaian === petugasType)
+
+        if (!matchingRateHonor) {
+            return `Peringatan: Rate honor untuk petugas ${selectedPetugas.jenis_petugas} tidak ditemukan dalam kegiatan ini`
+        }
+
+        return null
     }
 
     const months = [
@@ -135,14 +241,14 @@ export default function Manage({ kegiatan, mitras }: Props) {
 
     return (
         <AppLayout>
-            <Head title={`Kelola Alokasi Mitra - ${kegiatan.nama_kegiatan}`} />
+            <Head title={`Kelola Alokasi petugas - ${kegiatan.nama_kegiatan}`} />
 
             <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Kelola Alokasi Mitra
+                            Kelola Alokasi petugas
                         </h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                             {kegiatan.nama_kegiatan}
@@ -191,7 +297,7 @@ export default function Manage({ kegiatan, mitras }: Props) {
                     <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                         <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                Mitra yang Sudah Dialokasikan ({kegiatan.alokasi.length})
+                                petugas yang Sudah Dialokasikan ({kegiatan.alokasi.length})
                             </h2>
                         </div>
                         <div className="overflow-x-auto">
@@ -199,7 +305,7 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                 <thead className="bg-gray-50 dark:bg-gray-900">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Mitra
+                                            Petugas
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                             Rate Honor
@@ -226,20 +332,20 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                         <tr key={alokasi.id}>
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                                    {alokasi.mitra.nama}
+                                                    {alokasi.petugas.nama}
                                                 </div>
                                                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {alokasi.mitra.nik}
+                                                    {alokasi.petugas.nik}
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {kegiatan.rate_honor?.posisi || '-'}
+                                                {alokasi.peran || '-'}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
                                                 {months[alokasi.bulan - 1]?.label} {alokasi.tahun}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {alokasi.jumlah_satuan} {kegiatan.rate_honor?.satuan.nama}
+                                                {alokasi.jumlah_satuan} {alokasi.peran || 'OHK'}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                                                 {formatCurrency(alokasi.total_honor)}
@@ -294,7 +400,7 @@ export default function Manage({ kegiatan, mitras }: Props) {
                 )}
 
                 {/* Rate Honor Info */}
-                {kegiatan.rate_honor ? (
+                {kegiatan.rate_honors && kegiatan.rate_honors.length > 0 ? (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                         <div className="flex items-start">
                             <div className="flex-shrink-0">
@@ -314,13 +420,15 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                 <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">
                                     Rate Honor untuk Kegiatan Ini
                                 </h3>
-                                <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
-                                    <p className="font-semibold">
-                                        {kegiatan.rate_honor.posisi} - {formatCurrency(kegiatan.rate_honor.rate)}/
-                                        {kegiatan.rate_honor.satuan.nama}
-                                    </p>
-                                    <p className="mt-1">
-                                        Semua mitra dalam kegiatan ini akan menggunakan rate honor yang sama.
+                                <div className="mt-2 space-y-1 text-sm text-blue-700 dark:text-blue-400">
+                                    {kegiatan.rate_honors.map((rateHonor) => (
+                                        <p key={rateHonor.id} className="font-semibold">
+                                            {rateHonor.posisi} - {formatCurrency(rateHonor.rate)}/
+                                            {rateHonor.satuan.nama}
+                                        </p>
+                                    ))}
+                                    <p className="mt-2 font-normal">
+                                        Rate honor akan dipilih otomatis berdasarkan jenis petugas (organik/non-organik).
                                     </p>
                                 </div>
                             </div>
@@ -349,13 +457,13 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                 <div className="mt-2 text-sm text-red-700 dark:text-red-400">
                                     <p>
                                         Silakan set rate honor pada kegiatan terlebih dahulu sebelum menambahkan
-                                        alokasi mitra.
+                                        alokasi petugas.
                                     </p>
                                     <Link
-                                        href={`/kegiatan/${kegiatan.hashed_id}/edit`}
+                                        href={`/kegiatan/${kegiatan.hashed_id}/rate-honor`}
                                         className="mt-2 inline-block font-medium underline"
                                     >
-                                        Edit Kegiatan
+                                        Kelola Rate Honor
                                     </Link>
                                 </div>
                             </div>
@@ -366,11 +474,68 @@ export default function Manage({ kegiatan, mitras }: Props) {
                 {/* Add New Alokasi Form */}
                 <form onSubmit={handleSubmitForm}>
                     <div className="space-y-4">
+                        {/* Periode Selection - Global for all allocations */}
+                        <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    Periode Alokasi
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Pilih bulan dan tahun untuk alokasi batch ini
+                                </p>
+                            </div>
+                            <div className="p-6">
+                                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                                        <span className="font-semibold">Tahun Aktif: {activeYear}</span>
+                                        <span className="ml-2 text-xs">
+                                            (Gunakan switcher tahun di sidebar untuk mengubah)
+                                        </span>
+                                    </p>
+                                </div>
+                                
+                                {/* Bulan */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Bulan <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={selectedBulan}
+                                        onChange={(e) => handleBulanChange(Number(e.target.value))}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                        required
+                                    >
+                                        {months
+                                            .filter(m => getAvailableMonths().includes(m.value))
+                                            .map((month) => (
+                                                <option key={month.value} value={month.value}>
+                                                    {month.label}
+                                                </option>
+                                            ))}
+                                    </select>
+                                    {getAvailableMonths().length === 0 && (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            Tidak ada bulan yang tersedia untuk tahun {activeYear}. Ubah tahun aktif di sidebar.
+                                        </p>
+                                    )}
+                                    {kegiatan.tanggal_mulai && kegiatan.tanggal_selesai && (
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Periode kegiatan: {new Date(kegiatan.tanggal_mulai).toLocaleDateString('id-ID')} - {new Date(kegiatan.tanggal_selesai).toLocaleDateString('id-ID')}
+                                        </p>
+                                    )}
+                                </div>
+                                
+                                {errors.alokasi && typeof errors.alokasi === 'string' && (
+                                    <InputError message={errors.alokasi} className="mt-2" />
+                                )}
+                            </div>
+                        </div>
+
                         <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                             <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                        Tambah Mitra Baru
+                                        Tambah petugas Baru
                                     </h2>
                                     <Button type="button" onClick={addAlokasi} variant="outline">
                                         + Tambah Baris
@@ -386,7 +551,7 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                     >
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-gray-900 dark:text-white">
-                                                Mitra #{index + 1}
+                                                Petugas #{index + 1}
                                             </h3>
                                             {alokasiList.length > 1 && (
                                                 <Button
@@ -402,84 +567,31 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                         </div>
 
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            {/* Mitra */}
+                                            {/* petugas */}
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Mitra <span className="text-red-500">*</span>
+                                                    Petugas <span className="text-red-500">*</span>
                                                 </label>
                                                 <select
-                                                    value={alokasi.mitra_id}
+                                                    value={alokasi.petugas_id}
                                                     onChange={(e) =>
                                                         updateAlokasi(
                                                             index,
-                                                            'mitra_id',
+                                                            'petugas_id',
                                                             e.target.value
                                                         )
                                                     }
                                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                                 >
-                                                    <option value="">Pilih Mitra</option>
-                                                    {mitras.map((mitra) => (
-                                                        <option key={mitra.id} value={mitra.id}>
-                                                            {mitra.nama} - {mitra.nik}
+                                                    <option value="">Pilih petugas</option>
+                                                    {petugas.map((petugas) => (
+                                                        <option key={petugas.id} value={petugas.id}>
+                                                            {petugas.nama} - {petugas.nik}
                                                         </option>
                                                     ))}
                                                 </select>
                                                 <InputError
-                                                    message={errors[`alokasi.${index}.mitra_id`]}
-                                                    className="mt-2"
-                                                />
-                                            </div>
-
-                                            {/* Bulan */}
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Bulan <span className="text-red-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={alokasi.bulan}
-                                                    onChange={(e) =>
-                                                        updateAlokasi(
-                                                            index,
-                                                            'bulan',
-                                                            parseInt(e.target.value)
-                                                        )
-                                                    }
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                                >
-                                                    {months.map((month) => (
-                                                        <option key={month.value} value={month.value}>
-                                                            {month.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <InputError
-                                                    message={errors[`alokasi.${index}.bulan`]}
-                                                    className="mt-2"
-                                                />
-                                            </div>
-
-                                            {/* Tahun */}
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Tahun <span className="text-red-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={alokasi.tahun}
-                                                    onChange={(e) =>
-                                                        updateAlokasi(
-                                                            index,
-                                                            'tahun',
-                                                            parseInt(e.target.value)
-                                                        )
-                                                    }
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                                                    min="2020"
-                                                    max="2099"
-                                                />
-                                                <InputError
-                                                    message={errors[`alokasi.${index}.tahun`]}
+                                                    message={errors[`alokasi.${index}.petugas_id`]}
                                                     className="mt-2"
                                                 />
                                             </div>
@@ -513,13 +625,18 @@ export default function Manage({ kegiatan, mitras }: Props) {
                                             {/* Estimasi Total */}
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Estimasi Total
+                                                    Estimasi Honor
                                                 </label>
                                                 <div className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-lg font-bold text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-blue-400">
                                                     {formatCurrency(
-                                                        calculateTotal(alokasi.jumlah_satuan)
+                                                        calculateTotal(alokasi.petugas_id, alokasi.jumlah_satuan)
                                                     )}
                                                 </div>
+                                                {getPetugasTypeWarning(alokasi.petugas_id) && (
+                                                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                                        {getPetugasTypeWarning(alokasi.petugas_id)}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 
@@ -564,3 +681,4 @@ export default function Manage({ kegiatan, mitras }: Props) {
         </AppLayout>
     )
 }
+

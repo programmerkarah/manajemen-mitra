@@ -2,10 +2,10 @@
 
 namespace App\Policies;
 
-use App\Models\AlokasiMitra;
+use App\Models\Petugas;
 use App\Models\User;
 
-class AlokasiMitraPolicy
+class PetugasPolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,7 +18,7 @@ class AlokasiMitraPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, AlokasiMitra $alokasiMitra): bool
+    public function view(User $user, Petugas $petugas): bool
     {
         return false;
     }
@@ -34,7 +34,7 @@ class AlokasiMitraPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, AlokasiMitra $alokasiMitra): bool
+    public function update(User $user, Petugas $petugas): bool
     {
         return false;
     }
@@ -42,7 +42,7 @@ class AlokasiMitraPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, AlokasiMitra $alokasiMitra): bool
+    public function delete(User $user, Petugas $petugas): bool
     {
         return false;
     }
@@ -50,7 +50,7 @@ class AlokasiMitraPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, AlokasiMitra $alokasiMitra): bool
+    public function restore(User $user, Petugas $petugas): bool
     {
         return false;
     }
@@ -58,7 +58,7 @@ class AlokasiMitraPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, AlokasiMitra $alokasiMitra): bool
+    public function forceDelete(User $user, Petugas $petugas): bool
     {
         return false;
     }

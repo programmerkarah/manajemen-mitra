@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class AlokasiMitraSeeder extends Seeder
+class AlokasiPetugasSeeder extends Seeder
 {
     /**
      * Run the database seeds.

@@ -81,17 +81,17 @@ export default function Index({ kegiatans, filters }: Props) {
 
     return (
         <AppLayout>
-            <Head title="Alokasi Mitra" />
+            <Head title="Alokasi petugas" />
 
             <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Alokasi Mitra
+                            Alokasi petugas
                         </h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Kelola alokasi mitra untuk setiap kegiatan
+                            Kelola alokasi petugas untuk setiap kegiatan
                         </p>
                     </div>
                 </div>
@@ -178,7 +178,7 @@ export default function Index({ kegiatans, filters }: Props) {
                                         Pagu Anggaran
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Jumlah Mitra
+                                        Jumlah petugas
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Status
@@ -227,7 +227,7 @@ export default function Index({ kegiatans, filters }: Props) {
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                                                    {kegiatan.alokasi_count} Mitra
+                                                    {kegiatan.alokasi_count} petugas
                                                 </span>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
@@ -243,7 +243,7 @@ export default function Index({ kegiatans, filters }: Props) {
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                                                 <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
-                                                    <Button size="sm">Kelola Mitra</Button>
+                                                    <Button size="sm">Kelola petugas</Button>
                                                 </Link>
                                             </td>
                                         </tr>
@@ -324,3 +324,4 @@ export default function Index({ kegiatans, filters }: Props) {
         </AppLayout>
     )
 }
+

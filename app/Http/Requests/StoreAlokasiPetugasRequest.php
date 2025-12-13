@@ -4,20 +4,13 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateAlokasiMitraRequest extends FormRequest
+class StoreAlokasiPetugasRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        $alokasi = $this->route('alokasi');
-
-        // Only allow updates for draft status
-        if ($alokasi->status !== 'draft') {
-            return false;
-        }
-
         return $this->user()->isOperator() || $this->user()->isAdmin();
     }
 
@@ -30,12 +23,13 @@ class UpdateAlokasiMitraRequest extends FormRequest
     {
         return [
             'kegiatan_id' => ['required', 'exists:kegiatan,id'],
-            'mitra_id' => ['required', 'exists:mitra,id'],
+            'petugas_id' => ['required', 'exists:petugas,id'],
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
             'bulan' => ['required', 'integer', 'min:1', 'max:12'],
             'tahun' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 1)],
             'jumlah_satuan' => ['required', 'integer', 'min:1'],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
+            'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
     }
 
@@ -47,8 +41,8 @@ class UpdateAlokasiMitraRequest extends FormRequest
         return [
             'kegiatan_id.required' => 'Kegiatan wajib dipilih.',
             'kegiatan_id.exists' => 'Kegiatan tidak valid.',
-            'mitra_id.required' => 'Mitra wajib dipilih.',
-            'mitra_id.exists' => 'Mitra tidak valid.',
+            'petugas_id.required' => 'Mitra wajib dipilih.',
+            'petugas_id.exists' => 'Mitra tidak valid.',
             'rate_honor_id.required' => 'Rate honor wajib dipilih.',
             'rate_honor_id.exists' => 'Rate honor tidak valid.',
             'bulan.required' => 'Bulan wajib dipilih.',
@@ -61,6 +55,17 @@ class UpdateAlokasiMitraRequest extends FormRequest
             'jumlah_satuan.min' => 'Jumlah satuan minimal 1.',
             'jenis_kegiatan.required' => 'Jenis kegiatan wajib dipilih.',
             'jenis_kegiatan.in' => 'Jenis kegiatan harus Sensus atau Survei.',
+            'status.in' => 'Status tidak valid.',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('status')) {
+            $this->merge(['status' => 'draft']);
+        }
     }
 }

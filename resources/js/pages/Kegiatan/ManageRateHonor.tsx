@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import InputError from '@/components/input-error';
-import { type BreadcrumbItem, type Kegiatan, type RateHonor } from '@/types';
+import { type BreadcrumbItem, type Kegiatan, type RateHonor, type Satuan } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -8,6 +8,7 @@ interface Props {
     kegiatan: Kegiatan & {
         rate_honors?: RateHonor[];
     };
+    satuans: Satuan[];
 }
 
 // Kombinasi rate honor berdasarkan jenis kegiatan
@@ -55,13 +56,16 @@ const getCombinations = (jenisKegiatan: 'sensus' | 'survei') => {
     return combinations;
 };
 
-export default function ManageRateHonor({ kegiatan }: Props) {
+export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Kegiatan', href: '/kegiatan' },
         { title: kegiatan.nama_kegiatan, href: `/kegiatan/${kegiatan.hashed_id}` },
         { title: 'Kelola Rate Honor', href: '#' },
     ];
+
+    // Get default satuan (OHK or first available)
+    const defaultSatuan = satuans.find(s => s.nama === 'OHK' || s.nama === 'Hari') || satuans[0];
 
     // State untuk mengaktifkan/menonaktifkan jenis penugasan
     const [enabledJenisPenugasan, setEnabledJenisPenugasan] = useState(() => {
@@ -101,6 +105,13 @@ export default function ManageRateHonor({ kegiatan }: Props) {
             data[key] = existing?.rate?.toString() || '';
         });
         return data;
+    });
+
+    // State untuk satuan_id - satu satuan untuk seluruh kegiatan
+    const [selectedSatuan, setSelectedSatuan] = useState<string>(() => {
+        // Ambil satuan dari rate honor yang pertama kali ditemukan
+        const existingSatuan = kegiatan.rate_honors?.[0]?.satuan_id;
+        return existingSatuan || defaultSatuan?.id || '';
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -154,6 +165,7 @@ export default function ManageRateHonor({ kegiatan }: Props) {
                     status_kepegawaian: combo.status_kepegawaian,
                     jenis_penugasan: combo.jenis_penugasan,
                     rate: parseInt(formData[key]) || 0,
+                    satuan_id: selectedSatuan, // Gunakan satuan yang dipilih untuk semua
                 };
             });
 
@@ -236,7 +248,7 @@ export default function ManageRateHonor({ kegiatan }: Props) {
                                 <span className="font-semibold">
                                     {kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'}
                                 </span>
-                                . Rate honor ini akan digunakan untuk menghitung honor mitra dalam kegiatan ini.
+                                . Rate honor ini akan digunakan untuk menghitung honor petugas dalam kegiatan ini.
                             </p>
                         </div>
                     </div>
@@ -303,6 +315,41 @@ export default function ManageRateHonor({ kegiatan }: Props) {
                                     Pengawas Pengolahan
                                 </span>
                             </label>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Satuan Selection */}
+                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
+                    <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                            Satuan Honor
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            Pilih satuan yang akan digunakan untuk semua rate honor dalam kegiatan ini
+                        </p>
+                    </div>
+                    <div className="p-6">
+                        <div className="max-w-md">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Satuan <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={selectedSatuan}
+                                onChange={(e) => setSelectedSatuan(e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                required
+                            >
+                                <option value="">Pilih Satuan</option>
+                                {satuans.map((satuan) => (
+                                    <option key={satuan.id} value={satuan.id}>
+                                        {satuan.nama}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Satuan ini akan berlaku untuk semua rate honor
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -413,3 +460,4 @@ export default function ManageRateHonor({ kegiatan }: Props) {
         </AppLayout>
     );
 }
+

@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\AlokasiMitraController;
+use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KegiatanController;
-use App\Http\Controllers\MitraController;
+use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
 use App\Http\Controllers\SbmlReportController;
@@ -12,11 +12,17 @@ use App\Http\Controllers\SkKpaController;
 use App\Http\Controllers\SpkController;
 use App\Http\Controllers\TwoFactorPromptController;
 use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\YearSwitchController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+
     return Inertia::render('welcome', [
         'canRegister' => Features::enabled(Features::registration()),
     ]);
@@ -35,11 +41,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Role Switching
     Route::post('switch-role', [RoleSwitchController::class, 'switch'])->name('role.switch');
 
-    // Mitra Management (Admin only)
+    // Year Switching
+    Route::post('switch-year', [YearSwitchController::class, 'switch'])->name('year.switch');
+
+    // Petugas Management (Admin only)
     Route::middleware(['active.role:admin'])->group(function () {
-        Route::get('mitra/template/download', [MitraController::class, 'downloadTemplate'])->name('mitra.template');
-        Route::post('mitra/import', [MitraController::class, 'import'])->name('mitra.import');
-        Route::resource('mitra', MitraController::class);
+        Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
+        Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
+        Route::resource('petugas', PetugasController::class);
 
         // User Role Management
         Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
@@ -56,28 +65,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('kegiatan.rate-honor.bulk')
         ->middleware('active.role:operator,admin,ketua_tim');
 
-    // Kegiatan Management (Admin and Ketua Tim)
-    Route::middleware(['active.role:admin,ketua_tim'])->group(function () {
+    // Kegiatan Management (Admin, Operator, and Ketua Tim)
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::resource('kegiatan', KegiatanController::class);
     });
 
-    // Alokasi Management (Operator, Approver)
-    Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiMitraController::class, 'manage'])
-        ->name('alokasi.manage');
-    Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiMitraController::class, 'storeMultiple'])
-        ->name('alokasi.store-multiple');
-    Route::resource('alokasi', AlokasiMitraController::class);
+    // Alokasi Petugas Management (Admin and Ketua Tim)
+    Route::middleware(['active.role:admin,ketua_tim'])->group(function () {
+        Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiPetugasController::class, 'manage'])
+            ->name('alokasi.manage');
+        Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiPetugasController::class, 'storeMultiple'])
+            ->name('alokasi.store-multiple');
+        Route::resource('alokasi', AlokasiPetugasController::class);
+    });
 
     // Alokasi Approval Workflow
-    Route::post('alokasi/{alokasi}/submit', [AlokasiMitraController::class, 'submit'])
+    Route::post('alokasi/{alokasi}/submit', [AlokasiPetugasController::class, 'submit'])
         ->name('alokasi.submit');
-    Route::post('alokasi/{alokasi}/approve-pj', [AlokasiMitraController::class, 'approvePj'])
+    Route::post('alokasi/{alokasi}/approve-pj', [AlokasiPetugasController::class, 'approvePj'])
         ->name('alokasi.approve-pj')
         ->middleware('active.role:pj');
-    Route::post('alokasi/{alokasi}/approve', [AlokasiMitraController::class, 'approve'])
+    Route::post('alokasi/{alokasi}/approve', [AlokasiPetugasController::class, 'approve'])
         ->name('alokasi.approve')
         ->middleware('active.role:approver');
-    Route::post('alokasi/{alokasi}/reject', [AlokasiMitraController::class, 'reject'])
+    Route::post('alokasi/{alokasi}/reject', [AlokasiPetugasController::class, 'reject'])
         ->name('alokasi.reject')
         ->middleware('active.role:approver');
 

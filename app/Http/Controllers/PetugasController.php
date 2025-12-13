@@ -2,26 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\MitraTemplateExport;
-use App\Http\Requests\StoreMitraRequest;
-use App\Http\Requests\UpdateMitraRequest;
-use App\Imports\MitraImport;
-use App\Models\Mitra;
+use App\Exports\PetugasTemplateExport;
+use App\Http\Requests\StorePetugasRequest;
+use App\Http\Requests\UpdatePetugasRequest;
+use App\Imports\PetugasImport;
+use App\Models\Petugas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class MitraController extends Controller
+class PetugasController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request): Response
     {
-        $query = Mitra::query();
+        $query = Petugas::query();
 
         // Search
         if ($request->filled('search')) {
@@ -43,11 +44,16 @@ class MitraController extends Controller
             $query->where('tahun_bergabung', $request->tahun);
         }
 
-        $mitras = $query->latest()->paginate(15)->withQueryString();
+        // Filter by jenis petugas
+        if ($request->filled('jenis_petugas')) {
+            $query->where('jenis_petugas', $request->jenis_petugas);
+        }
 
-        return Inertia::render('Mitra/Index', [
-            'mitras' => $mitras,
-            'filters' => $request->only(['search', 'status', 'tahun']),
+        $petugas = $query->latest()->paginate(15)->withQueryString();
+
+        return Inertia::render('Petugas/Index', [
+            'petugas' => $petugas,
+            'filters' => $request->only(['search', 'status', 'tahun', 'jenis_petugas']),
         ]);
     }
 
@@ -56,80 +62,87 @@ class MitraController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Mitra/Create');
+        return Inertia::render('Petugas/Create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreMitraRequest $request): RedirectResponse
+    public function store(StorePetugasRequest $request): RedirectResponse
     {
-        Mitra::create($request->validated());
+        Petugas::create($request->validated());
 
-        return redirect()->route('mitra.index')
-            ->with('success', 'Mitra berhasil ditambahkan.');
+        return redirect()->route('petugas.index')
+            ->with('success', 'Petugas berhasil ditambahkan.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Mitra $mitra): Response
+    public function show(Petugas $petugas): Response
     {
-        $mitra->load(['alokasi.kegiatan', 'alokasi.rateHonor.satuan']);
+        $petugas->load(['alokasi.kegiatan', 'alokasi.rateHonor.satuan']);
 
-        return Inertia::render('Mitra/Show', [
-            'mitra' => $mitra,
+        return Inertia::render('Petugas/Show', [
+            'petugas' => $petugas,
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Mitra $mitra): Response
+    public function edit(Petugas $petugas): Response
     {
-        return Inertia::render('Mitra/Edit', [
-            'mitra' => $mitra,
+        return Inertia::render('Petugas/Edit', [
+            'petugas' => $petugas,
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateMitraRequest $request, Mitra $mitra): RedirectResponse
+    public function update(UpdatePetugasRequest $request, Petugas $petugas): RedirectResponse
     {
-        $mitra->update($request->validated());
+        $petugas->update($request->validated());
 
-        return redirect()->route('mitra.index')
-            ->with('success', 'Mitra berhasil diperbarui.');
+        return redirect()->route('petugas.index')
+            ->with('success', 'Petugas berhasil diperbarui.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Mitra $mitra): RedirectResponse
+    public function destroy(Petugas $petugas): RedirectResponse
     {
-        $mitra->delete();
+        $petugas->delete();
 
-        return redirect()->route('mitra.index')
-            ->with('success', 'Mitra berhasil dihapus.');
+        return redirect()->route('petugas.index')
+            ->with('success', 'Petugas berhasil dihapus.');
     }
 
     /**
-     * Download template Excel untuk import mitra.
+     * Download template Excel untuk import petugas.
      */
     public function downloadTemplate(): BinaryFileResponse
     {
-        return Excel::download(new MitraTemplateExport, 'template_mitra.xlsx');
+        return Excel::download(new PetugasTemplateExport, 'template_petugas.xlsx');
     }
 
     /**
-     * Import mitra dari file Excel.
+     * Import petugas dari file Excel.
      */
     public function import(Request $request): RedirectResponse
     {
+        // Debug: log request data
+        Log::info('Import request received', [
+            'has_file' => $request->hasFile('file'),
+            'file_info' => $request->hasFile('file') ? [
+                'name' => $request->file('file')->getClientOriginalName(),
+                'size' => $request->file('file')->getSize(),
+                'mime' => $request->file('file')->getMimeType(),
+            ] : null,
+        ]);
+
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:2048'],
         ], [
@@ -139,19 +152,19 @@ class MitraController extends Controller
         ]);
 
         try {
-            $import = new MitraImport;
+            $import = new PetugasImport;
             Excel::import($import, $request->file('file'));
 
             $successCount = $import->getSuccessCount();
             $errors = $import->getErrors();
 
             if (count($errors) > 0) {
-                return redirect()->route('mitra.index')
+                return redirect()->route('petugas.index')
                     ->with('warning', "Import selesai. {$successCount} data berhasil diimport. ".count($errors).' data gagal: '.implode(', ', array_slice($errors, 0, 3)));
             }
 
-            return redirect()->route('mitra.index')
-                ->with('success', "Import berhasil! {$successCount} mitra telah ditambahkan.");
+            return redirect()->route('petugas.index')
+                ->with('success', "Import berhasil! {$successCount} petugas telah ditambahkan.");
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();
             $errorMessages = [];
@@ -160,10 +173,10 @@ class MitraController extends Controller
                 $errorMessages[] = "Baris {$failure->row()}: ".implode(', ', $failure->errors());
             }
 
-            return redirect()->route('mitra.index')
+            return redirect()->route('petugas.index')
                 ->with('error', 'Validasi gagal: '.implode(' | ', array_slice($errorMessages, 0, 5)));
         } catch (\Exception $e) {
-            return redirect()->route('mitra.index')
+            return redirect()->route('petugas.index')
                 ->with('error', 'Gagal mengimport data: '.$e->getMessage());
         }
     }

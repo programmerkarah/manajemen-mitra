@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Mitra;
+use App\Models\Petugas;
 use App\Models\Sbml;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,8 +20,8 @@ class SbmlReportController extends Controller
         $jenisKegiatan = $request->input('jenis_kegiatan');
         $statusKepegawaian = $request->input('status_kepegawaian');
 
-        // Get mitra with their allocations
-        $mitrasQuery = Mitra::with(['alokasiMitra' => function ($query) use ($tahun, $bulan, $jenisKegiatan, $statusKepegawaian) {
+        // Get petugas with their allocations
+        $petugasQuery = Petugas::with(['alokasi' => function ($query) use ($tahun, $bulan, $jenisKegiatan, $statusKepegawaian) {
             $query->where('tahun', $tahun);
             if ($bulan) {
                 $query->where('bulan', $bulan);
@@ -35,11 +35,11 @@ class SbmlReportController extends Controller
             $query->with(['kegiatan']);
         }])->where('status', 'aktif');
 
-        $mitras = $mitrasQuery->get()->map(function ($mitra) use ($tahun) {
+        $petugas = $petugasQuery->get()->map(function ($petugas) use ($tahun) {
             // Group allocations by month, jenis_kegiatan, status_kepegawaian, and peran
             $monthlyData = [];
 
-            foreach ($mitra->alokasiMitra as $alokasi) {
+            foreach ($petugas->alokasi as $alokasi) {
                 $key = $alokasi->bulan.'_'.$alokasi->jenis_kegiatan.'_'.$alokasi->status_kepegawaian;
 
                 if (! isset($monthlyData[$key])) {
@@ -86,20 +86,20 @@ class SbmlReportController extends Controller
             }
 
             return [
-                'id' => $mitra->id,
-                'hashed_id' => $mitra->hashed_id,
-                'nama' => $mitra->nama,
-                'nik' => $mitra->nik,
+                'id' => $petugas->id,
+                'hashed_id' => $petugas->hashed_id,
+                'nama' => $petugas->nama,
+                'nik' => $petugas->nik,
                 'monthly_data' => array_values($monthlyData),
                 'total_honor_tahun' => array_sum(array_column($monthlyData, 'total_honor')),
                 'has_violations' => collect($monthlyData)->contains('exceeds', true),
             ];
-        })->filter(function ($mitra) {
-            return count($mitra['monthly_data']) > 0;
+        })->filter(function ($petugas) {
+            return count($petugas['monthly_data']) > 0;
         })->values();
 
         return Inertia::render('Sbml/Report', [
-            'mitras' => $mitras,
+            'petugas' => $petugas,
             'tahun' => $tahun,
             'bulan' => $bulan,
             'filters' => [

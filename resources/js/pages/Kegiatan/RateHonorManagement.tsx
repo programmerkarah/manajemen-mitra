@@ -556,3 +556,4 @@ export default function RateHonorManagement({ kegiatan, satuan }: Props) {
         </AppLayout>
     )
 }
+

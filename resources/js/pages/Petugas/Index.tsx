@@ -5,10 +5,10 @@ import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Mitra', href: '/mitra' },
+    { title: 'Petugas', href: '/petugas' },
 ];
 
-interface Mitra {
+interface Petugas {
     id: number;
     hashed_id: string;
     nama: string;
@@ -20,9 +20,9 @@ interface Mitra {
     status: string;
 }
 
-interface MitraIndexProps {
-    mitras: {
-        data: Mitra[];
+interface PetugasIndexProps {
+    petugas: {
+        data: Petugas[];
         links: any[];
         meta: any;
     };
@@ -33,7 +33,7 @@ interface MitraIndexProps {
     };
 }
 
-export default function Index({ mitras, filters }: MitraIndexProps) {
+export default function Index({ petugas, filters }: PetugasIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
     const [showImportModal, setShowImportModal] = useState(false);
@@ -46,7 +46,7 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         router.get(
-            '/mitra',
+            '/petugas',
             { search, status },
             { preserveState: true, replace: true }
         );
@@ -56,11 +56,15 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
         e.preventDefault();
         if (!data.file) return;
 
-        post('/mitra/import', {
+        post('/petugas/import', {
+            forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 setShowImportModal(false);
                 reset();
+            },
+            onError: (errors) => {
+                console.error('Import errors:', errors);
             },
         });
     };
@@ -73,13 +77,13 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Data Mitra" />
+            <Head title="Data Petugas" />
             <div className="p-6">
                 <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Data Mitra</h1>
+                    <h1 className="text-2xl font-bold">Data Petugas</h1>
                     <div className="flex gap-2">
                         <a
-                            href="/mitra/template/download"
+                            href="/petugas/template/download"
                             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                             Download Template
@@ -91,10 +95,10 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
                             Import Excel
                         </button>
                         <Link
-                            href="/mitra/create"
+                            href="/petugas/create"
                             className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                         >
-                            Tambah Mitra
+                            Tambah Petugas
                         </Link>
                     </div>
                 </div>
@@ -157,44 +161,44 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-                            {mitras.data.map((mitra) => (
-                                <tr key={mitra.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                            {petugas.data.map((Petugas) => (
+                                <tr key={Petugas.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                     <td className="px-6 py-4 text-sm">
-                                        {mitra.nama}
+                                        {Petugas.nama}
                                     </td>
                                     <td className="px-6 py-4 text-sm">
-                                        {mitra.nik_masked}
+                                        {Petugas.nik_masked}
                                     </td>
                                     <td className="px-6 py-4 text-sm">
-                                        {mitra.email}
+                                        {Petugas.email}
                                     </td>
                                     <td className="px-6 py-4 text-sm">
-                                        {mitra.telepon}
+                                        {Petugas.telepon}
                                     </td>
                                     <td className="px-6 py-4 text-sm">
-                                        {mitra.pendidikan}
+                                        {Petugas.pendidikan}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span
                                             className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                                mitra.status === 'aktif'
+                                                Petugas.status === 'aktif'
                                                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                             }`}
                                         >
-                                            {mitra.status}
+                                            {Petugas.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm">
                                         <div className="flex gap-2">
                                             <Link
-                                                href={`/mitra/${mitra.hashed_id}`}
+                                                href={`/petugas/${Petugas.hashed_id}`}
                                                 className="text-blue-600 hover:text-blue-800"
                                             >
                                                 Detail
                                             </Link>
                                             <Link
-                                                href={`/mitra/${mitra.hashed_id}/edit`}
+                                                href={`/petugas/${Petugas.hashed_id}/edit`}
                                                 className="text-amber-600 hover:text-amber-800"
                                             >
                                                 Edit
@@ -208,9 +212,9 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
                 </div>
 
                 {/* Pagination */}
-                {mitras.links && (
+                {petugas.links && (
                     <div className="mt-4 flex justify-center gap-2">
-                        {mitras.links.map((link, index) => (
+                        {petugas.links.map((link, index) => (
                             <button
                                 key={index}
                                 onClick={() =>
@@ -234,7 +238,7 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                            Import Mitra dari Excel
+                            Import Petugas dari Excel
                         </h3>
                         <form onSubmit={handleImport}>
                             <div className="mb-4">
@@ -282,3 +286,5 @@ export default function Index({ mitras, filters }: MitraIndexProps) {
         </AppLayout>
     );
 }
+
+

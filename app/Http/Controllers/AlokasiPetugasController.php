@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreAlokasiMitraRequest;
-use App\Http\Requests\UpdateAlokasiMitraRequest;
-use App\Models\AlokasiMitra;
+use App\Http\Requests\StoreAlokasiPetugasRequest;
+use App\Http\Requests\UpdateAlokasiPetugasRequest;
+use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
-use App\Models\Mitra;
+use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Sbml;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +15,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Vinkla\Hashids\Facades\Hashids;
 
-class AlokasiMitraController extends Controller
+class AlokasiPetugasController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -61,17 +61,22 @@ class AlokasiMitraController extends Controller
     /**
      * Show the form for managing mitra for a kegiatan.
      */
-    public function manage(Kegiatan $kegiatan): Response
+    public function manage(Request $request, Kegiatan $kegiatan): Response
     {
-        $kegiatan->load(['ketuaTim', 'rateHonor.satuan', 'alokasi.mitra']);
+        // Ketua Tim can only manage alokasi for their own kegiatan
+        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+            abort(403, 'Anda tidak memiliki akses untuk mengelola alokasi kegiatan ini.');
+        }
 
-        $mitras = Mitra::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email')
+        $kegiatan->load(['ketuaTim', 'rateHonors.satuan', 'alokasi.petugas']);
+
+        $petugas = Petugas::where('status', 'aktif')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
             ->get();
 
         return Inertia::render('Alokasi/Manage', [
             'kegiatan' => $kegiatan,
-            'mitras' => $mitras,
+            'petugas' => $petugas,
         ]);
     }
 
@@ -80,8 +85,12 @@ class AlokasiMitraController extends Controller
      */
     public function storeMultiple(Request $request, Kegiatan $kegiatan): RedirectResponse
     {
-        // Validate that kegiatan has rate honor
-        if (! $kegiatan->rate_honor_id) {
+        // Ketua Tim can only add alokasi for their own kegiatan
+        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+            abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
+        }
+        // Validate that kegiatan has rate honors
+        if ($kegiatan->rateHonors()->count() === 0) {
             return back()->withErrors([
                 'rate_honor' => 'Kegiatan ini belum memiliki rate honor. Silakan set rate honor pada kegiatan terlebih dahulu.',
             ]);
@@ -89,7 +98,7 @@ class AlokasiMitraController extends Controller
 
         $validated = $request->validate([
             'alokasi' => 'required|array|min:1',
-            'alokasi.*.mitra_id' => 'required|exists:mitra,id',
+            'alokasi.*.petugas_id' => 'required|exists:mitra,id',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
             'alokasi.*.jumlah_satuan' => 'required|integer|min:1',
@@ -97,11 +106,30 @@ class AlokasiMitraController extends Controller
             'alokasi.*.catatan' => 'nullable|string',
         ]);
 
-        $rateHonor = $kegiatan->rateHonor;
         $created = 0;
         $errors = [];
 
         foreach ($validated['alokasi'] as $index => $alokasiData) {
+            // Get petugas to determine jenis_petugas
+            $petugas = Petugas::find($alokasiData['petugas_id']);
+            if (! $petugas) {
+                $errors[] = 'Alokasi #'.($index + 1).': Petugas tidak ditemukan.';
+
+                continue;
+            }
+
+            // Find matching rate honor based on petugas type
+            $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+            $rateHonor = $kegiatan->rateHonors()
+                ->where('status_kepegawaian', $statusKepegawaian)
+                ->first();
+
+            if (! $rateHonor) {
+                $errors[] = 'Alokasi #'.($index + 1).': Rate honor untuk petugas '.$statusKepegawaian.' tidak ditemukan.';
+
+                continue;
+            }
+
             $totalHonor = $rateHonor->rate * $alokasiData['jumlah_satuan'];
 
             // Check SBML constraint
@@ -119,9 +147,9 @@ class AlokasiMitraController extends Controller
                 continue;
             }
 
-            AlokasiMitra::create([
+            AlokasiPetugas::create([
                 'kegiatan_id' => $kegiatan->id,
-                'mitra_id' => $alokasiData['mitra_id'],
+                'petugas_id' => $alokasiData['petugas_id'],
                 'bulan' => $alokasiData['bulan'],
                 'tahun' => $alokasiData['tahun'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
@@ -143,7 +171,7 @@ class AlokasiMitraController extends Controller
         }
 
         return redirect()->route('alokasi.manage', $kegiatan)
-            ->with('success', "{$created} alokasi mitra berhasil ditambahkan.");
+            ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
     }
 
     /**
@@ -152,11 +180,11 @@ class AlokasiMitraController extends Controller
     public function create(Request $request): Response
     {
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->select('id', 'hashed_id', 'kode_kegiatan', 'nama_kegiatan')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan')
             ->get();
 
-        $mitras = Mitra::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email')
+        $petugas = Petugas::where('status', 'aktif')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
             ->get();
 
         $rateHonors = RateHonor::with('satuan')
@@ -181,7 +209,7 @@ class AlokasiMitraController extends Controller
 
         return Inertia::render('Alokasi/Create', [
             'kegiatans' => $kegiatans,
-            'mitras' => $mitras,
+            'petugas' => $petugas,
             'rateHonors' => $rateHonors,
             'selectedKegiatan' => $selectedKegiatan,
         ]);
@@ -190,7 +218,7 @@ class AlokasiMitraController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreAlokasiMitraRequest $request): RedirectResponse
+    public function store(StoreAlokasiPetugasRequest $request): RedirectResponse
     {
         $data = $request->validated();
 
@@ -216,21 +244,21 @@ class AlokasiMitraController extends Controller
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
         $data['submitted_by'] = $request->user()->id;
 
-        AlokasiMitra::create($data);
+        AlokasiPetugas::create($data);
 
         return redirect()->route('alokasi.index')
-            ->with('success', 'Alokasi mitra berhasil ditambahkan.');
+            ->with('success', 'alokasi petugas berhasil ditambahkan.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(AlokasiMitra $alokasi): Response
+    public function show(AlokasiPetugas $alokasi): Response
     {
         $alokasi->load([
             'kegiatan.ketuaTim',
             'kegiatan.rateHonor.satuan',
-            'mitra',
+            'petugas',
             'submittedBy',
             'approvedBy',
         ]);
@@ -243,14 +271,14 @@ class AlokasiMitraController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(AlokasiMitra $alokasi): Response
+    public function edit(AlokasiPetugas $alokasi): Response
     {
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
             ->select('id', 'kode_kegiatan', 'nama_kegiatan')
             ->get();
 
-        $mitras = Mitra::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email')
+        $petugas = Petugas::where('status', 'aktif')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
             ->get();
 
         $rateHonors = RateHonor::with('satuan')
@@ -261,7 +289,7 @@ class AlokasiMitraController extends Controller
         return Inertia::render('Alokasi/Edit', [
             'alokasi' => $alokasi,
             'kegiatans' => $kegiatans,
-            'mitras' => $mitras,
+            'petugas' => $petugas,
             'rateHonors' => $rateHonors,
         ]);
     }
@@ -269,7 +297,7 @@ class AlokasiMitraController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateAlokasiMitraRequest $request, AlokasiMitra $alokasi): RedirectResponse
+    public function update(UpdateAlokasiPetugasRequest $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         $data = $request->validated();
 
@@ -297,24 +325,24 @@ class AlokasiMitraController extends Controller
         $alokasi->update($data);
 
         return redirect()->route('alokasi.index')
-            ->with('success', 'Alokasi mitra berhasil diperbarui.');
+            ->with('success', 'alokasi petugas berhasil diperbarui.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(AlokasiMitra $alokasi): RedirectResponse
+    public function destroy(AlokasiPetugas $alokasi): RedirectResponse
     {
         $alokasi->delete();
 
         return redirect()->route('alokasi.index')
-            ->with('success', 'Alokasi mitra berhasil dihapus.');
+            ->with('success', 'alokasi petugas berhasil dihapus.');
     }
 
     /**
      * Submit alokasi for approval.
      */
-    public function submit(Request $request, AlokasiMitra $alokasi): RedirectResponse
+    public function submit(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         if ($alokasi->status !== 'draft') {
             return back()->with('error', 'Hanya alokasi dengan status draft yang dapat diajukan.');
@@ -331,7 +359,7 @@ class AlokasiMitraController extends Controller
     /**
      * Approve alokasi.
      */
-    public function approve(Request $request, AlokasiMitra $alokasi): RedirectResponse
+    public function approve(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         if (! $request->user()->hasActiveRole('approver')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');
@@ -358,7 +386,7 @@ class AlokasiMitraController extends Controller
     /**
      * Reject alokasi.
      */
-    public function reject(Request $request, AlokasiMitra $alokasi): RedirectResponse
+    public function reject(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         if (! $request->user()->hasActiveRole('approver')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menolak alokasi.');
@@ -385,7 +413,7 @@ class AlokasiMitraController extends Controller
     /**
      * Approve alokasi by Ketua Tim.
      */
-    public function approvePj(Request $request, AlokasiMitra $alokasi): RedirectResponse
+    public function approvePj(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         if (! $request->user()->hasActiveRole('ketua_tim')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');

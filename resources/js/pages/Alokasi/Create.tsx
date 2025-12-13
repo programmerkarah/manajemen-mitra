@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Alokasi Mitra', href: '/alokasi' },
+    { title: 'Alokasi petugas', href: '/alokasi' },
     { title: 'Tambah Alokasi', href: '/alokasi/create' },
 ]
 
@@ -16,17 +16,19 @@ interface Kegiatan {
     nama_kegiatan: string
 }
 
-interface Mitra {
+interface Petugas {
     id: string
     nama: string
     nik: string
     email: string
+    jenis_petugas: 'organik' | 'non-organik'
 }
 
 interface RateHonor {
     id: string
-    nama: string
-    honor_satuan: number
+    posisi: string
+    status_kepegawaian: 'organik' | 'non_organik'
+    rate: number
     satuan: {
         id: string
         nama: string
@@ -35,15 +37,15 @@ interface RateHonor {
 
 interface AlokasiCreateProps {
     kegiatans: Kegiatan[]
-    mitras: Mitra[]
+    petugas: Petugas[]
     rateHonors: RateHonor[]
     selectedKegiatan?: Kegiatan | null
 }
 
-export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan }: AlokasiCreateProps) {
+export default function Create({ kegiatans, petugas, rateHonors, selectedKegiatan }: AlokasiCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         kegiatan_id: selectedKegiatan?.id || '',
-        mitra_id: '',
+        petugas_id: '',
         rate_honor_id: '',
         bulan: new Date().getMonth() + 1,
         tahun: new Date().getFullYear(),
@@ -53,15 +55,37 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
 
     const [selectedRateHonor, setSelectedRateHonor] = useState<RateHonor | null>(null)
     const [estimatedTotal, setEstimatedTotal] = useState(0)
+    const [selectedPetugas, setSelectedPetugas] = useState<Petugas | null>(null)
+
+    // Filter rate honors based on selected petugas jenis
+    const filteredRateHonors = selectedPetugas
+        ? rateHonors.filter((rate) => {
+              const petugasJenis = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
+              return rate.status_kepegawaian === petugasJenis
+          })
+        : rateHonors
+
+    // Handle petugas change
+    useEffect(() => {
+        if (data.petugas_id) {
+            const petugas_selected = petugas.find((p) => p.id === data.petugas_id)
+            setSelectedPetugas(petugas_selected || null)
+            // Reset rate honor when petugas changes
+            setData('rate_honor_id', '')
+            setSelectedRateHonor(null)
+        } else {
+            setSelectedPetugas(null)
+        }
+    }, [data.petugas_id, petugas])
 
     // Update selected rate honor and calculate total
     useEffect(() => {
         if (data.rate_honor_id) {
-            const rateHonor = rateHonors.find((r) => r.id === data.rate_honor_id)
+            const rateHonor = filteredRateHonors.find((r) => r.id === data.rate_honor_id)
             setSelectedRateHonor(rateHonor || null)
 
             if (rateHonor && data.jumlah_satuan) {
-                setEstimatedTotal(rateHonor.honor_satuan * Number(data.jumlah_satuan))
+                setEstimatedTotal(rateHonor.rate * Number(data.jumlah_satuan))
             } else {
                 setEstimatedTotal(0)
             }
@@ -69,7 +93,7 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
             setSelectedRateHonor(null)
             setEstimatedTotal(0)
         }
-    }, [data.rate_honor_id, data.jumlah_satuan, rateHonors])
+    }, [data.rate_honor_id, data.jumlah_satuan, filteredRateHonors])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -101,7 +125,7 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tambah Alokasi Mitra" />
+            <Head title="Tambah Alokasi petugas" />
 
             <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
                 {/* Header */}
@@ -110,10 +134,10 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Tambah Alokasi Mitra
+                                    Tambah Alokasi petugas
                                 </h2>
                                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Alokasikan mitra ke kegiatan dengan rate honor tertentu
+                                    Alokasikan petugas ke kegiatan dengan rate honor tertentu
                                 </p>
                             </div>
                             <Link
@@ -154,28 +178,33 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
                                 <InputError message={errors.kegiatan_id} className="mt-2" />
                             </div>
 
-                            {/* Mitra */}
+                            {/* Petugas */}
                             <div>
                                 <label
-                                    htmlFor="mitra_id"
+                                    htmlFor="petugas_id"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Mitra <span className="text-red-500">*</span>
+                                    Petugas <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    id="mitra_id"
-                                    value={data.mitra_id}
-                                    onChange={(e) => setData('mitra_id', e.target.value)}
+                                    id="petugas_id"
+                                    value={data.petugas_id}
+                                    onChange={(e) => setData('petugas_id', e.target.value)}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                 >
-                                    <option value="">Pilih Mitra</option>
-                                    {mitras.map((mitra) => (
-                                        <option key={mitra.id} value={mitra.id}>
-                                            {mitra.nama} - {mitra.nik}
+                                    <option value="">Pilih Petugas</option>
+                                    {petugas.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.nama} - {p.nik} ({p.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'})
                                         </option>
                                     ))}
                                 </select>
-                                <InputError message={errors.mitra_id} className="mt-2" />
+                                <InputError message={errors.petugas_id} className="mt-2" />
+                                {selectedPetugas && (
+                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                        Jenis: {selectedPetugas.jenis_petugas === 'organik' ? 'Pegawai Organik' : 'Non-Organik (Mitra)'}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Rate Honor */}
@@ -190,12 +219,15 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
                                     id="rate_honor_id"
                                     value={data.rate_honor_id}
                                     onChange={(e) => setData('rate_honor_id', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                    disabled={!selectedPetugas}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 sm:text-sm"
                                 >
-                                    <option value="">Pilih Rate Honor</option>
-                                    {rateHonors.map((rate) => (
+                                    <option value="">
+                                        {selectedPetugas ? 'Pilih Rate Honor' : 'Pilih Petugas terlebih dahulu'}
+                                    </option>
+                                    {filteredRateHonors.map((rate) => (
                                         <option key={rate.id} value={rate.id}>
-                                            {rate.nama} - {formatCurrency(rate.honor_satuan)}/
+                                            {rate.posisi} - {formatCurrency(rate.rate)}/
                                             {rate.satuan.nama}
                                         </option>
                                     ))}
@@ -204,7 +236,7 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
                                 {selectedRateHonor && (
                                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                                         Honor per {selectedRateHonor.satuan.nama}:{' '}
-                                        {formatCurrency(selectedRateHonor.honor_satuan)}
+                                        {formatCurrency(selectedRateHonor.rate)}
                                     </p>
                                 )}
                             </div>
@@ -285,7 +317,7 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
                                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                            Estimasi Total Honor:
+                                            Estimasi Honor:
                                         </span>
                                         <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
                                             {formatCurrency(estimatedTotal)}
@@ -336,3 +368,4 @@ export default function Create({ kegiatans, mitras, rateHonors, selectedKegiatan
         </AppLayout>
     )
 }
+

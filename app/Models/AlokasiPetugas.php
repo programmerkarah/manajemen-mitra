@@ -9,12 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class AlokasiMitra extends Model
+class AlokasiPetugas extends Model
 {
-    /** @use HasFactory<\Database\Factories\AlokasiMitraFactory> */
+    /** @use HasFactory<\Database\Factories\AlokasiPetugasFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
-    protected $table = 'alokasi_mitra';
+    protected $table = 'alokasi_petugas';
 
     protected $appends = ['hashed_id'];
 
@@ -32,7 +32,7 @@ class AlokasiMitra extends Model
 
     protected $fillable = [
         'kegiatan_id',
-        'mitra_id',
+        'petugas_id',
         'bulan',
         'tahun',
         'jumlah_satuan',
@@ -54,9 +54,9 @@ class AlokasiMitra extends Model
         return $this->belongsTo(Kegiatan::class);
     }
 
-    public function mitra(): BelongsTo
+    public function petugas(): BelongsTo
     {
-        return $this->belongsTo(Mitra::class);
+        return $this->belongsTo(Petugas::class);
     }
 
     public function submittedBy(): BelongsTo

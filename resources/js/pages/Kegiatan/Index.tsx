@@ -334,3 +334,4 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         </AppLayout>
     );
 }
+

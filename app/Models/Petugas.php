@@ -9,12 +9,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Mitra extends Model
+class Petugas extends Model
 {
-    /** @use HasFactory<\Database\Factories\MitraFactory> */
+    /** @use HasFactory<\Database\Factories\PetugasFactory> */
     use EncryptsAttributes, HasFactory, HasHashedRouteKey, SoftDeletes;
 
-    protected $table = 'mitra';
+    protected $table = 'petugas';
 
     /**
      * Attributes that should be encrypted.
@@ -40,6 +40,7 @@ class Mitra extends Model
         'alamat',
         'pendidikan',
         'tahun_bergabung',
+        'jenis_petugas',
         'status',
         'npwp',
         'bank',
@@ -69,7 +70,7 @@ class Mitra extends Model
 
     public function alokasi(): HasMany
     {
-        return $this->hasMany(AlokasiMitra::class);
+        return $this->hasMany(AlokasiPetugas::class);
     }
 
     /**
