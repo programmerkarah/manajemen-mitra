@@ -106,6 +106,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('alokasi.manage');
         Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiPetugasController::class, 'storeMultiple'])
             ->name('alokasi.store-multiple');
+        
+        // Periode-based actions
+        Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/submit', [AlokasiPetugasController::class, 'submitPeriode'])
+            ->name('alokasi.periode.submit');
+        Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit', [AlokasiPetugasController::class, 'editPeriode'])
+            ->name('alokasi.periode.edit');
+        Route::put('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'updatePeriode'])
+            ->name('alokasi.periode.update');
+        Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])
+            ->name('alokasi.periode.destroy');
+        Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
+            ->name('alokasi.periode.revisi');
+        
         Route::resource('alokasi', AlokasiPetugasController::class);
     });
 

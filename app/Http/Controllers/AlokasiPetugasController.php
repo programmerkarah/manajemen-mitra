@@ -6,11 +6,13 @@ use App\Http\Requests\StoreAlokasiPetugasRequest;
 use App\Http\Requests\UpdateAlokasiPetugasRequest;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Sbml;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Vinkla\Hashids\Facades\Hashids;
@@ -22,14 +24,14 @@ class AlokasiPetugasController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = Kegiatan::query()
-            ->with(['ketuaTim'])
-            ->withCount('alokasi');
+        $query = PeriodeAlokasi::query()
+            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id', 'alokasiPetugas'])
+            ->withCount('alokasiPetugas as jumlah_petugas');
 
-        // Search
+        // Search by kegiatan
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+            $query->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
             });
@@ -42,19 +44,46 @@ class AlokasiPetugasController extends Controller
 
         // Filter by tahun
         if ($request->filled('tahun')) {
-            $query->where('tahun_anggaran', $request->tahun);
+            $query->where('tahun', $request->tahun);
+        }
+
+        // Filter by bulan
+        if ($request->filled('bulan')) {
+            $query->where('bulan', $request->bulan);
         }
 
         // Filter for Ketua Tim - only their kegiatan
         if ($request->user()->isKetuaTim()) {
-            $query->where('ketua_tim_user_id', $request->user()->id);
+            $query->whereHas('kegiatan', function ($q) use ($request) {
+                $q->where('ketua_tim_user_id', $request->user()->id);
+            });
         }
 
-        $kegiatans = $query->latest()->paginate(15)->withQueryString();
+        $alokasi = $query->latest('created_at')->paginate(15)->withQueryString();
+
+        // Transform the result to include necessary data
+        $alokasi->getCollection()->transform(function ($periode) {
+            return [
+                'kegiatan_id' => $periode->kegiatan_id,
+                'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
+                'tahun' => $periode->tahun,
+                'jenis_kegiatan' => $periode->jenis_kegiatan,
+                'status' => $periode->status,
+                'jumlah_petugas' => $periode->jumlah_petugas,
+                'total_honor' => $periode->total_honor,
+                'latest_created_at' => $periode->created_at,
+                'kegiatan' => [
+                    'id' => $periode->kegiatan->id,
+                    'hashed_id' => $periode->kegiatan->hashed_id,
+                    'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
+                    'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
+                ],
+            ];
+        });
 
         return Inertia::render('Alokasi/Index', [
-            'kegiatans' => $kegiatans,
-            'filters' => $request->only(['search', 'status', 'tahun']),
+            'alokasi' => $alokasi,
+            'filters' => $request->only(['search', 'status', 'tahun', 'bulan']),
         ]);
     }
 
@@ -117,8 +146,12 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.catatan' => 'nullable|string',
         ]);
 
+        DB::beginTransaction();
         $created = 0;
         $errors = [];
+
+        // Group by periode (bulan+tahun+jenis_kegiatan) to create PeriodeAlokasi first
+        $periodeGroups = [];
 
         foreach ($validated['alokasi'] as $index => $alokasiData) {
             // Get petugas to determine jenis_petugas
@@ -177,23 +210,71 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            AlokasiPetugas::create([
-                'kegiatan_id' => $kegiatan->id,
+            // Store data grouped by periode
+            $periodeKey = $alokasiData['bulan'].'_'.$alokasiData['tahun'].'_'.$alokasiData['jenis_kegiatan'];
+            if (! isset($periodeGroups[$periodeKey])) {
+                $periodeGroups[$periodeKey] = [
+                    'bulan' => str_pad($alokasiData['bulan'], 2, '0', STR_PAD_LEFT),
+                    'tahun' => $alokasiData['tahun'],
+                    'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
+                    'alokasi' => [],
+                ];
+            }
+
+            $periodeGroups[$periodeKey]['alokasi'][] = [
                 'petugas_id' => $alokasiData['petugas_id'],
-                'bulan' => $alokasiData['bulan'],
-                'tahun' => $alokasiData['tahun'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'total_honor' => $totalHonor,
                 'peran' => $jenisPenugasan,
-                'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
                 'status_kepegawaian' => $rateHonor->status_kepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
-                'submitted_by' => $request->user()->id,
-                'status' => 'draft',
-            ]);
+            ];
 
             $created++;
         }
+
+        // Create PeriodeAlokasi and AlokasiPetugas
+        foreach ($periodeGroups as $periodeData) {
+            // Use firstOrCreate with deleted_at null to handle soft-deleted records
+            $periode = PeriodeAlokasi::withTrashed()
+                ->where('kegiatan_id', $kegiatan->id)
+                ->where('bulan', $periodeData['bulan'])
+                ->where('tahun', $periodeData['tahun'])
+                ->first();
+
+            if ($periode && $periode->trashed()) {
+                // Restore soft-deleted periode
+                $periode->restore();
+                $periode->update([
+                    'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                    'status' => 'draft',
+                ]);
+            } elseif (! $periode) {
+                // Create new periode
+                $periode = PeriodeAlokasi::create([
+                    'kegiatan_id' => $kegiatan->id,
+                    'bulan' => $periodeData['bulan'],
+                    'tahun' => $periodeData['tahun'],
+                    'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                    'status' => 'draft',
+                ]);
+            }
+
+            // Create AlokasiPetugas for this periode
+            foreach ($periodeData['alokasi'] as $alokasiItem) {
+                AlokasiPetugas::create([
+                    'periode_alokasi_id' => $periode->id,
+                    'petugas_id' => $alokasiItem['petugas_id'],
+                    'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
+                    'total_honor' => $alokasiItem['total_honor'],
+                    'peran' => $alokasiItem['peran'],
+                    'status_kepegawaian' => $alokasiItem['status_kepegawaian'],
+                    'catatan' => $alokasiItem['catatan'],
+                ]);
+            }
+        }
+
+        DB::commit();
 
         if (count($errors) > 0) {
             return back()->withErrors(['sbml_constraint' => $errors])
@@ -483,6 +564,190 @@ class AlokasiPetugasController extends Controller
         ]);
 
         return back()->with('success', 'Alokasi berhasil disetujui. Menunggu persetujuan final dari Approver.');
+    }
+
+    /**
+     * Submit all alokasi in a periode (kegiatan + bulan)
+     */
+    public function submitPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'draft')
+            ->firstOrFail();
+
+        $periode->update([
+            'status' => 'diajukan',
+            'submitted_by' => $request->user()->id,
+            'submitted_at' => now(),
+        ]);
+
+        return redirect()->route('alokasi.index')
+            ->with('success', 'Alokasi periode berhasil dikirim untuk pembuatan SK KPA dan SPK.');
+    }
+
+    /**
+     * Edit all alokasi in a periode
+     */
+    public function editPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): Response
+    {
+        // Load periode
+        $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'draft')
+            ->with(['alokasiPetugas.petugas'])
+            ->firstOrFail();
+
+        if ($periode->alokasiPetugas->isEmpty()) {
+            return redirect()->route('alokasi.index')
+                ->with('error', 'Tidak ada alokasi untuk periode ini.');
+        }
+
+        // Load kegiatan with rate honors
+        $kegiatanWithRates = Kegiatan::with(['rateHonors'])->findOrFail($kegiatan->id);
+
+        // Load all petugas
+        $petugas = Petugas::select('id', 'nama', 'jenis_petugas')
+            ->orderBy('nama')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'nama' => $p->nama,
+                    'status_kepegawaian' => $p->jenis_petugas,
+                ];
+            });
+
+        return Inertia::render('Alokasi/EditPeriode', [
+            'kegiatan' => $kegiatanWithRates,
+            'existingAlokasi' => $periode->alokasiPetugas,
+            'petugas' => $petugas,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+        ]);
+    }
+
+    /**
+     * Update alokasi periode
+     */
+    public function updatePeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        $validated = $request->validate([
+            'alokasi' => 'required|array',
+            'alokasi.*.id' => 'required|exists:alokasi_petugas,id',
+            'alokasi.*.jumlah_satuan' => 'required|numeric|min:0',
+            'alokasi.*.total_honor' => 'required|numeric|min:0',
+            'alokasi.*.catatan' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Find periode
+            $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $tahun)
+                ->where('bulan', $bulan)
+                ->where('status', 'draft')
+                ->firstOrFail();
+
+            foreach ($validated['alokasi'] as $alokasiData) {
+                AlokasiPetugas::where('id', $alokasiData['id'])
+                    ->where('periode_alokasi_id', $periode->id)
+                    ->update([
+                        'jumlah_satuan' => $alokasiData['jumlah_satuan'],
+                        'total_honor' => $alokasiData['total_honor'],
+                        'catatan' => $alokasiData['catatan'] ?? null,
+                    ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('alokasi.index')
+                ->with('success', 'Alokasi periode berhasil diperbarui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal memperbarui alokasi: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Soft delete periode and all its alokasi
+     */
+    public function destroyPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'draft')
+            ->first();
+
+        if (! $periode) {
+            return back()->with('error', 'Tidak ada alokasi draft yang dapat dibatalkan.');
+        }
+
+        // Soft delete will cascade to alokasi_petugas
+        $periode->delete();
+
+        return redirect()->route('alokasi.index')
+            ->with('success', 'Alokasi periode berhasil dibatalkan.');
+    }
+
+    /**
+     * Revisi: Soft delete old periode and create new draft
+     */
+    public function revisiPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        DB::beginTransaction();
+        try {
+            // Get existing periode
+            $oldPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $tahun)
+                ->where('bulan', $bulan)
+                ->where('status', 'diajukan')
+                ->with('alokasiPetugas')
+                ->first();
+
+            if (! $oldPeriode) {
+                return back()->with('error', 'Tidak ada alokasi terkirim untuk direvisi.');
+            }
+
+            // Soft delete old periode (will cascade to alokasi_petugas)
+            $oldPeriode->delete();
+
+            // Create new draft periode
+            $newPeriode = PeriodeAlokasi::create([
+                'kegiatan_id' => $oldPeriode->kegiatan_id,
+                'bulan' => $oldPeriode->bulan,
+                'tahun' => $oldPeriode->tahun,
+                'jenis_kegiatan' => $oldPeriode->jenis_kegiatan,
+                'status' => 'draft',
+            ]);
+
+            // Create new draft alokasi from old data
+            foreach ($oldPeriode->alokasiPetugas as $old) {
+                AlokasiPetugas::create([
+                    'periode_alokasi_id' => $newPeriode->id,
+                    'petugas_id' => $old->petugas_id,
+                    'jumlah_satuan' => $old->jumlah_satuan,
+                    'total_honor' => $old->total_honor,
+                    'peran' => $old->peran,
+                    'status_kepegawaian' => $old->status_kepegawaian,
+                    'catatan' => $old->catatan,
+                ]);
+            }
+
+            DB::commit();
+
+            // Redirect to edit page
+            return redirect('/alokasi/periode/'.$kegiatan->hashed_id.'/'.$tahun.'/'.$bulan.'/edit')
+                ->with('success', 'Revisi berhasil dibuat. Silakan edit data sesuai kebutuhan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal membuat revisi: '.$e->getMessage());
+        }
     }
 
     /**

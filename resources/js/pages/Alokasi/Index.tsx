@@ -5,27 +5,37 @@ import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import type { BreadcrumbItem, Kegiatan } from '@/types'
 import { useState } from 'react'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle } from 'lucide-react'
 
-interface KegiatanWithCount extends Kegiatan {
-    penanggung_jawab: {
-        id: number
-        name: string
-        email: string
-    }
-    alokasi_count: number
+interface AlokasiPeriod {
+    kegiatan_id: number
+    bulan: string
+    tahun: number
+    jenis_kegiatan: 'sensus' | 'survei'
+    status: 'draft' | 'diajukan' | 'approved' | 'rejected'
+    jumlah_petugas: number
+    total_honor: number
+    latest_created_at: string
+    kegiatan: Kegiatan
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Alokasi', href: '#' },
 ];
 
-
 interface Props {
-    kegiatans: {
-        data: KegiatanWithCount[]
+    alokasi: {
+        data: AlokasiPeriod[]
         current_page: number
         last_page: number
         per_page: number
@@ -40,17 +50,46 @@ interface Props {
         search?: string
         status?: string
         tahun?: number
+        bulan?: string
     }
 }
 
-export default function Index({ kegiatans, filters }: Props) {
+export default function Index({ alokasi, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '')
     const [status, setStatus] = useState(filters.status || '')
     const [tahun, setTahun] = useState(filters.tahun?.toString() || '')
+    const [bulan, setBulan] = useState(filters.bulan || '')
+
+    // Modal states
+    const [showKirimModal, setShowKirimModal] = useState(false)
+    const [showBatalkanModal, setShowBatalkanModal] = useState(false)
+    const [showRevisiModal, setShowRevisiModal] = useState(false)
+    const [selectedPeriode, setSelectedPeriode] = useState<{
+        kegiatanId: number
+        kegiatanHashedId?: string
+        bulan: string
+        tahun: number
+        namaKegiatan?: string
+    } | null>(null)
 
     // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
     const currentYear = new Date().getFullYear()
     const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
+
+    const bulanOptions = [
+        { value: '01', label: 'Januari' },
+        { value: '02', label: 'Februari' },
+        { value: '03', label: 'Maret' },
+        { value: '04', label: 'April' },
+        { value: '05', label: 'Mei' },
+        { value: '06', label: 'Juni' },
+        { value: '07', label: 'Juli' },
+        { value: '08', label: 'Agustus' },
+        { value: '09', label: 'September' },
+        { value: '10', label: 'Oktober' },
+        { value: '11', label: 'November' },
+        { value: '12', label: 'Desember' },
+    ]
 
     const handleFilter = () => {
         router.get(
@@ -59,6 +98,7 @@ export default function Index({ kegiatans, filters }: Props) {
                 search: search || undefined,
                 status: status || undefined,
                 tahun: tahun || undefined,
+                bulan: bulan || undefined,
             },
             {
                 preserveState: true,
@@ -71,14 +111,81 @@ export default function Index({ kegiatans, filters }: Props) {
         setSearch('')
         setStatus('')
         setTahun('')
+        setBulan('')
         router.get('/alokasi')
+    }
+
+    const handleKirim = (kegiatanHashedId: string, bulan: string, tahun: number, namaKegiatan: string) => {
+        setSelectedPeriode({ kegiatanId: 0, bulan, tahun, namaKegiatan, kegiatanHashedId })
+        setShowKirimModal(true)
+    }
+
+    const confirmKirim = () => {
+        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+            router.post(
+                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/submit`,
+                {},
+                {
+                    onSuccess: () => {
+                        setShowKirimModal(false)
+                        setSelectedPeriode(null)
+                    },
+                }
+            )
+        }
+    }
+
+    const handleBatalkan = (kegiatanHashedId: string, bulan: string, tahun: number, namaKegiatan: string) => {
+        setSelectedPeriode({ kegiatanId: 0, bulan, tahun, namaKegiatan, kegiatanHashedId })
+        setShowBatalkanModal(true)
+    }
+
+    const confirmBatalkan = () => {
+        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+            router.delete(
+                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}`,
+                {
+                    onSuccess: () => {
+                        setShowBatalkanModal(false)
+                        setSelectedPeriode(null)
+                    },
+                }
+            )
+        }
+    }
+
+    const handleRevisi = (kegiatanHashedId: string, bulan: string, tahun: number, namaKegiatan: string) => {
+        setSelectedPeriode({ kegiatanId: 0, bulan, tahun, namaKegiatan, kegiatanHashedId })
+        setShowRevisiModal(true)
+    }
+
+    const confirmRevisi = () => {
+        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+            router.post(
+                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi`,
+                {},
+                {
+                    onSuccess: () => {
+                        setShowRevisiModal(false)
+                        setSelectedPeriode(null)
+                    },
+                }
+            )
+        }
     }
 
     const statusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        divalidasi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        selesai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        dibatalkan: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    }
+
+    const statusLabels = {
+        draft: 'Draft',
+        diajukan: 'Terkirim',
+        approved: 'Disetujui',
+        rejected: 'Ditolak',
     }
 
     const formatCurrency = (amount: number) => {
@@ -87,6 +194,13 @@ export default function Index({ kegiatans, filters }: Props) {
             currency: 'IDR',
             minimumFractionDigits: 0,
         }).format(amount)
+    }
+
+    const getBulanLabel = (bulan: string | number) => {
+        // Convert to string and ensure bulan has leading zero
+        const bulanStr = String(bulan).padStart(2, '0')
+        const bulanObj = bulanOptions.find(b => b.value === bulanStr)
+        return bulanObj?.label || bulanStr
     }
 
     return (
@@ -107,7 +221,7 @@ export default function Index({ kegiatans, filters }: Props) {
 
             {/* Filters */}
             <ContentCard>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                     <div className="space-y-2">
                         <Label htmlFor="search">Cari Kegiatan</Label>
                         <div className="relative">
@@ -125,6 +239,23 @@ export default function Index({ kegiatans, filters }: Props) {
                     </div>
 
                     <div className="space-y-2">
+                        <Label htmlFor="bulan">Bulan</Label>
+                        <select
+                            id="bulan"
+                            value={bulan}
+                            onChange={(e) => setBulan(e.target.value)}
+                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                        >
+                            <option value="">Semua Bulan</option>
+                            {bulanOptions.map((b) => (
+                                <option key={b.value} value={b.value}>
+                                    {b.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="status">Status</Label>
                         <select
                             id="status"
@@ -134,9 +265,9 @@ export default function Index({ kegiatans, filters }: Props) {
                         >
                             <option value="">Semua Status</option>
                             <option value="draft">Draft</option>
-                            <option value="divalidasi">Divalidasi</option>
-                            <option value="selesai">Selesai</option>
-                            <option value="dibatalkan">Dibatalkan</option>
+                            <option value="diajukan">Terkirim</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="rejected">Ditolak</option>
                         </select>
                     </div>
 
@@ -178,10 +309,7 @@ export default function Index({ kegiatans, filters }: Props) {
                                     Kegiatan
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
-                                    Penanggung Jawab
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
-                                    Tahun
+                                    Bulan
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
                                     Pagu Anggaran
@@ -198,62 +326,96 @@ export default function Index({ kegiatans, filters }: Props) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-200/70 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
-                            {kegiatans.data.length === 0 ? (
+                            {alokasi.data.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={6}
                                         className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
                                     >
-                                        Tidak ada data kegiatan
+                                        Tidak ada data alokasi
                                     </td>
                                 </tr>
                             ) : (
-                                kegiatans.data.map((kegiatan) => (
+                                alokasi.data.map((periode, index) => (
                                     <tr
-                                        key={kegiatan.id}
+                                        key={`${periode.kegiatan_id}-${periode.bulan}-${periode.tahun}-${index}`}
                                         className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                     >
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div>
                                                 <div className="font-medium text-neutral-900 dark:text-white">
-                                                    {kegiatan.nama_kegiatan}
+                                                    {periode.kegiatan.nama_kegiatan}
                                                 </div>
                                                 <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                    {kegiatan.kode_kegiatan}
+                                                    {periode.kegiatan.kode_kegiatan}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="whitespace-nowrap px-6 py-4">
-                                            <div className="text-sm text-neutral-900 dark:text-white">
-                                                {kegiatan.penanggung_jawab?.name || '-'}
-                                            </div>
-                                        </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                            {kegiatan.tahun_anggaran}
+                                            {getBulanLabel(periode.bulan)} {periode.tahun}
                                         </td>
-                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                            {kegiatan.pagu_anggaran ? formatCurrency(kegiatan.pagu_anggaran) : '-'}
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-neutral-900 dark:text-white">
+                                            {formatCurrency(periode.total_honor)}
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                                                {kegiatan.alokasi_count} petugas
+                                                {periode.jumlah_petugas} petugas
                                             </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <span
-                                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
+                                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[periode.status]}`}
                                             >
-                                                {kegiatan.status === 'draft' && 'Draft'}
-                                                {kegiatan.status === 'divalidasi' && 'Divalidasi'}
-                                                {kegiatan.status === 'selesai' && 'Selesai'}
-                                                {kegiatan.status === 'dibatalkan' &&
-                                                    'Dibatalkan'}
+                                                {statusLabels[periode.status]}
                                             </span>
                                         </td>
-                                        <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                            <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
-                                                <Button size="sm">Kelola Petugas</Button>
-                                            </Link>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <div className="flex gap-2">
+                                                {periode.status === 'draft' && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="gap-1"
+                                                            onClick={() => handleKirim(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                        >
+                                                            <Send className="h-3 w-3" />
+                                                            Kirim
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                            className="gap-1"
+                                                        >
+                                                            <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}/edit`}>
+                                                                <Edit2 className="h-3 w-3" />
+                                                                Edit
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            className="gap-1"
+                                                            onClick={() => handleBatalkan(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                            Batalkan
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                {periode.status === 'diajukan' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="gap-1"
+                                                        onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                    >
+                                                        <RefreshCw className="h-3 w-3" />
+                                                        Revisi
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -263,73 +425,244 @@ export default function Index({ kegiatans, filters }: Props) {
                 </div>
 
                 {/* Pagination */}
-                {kegiatans.last_page > 1 && (
-                    <div className="flex items-center justify-between border-t border-neutral-200/70 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950 sm:px-6">
-                        <div className="flex flex-1 justify-between sm:hidden">
-                            {kegiatans.links[0].url && (
-                                <Link
-                                    href={kegiatans.links[0].url}
-                                    className="relative inline-flex items-center rounded-lg border border-neutral-200/70 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
-                                >
-                                    Previous
-                                </Link>
-                            )}
-                            {kegiatans.links[kegiatans.links.length - 1].url && (
-                                <Link
-                                    href={
-                                        kegiatans.links[kegiatans.links.length - 1].url || '#'
-                                    }
-                                    className="relative ml-3 inline-flex items-center rounded-lg border border-neutral-200/70 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
-                                >
-                                    Next
-                                </Link>
-                            )}
+                {alokasi.links && (
+                    <div className="flex items-center justify-between border-t border-neutral-200/70 px-6 py-4 dark:border-neutral-800">
+                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Showing {alokasi.data.length} of {alokasi.total} results
                         </div>
-                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-neutral-700 dark:text-neutral-400">
-                                    Menampilkan{' '}
-                                    <span className="font-medium">
-                                        {(kegiatans.current_page - 1) * kegiatans.per_page + 1}
-                                    </span>{' '}
-                                    sampai{' '}
-                                    <span className="font-medium">
-                                        {Math.min(
-                                            kegiatans.current_page * kegiatans.per_page,
-                                            kegiatans.total
-                                        )}
-                                    </span>{' '}
-                                    dari <span className="font-medium">{kegiatans.total}</span>{' '}
-                                    hasil
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm">
-                                    {kegiatans.links.map((link, index) => (
-                                        <Link
+                        <div className="flex gap-1">
+                            {alokasi.links.map((link, index) => {
+                                if (link.label === '&laquo; Previous' || link.label === 'Next &raquo;') {
+                                    return (
+                                        <Button
                                             key={index}
-                                            href={link.url || '#'}
-                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
-                                                link.active
-                                                    ? 'z-10 bg-blue-600 text-white'
-                                                    : 'bg-white text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-900'
-                                            } ${
-                                                index === 0
-                                                    ? 'rounded-l-lg'
-                                                    : index === kegiatans.links.length - 1
-                                                      ? 'rounded-r-lg'
-                                                      : ''
-                                            } border border-neutral-200/70 dark:border-neutral-800`}
+                                            size="sm"
+                                            variant={link.active ? 'default' : 'outline'}
+                                            disabled={!link.url}
+                                            onClick={() => link.url && router.visit(link.url)}
                                             dangerouslySetInnerHTML={{ __html: link.label }}
                                         />
-                                    ))}
-                                </nav>
-                            </div>
+                                    )
+                                }
+                                return (
+                                    <Button
+                                        key={index}
+                                        size="sm"
+                                        variant={link.active ? 'default' : 'outline'}
+                                        disabled={!link.url}
+                                        onClick={() => link.url && router.visit(link.url)}
+                                    >
+                                        {link.label}
+                                    </Button>
+                                )
+                            })}
                         </div>
                     </div>
                 )}
             </ContentCard>
+
+            {/* Modal Kirim */}
+            <Dialog open={showKirimModal} onOpenChange={setShowKirimModal}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span>Kirim Alokasi Periode</span>
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Alokasi yang dikirim akan digunakan sebagai dasar pembuatan <strong>SK KPA</strong> dan <strong>SPK</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedPeriode && (
+                        <div className="space-y-4">
+                            <div className="space-y-3 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 dark:bg-neutral-800">
+                                        <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400">📋</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 dark:bg-neutral-800">
+                                        <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400">📅</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                                <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                                    <div className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+                                        <p className="font-medium">Pastikan data sudah benar:</p>
+                                        <ul className="ml-4 list-disc space-y-1">
+                                            <li>Data akan digunakan untuk SK KPA</li>
+                                            <li>Data akan digunakan untuk SPK</li>
+                                            <li>Dapat direvisi jika diperlukan</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowKirimModal(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Batal
+                        </Button>
+                        <Button onClick={confirmKirim} className="w-full sm:w-auto">
+                            <Send className="mr-2 h-4 w-4" />
+                            Ya, Kirim Sekarang
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Batalkan */}
+            <Dialog open={showBatalkanModal} onOpenChange={setShowBatalkanModal}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <span className="text-red-600 dark:text-red-400">Batalkan Alokasi Periode</span>
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            <strong className="text-red-600 dark:text-red-400">Perhatian:</strong> Data alokasi akan dihapus secara permanen dan tidak dapat dikembalikan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedPeriode && (
+                        <div className="space-y-4 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-red-50 dark:bg-red-900/20">
+                                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">📋</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-red-50 dark:bg-red-900/20">
+                                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">📅</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border-2 border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                                <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                                    <p className="text-sm text-red-800 dark:text-red-200">
+                                        Semua data petugas pada periode ini akan dihapus. Tindakan ini tidak dapat dibatalkan.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowBatalkanModal(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Tidak, Kembali
+                        </Button>
+                        <Button variant="destructive" onClick={confirmBatalkan} className="w-full sm:w-auto">
+                            <X className="mr-2 h-4 w-4" />
+                            Ya, Batalkan Alokasi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Revisi */}
+            <Dialog open={showRevisiModal} onOpenChange={setShowRevisiModal}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                                <RefreshCw className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <span>Revisi Alokasi Periode</span>
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Revisi akan membuat draft baru yang dapat diedit. Revisi ini akan menghasilkan <strong>SK Perubahan</strong> dan <strong>Addendum SPK</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedPeriode && (
+                        <div className="space-y-4">
+                            <div className="space-y-3 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-50 dark:bg-orange-900/20">
+                                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">📋</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-50 dark:bg-orange-900/20">
+                                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">📅</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border-2 border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-900/20">
+                                <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-orange-600 dark:text-orange-400" />
+                                    <div className="space-y-1 text-sm text-orange-800 dark:text-orange-200">
+                                        <p className="font-medium">Proses revisi:</p>
+                                        <ul className="ml-4 list-disc space-y-1">
+                                            <li>Data yang terkirim akan diarsipkan</li>
+                                            <li>Salinan data akan dibuat sebagai draft baru</li>
+                                            <li>Setelah dikirim ulang akan dibuat SK Perubahan</li>
+                                            <li>SPK akan ditambahkan Addendum</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowRevisiModal(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Batal
+                        </Button>
+                        <Button onClick={confirmRevisi} className="w-full sm:w-auto">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Ya, Lanjutkan Revisi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     )
 }
-
