@@ -574,7 +574,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                                 String(otherItem.petugas_id) === String(p.id)
                                                         )
                                                         return {
-                                                            value: p.id,
+                                                            value: String(p.id),
                                                             label: p.nama,
                                                             disabled: isSelectedInOtherRow,
                                                         }

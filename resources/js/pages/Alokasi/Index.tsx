@@ -314,7 +314,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
                             {alokasi.data.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
                                     >
                                         Tidak ada data alokasi
