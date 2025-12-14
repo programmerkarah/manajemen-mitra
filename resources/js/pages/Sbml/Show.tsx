@@ -1,16 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
+import { PageHeader } from '@/components/page-header';
+import { ContentCard } from '@/components/content-card';
 import { Sbml } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 export default function Show({ sbml }: { sbml: Sbml }) {
     const formatCurrency = (amount: number) => {

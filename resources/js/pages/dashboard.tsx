@@ -42,9 +42,9 @@ export default function Dashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex flex-1 flex-col gap-6">
                 {/* Welcome Section */}
-                <div className="rounded-xl border border-sidebar-border/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 dark:border-sidebar-border dark:from-blue-950/30 dark:to-indigo-950/30">
+                <div className="rounded-xl border border-neutral-200/50 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm dark:border-neutral-800 dark:from-blue-950/30 dark:to-indigo-950/30">
                     <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
                         Selamat Datang, {auth.user.name}! 👋
                     </h1>
@@ -56,7 +56,7 @@ export default function Dashboard({
 
                 {/* Stats Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="group rounded-xl border border-sidebar-border/70 bg-white p-6 transition-all hover:shadow-md dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="group rounded-xl border border-neutral-200/70 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
@@ -72,7 +72,7 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    <div className="group rounded-xl border border-sidebar-border/70 bg-white p-6 transition-all hover:shadow-md dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="group rounded-xl border border-neutral-200/70 bg-white p-6 transition-all hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
@@ -88,7 +88,7 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    <div className="group rounded-xl border border-sidebar-border/70 bg-white p-6 transition-all hover:shadow-md dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="group rounded-xl border border-neutral-200/70 bg-white p-6 transition-all hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
@@ -104,7 +104,7 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    <div className="group rounded-xl border border-sidebar-border/70 bg-white p-6 transition-all hover:shadow-md dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="group rounded-xl border border-neutral-200/70 bg-white p-6 transition-all hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
@@ -124,7 +124,7 @@ export default function Dashboard({
                 {/* Recent Activities */}
                 <div className="grid gap-4 lg:grid-cols-2">
                     {/* Recent Alokasi */}
-                    <div className="rounded-xl border border-sidebar-border/70 bg-white dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="rounded-xl border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="border-b border-neutral-200 p-6 dark:border-neutral-800">
                             <div className="flex items-center gap-2">
                                 <Activity className="size-5 text-blue-600 dark:text-blue-400" />
@@ -175,7 +175,7 @@ export default function Dashboard({
                     </div>
 
                     {/* Recent Kegiatan */}
-                    <div className="rounded-xl border border-sidebar-border/70 bg-white dark:border-sidebar-border dark:bg-neutral-900">
+                    <div className="rounded-xl border border-neutral-200/70 bg-white dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="border-b border-neutral-200 p-6 dark:border-neutral-800">
                             <div className="flex items-center gap-2">
                                 <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
@@ -229,3 +229,4 @@ export default function Dashboard({
         </AppLayout>
     );
 }
+

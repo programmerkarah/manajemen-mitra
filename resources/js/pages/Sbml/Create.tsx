@@ -1,10 +1,13 @@
 import AppLayout from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
+import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { BreadcrumbItem } from '@/types'
-import { Head, router } from '@inertiajs/react'
+import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -120,16 +123,21 @@ export default function Create() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tambah SBML" />
 
-            <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tambah SBML</h1>
-                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Tentukan batas maksimal honor per bulan untuk semua kategori
-                    </p>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Tambah SBML"
+                    description="Tentukan batas maksimal honor per bulan untuk semua kategori"
+                >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href="/sbml">
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
 
                 <form onSubmit={submit} className="space-y-6">
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <ContentCard>
                         <div className="space-y-6">
                             {/* Tahun Anggaran */}
                             <div>
@@ -242,11 +250,11 @@ export default function Create() {
                                 </select>
                             </div>
                         </div>
-                    </div>
+                    </ContentCard>
 
-                    <div className="flex justify-end gap-4">
-                        <Button type="button" variant="outline" onClick={() => window.history.back()}>
-                            Batal
+                    <div className="flex justify-end gap-3">
+                        <Button type="button" variant="outline" asChild>
+                            <Link href="/sbml">Batal</Link>
                         </Button>
                         <Button type="submit" disabled={processing}>
                             {processing ? 'Menyimpan...' : 'Simpan'}

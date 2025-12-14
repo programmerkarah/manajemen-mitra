@@ -18,7 +18,7 @@ class AlokasiPetugasPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, AlokasiPetugas $alokasiMitra): bool
+    public function view(User $user, AlokasiPetugas $alokasiPetugas): bool
     {
         return false;
     }
@@ -34,7 +34,7 @@ class AlokasiPetugasPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, AlokasiPetugas $alokasiMitra): bool
+    public function update(User $user, AlokasiPetugas $alokasiPetugas): bool
     {
         return false;
     }
@@ -42,7 +42,7 @@ class AlokasiPetugasPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, AlokasiPetugas $alokasiMitra): bool
+    public function delete(User $user, AlokasiPetugas $alokasiPetugas): bool
     {
         return false;
     }
@@ -50,7 +50,7 @@ class AlokasiPetugasPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, AlokasiPetugas $alokasiMitra): bool
+    public function restore(User $user, AlokasiPetugas $alokasiPetugas): bool
     {
         return false;
     }
@@ -58,7 +58,7 @@ class AlokasiPetugasPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, AlokasiPetugas $alokasiMitra): bool
+    public function forceDelete(User $user, AlokasiPetugas $alokasiPetugas): bool
     {
         return false;
     }

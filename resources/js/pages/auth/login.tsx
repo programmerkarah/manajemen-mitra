@@ -10,6 +10,7 @@ import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Shield, LogIn } from 'lucide-react';
+import { useState } from 'react';
 
 interface LoginProps {
     status?: string;
@@ -22,6 +23,8 @@ export default function Login({
     canResetPassword,
     canRegister,
 }: LoginProps) {
+    const [rememberMe, setRememberMe] = useState(false);
+
     return (
         <>
             <Head title="Masuk" />
@@ -133,9 +136,11 @@ export default function Login({
                                             <div className="flex items-center space-x-3">
                                                 <Checkbox
                                                     id="remember"
-                                                    name="remember"
                                                     tabIndex={3}
+                                                    checked={rememberMe}
+                                                    onCheckedChange={(checked) => setRememberMe(checked === true)}
                                                 />
+                                                <input type="hidden" name="remember" value={rememberMe ? '1' : '0'} />
                                                 <Label htmlFor="remember" className="text-sm text-neutral-700 dark:text-neutral-300">
                                                     Ingat saya
                                                 </Label>

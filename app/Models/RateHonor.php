@@ -51,6 +51,6 @@ class RateHonor extends Model
 
     public function alokasi(): HasMany
     {
-        return $this->hasMany(AlokasiMitra::class);
+        return $this->hasMany(AlokasiPetugas::class);
     }
 }

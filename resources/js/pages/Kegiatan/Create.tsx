@@ -1,7 +1,13 @@
 import AppLayout from '@/layouts/app-layout';
+import { PageHeader } from '@/components/page-header';
+import { ContentCard } from '@/components/content-card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, Info } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -55,33 +61,23 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tambah Kegiatan" />
 
-            <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Tambah Kegiatan
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Buat kegiatan baru dengan informasi lengkap
-                                </p>
-                            </div>
-                            <Link
-                                href="/kegiatan"
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
-                            >
-                                Kembali
-                            </Link>
-                        </div>
-                    </div>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Tambah Kegiatan"
+                    description="Buat kegiatan baru dengan informasi lengkap"
+                >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href="/kegiatan">
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
-                    <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                        <div className="p-6 space-y-6">
+                    <ContentCard>
+                        <div className="space-y-6">
                             {/* Info: Kode Kegiatan Otomatis */}
                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                                 <div className="flex items-start space-x-3">
@@ -284,23 +280,23 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-                                <Link
-                                    href="/kegiatan"
-                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
+                            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    asChild
                                 >
-                                    Batal
-                                </Link>
-                                <button
+                                    <Link href="/kegiatan">Batal</Link>
+                                </Button>
+                                <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-800"
                                 >
                                     {processing ? 'Menyimpan...' : 'Simpan Kegiatan'}
-                                </button>
+                                </Button>
                             </div>
                         </div>
-                    </div>
+                    </ContentCard>
                 </form>
             </div>
         </AppLayout>

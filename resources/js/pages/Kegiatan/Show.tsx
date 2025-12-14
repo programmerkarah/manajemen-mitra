@@ -1,7 +1,10 @@
 import { Head, Link } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
+import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import type { Kegiatan, petugas, RateHonor, Satuan } from '@/types'
+import { ArrowLeft, Pencil, Settings } from 'lucide-react'
 
 interface Alokasi {
     id: string

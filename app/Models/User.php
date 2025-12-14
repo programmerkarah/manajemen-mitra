@@ -62,12 +62,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function alokasiDiajukan(): HasMany
     {
-        return $this->hasMany(AlokasiMitra::class, 'submitted_by');
+        return $this->hasMany(AlokasiPetugas::class, 'submitted_by');
     }
 
     public function alokasiDisetujui(): HasMany
     {
-        return $this->hasMany(AlokasiMitra::class, 'approved_by');
+        return $this->hasMany(AlokasiPetugas::class, 'approved_by');
     }
 
     public function skKpaDibuat(): HasMany

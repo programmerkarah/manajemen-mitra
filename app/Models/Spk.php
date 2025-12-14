@@ -57,9 +57,9 @@ class Spk extends Model
         return $date->format('Y-m-d');
     }
 
-    public function alokasiMitra(): BelongsTo
+    public function alokasiPetugas(): BelongsTo
     {
-        return $this->belongsTo(AlokasiMitra::class);
+        return $this->belongsTo(AlokasiPetugas::class);
     }
 
     public function createdBy(): BelongsTo

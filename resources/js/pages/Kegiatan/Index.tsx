@@ -1,6 +1,11 @@
 import AppLayout from '@/layouts/app-layout';
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Plus, Search, Eye, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -97,57 +102,50 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Kegiatan" />
 
-            <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+            <div className="space-y-6">
                 {/* Header */}
-                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Kegiatan
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Kelola kegiatan dan anggaran
-                                </p>
-                            </div>
-                            <Link
-                                href="/kegiatan/create"
-                                className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                            >
-                                Tambah Kegiatan
-                            </Link>
-                        </div>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Kegiatan"
+                    description="Kelola kegiatan dan anggaran"
+                >
+                    <Button size="sm" asChild className="gap-2">
+                        <Link href="/kegiatan/create">
+                            <Plus className="h-4 w-4" />
+                            Tambah Kegiatan
+                        </Link>
+                    </Button>
+                </PageHeader>
 
                 {/* Filters */}
-                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                    <div className="p-6">
-                        <form onSubmit={handleSearch}>
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                                <input
+                <ContentCard>
+                    <form onSubmit={handleSearch} className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                <Input
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Cari kegiatan..."
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    className="h-10 pl-10"
                                 />
-                                <select
-                                    value={status}
-                                    onChange={(e) => setStatus(e.target.value)}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                >
-                                    <option value="">Semua Status</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="divalidasi">Divalidasi</option>
-                                    <option value="selesai">Selesai</option>
-                                    <option value="dibatalkan">Dibatalkan</option>
-                                </select>
-                                <select
-                                    value={tahun}
-                                    onChange={(e) => setTahun(e.target.value)}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                >
+                            </div>
+                            <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                                className="h-10 rounded-lg border border-neutral-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                            >
+                                <option value="">Semua Status</option>
+                                <option value="draft">Draft</option>
+                                <option value="divalidasi">Divalidasi</option>
+                                <option value="selesai">Selesai</option>
+                                <option value="dibatalkan">Dibatalkan</option>
+                            </select>
+                            <select
+                                value={tahun}
+                                onChange={(e) => setTahun(e.target.value)}
+                                className="h-10 rounded-lg border border-neutral-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                            >
                                     <option value="">Semua Tahun</option>
                                     {tahunOptions.map((year) => (
                                         <option key={year} value={year}>
@@ -156,108 +154,118 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     ))}
                                 </select>
                                 <div className="flex gap-2">
-                                    <button
-                                        type="submit"
-                                        className="flex-1 rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                    >
+                                    <Button type="submit" className="flex-1 gap-2">
+                                        <Search className="h-4 w-4" />
                                         Filter
-                                    </button>
+                                    </Button>
                                     {(search || status || tahun) && (
-                                        <button
+                                        <Button
                                             type="button"
+                                            variant="outline"
                                             onClick={handleReset}
-                                            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
+                                            className="gap-2"
                                         >
+                                            <X className="h-4 w-4" />
                                             Reset
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ContentCard>
 
                 {/* Table */}
-                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
+                <ContentCard padding="none">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
+                        <table className="w-full">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Nama Kegiatan
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Pagu Anggaran
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
                                 {kegiatans.data.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
-                                            className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
-                                            Tidak ada kegiatan yang ditemukan
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Search className="h-8 w-8 text-neutral-400" />
+                                                <p>Tidak ada kegiatan yang ditemukan</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
                                     kegiatans.data.map((kegiatan) => (
                                         <tr
                                             key={kegiatan.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                                 {kegiatan.kode_kegiatan}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.nama_kegiatan}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.tahun_anggaran}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {formatCurrency(kegiatan.pagu_anggaran)}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.ketua_tim.name}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <td className="px-6 py-4">
                                                 <span
-                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-5 ${getStatusBadge(kegiatan.status)}`}
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusBadge(kegiatan.status)}`}
                                                 >
                                                     {getStatusLabel(kegiatan.status)}
                                                 </span>
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                                                <div className="flex gap-2">
-                                                    <Link
-                                                        href={`/kegiatan/${kegiatan.hashed_id}`}
-                                                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 w-8 p-0"
                                                     >
-                                                        Detail
-                                                    </Link>
-                                                    <Link
-                                                        href={`/kegiatan/${kegiatan.hashed_id}/edit`}
-                                                        className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                                        <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 w-8 p-0"
                                                     >
-                                                        Edit
-                                                    </Link>
+                                                        <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -268,70 +276,26 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {kegiatans?.meta?.last_page > 1 && (
-                        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
-                            <div className="flex flex-1 justify-between sm:hidden">
-                                {kegiatans?.meta?.current_page > 1 && (
-                                    <Link
-                                        href={
-                                            kegiatans.links[kegiatans.meta.current_page - 1]?.url ||
-                                            '#'
-                                        }
-                                        className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                                    >
-                                        Previous
-                                    </Link>
-                                )}
-                                {kegiatans?.meta?.current_page < kegiatans?.meta?.last_page && (
-                                    <Link
-                                        href={
-                                            kegiatans.links[kegiatans.meta.current_page + 1]?.url ||
-                                            '#'
-                                        }
-                                        className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                                    >
-                                        Next
-                                    </Link>
-                                )}
-                            </div>
-                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                        Showing{' '}
-                                        <span className="font-medium">{kegiatans?.meta?.from}</span> to{' '}
-                                        <span className="font-medium">{kegiatans?.meta?.to}</span> of{' '}
-                                        <span className="font-medium">{kegiatans?.meta?.total}</span>{' '}
-                                        results
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
-                                        {kegiatans.links.map((link, index) => (
-                                            <Link
-                                                key={index}
-                                                href={link.url || '#'}
-                                                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
-                                                    link.active
-                                                        ? 'z-10 border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-400'
-                                                        : 'border-gray-300 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-                                                } ${
-                                                    index === 0
-                                                        ? 'rounded-l-md'
-                                                        : index === kegiatans.links.length - 1
-                                                          ? 'rounded-r-md'
-                                                          : ''
-                                                }`}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                            />
-                                        ))}
-                                    </nav>
-                                </div>
-                            </div>
+                    {kegiatans.links && (
+                        <div className="flex items-center justify-center gap-1 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+                            {kegiatans.links.map((link, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => link.url && router.get(link.url)}
+                                    disabled={!link.url}
+                                    className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                        link.active
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                                    } ${!link.url && 'cursor-not-allowed opacity-50'}`}
+                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                />
+                            ))}
                         </div>
                     )}
-                </div>
+                </ContentCard>
+                                                        Detail
             </div>
         </AppLayout>
     );
 }
-

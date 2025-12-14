@@ -1,7 +1,13 @@
 import AppLayout from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
+import { ContentCard } from '@/components/content-card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import InputError from '@/components/input-error'
 import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types'
 import { Head, Link, useForm, usePage } from '@inertiajs/react'
+import { ArrowLeft } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },

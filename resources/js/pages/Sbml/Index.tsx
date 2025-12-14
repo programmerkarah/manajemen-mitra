@@ -1,8 +1,10 @@
 import AppLayout from '@/layouts/app-layout'
+import { ContentCard } from '@/components/content-card'
+import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem, Sbml } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2, Eye } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -59,48 +61,43 @@ export default function Index({ sbmls }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SBML" />
 
-            <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+            <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            SBML (Satuan Biaya Masukan Lainnya)
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Kelola batas maksimal honor per bulan untuk semua kategori
-                        </p>
-                    </div>
-                    <Link href="/sbml/create">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
+                <PageHeader
+                    title="SBML (Satuan Biaya Masukan Lainnya)"
+                    description="Kelola batas maksimal honor per bulan untuk semua kategori"
+                >
+                    <Button size="sm" asChild className="gap-2">
+                        <Link href="/sbml/create">
+                            <Plus className="h-4 w-4" />
                             Tambah Tahun Anggaran
-                        </Button>
-                    </Link>
-                </div>
+                        </Link>
+                    </Button>
+                </PageHeader>
 
                 {/* Table */}
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <ContentCard padding="none">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
+                        <table className="w-full">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun Anggaran
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
                                 {yearGroups.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={3}
-                                            className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
                                             Belum ada data SBML
                                         </td>
@@ -109,43 +106,54 @@ export default function Index({ sbmls }: Props) {
                                     yearGroups.map((group) => (
                                         <tr
                                             key={group.tahun_anggaran}
-                                            className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                                 {group.tahun_anggaran}
-                                                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                                <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
                                                     ({group.count} kategori)
                                                 </span>
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
+                                            <td className="px-6 py-4">
                                                 <span
-                                                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                                                         group.status === 'aktif'
-                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                     }`}
                                                 >
                                                     {group.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
                                                 </span>
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                                                <div className="flex justify-end gap-2">
-                                                    <Link href={`/sbml/${group.hashed_id}`}>
-                                                        <Button variant="ghost" size="sm">
-                                                            Lihat
-                                                        </Button>
-                                                    </Link>
-                                                    <Link href={`/sbml/${group.hashed_id}/edit`}>
-                                                        <Button variant="ghost" size="sm">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Link href={`/sbml/${group.hashed_id}`}>
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Link href={`/sbml/${group.hashed_id}/edit`}>
                                                             <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                    </Link>
+                                                        </Link>
+                                                    </Button>
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => handleDelete(group.tahun_anggaran)}
+                                                        className="h-8 w-8 p-0"
                                                     >
-                                                        <Trash2 className="h-4 w-4 text-red-600" />
+                                                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                                                     </Button>
                                                 </div>
                                             </td>
@@ -155,7 +163,7 @@ export default function Index({ sbmls }: Props) {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </ContentCard>
             </div>
         </AppLayout>
     )

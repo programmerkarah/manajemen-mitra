@@ -1,6 +1,13 @@
 import AppLayout from '@/layouts/app-layout';
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 
 interface Petugas {
     id: number;
@@ -51,19 +58,27 @@ export default function Edit({ petugas }: EditProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/petugas/${Petugas.hashed_id}`);
+        put(`/petugas/${petugas.hashed_id}`);
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit Petugas - ${Petugas.nama}`} />
+            <Head title={`Edit Petugas - ${petugas.nama}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Edit Petugas</h1>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Edit Petugas"
+                    description={`Perbarui informasi untuk ${petugas.nama}`}
+                >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href="/petugas">
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
 
-                <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
+                <ContentCard>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid gap-6 md:grid-cols-2">
                             {/* Nama */}
@@ -289,23 +304,23 @@ export default function Edit({ petugas }: EditProps) {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-3">
-                            <button
+                        <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                            >
+                                <Link href="/petugas">Batal</Link>
+                            </Button>
+                            <Button
                                 type="submit"
                                 disabled={processing}
-                                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                             >
                                 {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
-                            </button>
-                            <a
-                                href="/petugas"
-                                className="rounded-lg border border-neutral-300 px-4 py-2 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-                            >
-                                Batal
-                            </a>
+                            </Button>
                         </div>
                     </form>
-                </div>
+                </ContentCard>
             </div>
         </AppLayout>
     );

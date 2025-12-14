@@ -1,7 +1,14 @@
 import AppLayout from '@/layouts/app-layout';
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -13,103 +20,99 @@ export default function Create() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tambah Petugas" />
-            <div className="p-6">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold">Tambah Petugas Baru</h1>
-                </div>
-
-                <Form
-                    action="/petugas"
-                    method="post"
-                    className="rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900"
+            
+            <div className="space-y-6">
+                <PageHeader
+                    title="Tambah Petugas Baru"
+                    description="Masukkan informasi lengkap petugas mitra"
                 >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href="/petugas">
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
+
+                <ContentCard>
+                    <Form
+                        action="/petugas"
+                        method="post"
+                    >
                     {({ errors, processing }) => (
                         <>
                             <div className="grid gap-6 md:grid-cols-2">
                                 {/* Nama */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Nama Lengkap{' '}
-                                        <span className="text-red-600">*</span>
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="nama">
+                                        Nama Lengkap <span className="text-red-600">*</span>
+                                    </Label>
+                                    <Input
+                                        id="nama"
                                         type="text"
                                         name="nama"
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.nama && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.nama}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.nama} />
                                 </div>
 
                                 {/* NIK */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2">
+                                    <Label htmlFor="nik">
                                         NIK <span className="text-red-600">*</span>
-                                    </label>
-                                    <input
+                                    </Label>
+                                    <Input
+                                        id="nik"
                                         type="text"
                                         name="nik"
                                         maxLength={16}
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.nik && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.nik}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.nik} />
                                 </div>
 
                                 {/* Email */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">
                                         Email <span className="text-red-600">*</span>
-                                    </label>
-                                    <input
+                                    </Label>
+                                    <Input
+                                        id="email"
                                         type="email"
                                         name="email"
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.email && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.email}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.email} />
                                 </div>
 
                                 {/* Telepon */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2">
+                                    <Label htmlFor="telepon">
                                         Telepon <span className="text-red-600">*</span>
-                                    </label>
-                                    <input
+                                    </Label>
+                                    <Input
+                                        id="telepon"
                                         type="text"
                                         name="telepon"
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.telepon && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.telepon}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.telepon} />
                                 </div>
 
                                 {/* Pendidikan */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Pendidikan{' '}
-                                        <span className="text-red-600">*</span>
-                                    </label>
+                                <div className="space-y-2">
+                                    <Label htmlFor="pendidikan">
+                                        Pendidikan <span className="text-red-600">*</span>
+                                    </Label>
                                     <select
+                                        id="pendidikan"
                                         name="pendidikan"
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     >
                                         <option value="">Pilih Pendidikan</option>
                                         <option value="SD">SD</option>
@@ -120,199 +123,158 @@ export default function Create() {
                                         <option value="S2">S2</option>
                                         <option value="S3">S3</option>
                                     </select>
-                                    {errors.pendidikan && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.pendidikan}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.pendidikan} />
                                 </div>
 
                                 {/* Tahun Bergabung */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Tahun Bergabung{' '}
-                                        <span className="text-red-600">*</span>
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="tahun_bergabung">
+                                        Tahun Bergabung <span className="text-red-600">*</span>
+                                    </Label>
+                                    <Input
+                                        id="tahun_bergabung"
                                         type="number"
                                         name="tahun_bergabung"
                                         min="2000"
                                         max="2100"
                                         defaultValue={new Date().getFullYear()}
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.tahun_bergabung && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.tahun_bergabung}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.tahun_bergabung} />
                                 </div>
 
                                 {/* Status */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2">
+                                    <Label htmlFor="status">
                                         Status <span className="text-red-600">*</span>
-                                    </label>
+                                    </Label>
                                     <select
+                                        id="status"
                                         name="status"
                                         required
                                         defaultValue="aktif"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     >
                                         <option value="aktif">Aktif</option>
                                         <option value="nonaktif">Nonaktif</option>
                                     </select>
-                                    {errors.status && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.status}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.status} />
                                 </div>
 
                                 {/* Jenis Petugas */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2">
+                                    <Label htmlFor="jenis_petugas">
                                         Jenis Petugas <span className="text-red-600">*</span>
-                                    </label>
+                                    </Label>
                                     <select
+                                        id="jenis_petugas"
                                         name="jenis_petugas"
                                         required
                                         defaultValue="non-organik"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     >
                                         <option value="organik">Organik</option>
                                         <option value="non-organik">Non-Organik</option>
                                     </select>
-                                    {errors.jenis_petugas && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.jenis_petugas}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.jenis_petugas} />
                                 </div>
 
                                 {/* NPWP */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        NPWP
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="npwp">NPWP</Label>
+                                    <Input
+                                        id="npwp"
                                         type="text"
                                         name="npwp"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.npwp && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.npwp}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.npwp} />
                                 </div>
 
                                 {/* Bank */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Bank
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="bank">Bank</Label>
+                                    <Input
+                                        id="bank"
                                         type="text"
                                         name="bank"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.bank && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.bank}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.bank} />
                                 </div>
 
                                 {/* No Rekening */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        No. Rekening
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="no_rekening">No. Rekening</Label>
+                                    <Input
+                                        id="no_rekening"
                                         type="text"
                                         name="no_rekening"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.no_rekening && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.no_rekening}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.no_rekening} />
                                 </div>
 
                                 {/* Nama Rekening */}
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Nama Rekening
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="nama_rekening">Nama Rekening</Label>
+                                    <Input
+                                        id="nama_rekening"
                                         type="text"
                                         name="nama_rekening"
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="h-10"
                                     />
-                                    {errors.nama_rekening && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.nama_rekening}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.nama_rekening} />
                                 </div>
 
                                 {/* Alamat */}
-                                <div className="md:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium">
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="alamat">
                                         Alamat <span className="text-red-600">*</span>
-                                    </label>
+                                    </Label>
                                     <textarea
+                                        id="alamat"
                                         name="alamat"
                                         rows={3}
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
-                                    {errors.alamat && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.alamat}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.alamat} />
                                 </div>
 
                                 {/* Catatan */}
-                                <div className="md:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium">
-                                        Catatan
-                                    </label>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="catatan">Catatan</Label>
                                     <textarea
+                                        id="catatan"
                                         name="catatan"
                                         rows={3}
-                                        className="w-full rounded-lg border border-neutral-300 px-4 py-2 dark:border-neutral-600 dark:bg-neutral-800"
+                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
-                                    {errors.catatan && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {errors.catatan}
-                                        </p>
-                                    )}
+                                    <InputError message={errors.catatan} />
                                 </div>
                             </div>
 
-                            <div className="mt-6 flex gap-4">
-                                <button
+                            <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    asChild
+                                >
+                                    <Link href="/petugas">Batal</Link>
+                                </Button>
+                                <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                                 >
                                     {processing ? 'Menyimpan...' : 'Simpan'}
-                                </button>
-                                <a
-                                    href="/petugas"
-                                    className="rounded-lg border border-neutral-300 px-6 py-2 hover:bg-neutral-50 dark:border-neutral-600 dark:hover:bg-neutral-800"
-                                >
-                                    Batal
-                                </a>
+                                </Button>
                             </div>
                         </>
                     )}
                 </Form>
+                </ContentCard>
             </div>
         </AppLayout>
     );

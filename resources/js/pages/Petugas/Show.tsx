@@ -1,6 +1,10 @@
 import AppLayout from '@/layouts/app-layout';
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Pencil, Trash2, ArrowLeft } from 'lucide-react';
 
 interface Petugas {
     id: number;
@@ -75,27 +79,41 @@ export default function Show({ petugas }: ShowProps) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Petugas - ${petugas.nama}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">{petugas.nama}</h1>
-                    <div className="flex gap-2">
-                        <Link
-                            href={`/petugas/${petugas.hashed_id}/edit`}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                        >
+            <div className="space-y-6">
+                <PageHeader
+                    title={petugas.nama}
+                    description={`NIK: ${petugas.nik_masked} • ${petugas.pendidikan} • ${petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}`}
+                >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href="/petugas">
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
+                        <Link href={`/petugas/${petugas.hashed_id}/edit`}>
+                            <Pencil className="h-4 w-4" />
                             Edit
                         </Link>
-                        <button
-                            onClick={handleDelete}
-                            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                        >
-                            Hapus
-                        </button>
-                    </div>
-                </div>
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDelete}
+                        className="gap-2"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                    </Button>
+                </PageHeader>
 
                 {/* Informasi Dasar */}
-                <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
+                <ContentCard>
                     <h2 className="mb-4 text-lg font-semibold">Informasi Dasar</h2>
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
@@ -147,11 +165,11 @@ export default function Show({ petugas }: ShowProps) {
                             <p className="font-medium">{petugas.alamat}</p>
                         </div>
                     </div>
-                </div>
+                </ContentCard>
 
                 {/* Data Bank */}
                 {(petugas.npwp_masked || petugas.bank || petugas.no_rekening_masked) && (
-                    <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
+                    <ContentCard>
                         <h2 className="mb-4 text-lg font-semibold">Data Bank</h2>
                         <div className="grid gap-4 md:grid-cols-2">
                             {petugas.npwp_masked && (
@@ -179,11 +197,11 @@ export default function Show({ petugas }: ShowProps) {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </ContentCard>
                 )}
 
                 {/* Riwayat Alokasi */}
-                <div className="rounded-xl border border-sidebar-border/70 bg-white p-6 dark:border-sidebar-border dark:bg-neutral-900">
+                <ContentCard>
                     <h2 className="mb-4 text-lg font-semibold">Riwayat Alokasi</h2>
                     {petugas.alokasi && petugas.alokasi.length > 0 ? (
                         <div className="overflow-x-auto">
@@ -252,7 +270,7 @@ export default function Show({ petugas }: ShowProps) {
                     ) : (
                         <p className="text-neutral-600 dark:text-neutral-400">Belum ada riwayat alokasi.</p>
                     )}
-                </div>
+                </ContentCard>
             </div>
         </AppLayout>
     );
