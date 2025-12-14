@@ -21,6 +21,7 @@ interface Kegiatan {
     hashed_id: string
     kode_kegiatan: string
     nama_kegiatan: string
+    jenis_kegiatan: 'sensus' | 'survei'
     rate_honors: RateHonor[]
 }
 
@@ -73,30 +74,72 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
     const [processing, setProcessing] = useState(false)
     const [errors, setErrors] = useState<any>({})
 
-    const selectedKegiatan = kegiatans.find(k => k.id === selectedKegiatanId)
+    const selectedKegiatan = kegiatans.find(k => String(k.id) === String(selectedKegiatanId))
+
+    // Debug: Log kegiatans data
+    console.log('All Kegiatans:', kegiatans)
+    console.log('All Kegiatan IDs:', kegiatans.map(k => ({ id: k.id, type: typeof k.id })))
+    console.log('Selected Kegiatan ID:', selectedKegiatanId, 'type:', typeof selectedKegiatanId)
+    console.log('Selected Kegiatan Object:', selectedKegiatan)
 
     // Debug: Log selected kegiatan and its rate honors
     if (selectedKegiatan) {
-        console.log('Selected Kegiatan:', selectedKegiatan)
+        console.log('Selected Kegiatan jenis_kegiatan:', selectedKegiatan.jenis_kegiatan)
+        console.log('Has jenis_kegiatan?', 'jenis_kegiatan' in selectedKegiatan)
         console.log('Rate Honors:', selectedKegiatan.rate_honors)
     }
 
-    // Recalculate all estimasi when selectedKegiatan or jenisKegiatan changes
+    // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
     useEffect(() => {
         if (!selectedKegiatan) return
         
-        const updatedItems = alokasiItems.map(item => {
-            if (item.petugas_id && item.peran && item.jumlah_satuan) {
-                return {
-                    ...item,
-                    estimasi_honor: calculateEstimasi(item.petugas_id, item.peran, item.jumlah_satuan)
-                }
-            }
-            return item
-        })
+        // Update jenis kegiatan from selected kegiatan
+        const newJenisKegiatan = selectedKegiatan.jenis_kegiatan
+        console.log('Setting jenisKegiatan to:', newJenisKegiatan)
+        setJenisKegiatan(newJenisKegiatan)
         
-        setAlokasiItems(updatedItems)
-    }, [selectedKegiatanId, jenisKegiatan])
+        // Recalculate estimasi for all items with the new jenis kegiatan
+        setAlokasiItems(prevItems => {
+            return prevItems.map(item => {
+                if (item.petugas_id && item.peran && item.jumlah_satuan) {
+                    // Calculate with the new jenis kegiatan
+                    const selectedPetugas = petugas.find(p => String(p.id) === String(item.petugas_id))
+                    if (!selectedPetugas) return item
+
+                    const statusKepegawaian = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
+                    
+                    let jenisPenugasan = ''
+                    if (item.peran === 'PCL') jenisPenugasan = 'pcl_ppl'
+                    else if (item.peran === 'PML') jenisPenugasan = 'pml'
+                    else if (item.peran === 'Pengolahan') jenisPenugasan = 'pengolahan'
+                    else if (item.peran === 'Pengawas Pengolahan') jenisPenugasan = 'pengawas_pengolahan'
+                    
+                    if (!jenisPenugasan) return item
+                    
+                    const matchingRateHonors = selectedKegiatan.rate_honors?.filter(
+                        r => r.status_kepegawaian === statusKepegawaian && 
+                             r.jenis_kegiatan === newJenisKegiatan &&
+                             r.jenis_penugasan === jenisPenugasan
+                    )
+
+                    if (matchingRateHonors && matchingRateHonors.length > 0) {
+                        const rateHonor = matchingRateHonors[0]
+                        const newEstimasi = rateHonor.rate * Number(item.jumlah_satuan)
+                        console.log('Recalculating estimasi:', { 
+                            petugas: selectedPetugas.nama, 
+                            peran: item.peran, 
+                            jenisKegiatan: newJenisKegiatan,
+                            rate: rateHonor.rate,
+                            jumlah: item.jumlah_satuan,
+                            estimasi: newEstimasi
+                        })
+                        return { ...item, estimasi_honor: newEstimasi }
+                    }
+                }
+                return item
+            })
+        })
+    }, [selectedKegiatanId, petugas])
 
     // Calculate estimasi honor for a petugas
     const calculateEstimasi = (petugasId: string, peran: string, jumlahSatuan: string) => {
@@ -313,20 +356,21 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                 )}
                             </div>
 
-                            {/* Jenis Kegiatan */}
+                            {/* Jenis Kegiatan (dari Kegiatan) */}
                             <div className="space-y-2">
                                 <Label htmlFor="jenis_kegiatan">
-                                    Jenis Kegiatan <span className="text-red-500">*</span>
+                                    Jenis Kegiatan
                                 </Label>
-                                <select
+                                <Input
+                                    type="text"
                                     id="jenis_kegiatan"
-                                    value={jenisKegiatan}
-                                    onChange={(e) => setJenisKegiatan(e.target.value as 'sensus' | 'survei')}
-                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
-                                >
-                                    <option value="survei">Survei</option>
-                                    <option value="sensus">Sensus</option>
-                                </select>
+                                    value={selectedKegiatan ? (selectedKegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei') : '-'}
+                                    disabled
+                                    className="bg-neutral-100 dark:bg-neutral-900 cursor-not-allowed capitalize"
+                                />
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Jenis kegiatan diambil dari data kegiatan
+                                </p>
                             </div>
 
                             {/* Checkbox Petugas Pengolahan */}

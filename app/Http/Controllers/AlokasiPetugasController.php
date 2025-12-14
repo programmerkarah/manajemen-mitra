@@ -184,7 +184,7 @@ class AlokasiPetugasController extends Controller
                 'tahun' => $alokasiData['tahun'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'total_honor' => $totalHonor,
-                'peran' => $alokasiData['peran'],
+                'peran' => $jenisPenugasan,
                 'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
                 'status_kepegawaian' => $rateHonor->status_kepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
@@ -220,7 +220,7 @@ class AlokasiPetugasController extends Controller
                         ->with('satuan:id,kode,nama');
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'jenis_kegiatan')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -244,7 +244,7 @@ class AlokasiPetugasController extends Controller
                                     ->with('satuan:id,kode,nama');
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'jenis_kegiatan')
                         ->first();
                 }
             } catch (\Exception $e) {
