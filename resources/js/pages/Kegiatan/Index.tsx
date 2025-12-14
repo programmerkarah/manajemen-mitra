@@ -3,13 +3,14 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
-import { Plus, Search, Eye, Pencil, X } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Plus, Search, Eye, Pencil, X, Check, Send } from 'lucide-react';
 import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Kegiatan', href: '/kegiatan' },
 ];
 
@@ -44,9 +45,16 @@ interface KegiatanIndexProps {
 }
 
 export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
+    const { auth } = usePage<{ auth: { user: User & { active_role: string } } }>().props;
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
     const [tahun, setTahun] = useState(filters.tahun || '');
+    const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+    const [showApproveDialog, setShowApproveDialog] = useState(false);
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectNotes, setRejectNotes] = useState('');
+    const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(null);
+    const [processing, setProcessing] = useState(false);
 
     // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
     const currentYear = new Date().getFullYear();
@@ -71,9 +79,10 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const getStatusBadge = (status: string) => {
         const badges: Record<string, string> = {
             draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400',
-            divalidasi:
-                'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-            selesai: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+            diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+            divalidasi: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+            aktif: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+            selesai: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
             dibatalkan: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
         };
         return badges[status] || badges.draft;
@@ -82,7 +91,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const getStatusLabel = (status: string) => {
         const labels: Record<string, string> = {
             draft: 'Draft',
+            diajukan: 'Diajukan',
             divalidasi: 'Divalidasi',
+            aktif: 'Aktif',
             selesai: 'Selesai',
             dibatalkan: 'Dibatalkan',
         };
@@ -96,6 +107,95 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
             currency: 'IDR',
             minimumFractionDigits: 0,
         }).format(value)
+    }
+
+    const handleSubmitClick = (kegiatan: Kegiatan) => {
+        setSelectedKegiatan(kegiatan)
+        setShowSubmitDialog(true)
+    }
+
+    const handleSubmit = () => {
+        if (!selectedKegiatan) return
+        
+        setProcessing(true)
+        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/submit`, {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false)
+                setShowSubmitDialog(false)
+                setSelectedKegiatan(null)
+            }
+        })
+    }
+
+    const handleApproveClick = (kegiatan: Kegiatan) => {
+        setSelectedKegiatan(kegiatan)
+        setShowApproveDialog(true)
+    }
+
+    const handleApprove = () => {
+        if (!selectedKegiatan) return
+        
+        setProcessing(true)
+        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/approve`, {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false)
+                setShowApproveDialog(false)
+                setSelectedKegiatan(null)
+            }
+        })
+    }
+
+    const handleRejectClick = (kegiatan: Kegiatan) => {
+        setSelectedKegiatan(kegiatan)
+        setShowRejectDialog(true)
+    }
+
+    const handleReject = () => {
+        if (!selectedKegiatan) return
+        
+        setProcessing(true)
+        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/reject`, {
+            catatan: rejectNotes
+        }, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false)
+                setShowRejectDialog(false)
+                setRejectNotes('')
+                setSelectedKegiatan(null)
+            }
+        })
+    }
+
+    const canEdit = (kegiatan: Kegiatan) => {
+        if (!auth.user.active_role) return false;
+        // Only allow editing draft or divalidasi status
+        if (!['draft', 'divalidasi'].includes(kegiatan.status)) return false;
+        
+        return auth.user.active_role === 'admin' || 
+               auth.user.active_role === 'operator' || 
+               (auth.user.active_role === 'ketua_tim' && kegiatan.ketua_tim.id === auth.user.id && kegiatan.status === 'draft');
+    }
+
+    const canSubmit = (kegiatan: Kegiatan) => {
+        if (!auth.user.active_role) return false;
+        return kegiatan.status === 'draft' && (
+            auth.user.active_role === 'admin' || 
+            auth.user.active_role === 'operator' || 
+            kegiatan.ketua_tim.id === auth.user.id
+        )
+    }
+
+    const canApprove = (kegiatan: Kegiatan) => {
+        if (!auth.user.active_role) return false;
+        return (auth.user.active_role === 'admin' || auth.user.active_role === 'approver') &&
+               (kegiatan.status === 'draft' || kegiatan.status === 'diajukan')
+    }
+
+    const canReject = (kegiatan: Kegiatan) => {
+        return canApprove(kegiatan)
     }
 
     return (
@@ -246,6 +346,39 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2">
+                                                    {canSubmit(kegiatan) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleSubmitClick(kegiatan)}
+                                                            className="h-8 gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300"
+                                                        >
+                                                            <Send className="h-3.5 w-3.5" />
+                                                            <span className="sr-only sm:not-sr-only">Ajukan</span>
+                                                        </Button>
+                                                    )}
+                                                    {canApprove(kegiatan) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleApproveClick(kegiatan)}
+                                                            className="h-8 gap-1.5 border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950 dark:hover:text-green-300"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                            <span className="sr-only sm:not-sr-only">Setujui</span>
+                                                        </Button>
+                                                    )}
+                                                    {canReject(kegiatan) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleRejectClick(kegiatan)}
+                                                            className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
+                                                        >
+                                                            <X className="h-3.5 w-3.5" />
+                                                            <span className="sr-only sm:not-sr-only">Tolak</span>
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -256,16 +389,18 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        asChild
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Link>
-                                                    </Button>
+                                                    {canEdit(kegiatan) && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            asChild
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Link>
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -294,7 +429,127 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                         </div>
                     )}
                 </ContentCard>
-                                                        Detail
+
+                {/* Submit Dialog */}
+                <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Ajukan Kegiatan</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Apakah Anda yakin ingin mengajukan kegiatan{' '}
+                                <span className="font-semibold text-neutral-900 dark:text-white">
+                                    {selectedKegiatan?.nama_kegiatan}
+                                </span>{' '}
+                                untuk persetujuan?
+                            </p>
+                            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+                                Kegiatan akan dikirim ke Admin/Approver untuk ditinjau.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowSubmitDialog(false)
+                                    setSelectedKegiatan(null)
+                                }}
+                                disabled={processing}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={processing}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                {processing ? 'Memproses...' : 'Ajukan Kegiatan'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Approve Dialog */}
+                <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Setujui Kegiatan</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Apakah Anda yakin ingin menyetujui kegiatan{' '}
+                                <span className="font-semibold text-neutral-900 dark:text-white">
+                                    {selectedKegiatan?.nama_kegiatan}
+                                </span>?
+                            </p>
+                            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+                                Kegiatan akan berstatus divalidasi dan dapat dikelola rate honor serta alokasi petugas.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowApproveDialog(false)
+                                    setSelectedKegiatan(null)
+                                }}
+                                disabled={processing}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={handleApprove}
+                                disabled={processing}
+                                className="bg-green-600 hover:bg-green-700"
+                            >
+                                {processing ? 'Memproses...' : 'Setujui Kegiatan'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Reject Dialog */}
+                <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Tolak Kegiatan</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="catatan">Catatan Penolakan</Label>
+                                <textarea
+                                    id="catatan"
+                                    className="min-h-[100px] w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-neutral-950"
+                                    value={rejectNotes}
+                                    onChange={(e) => setRejectNotes(e.target.value)}
+                                    placeholder="Masukkan alasan penolakan..."
+                                    disabled={processing}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowRejectDialog(false)
+                                    setRejectNotes('')
+                                    setSelectedKegiatan(null)
+                                }}
+                                disabled={processing}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleReject}
+                                disabled={!rejectNotes.trim() || processing}
+                            >
+                                {processing ? 'Memproses...' : 'Tolak Kegiatan'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

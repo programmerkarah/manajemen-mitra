@@ -1,5 +1,5 @@
-import { router, usePage } from '@inertiajs/react';
-import { Calendar1 } from 'lucide-react';
+import { router, usePage, Link } from '@inertiajs/react';
+import { Calendar1, AlertCircle } from 'lucide-react';
 import { type SharedData } from '@/types';
 import {
     DropdownMenu,
@@ -12,7 +12,7 @@ import {
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function YearSwitcher() {
-    const { activeYear, availableYears } = usePage<SharedData>().props;
+    const { activeYear, availableYears, hasAvailableYears } = usePage<SharedData>().props;
 
     const handleYearSwitch = (year: number) => {
         if (year === activeYear) return;
@@ -29,6 +29,26 @@ export function YearSwitcher() {
             }
         );
     };
+
+    // If no available years (no SBML), show a warning instead of dropdown
+    if (!hasAvailableYears) {
+        return (
+            <Link href="/sbml">
+                <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-orange-100 dark:hover:bg-orange-900/20"
+                >
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-orange-500 dark:bg-orange-600 text-sidebar-primary-foreground">
+                        <AlertCircle className="size-5 text-white dark:text-white" />
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold text-orange-700 dark:text-orange-400">Belum ada SBML</span>
+                        <span className="truncate text-xs text-orange-600 dark:text-orange-500">Klik untuk membuat</span>
+                    </div>
+                </SidebarMenuButton>
+            </Link>
+        );
+    }
 
     return (
         <DropdownMenu>

@@ -151,8 +151,19 @@ export function AppSidebar() {
             }
         );
     } else if (hasActiveRole('approver')) {
-        // Approver can see SBML Report
+        // Approver can see Kegiatan and SBML Report
         mainNavItems.push(
+            {
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                ],
+            },
             {
                 title: 'Laporan SBML',
                 href: '/sbml-report',

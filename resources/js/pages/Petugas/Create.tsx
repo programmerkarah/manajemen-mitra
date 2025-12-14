@@ -11,7 +11,6 @@ import { Form } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Petugas', href: '/petugas' },
     { title: 'Tambah Petugas', href: '/petugas/create' },
 ];

@@ -177,6 +177,16 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the active role name as a string for authorization.
+     */
+    public function getActiveRoleAttribute(): ?string
+    {
+        $role = $this->getActiveRole();
+
+        return $role?->name;
+    }
+
+    /**
      * Set the user's active role in session.
      */
     public function setActiveRole(int $roleId): bool

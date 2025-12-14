@@ -17,12 +17,12 @@ class BypassTwoFactorIfTrustedDevice
     {
         // Check if this is a two-factor authentication attempt
         $loginId = $request->session()->get('login.id');
-        
+
         if ($loginId) {
             $currentUserAgent = $request->userAgent();
             $currentIp = $request->ip();
             $deviceToken = $request->cookie('trusted_device');
-            
+
             // Check if user has any trusted devices with different fingerprint
             // If device changed (different user agent OR IP), expire all old trusted devices
             $existingDevices = TrustedDevice::where('user_id', $loginId)
@@ -41,7 +41,7 @@ class BypassTwoFactorIfTrustedDevice
                     ]);
                 }
             }
-            
+
             if ($deviceToken) {
                 // Check if current device is trusted and matches fingerprint
                 $trustedDevice = TrustedDevice::where('device_token', $deviceToken)
@@ -57,20 +57,20 @@ class BypassTwoFactorIfTrustedDevice
                 if ($trustedDevice) {
                     // Update last used timestamp
                     $trustedDevice->updateLastUsed();
-                    
+
                     // Get the user
                     $user = \App\Models\User::find($loginId);
-                    
+
                     if ($user) {
                         // Log the user in directly, bypassing 2FA
                         Auth::login($user, $request->session()->get('login.remember', false));
-                        
+
                         // Clear the login session data
                         $request->session()->forget(['login.id', 'login.remember']);
-                        
+
                         // Regenerate session
                         $request->session()->regenerate();
-                        
+
                         // Redirect to intended location or home
                         return redirect()->intended(config('fortify.home'));
                     }

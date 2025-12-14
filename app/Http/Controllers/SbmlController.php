@@ -79,36 +79,61 @@ class SbmlController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Sbml $sbml): Response
+    public function show(int $tahun): Response
     {
+        // Get all SBML entries for the specified year
+        $sbmlEntries = Sbml::where('tahun_anggaran', $tahun)
+            ->orderByRaw("FIELD(jenis_kegiatan, 'survei', 'sensus')")
+            ->orderByRaw("FIELD(status_kepegawaian, 'non_organik', 'organik')")
+            ->orderByRaw("FIELD(jenis_penugasan, 'pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan')")
+            ->get();
+
+        if ($sbmlEntries->isEmpty()) {
+            abort(404, 'SBML untuk tahun '.$tahun.' tidak ditemukan.');
+        }
+
+        // Get status and keterangan from the first entry (same for all entries in a year)
+        $firstEntry = $sbmlEntries->first();
+
         return Inertia::render('Sbml/Show', [
-            'sbml' => $sbml,
+            'tahun' => $tahun,
+            'sbmlEntries' => $sbmlEntries,
+            'status' => $firstEntry->status,
+            'keterangan' => $firstEntry->keterangan,
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Sbml $sbml): Response
+    public function edit(int $tahun): Response
     {
         // Get all SBML entries for the same year
-        $entries = Sbml::where('tahun_anggaran', $sbml->tahun_anggaran)
+        $entries = Sbml::where('tahun_anggaran', $tahun)
             ->orderByRaw("FIELD(jenis_kegiatan, 'survei', 'sensus')")
             ->orderByRaw("FIELD(status_kepegawaian, 'non_organik', 'organik')")
-            ->orderByRaw("FIELD(jenis_penugasan, 'pcl_ppl', 'pml', 'pengolahan')")
+            ->orderByRaw("FIELD(jenis_penugasan, 'pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan')")
             ->get();
 
+        if ($entries->isEmpty()) {
+            abort(404, 'SBML untuk tahun '.$tahun.' tidak ditemukan.');
+        }
+
+        // Get first entry for common data
+        $firstEntry = $entries->first();
+
         return Inertia::render('Sbml/Edit', [
-            'sbml' => $sbml,
             'entries' => $entries,
-            'tahun' => $sbml->tahun_anggaran,
+            'tahun' => $tahun,
+            'status' => $firstEntry->status,
+            'keterangan' => $firstEntry->keterangan,
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Sbml $sbml): RedirectResponse
+    public function update(Request $request, int $tahun): RedirectResponse
     {
         $validated = $request->validate([
             'entries' => ['required', 'array', 'size:15'],
@@ -129,18 +154,23 @@ class SbmlController extends Controller
         }
 
         return redirect()->route('sbml.index')
-            ->with('success', 'SBML berhasil diupdate.');
+            ->with('success', 'SBML untuk tahun '.$tahun.' berhasil diupdate.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Sbml $sbml): RedirectResponse
+    public function destroy(int $tahun): RedirectResponse
     {
-        $sbml->delete();
+        $deleted = Sbml::where('tahun_anggaran', $tahun)->delete();
+
+        if ($deleted === 0) {
+            return redirect()->route('sbml.index')
+                ->with('error', 'SBML untuk tahun '.$tahun.' tidak ditemukan.');
+        }
 
         return redirect()->route('sbml.index')
-            ->with('success', 'SBML berhasil dihapus.');
+            ->with('success', 'SBML untuk tahun '.$tahun.' berhasil dihapus.');
     }
 
     /**

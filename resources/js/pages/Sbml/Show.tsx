@@ -2,11 +2,23 @@ import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/page-header';
 import { ContentCard } from '@/components/content-card';
-import { Sbml } from '@/types';
+import { BreadcrumbItem, Sbml } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
-export default function Show({ sbml }: { sbml: Sbml }) {
+interface ShowProps {
+    tahun: number;
+    sbmlEntries: Sbml[];
+    status: 'aktif' | 'nonaktif';
+    keterangan: string | null;
+}
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'SBML', href: '/sbml' },
+    { title: 'Edit SBML', href: '/sbml/edit' },
+]
+
+export default function Show({ tahun, sbmlEntries, status, keterangan }: ShowProps) {
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -34,187 +46,167 @@ export default function Show({ sbml }: { sbml: Sbml }) {
     }
 
     const handleDelete = () => {
-        if (confirm('Apakah Anda yakin ingin menghapus SBML ini?')) {
-            router.delete(`/sbml/${sbml.hashed_id}`);
+        if (confirm(`Apakah Anda yakin ingin menghapus semua data SBML untuk tahun ${tahun}?`)) {
+            router.delete(`/sbml/${tahun}`);
         }
     };
 
+    // Group entries by jenis_kegiatan and status_kepegawaian
+    const groupedEntries = sbmlEntries.reduce((acc, entry) => {
+        const key = `${entry.jenis_kegiatan}_${entry.status_kepegawaian}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(entry);
+        return acc;
+    }, {} as Record<string, Sbml[]>);
+
     return (
-        <>
-            <Head title="Detail SBML" />
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`Detail SBML - Tahun ${tahun}`} />
 
-            <div className="flex flex-col gap-6">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link href="/dashboard">Dashboard</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link href="/sbml">SBML</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>Detail</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+            <div className="space-y-6">
+                <PageHeader
+                    title={`Detail SBML Tahun ${tahun}`}
+                    description="Informasi lengkap batas honor maksimal per bulan"
+                >
+                    <div className="flex gap-3">
+                        <Button size="sm" variant="outline" asChild className="gap-2">
+                            <Link href="/sbml">
+                                <ArrowLeft className="h-4 w-4" />
+                                Kembali
+                            </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="gap-2">
+                            <Link href={`/sbml/${tahun}/edit`}>
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                            </Link>
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={handleDelete}
+                            className="gap-2"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            Hapus
+                        </Button>
+                    </div>
+                </PageHeader>
 
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <div className="flex items-center justify-between">
+                {/* Summary Info */}
+                <ContentCard>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Tahun Anggaran
+                            </p>
+                            <p className="text-lg font-semibold">
+                                {tahun}
+                            </p>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Status
+                            </p>
                             <div>
-                                <h3 className="text-2xl font-semibold leading-none tracking-tight">
-                                    Detail SBML
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Informasi lengkap batas honor maksimal
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button size="sm" variant="outline" asChild>
-                                    <Link href={`/sbml/${sbml.hashed_id}/edit`}>
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Edit
-                                    </Link>
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={handleDelete}
+                                <span
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                        status === 'aktif'
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    }`}
                                 >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Hapus
-                                </Button>
+                                    {status === 'aktif' ? 'Aktif' : 'Nonaktif'}
+                                </span>
                             </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Total Entries
+                            </p>
+                            <p className="text-lg font-semibold">
+                                {sbmlEntries.length} kombinasi
+                            </p>
                         </div>
                     </div>
 
-                    <div className="p-6 pt-0">
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">
-                                        Tahun Anggaran
-                                    </p>
-                                    <p className="text-lg font-semibold">
-                                        {sbml.tahun_anggaran}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">
-                                        Status
-                                    </p>
-                                    <div>
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                                sbml.status === 'aktif'
-                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                            }`}
-                                        >
-                                            {sbml.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="border-t pt-4">
-                                <h4 className="mb-4 text-lg font-semibold">Informasi Detail</h4>
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Jenis Kegiatan
-                                        </p>
-                                        <p className="text-base font-medium">
-                                            {getJenisKegiatanLabel(sbml.jenis_kegiatan)}
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Status Kepegawaian
-                                        </p>
-                                        <p className="text-base font-medium">
-                                            {getStatusKepegawaianLabel(sbml.status_kepegawaian)}
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Jenis Penugasan
-                                        </p>
-                                        <p className="text-base font-medium">
-                                            {getJenisPenugasanLabel(sbml.jenis_penugasan)}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="border-t pt-4">
-                                <h4 className="mb-4 text-lg font-semibold">Batas Honor Maksimal per Bulan</h4>
-                                <div className="rounded-lg border bg-muted/50 p-6">
-                                    <p className="text-sm font-medium text-muted-foreground">
-                                        Maksimal honor yang dapat diterima
-                                    </p>
-                                    <p className="mt-2 text-3xl font-bold text-primary">
-                                        {formatCurrency(sbml.honor_max)}
-                                    </p>
-                                    <p className="mt-2 text-xs text-muted-foreground">
-                                        Per bulan untuk {getJenisPenugasanLabel(sbml.jenis_penugasan).toLowerCase()}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {sbml.keterangan && (
-                                <div className="border-t pt-4">
-                                    <p className="text-sm font-medium text-muted-foreground">
-                                        Keterangan
-                                    </p>
-                                    <p className="mt-2 text-sm">
-                                        {sbml.keterangan}
-                                    </p>
-                                </div>
-                            )}
-
-                            <div className="border-t pt-4">
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Dibuat
-                                        </p>
-                                        <p className="text-sm">
-                                            {new Date(sbml.created_at).toLocaleString('id-ID')}
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Terakhir Diubah
-                                        </p>
-                                        <p className="text-sm">
-                                            {new Date(sbml.updated_at).toLocaleString('id-ID')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2 border-t pt-4">
-                                <Button variant="outline" asChild>
-                                    <Link href="/sbml">Kembali</Link>
-                                </Button>
-                            </div>
+                    {keterangan && (
+                        <div className="border-t border-neutral-200/70 mt-4 pt-4 dark:border-neutral-800">
+                            <p className="text-sm font-medium text-muted-foreground mb-2">
+                                Keterangan
+                            </p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {keterangan}
+                            </p>
                         </div>
+                    )}
+                </ContentCard>
+
+                {/* Honor Table */}
+                <ContentCard padding="none">
+                    <div className="border-b border-neutral-200/70 px-6 py-4 dark:border-neutral-800">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Batas Honor Maksimal per Bulan
+                        </h2>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            Daftar lengkap honor maksimal berdasarkan jenis kegiatan, status kepegawaian, dan jenis penugasan
+                        </p>
                     </div>
-                </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-neutral-200/70 dark:divide-neutral-800">
+                            <thead className="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        No
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Jenis Kegiatan
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Status Kepegawaian
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Jenis Penugasan
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Honor Maksimal
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-200/70 bg-white dark:divide-neutral-800 dark:bg-gray-800">
+                                {sbmlEntries.map((entry, index) => (
+                                    <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            {index + 1}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                {getJenisKegiatanLabel(entry.jenis_kegiatan)}
+                                            </span>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                                {getStatusKepegawaianLabel(entry.status_kepegawaian)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                            {getJenisPenugasanLabel(entry.jenis_penugasan)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                                            {formatCurrency(entry.honor_max)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </ContentCard>
             </div>
-        </>
+        </AppLayout>
     );
 }
-
-Show.layout = (page: React.ReactNode) => <AppLayout children={page} />;

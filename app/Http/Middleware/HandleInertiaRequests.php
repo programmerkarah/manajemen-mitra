@@ -46,7 +46,10 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $user ? $user->load('roles') : null,
+                'user' => $user ? array_merge(
+                    $user->load('roles')->toArray(),
+                    ['active_role' => $user->active_role]
+                ) : null,
                 'activeRole' => $user ? $user->getActiveRole() : null,
                 'userRoles' => $user ? $user->roles : [],
                 'emailVerified' => $user?->hasVerifiedEmail() ?? false,
@@ -54,6 +57,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),
+            'hasAvailableYears' => ActiveYearService::hasAvailableYears(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

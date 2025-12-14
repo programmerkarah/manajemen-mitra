@@ -1,9 +1,14 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import type { AlokasiPetugas, Kegiatan, Petugas, RateHonor, Satuan, SharedData } from '@/types'
+import type { AlokasiPetugas, BreadcrumbItem, Kegiatan, Petugas, RateHonor, Satuan, SharedData } from '@/types'
 import { useState } from 'react'
 import InputError from '@/components/input-error'
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Alokasi', href: '/alokasi' },
+    { title: 'Detail Alokasi Petugas', href: '#' },
+];
 
 interface Props {
     alokasi: AlokasiPetugas & {
@@ -140,7 +145,7 @@ export default function Show({ alokasi }: Props) {
         auth.activeRole?.name === 'approver'
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Detail Alokasi - ${alokasi.petugas.nama}`} />
 
             <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">

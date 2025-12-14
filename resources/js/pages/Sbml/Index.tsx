@@ -27,17 +27,10 @@ export default function Index({ sbmls }: Props) {
     const groupedByYear = sbmls.data.reduce((acc, sbml) => {
         const year = sbml.tahun_anggaran
         
-        // Ensure we have valid hashed_id
-        if (!sbml.hashed_id) {
-            console.warn('SBML entry missing hashed_id:', sbml)
-            return acc
-        }
-        
         if (!acc[year]) {
             acc[year] = {
                 tahun_anggaran: year,
                 status: sbml.status,
-                hashed_id: sbml.hashed_id, // Use first entry's ID for year group
                 count: 0,
             }
         }
@@ -47,7 +40,7 @@ export default function Index({ sbmls }: Props) {
             acc[year].status = 'aktif'
         }
         return acc
-    }, {} as Record<number, { tahun_anggaran: number; status: string; hashed_id: string; count: number }>)
+    }, {} as Record<number, { tahun_anggaran: number; status: string; count: number }>)
 
     const yearGroups = Object.values(groupedByYear).sort((a, b) => b.tahun_anggaran - a.tahun_anggaran)
 
@@ -133,7 +126,7 @@ export default function Index({ sbmls }: Props) {
                                                         asChild
                                                         className="h-8 w-8 p-0"
                                                     >
-                                                        <Link href={`/sbml/${group.hashed_id}`}>
+                                                        <Link href={`/sbml/${group.tahun_anggaran}`}>
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
@@ -143,7 +136,7 @@ export default function Index({ sbmls }: Props) {
                                                         asChild
                                                         className="h-8 w-8 p-0"
                                                     >
-                                                        <Link href={`/sbml/${group.hashed_id}/edit`}>
+                                                        <Link href={`/sbml/${group.tahun_anggaran}/edit`}>
                                                             <Pencil className="h-4 w-4" />
                                                         </Link>
                                                     </Button>

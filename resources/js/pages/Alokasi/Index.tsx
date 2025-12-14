@@ -1,8 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
+import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
-import type { Kegiatan } from '@/types'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import type { BreadcrumbItem, Kegiatan } from '@/types'
 import { useState } from 'react'
+import { Search, Plus } from 'lucide-react'
 
 interface KegiatanWithCount extends Kegiatan {
     penanggung_jawab: {
@@ -12,6 +17,11 @@ interface KegiatanWithCount extends Kegiatan {
     }
     alokasi_count: number
 }
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Alokasi', href: '#' },
+];
+
 
 interface Props {
     kegiatans: {
@@ -80,247 +90,245 @@ export default function Index({ kegiatans, filters }: Props) {
     }
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Alokasi petugas" />
 
-            <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Alokasi petugas
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Kelola alokasi petugas untuk setiap kegiatan
-                        </p>
-                    </div>
-                </div>
+            <PageHeader
+                title="Alokasi Petugas"
+                description="Kelola alokasi petugas untuk setiap kegiatan"
+            >
+                <Button size="sm" asChild className="gap-2">
+                    <Link href="/alokasi/create">
+                        <Plus className="h-4 w-4" />
+                        Tambah Periode Kegiatan
+                    </Link>
+                </Button>
+            </PageHeader>
 
-                {/* Filters */}
-                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                        <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Cari Kegiatan
-                            </label>
-                            <input
+            {/* Filters */}
+            <ContentCard>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="search">Cari Kegiatan</Label>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+                            <Input
+                                id="search"
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleFilter()}
                                 placeholder="Nama atau kode kegiatan..."
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                className="pl-9"
                             />
                         </div>
+                    </div>
 
-                        <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Status
-                            </label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                            >
-                                <option value="">Semua Status</option>
-                                <option value="draft">Draft</option>
-                                <option value="divalidasi">Divalidasi</option>
-                                <option value="selesai">Selesai</option>
-                                <option value="dibatalkan">Dibatalkan</option>
-                            </select>
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <select
+                            id="status"
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                        >
+                            <option value="">Semua Status</option>
+                            <option value="draft">Draft</option>
+                            <option value="divalidasi">Divalidasi</option>
+                            <option value="selesai">Selesai</option>
+                            <option value="dibatalkan">Dibatalkan</option>
+                        </select>
+                    </div>
 
-                        <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Tahun
-                            </label>
-                            <select
-                                value={tahun}
-                                onChange={(e) => setTahun(e.target.value)}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
-                            >
-                                <option value="">Semua Tahun</option>
-                                {tahunOptions.map((year) => (
-                                    <option key={year} value={year}>
-                                        {year}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="tahun">Tahun</Label>
+                        <select
+                            id="tahun"
+                            value={tahun}
+                            onChange={(e) => setTahun(e.target.value)}
+                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                        >
+                            <option value="">Semua Tahun</option>
+                            {tahunOptions.map((year) => (
+                                <option key={year} value={year}>
+                                    {year}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                        <div className="flex items-end gap-2">
-                            <Button onClick={handleFilter} className="flex-1">
-                                Filter
-                            </Button>
-                            <Button onClick={handleReset} variant="outline">
-                                Reset
-                            </Button>
-                        </div>
+                    <div className="flex items-end gap-2">
+                        <Button onClick={handleFilter} className="flex-1">
+                            Filter
+                        </Button>
+                        <Button onClick={handleReset} variant="outline">
+                            Reset
+                        </Button>
                     </div>
                 </div>
+            </ContentCard>
 
-                {/* Table */}
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
+            {/* Table */}
+            <ContentCard padding="none">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-neutral-200/70 dark:divide-neutral-800">
+                        <thead className="bg-neutral-50 dark:bg-neutral-900">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Kegiatan
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Penanggung Jawab
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Tahun
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Pagu Anggaran
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Jumlah Petugas
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Status
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Aksi
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-200/70 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
+                            {kegiatans.data.length === 0 ? (
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Kegiatan
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Penanggung Jawab
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Tahun
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Pagu Anggaran
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Jumlah petugas
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Aksi
-                                    </th>
+                                    <td
+                                        colSpan={7}
+                                        className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
+                                    >
+                                        Tidak ada data kegiatan
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                                {kegiatans.data.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={7}
-                                            className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
-                                        >
-                                            Tidak ada data kegiatan
+                            ) : (
+                                kegiatans.data.map((kegiatan) => (
+                                    <tr
+                                        key={kegiatan.id}
+                                        className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                    >
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <div>
+                                                <div className="font-medium text-neutral-900 dark:text-white">
+                                                    {kegiatan.nama_kegiatan}
+                                                </div>
+                                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                    {kegiatan.kode_kegiatan}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <div className="text-sm text-neutral-900 dark:text-white">
+                                                {kegiatan.penanggung_jawab?.name || '-'}
+                                            </div>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            {kegiatan.tahun_anggaran}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            {kegiatan.pagu_anggaran ? formatCurrency(kegiatan.pagu_anggaran) : '-'}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                                                {kegiatan.alokasi_count} petugas
+                                            </span>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <span
+                                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
+                                            >
+                                                {kegiatan.status === 'draft' && 'Draft'}
+                                                {kegiatan.status === 'divalidasi' && 'Divalidasi'}
+                                                {kegiatan.status === 'selesai' && 'Selesai'}
+                                                {kegiatan.status === 'dibatalkan' &&
+                                                    'Dibatalkan'}
+                                            </span>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
+                                                <Button size="sm">Kelola Petugas</Button>
+                                            </Link>
                                         </td>
                                     </tr>
-                                ) : (
-                                    kegiatans.data.map((kegiatan) => (
-                                        <tr
-                                            key={kegiatan.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-gray-900"
-                                        >
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <div>
-                                                    <div className="font-medium text-gray-900 dark:text-white">
-                                                        {kegiatan.nama_kegiatan}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {kegiatan.kode_kegiatan}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <div className="text-sm text-gray-900 dark:text-white">
-                                                    {kegiatan.penanggung_jawab?.name || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {kegiatan.tahun_anggaran}
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                {kegiatan.pagu_anggaran ? formatCurrency(kegiatan.pagu_anggaran) : '-'}
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                                                    {kegiatan.alokasi_count} petugas
-                                                </span>
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
-                                                >
-                                                    {kegiatan.status === 'draft' && 'Draft'}
-                                                    {kegiatan.status === 'divalidasi' && 'Divalidasi'}
-                                                    {kegiatan.status === 'selesai' && 'Selesai'}
-                                                    {kegiatan.status === 'dibatalkan' &&
-                                                        'Dibatalkan'}
-                                                </span>
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                                <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
-                                                    <Button size="sm">Kelola petugas</Button>
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-                    {/* Pagination */}
-                    {kegiatans.last_page > 1 && (
-                        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
-                            <div className="flex flex-1 justify-between sm:hidden">
-                                {kegiatans.links[0].url && (
-                                    <Link
-                                        href={kegiatans.links[0].url}
-                                        className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        Previous
-                                    </Link>
-                                )}
-                                {kegiatans.links[kegiatans.links.length - 1].url && (
-                                    <Link
-                                        href={
-                                            kegiatans.links[kegiatans.links.length - 1].url || '#'
-                                        }
-                                        className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        Next
-                                    </Link>
-                                )}
+                {/* Pagination */}
+                {kegiatans.last_page > 1 && (
+                    <div className="flex items-center justify-between border-t border-neutral-200/70 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950 sm:px-6">
+                        <div className="flex flex-1 justify-between sm:hidden">
+                            {kegiatans.links[0].url && (
+                                <Link
+                                    href={kegiatans.links[0].url}
+                                    className="relative inline-flex items-center rounded-lg border border-neutral-200/70 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
+                                >
+                                    Previous
+                                </Link>
+                            )}
+                            {kegiatans.links[kegiatans.links.length - 1].url && (
+                                <Link
+                                    href={
+                                        kegiatans.links[kegiatans.links.length - 1].url || '#'
+                                    }
+                                    className="relative ml-3 inline-flex items-center rounded-lg border border-neutral-200/70 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300"
+                                >
+                                    Next
+                                </Link>
+                            )}
+                        </div>
+                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-neutral-700 dark:text-neutral-400">
+                                    Menampilkan{' '}
+                                    <span className="font-medium">
+                                        {(kegiatans.current_page - 1) * kegiatans.per_page + 1}
+                                    </span>{' '}
+                                    sampai{' '}
+                                    <span className="font-medium">
+                                        {Math.min(
+                                            kegiatans.current_page * kegiatans.per_page,
+                                            kegiatans.total
+                                        )}
+                                    </span>{' '}
+                                    dari <span className="font-medium">{kegiatans.total}</span>{' '}
+                                    hasil
+                                </p>
                             </div>
-                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm text-gray-700 dark:text-gray-400">
-                                        Menampilkan{' '}
-                                        <span className="font-medium">
-                                            {(kegiatans.current_page - 1) * kegiatans.per_page + 1}
-                                        </span>{' '}
-                                        sampai{' '}
-                                        <span className="font-medium">
-                                            {Math.min(
-                                                kegiatans.current_page * kegiatans.per_page,
-                                                kegiatans.total
-                                            )}
-                                        </span>{' '}
-                                        dari <span className="font-medium">{kegiatans.total}</span>{' '}
-                                        hasil
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
-                                        {kegiatans.links.map((link, index) => (
-                                            <Link
-                                                key={index}
-                                                href={link.url || '#'}
-                                                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
-                                                    link.active
-                                                        ? 'z-10 bg-blue-600 text-white'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-                                                } ${
-                                                    index === 0
-                                                        ? 'rounded-l-md'
-                                                        : index === kegiatans.links.length - 1
-                                                          ? 'rounded-r-md'
-                                                          : ''
-                                                } border border-gray-300 dark:border-gray-600`}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                            />
-                                        ))}
-                                    </nav>
-                                </div>
+                            <div>
+                                <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm">
+                                    {kegiatans.links.map((link, index) => (
+                                        <Link
+                                            key={index}
+                                            href={link.url || '#'}
+                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                                                link.active
+                                                    ? 'z-10 bg-blue-600 text-white'
+                                                    : 'bg-white text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:bg-neutral-900'
+                                            } ${
+                                                index === 0
+                                                    ? 'rounded-l-lg'
+                                                    : index === kegiatans.links.length - 1
+                                                      ? 'rounded-r-lg'
+                                                      : ''
+                                            } border border-neutral-200/70 dark:border-neutral-800`}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ))}
+                                </nav>
                             </div>
                         </div>
-                    )}
-                </div>
-            </div>
+                    </div>
+                )}
+            </ContentCard>
         </AppLayout>
     )
 }

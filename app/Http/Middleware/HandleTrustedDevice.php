@@ -18,10 +18,10 @@ class HandleTrustedDevice
         $response = $next($request);
 
         // Only process after successful 2FA login
-        if ($request->user() && 
+        if ($request->user() &&
             $request->session()->has('auth.password_confirmed_at') &&
             ($request->has('code') || $request->has('recovery_code'))) {
-            
+
             $rememberDevice = $request->boolean('remember_device', false);
 
             if ($rememberDevice) {
@@ -39,7 +39,7 @@ class HandleTrustedDevice
                         'last_used_at' => now(),
                         'expires_at' => now()->addDays(30),
                     ]);
-                    
+
                     return $response->withCookie(
                         cookie(
                             'trusted_device',

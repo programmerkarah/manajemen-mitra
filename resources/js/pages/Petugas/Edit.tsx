@@ -35,7 +35,6 @@ const pendidikanOptions = ['SD', 'SMP', 'SMA', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2
 
 export default function Edit({ petugas }: EditProps) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
         { title: 'Petugas', href: '/petugas' },
         { title: 'Edit', href: `/petugas/${petugas.hashed_id}/edit` },
     ];

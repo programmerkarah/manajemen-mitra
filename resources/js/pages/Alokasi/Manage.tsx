@@ -2,7 +2,7 @@ import { Head, Link, useForm, router, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import InputError from '@/components/input-error'
-import type { Kegiatan, Petugas, RateHonor, Satuan, AlokasiPetugas, SharedData } from '@/types'
+import type { Kegiatan, Petugas, RateHonor, Satuan, AlokasiPetugas, SharedData, BreadcrumbItem } from '@/types'
 import { useState } from 'react'
 
 interface Props {
@@ -23,6 +23,11 @@ interface Props {
     }
     petugas: Petugas[]
 }
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Alokasi', href: '/alokasi' },
+    { title: 'Kelola Alokasi Petugas', href: '#' },
+];
 
 interface AlokasiForm {
     petugas_id: string
@@ -240,7 +245,7 @@ export default function Manage({ kegiatan, petugas }: Props) {
     }
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Kelola Alokasi petugas - ${kegiatan.nama_kegiatan}`} />
 
             <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -460,7 +465,7 @@ export default function Manage({ kegiatan, petugas }: Props) {
                                         alokasi petugas.
                                     </p>
                                     <Link
-                                        href={`/kegiatan/${kegiatan.hashed_id}/rate-honor`}
+                                        href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}
                                         className="mt-2 inline-block font-medium underline"
                                     >
                                         Kelola Rate Honor

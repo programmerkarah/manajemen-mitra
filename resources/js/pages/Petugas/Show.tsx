@@ -57,7 +57,6 @@ const bulanNames = [
 
 export default function Show({ petugas }: ShowProps) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
         { title: 'Petugas', href: '/petugas' },
         { title: petugas.nama, href: `/petugas/${petugas.hashed_id}` },
     ];

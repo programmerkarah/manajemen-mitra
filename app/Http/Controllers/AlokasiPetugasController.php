@@ -61,8 +61,13 @@ class AlokasiPetugasController extends Controller
     /**
      * Show the form for managing mitra for a kegiatan.
      */
-    public function manage(Request $request, Kegiatan $kegiatan): Response
+    public function manage(Request $request, Kegiatan $kegiatan): Response|RedirectResponse
     {
+        // Check if kegiatan is approved
+        if (! in_array($kegiatan->status, ['divalidasi', 'aktif'])) {
+            return back()->with('error', 'Alokasi petugas hanya bisa dikelola untuk kegiatan yang sudah divalidasi.');
+        }
+
         // Ketua Tim can only manage alokasi for their own kegiatan
         if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
             abort(403, 'Anda tidak memiliki akses untuk mengelola alokasi kegiatan ini.');
@@ -85,6 +90,11 @@ class AlokasiPetugasController extends Controller
      */
     public function storeMultiple(Request $request, Kegiatan $kegiatan): RedirectResponse
     {
+        // Check if kegiatan is approved
+        if (! in_array($kegiatan->status, ['divalidasi', 'aktif'])) {
+            return back()->with('error', 'Alokasi petugas hanya bisa ditambahkan untuk kegiatan yang sudah divalidasi.');
+        }
+
         // Ketua Tim can only add alokasi for their own kegiatan
         if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
             abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
@@ -98,7 +108,8 @@ class AlokasiPetugasController extends Controller
 
         $validated = $request->validate([
             'alokasi' => 'required|array|min:1',
-            'alokasi.*.petugas_id' => 'required|exists:mitra,id',
+            'alokasi.*.petugas_id' => 'required|exists:petugas,id',
+            'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
             'alokasi.*.jumlah_satuan' => 'required|integer|min:1',
@@ -118,14 +129,33 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            // Find matching rate honor based on petugas type
+            // Map peran to jenis_penugasan
+            $jenisPenugasan = match ($alokasiData['peran']) {
+                'PCL' => 'pcl_ppl',
+                'PML' => 'pml',
+                'Pengolahan' => 'pengolahan',
+                'Pengawas Pengolahan' => 'pengawas_pengolahan',
+                default => null,
+            };
+
+            if (! $jenisPenugasan) {
+                $errors[] = 'Alokasi #'.($index + 1).': Peran tidak valid.';
+
+                continue;
+            }
+
+            // Find matching rate honor based on petugas type, jenis_kegiatan, and jenis_penugasan
             $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
             $rateHonor = $kegiatan->rateHonors()
                 ->where('status_kepegawaian', $statusKepegawaian)
+                ->where('jenis_kegiatan', $alokasiData['jenis_kegiatan'])
+                ->where('jenis_penugasan', $jenisPenugasan)
+                ->where('status', 'aktif')
+                ->where('tahun_berlaku', $alokasiData['tahun'])
                 ->first();
 
             if (! $rateHonor) {
-                $errors[] = 'Alokasi #'.($index + 1).': Rate honor untuk petugas '.$statusKepegawaian.' tidak ditemukan.';
+                $errors[] = 'Alokasi #'.($index + 1).': Rate honor untuk '.$alokasiData['peran'].' ('.$statusKepegawaian.', '.$alokasiData['jenis_kegiatan'].') tidak ditemukan.';
 
                 continue;
             }
@@ -154,7 +184,7 @@ class AlokasiPetugasController extends Controller
                 'tahun' => $alokasiData['tahun'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'total_honor' => $totalHonor,
-                'peran' => $rateHonor->posisi,
+                'peran' => $alokasiData['peran'],
                 'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
                 'status_kepegawaian' => $rateHonor->status_kepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
@@ -179,17 +209,23 @@ class AlokasiPetugasController extends Controller
      */
     public function create(Request $request): Response
     {
+        $activeYear = \App\Services\ActiveYearService::get();
+
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
+            ->with([
+                'rateHonors' => function ($query) use ($activeYear) {
+                    $query->where('status', 'aktif')
+                        ->where('tahun_berlaku', $activeYear)
+                        ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'satuan_id')
+                        ->with('satuan:id,kode,nama');
+                },
+            ])
             ->select('id', 'kode_kegiatan', 'nama_kegiatan')
+            ->orderBy('created_at', 'desc')
             ->get();
 
         $petugas = Petugas::where('status', 'aktif')
             ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
-            ->get();
-
-        $rateHonors = RateHonor::with('satuan')
-            ->where('status', 'aktif')
-            ->where('tahun_berlaku', now()->year)
             ->get();
 
         // Handle pre-selected kegiatan from query string
@@ -199,6 +235,15 @@ class AlokasiPetugasController extends Controller
                 $decodedId = Hashids::decode($request->kegiatan_id)[0] ?? null;
                 if ($decodedId) {
                     $selectedKegiatan = Kegiatan::where('id', $decodedId)
+                        ->whereIn('status', ['divalidasi', 'aktif'])
+                        ->with([
+                            'rateHonors' => function ($query) use ($activeYear) {
+                                $query->where('status', 'aktif')
+                                    ->where('tahun_berlaku', $activeYear)
+                                    ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'satuan_id')
+                                    ->with('satuan:id,kode,nama');
+                            },
+                        ])
                         ->select('id', 'kode_kegiatan', 'nama_kegiatan')
                         ->first();
                 }
@@ -210,8 +255,8 @@ class AlokasiPetugasController extends Controller
         return Inertia::render('Alokasi/Create', [
             'kegiatans' => $kegiatans,
             'petugas' => $petugas,
-            'rateHonors' => $rateHonors,
             'selectedKegiatan' => $selectedKegiatan,
+            'active_year' => $activeYear,
         ]);
     }
 

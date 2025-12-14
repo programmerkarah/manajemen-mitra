@@ -49,6 +49,12 @@ class SatuanSeeder extends Seeder
                 'deskripsi' => 'Observasi',
                 'status' => 'aktif',
             ],
+            [
+                'kode' => 'SGMN',
+                'nama' => 'Segment',
+                'deskripsi' => 'Segmen (untuk KSA dan Ubinan)',
+                'status' => 'aktif',
+            ],
         ];
 
         foreach ($satuans as $satuan) {

@@ -40,6 +40,7 @@ export interface SharedData {
     auth: Auth;
     activeYear: number;
     availableYears: number[];
+    hasAvailableYears: boolean;
     sidebarOpen: boolean;
     [key: string]: unknown;
 }
@@ -74,7 +75,7 @@ export interface Kegiatan {
     rate_honor_notes: string | null;
     tanggal_mulai: string;
     tanggal_selesai: string;
-    status: 'draft' | 'divalidasi' | 'selesai' | 'dibatalkan';
+    status: 'draft' | 'diajukan' | 'divalidasi' | 'aktif' | 'selesai' | 'dibatalkan';
     tanggal_validasi: string | null;
     created_at: string;
     updated_at: string;

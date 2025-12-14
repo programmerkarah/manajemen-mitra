@@ -10,7 +10,6 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react'
 import { ArrowLeft } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Kegiatan', href: '/kegiatan' },
     { title: 'Edit Kegiatan', href: '#' },
 ]
@@ -70,109 +69,83 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit Kegiatan - ${kegiatan.nama_kegiatan}`} />
 
-            <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Edit Kegiatan
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    Ubah informasi kegiatan
-                                </p>
-                            </div>
-                            <Link
-                                href={`/kegiatan/${kegiatan.hashed_id}`}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
-                            >
-                                Kembali
-                            </Link>
-                        </div>
-                    </div>
-                </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Edit Kegiatan"
+                    description="Ubah informasi kegiatan"
+                >
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit}>
-                    <div className="overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
-                        <div className="space-y-6 p-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <ContentCard>
+                        <div className="space-y-6">
                             {/* Kode Kegiatan - Read Only */}
-                            <div>
-                                <label
-                                    htmlFor="kode_kegiatan"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
+                            <div className="space-y-2">
+                                <Label htmlFor="kode_kegiatan">
                                     Kode Kegiatan
-                                </label>
-                                <input
-                                    type="text"
+                                </Label>
+                                <Input
                                     id="kode_kegiatan"
                                     value={data.kode_kegiatan}
                                     disabled
-                                    className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400 sm:text-sm"
+                                    className="bg-gray-100 dark:bg-gray-900"
                                 />
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                     Kode kegiatan tidak dapat diubah
                                 </p>
                             </div>
 
                             {/* Nama Kegiatan */}
-                            <div>
-                                <label
-                                    htmlFor="nama_kegiatan"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
+                            <div className="space-y-2">
+                                <Label htmlFor="nama_kegiatan">
                                     Nama Kegiatan <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
+                                </Label>
+                                <Input
                                     id="nama_kegiatan"
                                     value={data.nama_kegiatan}
                                     onChange={(e) => setData('nama_kegiatan', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     placeholder="Masukkan nama kegiatan"
                                 />
                                 <InputError message={errors.nama_kegiatan} className="mt-2" />
                             </div>
 
                             {/* Jenis Kegiatan */}
-                            <div>
-                                <label
-                                    htmlFor="jenis_kegiatan"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
+                            <div className="space-y-2">
+                                <Label htmlFor="jenis_kegiatan">
                                     Jenis Kegiatan <span className="text-red-500">*</span>
-                                </label>
+                                </Label>
                                 <select
                                     id="jenis_kegiatan"
                                     value={data.jenis_kegiatan}
                                     onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                    className="mt-1 block w-full rounded-md border-neutral-200/70 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700 dark:text-white sm:text-sm"
                                 >
                                     <option value="survei">Survei</option>
                                     <option value="sensus">Sensus</option>
                                 </select>
                                 <InputError message={errors.jenis_kegiatan} className="mt-2" />
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                     Jenis kegiatan akan menentukan rate honor yang tersedia
                                 </p>
                             </div>
 
                             {/* Deskripsi */}
-                            <div>
-                                <label
-                                    htmlFor="deskripsi"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >
+                            <div className="space-y-2">
+                                <Label htmlFor="deskripsi">
                                     Deskripsi
-                                </label>
+                                </Label>
                                 <textarea
                                     id="deskripsi"
                                     rows={4}
                                     value={data.deskripsi}
                                     onChange={(e) => setData('deskripsi', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                    className="mt-1 block w-full rounded-md border-neutral-200/70 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     placeholder="Deskripsi kegiatan (opsional)"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />
@@ -181,20 +154,17 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                             {/* Grid untuk 2 kolom */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Tahun Anggaran */}
-                                <div>
-                                    <label
-                                        htmlFor="tahun_anggaran"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
+                                <div className="space-y-2">
+                                    <Label htmlFor="tahun_anggaran">
                                         Tahun Anggaran <span className="text-red-500">*</span>
-                                    </label>
+                                    </Label>
                                     <select
                                         id="tahun_anggaran"
                                         value={data.tahun_anggaran}
                                         onChange={(e) =>
                                             setData('tahun_anggaran', parseInt(e.target.value))
                                         }
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-neutral-200/70 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     >
                                         {tahunOptions.map((tahun) => (
                                             <option key={tahun} value={tahun}>
@@ -206,22 +176,17 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                                 </div>
 
                                 {/* Pagu Anggaran */}
-                                <div>
-                                    <label
-                                        htmlFor="pagu_anggaran"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
+                                <div className="space-y-2">
+                                    <Label htmlFor="pagu_anggaran">
                                         Pagu Anggaran (Rp)
-                                    </label>
-                                    <input
-                                        type="text"
+                                    </Label>
+                                    <Input
                                         id="pagu_anggaran"
                                         value={data.pagu_anggaran ? formatCurrency(data.pagu_anggaran) : ''}
                                         onChange={(e) => {
                                             const raw = parseCurrency(e.target.value)
                                             setData('pagu_anggaran', raw)
                                         }}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                         placeholder="0"
                                     />
                                     <InputError message={errors.pagu_anggaran} className="mt-2" />
@@ -230,18 +195,15 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
 
                             {/* Ketua Tim - Hidden for ketua_tim role */}
                             {!isKetuaTim && (
-                                <div>
-                                    <label
-                                        htmlFor="ketua_tim_user_id"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
+                                <div className="space-y-2">
+                                    <Label htmlFor="ketua_tim_user_id">
                                         Ketua Tim <span className="text-red-500">*</span>
-                                    </label>
+                                    </Label>
                                     <select
                                         id="ketua_tim_user_id"
                                         value={data.ketua_tim_user_id}
                                         onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-neutral-200/70 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     >
                                         <option value="">Pilih Ketua Tim</option>
                                         {ketuaTimUsers.map((user) => (
@@ -257,59 +219,45 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                             {/* Grid untuk tanggal */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Tanggal Mulai */}
-                                <div>
-                                    <label
-                                        htmlFor="tanggal_mulai"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
+                                <div className="space-y-2">
+                                    <Label htmlFor="tanggal_mulai">
                                         Tanggal Mulai <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="date"
+                                    </Label>
+                                    <Input
                                         id="tanggal_mulai"
+                                        type="date"
                                         value={data.tanggal_mulai}
                                         onChange={(e) => setData('tanggal_mulai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     />
                                     <InputError message={errors.tanggal_mulai} className="mt-2" />
                                 </div>
 
                                 {/* Tanggal Selesai */}
-                                <div>
-                                    <label
-                                        htmlFor="tanggal_selesai"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
+                                <div className="space-y-2">
+                                    <Label htmlFor="tanggal_selesai">
                                         Tanggal Selesai <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="date"
+                                    </Label>
+                                    <Input
                                         id="tanggal_selesai"
+                                        type="date"
                                         value={data.tanggal_selesai}
                                         onChange={(e) => setData('tanggal_selesai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     />
                                     <InputError message={errors.tanggal_selesai} className="mt-2" />
                                 </div>
                             </div>
-
-                            {/* Submit Button */}
-                            <div className="flex items-center justify-end gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
-                                <Link
-                                    href={`/kegiatan/${kegiatan.hashed_id}`}
-                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
-                                >
-                                    Batal
-                                </Link>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800"
-                                >
-                                    {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
-                                </button>
-                            </div>
                         </div>
+                    </ContentCard>
+
+                    <div className="flex justify-end gap-3">
+                        <Button type="button" variant="outline" asChild>
+                            <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                                Batal
+                            </Link>
+                        </Button>
+                        <Button type="submit" disabled={processing}>
+                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        </Button>
                     </div>
                 </form>
             </div>

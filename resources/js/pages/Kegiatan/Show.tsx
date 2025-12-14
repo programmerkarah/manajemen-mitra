@@ -3,13 +3,21 @@ import AppLayout from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
-import type { Kegiatan, petugas, RateHonor, Satuan } from '@/types'
-import { ArrowLeft, Pencil, Settings } from 'lucide-react'
+import type { BreadcrumbItem, Kegiatan, Petugas, RateHonor, Satuan } from '@/types'
+import { ArrowLeft, Pencil, Settings, Users } from 'lucide-react'
+
+const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Kegiatan', href: '/kegiatan' },
+        { title: 'Detail Kegiatan', href: '#' },
+    ];
 
 interface Alokasi {
     id: string
     hashed_id: string
-    petugas: petugas
+    bulan: number
+    tahun: number
+    petugas: Petugas
     rate_honor: RateHonor & {
         satuan: Satuan
     }
@@ -31,12 +39,26 @@ interface Props {
         }
         alokasi: Alokasi[]
     }
+    auth: {
+        user: {
+            id: number
+            role: string
+        }
+    }
+    can: {
+        update: boolean
+        approve: boolean
+        reject: boolean
+        delete: boolean
+    }
 }
 
-export default function Show({ kegiatan }: Props) {
+export default function Show({ kegiatan, auth, can }: Props) {
     const statusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
         divalidasi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        aktif: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         selesai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         dibatalkan: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
     }
@@ -74,42 +96,98 @@ export default function Show({ kegiatan }: Props) {
         0
     )
 
+    // Group alokasi by bulan-tahun
+    const groupedAlokasi = kegiatan.alokasi.reduce((acc: Record<string, { bulan: number, tahun: number, jumlah_petugas: number, alokasi: Alokasi[] }>, alokasi) => {
+        const key = `${alokasi.tahun}-${alokasi.bulan}`
+        if (!acc[key]) {
+            acc[key] = {
+                bulan: alokasi.bulan,
+                tahun: alokasi.tahun,
+                jumlah_petugas: 0,
+                alokasi: []
+            }
+        }
+        acc[key].jumlah_petugas++
+        acc[key].alokasi.push(alokasi)
+        return acc
+    }, {})
+
+    const periodeAlokasi = Object.values(groupedAlokasi).sort((a, b) => {
+        if (a.tahun !== b.tahun) return b.tahun - a.tahun
+        return b.bulan - a.bulan
+    })
+
+    const getBulanName = (bulan: number) => {
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+        return months[bulan - 1] || ''
+    }
+
+    // Check if kegiatan is approved (divalidasi or aktif)
+    const isApproved = kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif'
+    
+    // Can edit only if draft
+    const canEdit = kegiatan.status === 'draft' && can.update
+    
+    // Can manage rate honor and alokasi only if divalidasi or aktif
+    const canManageFeatures = kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif'
+
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Detail Kegiatan - ${kegiatan.nama_kegiatan}`} />
 
-            <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Detail Kegiatan
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Informasi lengkap kegiatan dan alokasi petugas
-                        </p>
-                    </div>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Detail Kegiatan"
+                    description="Informasi lengkap kegiatan dan alokasi petugas"
+                >
                     <div className="flex gap-3">
-                        <Link href="/kegiatan">
-                            <Button variant="outline">Kembali</Button>
-                        </Link>
-                        <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
-                            <Button variant="outline">Kelola Rate Honor</Button>
-                        </Link>
-                        <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
-                            <Button>Edit Kegiatan</Button>
-                        </Link>
-                    </div>
-                </div>
+                        <Button variant="outline" size="sm" asChild className="gap-2">
+                            <Link href="/kegiatan">
+                                <ArrowLeft className="h-4 w-4" />
+                                Kembali
+                            </Link>
+                        </Button>
 
-                {/* Kegiatan Info Card */}
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
+                        {/* Rate Honor Management - locked until approved */}
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            asChild={canManageFeatures}
+                            className="gap-2"
+                            disabled={!canManageFeatures}
+                            title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
+                        >
+                            {canManageFeatures ? (
+                                <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
+                                    <Settings className="h-4 w-4" />
+                                    Kelola Rate Honor
+                                </Link>
+                            ) : (
+                                <>
+                                    <Settings className="h-4 w-4" />
+                                    Kelola Rate Honor
+                                </>
+                            )}
+                        </Button>
+
+                        {canEdit && (
+                            <Button size="sm" asChild className="gap-2">
+                                <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    Edit
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                </PageHeader>
+
+                <ContentCard>
+                    <div className="border-b border-neutral-200/70 pb-4 dark:border-neutral-800">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                             Informasi Kegiatan
                         </h2>
                     </div>
-                    <div className="p-6">
+                    <div className="pt-6">
                         <div className="grid gap-6 md:grid-cols-2">
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -129,7 +207,9 @@ export default function Show({ kegiatan }: Props) {
                                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
                                     >
                                         {kegiatan.status === 'draft' && 'Draft'}
+                                        {kegiatan.status === 'diajukan' && 'Diajukan'}
                                         {kegiatan.status === 'divalidasi' && 'Divalidasi'}
+                                        {kegiatan.status === 'aktif' && 'Aktif'}
                                         {kegiatan.status === 'selesai' && 'Selesai'}
                                         {kegiatan.status === 'dibatalkan' && 'Dibatalkan'}
                                     </span>
@@ -236,32 +316,36 @@ export default function Show({ kegiatan }: Props) {
                             </div>
                         </div>
                     </div>
-                </div>
+                </ContentCard>
 
-                {/* Alokasi petugas */}
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            Alokasi petugas ({kegiatan.alokasi.length})
-                        </h2>
-                        <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}>
-                            <Button size="sm">Kelola Alokasi</Button>
-                        </Link>
+                <ContentCard padding="none">
+                    <div className="border-b border-neutral-200/70 px-6 py-4 dark:border-neutral-800">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                Alokasi Petugas ({periodeAlokasi.length} Periode)
+                            </h2>
+                            <Button 
+                                size="sm"
+                                asChild={canManageFeatures}
+                                disabled={!canManageFeatures}
+                                title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
+                            >
+                                {canManageFeatures ? (
+                                    <Link href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}>
+                                        Tambah Periode Kegiatan
+                                    </Link>
+                                ) : (
+                                    <>Tambah Periode Kegiatan</>
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
-                    {kegiatan.alokasi.length === 0 ? (
+                    {periodeAlokasi.length === 0 ? (
                         <div className="px-6 py-12 text-center">
                             <p className="text-gray-500 dark:text-gray-400">
                                 Belum ada alokasi petugas untuk kegiatan ini
                             </p>
-                            <Link
-                                href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage`}
-                                className="mt-4 inline-block"
-                            >
-                                <Button variant="outline" size="sm">
-                                    Kelola Alokasi
-                                </Button>
-                            </Link>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -269,19 +353,13 @@ export default function Show({ kegiatan }: Props) {
                                 <thead className="bg-gray-50 dark:bg-gray-900">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            petugas
+                                            No
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Rate Honor
+                                            Bulan
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Volume
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Total Honor
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                            Status
+                                            Jumlah Petugas
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                             Aksi
@@ -289,56 +367,32 @@ export default function Show({ kegiatan }: Props) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                                    {kegiatan.alokasi.map((alokasi: Alokasi) => (
-                                        <tr key={alokasi.id}>
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <div>
-                                                    <div className="font-medium text-gray-900 dark:text-white">
-                                                        {alokasi.petugas.nama}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        NIK: {alokasi.petugas.nik}
-                                                    </div>
-                                                </div>
+                                    {periodeAlokasi.map((periode, index) => (
+                                        <tr key={`${periode.tahun}-${periode.bulan}`}>
+                                            <td className="whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white">
+                                                {index + 1}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
-                                                <div>
-                                                    <div className="text-gray-900 dark:text-white">
-                                                        {alokasi.rate_honor.posisi}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {formatCurrency(
-                                                            alokasi.rate_honor.rate
-                                                        )}
-                                                        /{alokasi.rate_honor.satuan.nama}
-                                                    </div>
+                                                <div className="font-medium text-gray-900 dark:text-white">
+                                                    {getBulanName(periode.bulan)} {periode.tahun}
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white">
-                                                {alokasi.volume}{' '}
-                                                {alokasi.rate_honor.satuan.nama}
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                                {formatCurrency(alokasi.total_honor)}
-                                            </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${alokasiStatusColors[alokasi.status as keyof typeof alokasiStatusColors]}`}
-                                                >
-                                                    {alokasi.status === 'draft' && 'Draft'}
-                                                    {alokasi.status === 'diajukan' && 'Diajukan'}
-                                                    {alokasi.status === 'disetujui_pj' &&
-                                                        'Disetujui PJ'}
-                                                    {alokasi.status === 'disetujui' && 'Disetujui'}
-                                                    {alokasi.status === 'ditolak' && 'Ditolak'}
-                                                </span>
+                                                {periode.jumlah_petugas} petugas
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                                <Link href={`/alokasi/${alokasi.hashed_id}`}>
-                                                    <Button variant="outline" size="sm">
-                                                        Detail
-                                                    </Button>
-                                                </Link>
+                                                <div className="flex gap-2">
+                                                    <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage?bulan=${periode.bulan}&tahun=${periode.tahun}`}>
+                                                        <Button variant="outline" size="sm">
+                                                            Lihat
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage?bulan=${periode.bulan}&tahun=${periode.tahun}&edit=true`}>
+                                                        <Button variant="outline" size="sm">
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -346,7 +400,7 @@ export default function Show({ kegiatan }: Props) {
                             </table>
                         </div>
                     )}
-                </div>
+                </ContentCard>
             </div>
         </AppLayout>
     )

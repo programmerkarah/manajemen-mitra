@@ -15,9 +15,9 @@ class SaveTrustedDevice
     {
         $request = request();
         $user = $event->user;
-        
+
         // Only process if this is a 2FA authentication (has code or recovery_code)
-        if (!$request->has('code') && !$request->has('recovery_code')) {
+        if (! $request->has('code') && ! $request->has('recovery_code')) {
             return;
         }
 
@@ -37,7 +37,7 @@ class SaveTrustedDevice
                     'last_used_at' => now(),
                     'expires_at' => now()->addDays(30),
                 ]);
-                
+
                 cookie()->queue(
                     'trusted_device',
                     $existingDevice->device_token,
@@ -49,7 +49,7 @@ class SaveTrustedDevice
                     false,
                     'strict'
                 );
-                
+
                 return;
             }
 

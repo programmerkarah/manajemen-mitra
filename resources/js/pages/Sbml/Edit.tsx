@@ -24,14 +24,15 @@ interface SbmlEntry {
 }
 
 interface Props {
-    sbml: Sbml
     entries: Sbml[]
     tahun: number
+    status: 'aktif' | 'nonaktif'
+    keterangan: string | null
 }
 
-export default function Edit({ sbml, entries, tahun }: Props) {
-    const [keterangan, setKeterangan] = useState(sbml.keterangan || '')
-    const [status, setStatus] = useState<'aktif' | 'nonaktif'>(sbml.status)
+export default function Edit({ entries, tahun, status: initialStatus, keterangan: initialKeterangan }: Props) {
+    const [keterangan, setKeterangan] = useState(initialKeterangan || '')
+    const [status, setStatus] = useState<'aktif' | 'nonaktif'>(initialStatus)
     const [processing, setProcessing] = useState(false)
     const [errors, setErrors] = useState<any>({})
 

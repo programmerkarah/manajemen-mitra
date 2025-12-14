@@ -111,7 +111,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::twoFactorChallengeView(function (Request $request) {
             // Check if this device is trusted
             $deviceToken = $request->cookie('trusted_device');
-            $user = $request->session()->get('login.id') 
+            $user = $request->session()->get('login.id')
                 ? \App\Models\User::find($request->session()->get('login.id'))
                 : null;
 
@@ -126,7 +126,7 @@ class FortifyServiceProvider extends ServiceProvider
 
                 if ($trustedDevice) {
                     $trustedDevice->updateLastUsed();
-                    
+
                     return Inertia::render('auth/two-factor-challenge', [
                         'isTrustedDevice' => true,
                     ]);
@@ -225,7 +225,7 @@ class FortifyServiceProvider extends ServiceProvider
 
                 private function getDeviceName(?string $userAgent): string
                 {
-                    if (!$userAgent) {
+                    if (! $userAgent) {
                         return 'Unknown Device';
                     }
 

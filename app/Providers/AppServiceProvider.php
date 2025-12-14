@@ -2,11 +2,20 @@
 
 namespace App\Providers;
 
+use App\Models\Kegiatan;
+use App\Policies\KegiatanPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * The policy mappings for the application.
+     */
+    protected $policies = [
+        Kegiatan::class => KegiatanPolicy::class,
+    ];
+
     /**
      * Register any application services.
      */
@@ -20,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register policies
+        Gate::policy(Kegiatan::class, KegiatanPolicy::class);
+
         // Define gates for role-based access
         Gate::define('admin', function ($user) {
             return $user->hasRole('admin');

@@ -84,13 +84,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('kegiatan.rate-honor.bulk')
         ->middleware('active.role:operator,admin,ketua_tim');
 
-    // Kegiatan Management (Admin, Operator, and Ketua Tim)
-    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+    // Kegiatan Approval Workflow
+    Route::post('kegiatan/{kegiatan}/submit', [KegiatanController::class, 'submit'])
+        ->name('kegiatan.submit')
+        ->middleware('active.role:admin,operator,ketua_tim');
+    Route::post('kegiatan/{kegiatan}/approve', [KegiatanController::class, 'approve'])
+        ->name('kegiatan.approve')
+        ->middleware('active.role:admin,approver');
+    Route::post('kegiatan/{kegiatan}/reject', [KegiatanController::class, 'reject'])
+        ->name('kegiatan.reject')
+        ->middleware('active.role:admin,approver');
+
+    // Kegiatan Management (Admin, Operator, Ketua Tim, and Approver can view)
+    Route::middleware(['active.role:admin,operator,ketua_tim,approver'])->group(function () {
         Route::resource('kegiatan', KegiatanController::class);
     });
 
-    // Alokasi Petugas Management (Admin and Ketua Tim)
-    Route::middleware(['active.role:admin,ketua_tim'])->group(function () {
+    // Alokasi Petugas Management (Admin, Operator, Ketua Tim, Approver can view)
+    Route::middleware(['active.role:admin,operator,ketua_tim,approver'])->group(function () {
         Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiPetugasController::class, 'manage'])
             ->name('alokasi.manage');
         Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiPetugasController::class, 'storeMultiple'])
@@ -100,21 +111,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Alokasi Approval Workflow
     Route::post('alokasi/{alokasi}/submit', [AlokasiPetugasController::class, 'submit'])
-        ->name('alokasi.submit');
-    Route::post('alokasi/{alokasi}/approve-pj', [AlokasiPetugasController::class, 'approvePj'])
-        ->name('alokasi.approve-pj')
-        ->middleware('active.role:pj');
+        ->name('alokasi.submit')
+        ->middleware('active.role:admin,operator,ketua_tim');
     Route::post('alokasi/{alokasi}/approve', [AlokasiPetugasController::class, 'approve'])
         ->name('alokasi.approve')
-        ->middleware('active.role:approver');
+        ->middleware('active.role:admin,approver');
     Route::post('alokasi/{alokasi}/reject', [AlokasiPetugasController::class, 'reject'])
         ->name('alokasi.reject')
-        ->middleware('active.role:approver');
+        ->middleware('active.role:admin,approver');
 
     // SBML Management (Admin, Operator)
     Route::middleware(['active.role:admin,operator'])->group(function () {
         Route::delete('sbml/year/{tahun}', [SbmlController::class, 'destroyYear'])->name('sbml.destroyYear');
-        Route::resource('sbml', SbmlController::class);
+        Route::get('sbml', [SbmlController::class, 'index'])->name('sbml.index');
+        Route::get('sbml/create', [SbmlController::class, 'create'])->name('sbml.create');
+        Route::post('sbml', [SbmlController::class, 'store'])->name('sbml.store');
+        Route::get('sbml/{tahun}', [SbmlController::class, 'show'])->name('sbml.show')->where('tahun', '[0-9]+');
+        Route::get('sbml/{tahun}/edit', [SbmlController::class, 'edit'])->name('sbml.edit')->where('tahun', '[0-9]+');
+        Route::patch('sbml/{tahun}', [SbmlController::class, 'update'])->name('sbml.update')->where('tahun', '[0-9]+');
+        Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
     });
 
     // SBML Report (Admin, Operator, Approver)
