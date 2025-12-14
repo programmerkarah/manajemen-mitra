@@ -67,15 +67,25 @@ interface AlokasiCreateProps {
     sourcePeriode?: { bulan: string; tahun: number } | null
     budget_info: Record<number, { pagu_anggaran: number; current_total_spent: number }>
     used_months_info: Record<number, number[]>
+    isEditMode?: boolean
+    isRevisiMode?: boolean
 }
 
-export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year, copiedAlokasi, sourcePeriode, budget_info, used_months_info }: AlokasiCreateProps) {
+export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year, copiedAlokasi, sourcePeriode, budget_info, used_months_info, isEditMode = false, isRevisiMode = false }: AlokasiCreateProps) {
     const { auth } = usePage<SharedData>().props
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(preSelectedKegiatan?.id || '')
-    const [bulan, setBulan] = useState(new Date().getMonth() + 1)
+    const [bulan, setBulan] = useState(isEditMode && sourcePeriode ? parseInt(sourcePeriode.bulan) : new Date().getMonth() + 1)
     const [jenisKegiatan, setJenisKegiatan] = useState<'sensus' | 'survei'>('survei')
-    const [showPengolahan, setShowPengolahan] = useState(false)
-    const [jumlahPetugas, setJumlahPetugas] = useState(1)
+    const [showPengolahan, setShowPengolahan] = useState(() => {
+        // In edit mode, check if any alokasi has pengolahan roles
+        if (isEditMode && copiedAlokasi) {
+            return copiedAlokasi.some(alok => 
+                alok.peran === 'pengolahan' || alok.peran === 'pengawas_pengolahan'
+            )
+        }
+        return false
+    })
+    const [jumlahPetugas, setJumlahPetugas] = useState(isEditMode && copiedAlokasi ? copiedAlokasi.length : 1)
     const [alokasiItems, setAlokasiItems] = useState<AlokasiItem[]>([
         { petugas_id: '', peran: '', jumlah_satuan: '', estimasi_honor: 0, catatan: '' }
     ])
@@ -145,48 +155,17 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
         console.log('Setting jenisKegiatan to:', newJenisKegiatan)
         setJenisKegiatan(newJenisKegiatan)
         
-        // Recalculate estimasi for all items with the new jenis kegiatan
+        // Recalculate estimasi for all items using the calculateEstimasi function
         setAlokasiItems(prevItems => {
             return prevItems.map(item => {
                 if (item.petugas_id && item.peran && item.jumlah_satuan) {
-                    // Calculate with the new jenis kegiatan
-                    const selectedPetugas = petugas.find(p => String(p.id) === String(item.petugas_id))
-                    if (!selectedPetugas) return item
-
-                    const statusKepegawaian = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
-                    
-                    let jenisPenugasan = ''
-                    if (item.peran === 'PCL') jenisPenugasan = 'pcl_ppl'
-                    else if (item.peran === 'PML') jenisPenugasan = 'pml'
-                    else if (item.peran === 'Pengolahan') jenisPenugasan = 'pengolahan'
-                    else if (item.peran === 'Pengawas Pengolahan') jenisPenugasan = 'pengawas_pengolahan'
-                    
-                    if (!jenisPenugasan) return item
-                    
-                    const matchingRateHonors = selectedKegiatan.rate_honors?.filter(
-                        r => r.status_kepegawaian === statusKepegawaian && 
-                             r.jenis_kegiatan === newJenisKegiatan &&
-                             r.jenis_penugasan === jenisPenugasan
-                    )
-
-                    if (matchingRateHonors && matchingRateHonors.length > 0) {
-                        const rateHonor = matchingRateHonors[0]
-                        const newEstimasi = rateHonor.rate * Number(item.jumlah_satuan)
-                        console.log('Recalculating estimasi:', { 
-                            petugas: selectedPetugas.nama, 
-                            peran: item.peran, 
-                            jenisKegiatan: newJenisKegiatan,
-                            rate: rateHonor.rate,
-                            jumlah: item.jumlah_satuan,
-                            estimasi: newEstimasi
-                        })
-                        return { ...item, estimasi_honor: newEstimasi }
-                    }
+                    const newEstimasi = calculateEstimasi(item.petugas_id, item.peran, item.jumlah_satuan)
+                    return { ...item, estimasi_honor: newEstimasi }
                 }
                 return item
             })
         })
-    }, [selectedKegiatanId, petugas])
+    }, [selectedKegiatanId, selectedKegiatan, petugas])
 
     // Calculate estimasi honor for a petugas
     const calculateEstimasi = (petugasId: string, peran: string, jumlahSatuan: string) => {
@@ -197,7 +176,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
 
         const statusKepegawaian = selectedPetugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik'
         
-        // Map peran to jenis_penugasan
+        // Map peran to jenis_penugasan - this determines which rate_honor to use
         let jenisPenugasan = ''
         if (peran === 'PCL') jenisPenugasan = 'pcl_ppl'
         else if (peran === 'PML') jenisPenugasan = 'pml'
@@ -206,30 +185,41 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
         
         if (!jenisPenugasan) return 0
         
-        // Filter rate honors by jenis_kegiatan, status_kepegawaian, and jenis_penugasan
-        const matchingRateHonors = selectedKegiatan.rate_honors?.filter(
+        // Find matching rate honor based on:
+        // 1. status_kepegawaian (organik/non_organik from petugas)
+        // 2. jenis_penugasan (from peran mapping above)
+        // Note: jenis_kegiatan in rate_honor is just metadata, the key is jenis_penugasan
+        const matchingRateHonor = selectedKegiatan.rate_honors?.find(
             r => r.status_kepegawaian === statusKepegawaian && 
-                 r.jenis_kegiatan === jenisKegiatan &&
                  r.jenis_penugasan === jenisPenugasan
         )
 
-        if (!matchingRateHonors || matchingRateHonors.length === 0) {
+        if (!matchingRateHonor) {
             console.warn('No matching rate honor found for:', {
                 petugasId,
+                petugas: selectedPetugas.nama,
                 peran,
                 jenisPenugasan,
                 jenis_petugas: selectedPetugas.jenis_petugas,
                 statusKepegawaian,
-                jenisKegiatan,
                 availableRateHonors: selectedKegiatan.rate_honors
             })
             return 0
         }
 
-        // Use the first matching rate honor
-        const rateHonor = matchingRateHonors[0]
+        const estimasi = matchingRateHonor.rate * Number(jumlahSatuan)
+        
+        console.log('Calculate estimasi:', {
+            petugas: selectedPetugas.nama,
+            peran,
+            jenisPenugasan,
+            statusKepegawaian,
+            rate: matchingRateHonor.rate,
+            jumlah: jumlahSatuan,
+            estimasi
+        })
 
-        return rateHonor.rate * Number(jumlahSatuan)
+        return estimasi
     }
 
     // Handle jumlah petugas change
@@ -371,8 +361,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                 </Button>
             </PageHeader>
 
-            {/* Source Period Info */}
-            {sourcePeriode && (
+            {/* Source Period Info - Only show for copy mode, not edit mode */}
+            {sourcePeriode && !isEditMode && (
                 <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -420,6 +410,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                     onValueChange={setSelectedKegiatanId}
                                     placeholder="Pilih Kegiatan"
                                     searchPlaceholder="Cari kegiatan..."
+                                    disabled={isEditMode}
                                 />
                                 {errors.kegiatan_id && (
                                     <p className="text-sm text-red-500">{errors.kegiatan_id}</p>
@@ -452,7 +443,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                         id="show_pengolahan"
                                         checked={showPengolahan}
                                         onChange={(e) => setShowPengolahan(e.target.checked)}
-                                        className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-2 focus:ring-blue-600 dark:border-neutral-700 dark:bg-neutral-900"
+                                        disabled={isRevisiMode}
+                                        className={`h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-2 focus:ring-blue-600 dark:border-neutral-700 dark:bg-neutral-900 ${isRevisiMode ? 'disabled:cursor-not-allowed disabled:opacity-50' : ''}`}
                                     />
                                     <Label htmlFor="show_pengolahan" className="cursor-pointer font-normal">
                                         Tampilkan Petugas Pengolahan
@@ -469,6 +461,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                     id="bulan"
                                     value={bulan}
                                     onChange={(e) => setBulan(parseInt(e.target.value))}
+                                    disabled={isRevisiMode}
                                     className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                 >
                                     {months.map((month) => (
@@ -524,6 +517,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                 min="1"
                                 max="50"
                                 placeholder="Masukkan jumlah petugas"
+                                disabled={isRevisiMode}
+                                className={isRevisiMode ? "bg-neutral-100 dark:bg-neutral-900 cursor-not-allowed" : ""}
                             />
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 {jumlahPetugas} baris input petugas akan ditampilkan

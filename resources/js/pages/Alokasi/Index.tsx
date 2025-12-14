@@ -22,13 +22,14 @@ interface AlokasiPeriod {
     bulan: string
     tahun: number
     jenis_kegiatan: 'sensus' | 'survei'
-    status: 'draft' | 'dikirim' | 'direvisi' | 'dihapus'
+    status: 'draft' | 'dikirim' | 'direvisi' | 'dihapus' | 'perubahan'
     jumlah_petugas: number
     total_honor: number
     estimasi_honor: number
     sisa_pagu: number
     pagu_anggaran: number
     latest_created_at: string
+    is_latest_periode: boolean
     kegiatan: Kegiatan
 }
 
@@ -54,9 +55,10 @@ interface Props {
         status?: string
         bulan?: string
     }
+    hasKegiatans: boolean
 }
 
-export default function Index({ alokasi, filters, active_year }: Props) {
+export default function Index({ alokasi, filters, active_year, hasKegiatans }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
     
@@ -177,6 +179,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
         dikirim: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
         direvisi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
         dihapus: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+        perubahan: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     }
 
     const statusLabels = {
@@ -184,6 +187,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
         dikirim: 'Terkirim',
         direvisi: 'Direvisi',
         dihapus: 'Dihapus',
+        perubahan: 'Perubahan',
     }
 
     const formatCurrency = (amount: number) => {
@@ -209,7 +213,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
                 title="Alokasi Petugas"
                 description="Kelola alokasi petugas untuk setiap kegiatan"
             >
-                {!isPJ && (
+                {!isPJ && hasKegiatans && (
                     <Button size="sm" asChild className="gap-2">
                         <Link href="/alokasi/create">
                             <Plus className="h-4 w-4" />
@@ -266,7 +270,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
                             <option value="">Semua Status</option>
                             <option value="draft">Draft</option>
                             <option value="dikirim">Terkirim</option>
-                            <option value="direvisi">Direvisi</option>
+                            <option value="perubahan">Perubahan</option>
                         </select>
                     </div>
 
@@ -409,7 +413,7 @@ export default function Index({ alokasi, filters, active_year }: Props) {
                                                         </Button>
                                                     </>
                                                 )}
-                                                {!isPJ && periode.status === 'dikirim' && (
+                                                {!isPJ && (periode.status === 'dikirim' || periode.status === 'perubahan') && (
                                                     <>
                                                         <Button
                                                             size="sm"
@@ -422,15 +426,17 @@ export default function Index({ alokasi, filters, active_year }: Props) {
                                                                 Salin
                                                             </Link>
                                                         </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="gap-1"
-                                                            onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
-                                                        >
-                                                            <RefreshCw className="h-3 w-3" />
-                                                            Revisi
-                                                        </Button>
+                                                        {periode.is_latest_periode && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="gap-1"
+                                                                onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                            >
+                                                                <RefreshCw className="h-3 w-3" />
+                                                                Revisi
+                                                            </Button>
+                                                        )}
                                                     </>
                                                 )}
                                             </div>

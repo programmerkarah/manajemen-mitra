@@ -130,16 +130,18 @@ export default function Create() {
                                     <Label htmlFor="tahun_bergabung">
                                         Tahun Bergabung <span className="text-red-600">*</span>
                                     </Label>
-                                    <Input
+                                    <select
                                         id="tahun_bergabung"
-                                        type="number"
                                         name="tahun_bergabung"
-                                        min="2000"
-                                        max="2100"
-                                        defaultValue={new Date().getFullYear()}
                                         required
-                                        className="h-10"
-                                    />
+                                        defaultValue={new Date().getFullYear().toString()}
+                                        className="h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                    >
+                                        <option value="">Pilih Tahun</option>
+                                        {Array.from({ length: new Date().getFullYear() - 2000 + 2 }, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
                                     <InputError message={errors.tahun_bergabung} />
                                 </div>
 

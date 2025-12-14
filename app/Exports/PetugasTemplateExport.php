@@ -24,6 +24,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
                 'S1',
                 '2025',
                 'aktif',
+                'Non-Organik',
                 '123456789012345',
                 'Bank BCA',
                 '1234567890',
@@ -39,6 +40,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
                 'S2',
                 '2024',
                 'aktif',
+                'Non-Organik',
                 '987654321098765',
                 'Bank Mandiri',
                 '9876543210',
@@ -59,6 +61,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
             'pendidikan',
             'tahun_bergabung',
             'status',
+            'jenis_petugas',
             'npwp',
             'bank',
             'no_rekening',
@@ -82,7 +85,8 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         $sheet->getColumnDimension('J')->setWidth(20);
         $sheet->getColumnDimension('K')->setWidth(20);
         $sheet->getColumnDimension('L')->setWidth(25);
-        $sheet->getColumnDimension('M')->setWidth(40);
+        $sheet->getColumnDimension('M')->setWidth(25);
+        $sheet->getColumnDimension('N')->setWidth(40);
 
         return [
             // Header style

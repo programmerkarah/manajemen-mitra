@@ -4,17 +4,14 @@ namespace App\Imports;
 
 use App\Models\Petugas;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Maatwebsite\Excel\Validators\Failure;
 
-class PetugasImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithHeadingRow, WithValidation
+class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
 {
     use Importable;
 
@@ -29,81 +26,76 @@ class PetugasImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToC
      */
     public function collection(Collection $rows)
     {
-        foreach ($rows as $row) {
-            try {
-                Petugas::create([
-                    'nama' => $row['nama'],
-                    'nik' => $row['nik'],
-                    'email' => $row['email'],
-                    'telepon' => $row['telepon'] ?? '',
-                    'alamat' => $row['alamat'] ?? '',
-                    'pendidikan' => $row['pendidikan'],
-                    'tahun_bergabung' => $row['tahun_bergabung'] ?? now()->year,
-                    'status' => $row['status'] ?? 'aktif',
-                    'npwp' => $row['npwp'] ?? null,
-                    'bank' => $row['bank'] ?? null,
-                    'no_rekening' => $row['no_rekening'] ?? null,
-                    'nama_rekening' => $row['nama_rekening'] ?? null,
-                    'catatan' => $row['catatan'] ?? null,
-                ]);
+        $rowNumber = 1; // Start from row 1 (after header)
 
+        foreach ($rows as $row) {
+            $rowNumber++;
+
+            // Prepare data with defaults and cast numeric fields to strings
+            $data = [
+                'nama' => $row['nama'] ?? null,
+                'nik' => isset($row['nik']) ? (string) $row['nik'] : null,
+                'email' => $row['email'] ?? null,
+                'telepon' => isset($row['telepon']) ? (string) $row['telepon'] : '',
+                'alamat' => $row['alamat'] ?? '',
+                'pendidikan' => $row['pendidikan'] ?? null,
+                'tahun_bergabung' => $row['tahun_bergabung'] ?? now()->year,
+                'status' => strtolower(trim($row['status'] ?? 'aktif')),
+                'jenis_petugas' => strtolower(trim($row['jenis_petugas'] ?? 'non-organik')),
+                'npwp' => isset($row['npwp']) ? (string) $row['npwp'] : null,
+                'bank' => $row['bank'] ?? null,
+                'no_rekening' => isset($row['no_rekening']) ? (string) $row['no_rekening'] : null,
+                'nama_rekening' => $row['nama_rekening'] ?? null,
+                'catatan' => $row['catatan'] ?? null,
+            ];
+
+            // Validate the row
+            $validator = Validator::make($data, [
+                'nama' => ['required', 'string', 'max:255'],
+                'nik' => ['required', 'string', 'size:16', 'unique:petugas,nik'],
+                'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
+                'telepon' => ['nullable', 'string', 'max:15'],
+                'alamat' => ['nullable', 'string'],
+                'pendidikan' => ['required', Rule::in(['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3'])],
+                'tahun_bergabung' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
+                'status' => ['nullable', Rule::in(['aktif', 'nonaktif'])],
+                'jenis_petugas' => ['nullable', Rule::in(['organik', 'non-organik'])],
+                'npwp' => ['nullable', 'string', 'max:20'],
+                'bank' => ['nullable', 'string', 'max:255'],
+                'no_rekening' => ['nullable', 'string', 'max:255'],
+                'nama_rekening' => ['nullable', 'string', 'max:255'],
+                'catatan' => ['nullable', 'string'],
+            ], [
+                'nama.required' => 'Nama wajib diisi',
+                'nik.required' => 'NIK wajib diisi',
+                'nik.size' => 'NIK harus 16 digit',
+                'nik.unique' => 'NIK sudah terdaftar',
+                'email.required' => 'Email wajib diisi',
+                'email.email' => 'Format email tidak valid',
+                'email.unique' => 'Email sudah terdaftar',
+                'telepon.max' => 'Telepon maksimal 15 karakter',
+                'pendidikan.required' => 'Pendidikan wajib diisi',
+                'pendidikan.in' => 'Pendidikan harus salah satu dari: SD, SMP, SMA, D3, S1, S2, S3',
+                'tahun_bergabung.integer' => 'Tahun bergabung harus berupa angka',
+                'tahun_bergabung.min' => 'Tahun bergabung tidak valid',
+                'tahun_bergabung.max' => 'Tahun bergabung tidak valid',
+                'status.in' => 'Status harus aktif atau nonaktif',
+                'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik',
+                'npwp.max' => 'NPWP maksimal 20 karakter',
+            ]);
+
+            if ($validator->fails()) {
+                $this->errors[] = "Baris {$rowNumber}: ".implode(', ', $validator->errors()->all());
+
+                continue;
+            }
+
+            try {
+                Petugas::create($data);
                 $this->successCount++;
             } catch (\Exception $e) {
-                $this->errors[] = "Row {$row['nama']}: ".$e->getMessage();
+                $this->errors[] = "Baris {$rowNumber} ({$data['nama']}): ".$e->getMessage();
             }
-        }
-    }
-
-    public function rules(): array
-    {
-        return [
-            'nama' => ['required', 'string', 'max:255'],
-            'nik' => ['required', 'string', 'size:16', 'unique:petugas,nik'],
-            'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
-            'telepon' => ['nullable', 'string', 'max:15'],
-            'alamat' => ['nullable', 'string'],
-            'pendidikan' => ['required', Rule::in(['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3'])],
-            'tahun_bergabung' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
-            'status' => ['nullable', Rule::in(['aktif', 'nonaktif'])],
-            'npwp' => ['nullable', 'string', 'max:20'],
-            'bank' => ['nullable', 'string', 'max:255'],
-            'no_rekening' => ['nullable', 'string', 'max:255'],
-            'nama_rekening' => ['nullable', 'string', 'max:255'],
-            'catatan' => ['nullable', 'string'],
-        ];
-    }
-
-    public function customValidationMessages()
-    {
-        return [
-            'nama.required' => 'Nama wajib diisi',
-            'nik.required' => 'NIK wajib diisi',
-            'nik.size' => 'NIK harus 16 digit',
-            'nik.unique' => 'NIK sudah terdaftar',
-            'email.required' => 'Email wajib diisi',
-            'email.email' => 'Format email tidak valid',
-            'email.unique' => 'Email sudah terdaftar',
-            'telepon.max' => 'Telepon maksimal 15 karakter',
-            'pendidikan.required' => 'Pendidikan wajib diisi',
-            'pendidikan.in' => 'Pendidikan harus salah satu dari: SD, SMP, SMA, D3, S1, S2, S3',
-            'tahun_bergabung.integer' => 'Tahun bergabung harus berupa angka',
-            'tahun_bergabung.min' => 'Tahun bergabung tidak valid',
-            'tahun_bergabung.max' => 'Tahun bergabung tidak valid',
-            'status.in' => 'Status harus aktif atau nonaktif',
-            'npwp.max' => 'NPWP maksimal 20 karakter',
-        ];
-    }
-
-    public function onError(\Throwable $e)
-    {
-        $this->errors[] = $e->getMessage();
-    }
-
-    public function onFailure(Failure ...$failures)
-    {
-        foreach ($failures as $failure) {
-            $this->failures[] = $failure;
-            $this->errors[] = "Baris {$failure->row()}: ".implode(', ', $failure->errors());
         }
     }
 

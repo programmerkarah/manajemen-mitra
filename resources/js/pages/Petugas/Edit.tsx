@@ -172,14 +172,16 @@ export default function Edit({ petugas }: EditProps) {
                                 <label className="block text-sm font-medium">
                                     Tahun Bergabung <span className="text-red-600">*</span>
                                 </label>
-                                <input
-                                    type="number"
+                                <select
                                     value={data.tahun_bergabung}
                                     onChange={(e) => setData('tahun_bergabung', parseInt(e.target.value))}
-                                    min="2000"
-                                    max={new Date().getFullYear()}
                                     className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
-                                />
+                                >
+                                    <option value="">Pilih Tahun</option>
+                                    {Array.from({ length: new Date().getFullYear() - 2000 + 2 }, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
                                 {errors.tahun_bergabung && (
                                     <p className="mt-1 text-sm text-red-600">{errors.tahun_bergabung}</p>
                                 )}

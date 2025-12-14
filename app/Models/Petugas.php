@@ -42,6 +42,7 @@ class Petugas extends Model
         'tahun_bergabung',
         'jenis_petugas',
         'status',
+        'jenis_petugas',
         'npwp',
         'bank',
         'no_rekening',
@@ -101,5 +102,29 @@ class Petugas extends Model
         $noRek = $this->no_rekening;
 
         return $noRek ? '****'.substr($noRek, -4) : null;
+    }
+
+    /**
+     * Get data for edit form (includes encrypted fields).
+     */
+    public function toEditArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'hashed_id' => $this->hashed_id,
+            'nama' => $this->getAttribute('nama'),
+            'nik' => $this->getAttribute('nik'),
+            'email' => $this->getAttribute('email'),
+            'telepon' => $this->getAttribute('telepon'),
+            'alamat' => $this->getAttribute('alamat'),
+            'pendidikan' => $this->getAttribute('pendidikan'),
+            'tahun_bergabung' => $this->getAttribute('tahun_bergabung'),
+            'jenis_petugas' => $this->getAttribute('jenis_petugas'),
+            'npwp' => $this->getAttribute('npwp'),
+            'bank' => $this->getAttribute('bank'),
+            'no_rekening' => $this->getAttribute('no_rekening'),
+            'nama_rekening' => $this->getAttribute('nama_rekening'),
+            'status' => $this->getAttribute('status'),
+        ];
     }
 }

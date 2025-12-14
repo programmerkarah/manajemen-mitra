@@ -9,7 +9,6 @@ use App\Imports\PetugasImport;
 use App\Models\Petugas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -79,8 +78,15 @@ class PetugasController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Petugas $petugas): Response
+    public function show(string $petuga): Response
     {
+        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+
+        if (! $id) {
+            abort(404);
+        }
+
+        $petugas = Petugas::findOrFail($id);
         $petugas->load(['alokasi.periodeAlokasi.kegiatan']);
 
         // Transform alokasi to include bulan, tahun, jenis_kegiatan from periode
@@ -102,18 +108,35 @@ class PetugasController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Petugas $petugas): Response
+    public function edit(string $petuga): Response
     {
+        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+
+        if (! $id) {
+            abort(404);
+        }
+
+        $petugas = Petugas::findOrFail($id);
+
+        $data = $petugas->toEditArray();
+
         return Inertia::render('Petugas/Edit', [
-            'petugas' => $petugas,
+            'petugas' => $data,
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdatePetugasRequest $request, Petugas $petugas): RedirectResponse
+    public function update(UpdatePetugasRequest $request, string $petuga): RedirectResponse
     {
+        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+
+        if (! $id) {
+            abort(404);
+        }
+
+        $petugas = Petugas::findOrFail($id);
         $petugas->update($request->validated());
 
         return redirect()->route('petugas.index')
@@ -123,8 +146,15 @@ class PetugasController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Petugas $petugas): RedirectResponse
+    public function destroy(string $petuga): RedirectResponse
     {
+        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+
+        if (! $id) {
+            abort(404);
+        }
+
+        $petugas = Petugas::findOrFail($id);
         $petugas->delete();
 
         return redirect()->route('petugas.index')
@@ -144,16 +174,6 @@ class PetugasController extends Controller
      */
     public function import(Request $request): RedirectResponse
     {
-        // Debug: log request data
-        Log::info('Import request received', [
-            'has_file' => $request->hasFile('file'),
-            'file_info' => $request->hasFile('file') ? [
-                'name' => $request->file('file')->getClientOriginalName(),
-                'size' => $request->file('file')->getSize(),
-                'mime' => $request->file('file')->getMimeType(),
-            ] : null,
-        ]);
-
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:2048'],
         ], [

@@ -42,6 +42,12 @@ export interface SharedData {
     availableYears: number[];
     hasAvailableYears: boolean;
     sidebarOpen: boolean;
+    flash: {
+        success?: string;
+        error?: string;
+        warning?: string;
+        info?: string;
+    };
     [key: string]: unknown;
 }
 
