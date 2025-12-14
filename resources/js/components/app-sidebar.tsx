@@ -75,7 +75,7 @@ export function AppSidebar() {
                 ],
             },
             {
-                title: 'Laporan SBML',
+                title: 'Rekap Honor Petugas',
                 href: '/sbml-report',
                 icon: BarChart3,
             },
@@ -112,6 +112,10 @@ export function AppSidebar() {
                         title: 'Alokasi Petugas',
                         href: '/alokasi',
                     },
+                    {
+                        title: 'Rekap Honor Petugas',
+                        href: '/sbml-report',
+                    },
                 ],
             },
             {
@@ -128,11 +132,6 @@ export function AppSidebar() {
                         href: '/sbml',
                     },
                 ],
-            },
-            {
-                title: 'Laporan SBML',
-                href: '/sbml-report',
-                icon: BarChart3,
             }
         );
     } else if (hasActiveRole('ketua_tim')) {
@@ -192,6 +191,10 @@ export function AppSidebar() {
                         title: 'Alokasi Petugas',
                         href: '/alokasi',
                     },
+                    {
+                        title: 'Rekap Honor Petugas',
+                        href: '/sbml-report',
+                    },
                 ],
             },
             {
@@ -208,11 +211,6 @@ export function AppSidebar() {
                         href: '/sbml',
                     },
                 ],
-            },
-            {
-                title: 'Laporan SBML',
-                href: '/sbml-report',
-                icon: BarChart3,
             },
             {
                 title: 'SK KPA',

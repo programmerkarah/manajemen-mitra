@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
 import { useState } from 'react'
-import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye } from 'lucide-react'
 
 interface AlokasiPeriod {
     kegiatan_id: number
@@ -369,6 +369,18 @@ export default function Index({ alokasi, filters, active_year, hasKegiatans }: P
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    asChild
+                                                    className="gap-1"
+                                                    title="Lihat Detail"
+                                                >
+                                                    <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}`}>
+                                                        <Eye className="h-3 w-3" />
+                                                        Detail
+                                                    </Link>
+                                                </Button>
                                                 {!isPJ && periode.status === 'draft' && (
                                                     <>
                                                         <Button

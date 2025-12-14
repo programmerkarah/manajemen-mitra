@@ -19,7 +19,7 @@ return new class extends Migration
                 ->references('id')
                 ->on('periode_alokasi')
                 ->onDelete('set null');
-            
+
             // Add revision_number to track how many times revised
             $table->integer('revision_number')->default(0)->after('parent_periode_id');
         });

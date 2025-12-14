@@ -9,6 +9,7 @@ import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'SBML', href: '/sbml' },
@@ -91,7 +92,9 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
             status,
         }
 
-        router.put(`/sbml/${sbml.hashed_id}`, payload, {
+        // Ambil hashed_id dari entry pertama
+        const hashedId = entries[0]?.hashed_id
+        router.put(`/sbml/${hashedId}`, payload, {
             onSuccess: () => {
                 setProcessing(false)
             },

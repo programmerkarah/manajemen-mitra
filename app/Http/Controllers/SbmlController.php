@@ -123,7 +123,16 @@ class SbmlController extends Controller
         $firstEntry = $entries->first();
 
         return Inertia::render('Sbml/Edit', [
-            'entries' => $entries,
+            'entries' => $entries->map(function ($e) {
+                return [
+                    'id' => $e->id,
+                    'hashed_id' => $e->hashed_id,
+                    'jenis_kegiatan' => $e->jenis_kegiatan,
+                    'status_kepegawaian' => $e->status_kepegawaian,
+                    'jenis_penugasan' => $e->jenis_penugasan,
+                    'honor_max' => $e->honor_max,
+                ];
+            }),
             'tahun' => $tahun,
             'status' => $firstEntry->status,
             'keterangan' => $firstEntry->keterangan,

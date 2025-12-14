@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreKegiatanRequest;
 use App\Http\Requests\UpdateKegiatanRequest;
 use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
 use App\Models\RateHonor;
 use App\Models\Satuan;
 use App\Models\User;
@@ -215,13 +216,144 @@ class KegiatanController extends Controller
 
         $data = $request->validated();
 
-        // Ketua Tim can validate kegiatan
+        // Transform pagu_anggaran to anggaran (database column name)
+        if (isset($data['pagu_anggaran'])) {
+            $data['anggaran'] = $data['pagu_anggaran'];
+            unset($data['pagu_anggaran']);
+        }
+
+        // Ketua Tim can validate kegiatan (check before updating)
         if ($request->user()->isKetuaTim() && $request->filled('validate')) {
             $data['status'] = 'divalidasi';
             $data['tanggal_validasi'] = now();
         }
 
+        // Check if tanggal kegiatan is being changed
+        $oldTanggalMulai = $kegiatan->tanggal_mulai;
+        $oldTanggalSelesai = $kegiatan->tanggal_selesai;
+        $newTanggalMulai = isset($data['tanggal_mulai']) ? \Carbon\Carbon::parse($data['tanggal_mulai']) : $oldTanggalMulai;
+        $newTanggalSelesai = isset($data['tanggal_selesai']) ? \Carbon\Carbon::parse($data['tanggal_selesai']) : $oldTanggalSelesai;
+        $tanggalChanged = $oldTanggalMulai != $newTanggalMulai || $oldTanggalSelesai != $newTanggalSelesai;
+
+        if ($tanggalChanged) {
+            // Load existing periode alokasi
+            $existingPeriodes = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+                ->orderBy('tahun')
+                ->orderBy('bulan')
+                ->get();
+
+            // Check if any periode is outside the new date range
+            $invalidPeriodes = [];
+            foreach ($existingPeriodes as $periode) {
+                // Create date from periode (first day of the month)
+                $periodeTanggal = \Carbon\Carbon::createFromDate($periode->tahun, (int) $periode->bulan, 1);
+
+                // Compare with start and end of month ranges (use copy to avoid mutating original)
+                $rangeStart = $newTanggalMulai->copy()->startOfMonth();
+                $rangeEnd = $newTanggalSelesai->copy()->endOfMonth();
+
+                if ($periodeTanggal->lt($rangeStart) || $periodeTanggal->gt($rangeEnd)) {
+                    // Get month name in Indonesian
+                    $bulanInt = (int) $periode->bulan;
+                    $namabulan = \Carbon\Carbon::create()->month($bulanInt)->translatedFormat('F');
+
+                    $invalidPeriodes[] = sprintf('%s %d', $namabulan, $periode->tahun);
+                }
+            }
+
+            if (! empty($invalidPeriodes)) {
+                return back()->withErrors([
+                    'tanggal_mulai' => sprintf(
+                        'Tidak dapat mengubah tanggal kegiatan karena terdapat periode alokasi di luar rentang tanggal baru: %s. Hapus atau ubah periode tersebut terlebih dahulu.',
+                        implode(', ', $invalidPeriodes)
+                    ),
+                ])->withInput();
+            }
+        }
+
+        // Check if anggaran (pagu) is being changed
+        $oldPagu = (float) ($kegiatan->anggaran ?? 0);
+        $newPagu = (float) ($data['anggaran'] ?? 0);
+        $paguChanged = $oldPagu != $newPagu;
+
+        \Log::info('Checking pagu change', [
+            'old_pagu' => $oldPagu,
+            'new_pagu' => $newPagu,
+            'pagu_changed' => $paguChanged,
+        ]);
+
+        if ($paguChanged) {
+            // Load all alokasi for this kegiatan
+            $kegiatan->load(['periodeAlokasi' => function ($query) {
+                $query->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+                    ->with('alokasiPetugas');
+            }]);
+
+            // Calculate total honor already allocated
+            $totalHonorAlokasi = $kegiatan->periodeAlokasi->sum(function ($periode) {
+                return $periode->alokasiPetugas->sum('total_honor');
+            });
+
+            \Log::info('Validating pagu vs allocated honor', [
+                'new_pagu' => $newPagu,
+                'total_honor_alokasi' => $totalHonorAlokasi,
+                'is_valid' => $newPagu >= $totalHonorAlokasi,
+            ]);
+
+            // Check if new pagu is smaller than total allocated honor
+            if ($newPagu < $totalHonorAlokasi) {
+                \Log::warning('Pagu validation failed - insufficient budget', [
+                    'new_pagu' => $newPagu,
+                    'total_honor_alokasi' => $totalHonorAlokasi,
+                ]);
+
+                return back()->withErrors([
+                    'pagu_anggaran' => sprintf(
+                        'Pagu anggaran tidak boleh lebih kecil dari total honor yang sudah dialokasikan (Rp %s). Total honor saat ini: Rp %s',
+                        number_format($newPagu, 0, ',', '.'),
+                        number_format($totalHonorAlokasi, 0, ',', '.')
+                    ),
+                ])->withInput();
+            }
+        }
+
+        // Update kegiatan with all validated data
         $kegiatan->update($data);
+
+        // If pagu changed, recalculate all periode sisa_pagu
+        if ($paguChanged) {
+            // Recalculate sisa_pagu for all periods sequentially (January to December)
+            $periodes = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+                ->orderBy('tahun')
+                ->orderBy('bulan')
+                ->with('alokasiPetugas')
+                ->get();
+
+            $currentSisaPagu = $newPagu;
+
+            foreach ($periodes as $periode) {
+                $periodeTotalHonor = $periode->alokasiPetugas->sum('total_honor');
+                $currentSisaPagu = $currentSisaPagu - $periodeTotalHonor;
+
+                $periode->update(['sisa_pagu' => $currentSisaPagu]);
+
+                \Log::info('Recalculated sisa_pagu after kegiatan pagu update', [
+                    'kegiatan_id' => $kegiatan->id,
+                    'periode_id' => $periode->id,
+                    'bulan' => $periode->bulan,
+                    'tahun' => $periode->tahun,
+                    'periode_total' => $periodeTotalHonor,
+                    'new_sisa_pagu' => $currentSisaPagu,
+                ]);
+            }
+
+            return redirect()->route('kegiatan.index')
+                ->with('success', 'Kegiatan dan sisa pagu periode berhasil diperbarui.');
+        }
+
+        // Normal update (no pagu change)
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Kegiatan berhasil diperbarui.');

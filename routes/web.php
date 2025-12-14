@@ -128,6 +128,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('alokasi/{alokasi}', [AlokasiPetugasController::class, 'show'])->name('alokasi.show');
         Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiPetugasController::class, 'manage'])
             ->name('alokasi.manage');
+        // Show periode detail (read-only) - accessible by PJ
+        Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'showPeriode'])
+            ->name('alokasi.periode.show');
     });
 
     // Alokasi modification routes (Admin, Operator, Ketua Tim only)
@@ -143,8 +146,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Periode-based actions
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/submit', [AlokasiPetugasController::class, 'submitPeriode'])
             ->name('alokasi.periode.submit');
+        // Edit periode
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit', [AlokasiPetugasController::class, 'editPeriode'])
             ->name('alokasi.periode.edit');
+        // Update periode
         Route::put('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'updatePeriode'])
             ->name('alokasi.periode.update');
         Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])

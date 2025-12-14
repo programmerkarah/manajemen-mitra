@@ -1,404 +1,355 @@
-import { Head, Link, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import { Sbml } from '@/types';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Head, router } from '@inertiajs/react'
+import AppLayout from '@/layouts/app-layout'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { ContentCard } from '@/components/content-card'
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { BreadcrumbItem } from '@/types'
 
-interface MonthlyData {
-    bulan: string;
-    jenis_kegiatan: 'sensus' | 'survei';
-    status_kepegawaian: 'organik' | 'non_organik';
-    total_honor: number;
-    highest_peran: string;
-    max_allowed: number;
-    exceeds: boolean;
-    difference: number;
-    details: Array<{
-        kegiatan: string;
-        peran: string;
-        honor: number;
-    }>;
+interface AlokasiDetail {
+    peran: string
+    jumlah_satuan: number
+    total_honor: number
+    status_kepegawaian: string
+    catatan: string | null
 }
 
-interface MitraReport {
-    id: number;
-    hashed_id: string;
-    nama: string;
-    nik: string;
-    monthly_data: MonthlyData[];
-    total_honor_tahun: number;
-    has_violations: boolean;
+interface KegiatanDetail {
+    kegiatan_id: number
+    kegiatan_hashed_id: string
+    nama_kegiatan: string
+    jenis_kegiatan: 'sensus' | 'survei'
+    total_honor: number
+    alokasi: AlokasiDetail[]
+}
+
+interface PetugasData {
+    petugas_id: number
+    petugas_hashed_id: string
+    nama: string
+    nik: string
+    jenis_petugas: 'organik' | 'non_organik'
+    total_honor: number
+    max_allowed: number
+    exceeds: boolean
+    difference: number
+    percentage: number
+    kegiatan_count: number
+    kegiatan_details: KegiatanDetail[]
+}
+
+interface BulanOption {
+    value: string
+    label: string
 }
 
 interface Props {
-    mitras: MitraReport[];
-    sbml: Sbml | null;
-    tahun: number;
-    bulan: string | null;
+    petugas: PetugasData[]
     filters: {
-        tahun: number;
-        bulan: string | null;
-        jenis_kegiatan: string | null;
-        status_kepegawaian: string | null;
-    };
+        tahun: number
+        bulan: string
+    }
+    bulan_options: BulanOption[]
 }
 
-export default function Report({ mitras, sbml, tahun, bulan, filters }: Props) {
-    const currentYear = new Date().getFullYear();
-    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i);
-    const bulanOptions = [
-        { value: '', label: 'Semua Bulan' },
-        { value: 'Januari', label: 'Januari' },
-        { value: 'Februari', label: 'Februari' },
-        { value: 'Maret', label: 'Maret' },
-        { value: 'April', label: 'April' },
-        { value: 'Mei', label: 'Mei' },
-        { value: 'Juni', label: 'Juni' },
-        { value: 'Juli', label: 'Juli' },
-        { value: 'Agustus', label: 'Agustus' },
-        { value: 'September', label: 'September' },
-        { value: 'Oktober', label: 'Oktober' },
-        { value: 'November', label: 'November' },
-        { value: 'Desember', label: 'Desember' },
+export default function Report({ petugas, filters, bulan_options }: Props) {
+    const [selectedTahun, setSelectedTahun] = useState(filters.tahun.toString())
+    const [selectedBulan, setSelectedBulan] = useState(filters.bulan)
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+    
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Rekap Honor Petugas' , href:'#' },
     ];
 
-    const [expandedMitras, setExpandedMitras] = useState<Set<number>>(new Set());
+
+    const handleFilterChange = (tahun: string, bulan: string) => {
+        router.get('/sbml-report', { tahun, bulan }, { preserveState: true })
+    }
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
-        }).format(amount);
-    };
+        }).format(amount)
+    }
 
-    const getPeranLabel = (peran: string) => {
-        const labels: Record<string, string> = {
-            pcl_ppl: 'PCL/PPL',
-            pml: 'PML',
-            pengolahan: 'Pengolahan',
-        };
-        return labels[peran] || peran;
-    };
-
-    const getJenisKegiatanLabel = (jenis: 'sensus' | 'survei') => {
-        return jenis === 'sensus' ? 'Sensus' : 'Survei';
-    };
-
-    const getStatusKepegawaianLabel = (status: 'organik' | 'non_organik') => {
-        return status === 'organik' ? 'Organik (PNS/PPPK)' : 'Non-Organik';
-    };
-
-    const handleFilterChange = (key: string, value: string) => {
-        router.get('/sbml-report', {
-            ...filters,
-            [key]: value,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    };
-
-    const toggleMitraExpand = (mitraId: number) => {
-        const newExpanded = new Set(expandedMitras);
-        if (newExpanded.has(mitraId)) {
-            newExpanded.delete(mitraId);
+    const toggleRow = (petugasId: number) => {
+        const newExpanded = new Set(expandedRows)
+        if (newExpanded.has(petugasId)) {
+            newExpanded.delete(petugasId)
         } else {
-            newExpanded.add(mitraId);
+            newExpanded.add(petugasId)
         }
-        setExpandedMitras(newExpanded);
-    };
+        setExpandedRows(newExpanded)
+    }
 
-    const violatingMitras = mitras.filter(m => m.has_violations);
+    const getStatusBadge = (exceeds: boolean, percentage: number) => {
+        if (exceeds) {
+            return (
+                <Badge variant="destructive" className="gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Melebihi Batas ({percentage.toFixed(1)}%)
+                </Badge>
+            )
+        }
+        if (percentage >= 90) {
+            return (
+                <Badge variant="warning" className="gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Mendekati Batas ({percentage.toFixed(1)}%)
+                </Badge>
+            )
+        }
+        return (
+            <Badge variant="success">
+                Normal ({percentage.toFixed(1)}%)
+            </Badge>
+        )
+    }
+
+    const currentMonth = bulan_options.find(b => b.value === selectedBulan)
 
     return (
-        <>
-            <Head title="Laporan SBML" />
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Rekap Honor Petugas" />
 
-            <div className="flex flex-col gap-6">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link href="/dashboard">Dashboard</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>Laporan SBML</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
-
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <h3 className="text-2xl font-semibold leading-none tracking-tight">
-                            Laporan Monitoring SBML
-                        </h3>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Rekap Honor Petugas</h1>
                         <p className="text-sm text-muted-foreground">
-                            Pantau batas honor maksimal mitra per bulan
+                            Rekap total honor yang diterima masing-masing petugas per bulan
                         </p>
                     </div>
+                </div>
 
-                    <div className="p-6 pt-0">
-                        {/* Summary Alert */}
-                        {!sbml && (
-                            <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
-                                <div className="flex items-start">
-                                    <AlertCircle className="mr-2 mt-0.5 h-5 w-5 text-yellow-600 dark:text-yellow-500" />
-                                    <div>
-                                        <h4 className="font-semibold text-yellow-800 dark:text-yellow-500">
-                                            SBML Tidak Tersedia
-                                        </h4>
-                                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                                            Tidak ada data SBML aktif untuk tahun {tahun}. Silakan tambahkan data SBML terlebih dahulu.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {violatingMitras.length > 0 && (
-                            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-                                <div className="flex items-start">
-                                    <AlertCircle className="mr-2 mt-0.5 h-5 w-5 text-red-600 dark:text-red-500" />
-                                    <div>
-                                        <h4 className="font-semibold text-red-800 dark:text-red-500">
-                                            Peringatan Pelanggaran Batas Honor
-                                        </h4>
-                                        <p className="text-sm text-red-700 dark:text-red-400">
-                                            Terdapat {violatingMitras.length} mitra yang melebihi batas honor maksimal per bulan.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Filters */}
-                        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            <div className="space-y-2">
-                                <label htmlFor="tahun" className="text-sm font-medium">
-                                    Tahun
-                                </label>
-                                <select
-                                    id="tahun"
-                                    value={tahun}
-                                    onChange={(e) => handleFilterChange('tahun', e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    {tahunOptions.map((t) => (
-                                        <option key={t} value={t}>
-                                            {t}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="bulan" className="text-sm font-medium">
-                                    Bulan
-                                </label>
-                                <select
-                                    id="bulan"
-                                    value={bulan || ''}
-                                    onChange={(e) => handleFilterChange('bulan', e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    {bulanOptions.map((b) => (
-                                        <option key={b.value} value={b.value}>
-                                            {b.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="jenis_kegiatan" className="text-sm font-medium">
-                                    Jenis Kegiatan
-                                </label>
-                                <select
-                                    id="jenis_kegiatan"
-                                    value={filters.jenis_kegiatan || ''}
-                                    onChange={(e) => handleFilterChange('jenis_kegiatan', e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    <option value="">Semua Kegiatan</option>
-                                    <option value="sensus">Sensus</option>
-                                    <option value="survei">Survei</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="status_kepegawaian" className="text-sm font-medium">
-                                    Status Kepegawaian
-                                </label>
-                                <select
-                                    id="status_kepegawaian"
-                                    value={filters.status_kepegawaian || ''}
-                                    onChange={(e) => handleFilterChange('status_kepegawaian', e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    <option value="">Semua Status</option>
-                                    <option value="organik">Organik (PNS/PPPK)</option>
-                                    <option value="non_organik">Non-Organik</option>
-                                </select>
-                            </div>
+                {/* Filters */}
+                <ContentCard>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                        <div className="space-y-2 flex-1">
+                            <label className="text-sm font-medium">Tahun</label>
+                            <Select
+                                value={selectedTahun}
+                                onValueChange={(value) => {
+                                    setSelectedTahun(value)
+                                    handleFilterChange(value, selectedBulan)
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(
+                                        (year) => (
+                                            <SelectItem key={year} value={year.toString()}>
+                                                {year}
+                                            </SelectItem>
+                                        )
+                                    )}
+                                </SelectContent>
+                            </Select>
                         </div>
 
-                        {/* Mitra List */}
-                        {mitras.length === 0 ? (
-                            <div className="rounded-lg border border-dashed p-8 text-center">
-                                <p className="text-muted-foreground">
-                                    Tidak ada data alokasi mitra untuk periode yang dipilih.
+                        <div className="space-y-2 flex-1">
+                            <label className="text-sm font-medium">Bulan</label>
+                            <Select
+                                value={selectedBulan}
+                                onValueChange={(value) => {
+                                    setSelectedBulan(value)
+                                    handleFilterChange(selectedTahun, value)
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {bulan_options.map((bulan) => (
+                                        <SelectItem key={bulan.value} value={bulan.value}>
+                                            {bulan.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </ContentCard>
+
+                {/* Summary Info */}
+                {petugas.length > 0 && (
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <ContentCard>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Total Petugas</p>
+                                <p className="text-2xl font-bold">{petugas.length}</p>
+                            </div>
+                        </ContentCard>
+                        <ContentCard>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Total Honor</p>
+                                <p className="text-2xl font-bold">
+                                    {formatCurrency(petugas.reduce((sum, p) => sum + p.total_honor, 0))}
                                 </p>
                             </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {mitras.map((mitra) => {
-                                    const isExpanded = expandedMitras.has(mitra.id);
-
-                                    return (
-                                        <div
-                                            key={mitra.id}
-                                            className={`rounded-lg border ${
-                                                mitra.has_violations
-                                                    ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/10'
-                                                    : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-                                            }`}
-                                        >
-                                            <div
-                                                className="flex cursor-pointer items-center justify-between p-4"
-                                                onClick={() => toggleMitraExpand(mitra.id)}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {isExpanded ? (
-                                                        <ChevronDown className="h-5 w-5 text-gray-500" />
-                                                    ) : (
-                                                        <ChevronRight className="h-5 w-5 text-gray-500" />
-                                                    )}
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="font-semibold">{mitra.nama}</h4>
-                                                            {mitra.has_violations && (
-                                                                <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900 dark:text-red-200">
-                                                                    Melebihi Batas
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            NIK: {mitra.nik}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm text-muted-foreground">Total Honor</p>
-                                                    <p className="font-semibold">
-                                                        {formatCurrency(mitra.total_honor_tahun)}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {isExpanded && (
-                                                <div className="border-t p-4">
-                                                    <div className="space-y-4">
-                                                        {mitra.monthly_data.map((month) => (
-                                                            <div
-                                                                key={month.bulan}
-                                                                className={`rounded-lg border p-4 ${
-                                                                    month.exceeds
-                                                                        ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/5'
-                                                                        : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50'
-                                                                }`}
-                                                            >
-                                                                <div className="mb-3 flex items-center justify-between">
-                                                                    <div>
-                                                                        <h5 className="font-semibold">{month.bulan}</h5>
-                                                                        <div className="mt-1 flex flex-wrap gap-2">
-                                                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                                                {getJenisKegiatanLabel(month.jenis_kegiatan)}
-                                                                            </span>
-                                                                            <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                                                                                {getStatusKepegawaianLabel(month.status_kepegawaian)}
-                                                                            </span>
-                                                                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                                                                                {getPeranLabel(month.highest_peran)}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="text-right">
-                                                                        <p className="text-sm text-muted-foreground">
-                                                                            Batas Maksimal
-                                                                        </p>
-                                                                        <p className="font-semibold">
-                                                                            {formatCurrency(month.max_allowed)}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="mb-3 space-y-2">
-                                                                    {month.details.map((detail, idx) => (
-                                                                        <div
-                                                                            key={idx}
-                                                                            className="flex justify-between rounded bg-white/50 p-2 text-sm dark:bg-gray-900/50"
-                                                                        >
-                                                                            <div>
-                                                                                <span className="font-medium">
-                                                                                    {detail.kegiatan}
-                                                                                </span>
-                                                                                <span className="ml-2 text-muted-foreground">
-                                                                                    ({getPeranLabel(detail.peran)})
-                                                                                </span>
-                                                                            </div>
-                                                                            <span className="font-medium">
-                                                                                {formatCurrency(detail.honor)}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-
-                                                                <div
-                                                                    className={`flex items-center justify-between border-t pt-3 ${
-                                                                        month.exceeds
-                                                                            ? 'border-red-200 dark:border-red-800'
-                                                                            : 'border-gray-200 dark:border-gray-700'
-                                                                    }`}
-                                                                >
-                                                                    <span className="font-semibold">Total Honor Bulan Ini:</span>
-                                                                    <div className="text-right">
-                                                                        <p className="font-bold">
-                                                                            {formatCurrency(month.total_honor)}
-                                                                        </p>
-                                                                        {month.exceeds && (
-                                                                            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
-                                                                                Melebihi {formatCurrency(Math.abs(month.difference))}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                        </ContentCard>
+                        <ContentCard>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Petugas Melebihi Batas</p>
+                                <p className="text-2xl font-bold text-destructive">
+                                    {petugas.filter(p => p.exceeds).length}
+                                </p>
                             </div>
-                        )}
+                        </ContentCard>
                     </div>
-                </div>
-            </div>
-        </>
-    );
-}
+                )}
 
-Report.layout = (page: React.ReactNode) => <AppLayout children={page} />;
+                {/* Table */}
+                <ContentCard>
+                    {petugas.length === 0 ? (
+                        <div className="py-12 text-center text-muted-foreground">
+                            Tidak ada data honor petugas untuk {currentMonth?.label} {selectedTahun}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="border-b bg-muted/50">
+                                        <tr>
+                                            <th className="h-10 px-4 text-left align-middle font-medium w-12"></th>
+                                            <th className="h-10 px-4 text-left align-middle font-medium">Nama Petugas</th>
+                                            <th className="h-10 px-4 text-left align-middle font-medium">NIK</th>
+                                            <th className="h-10 px-4 text-left align-middle font-medium">Status</th>
+                                            <th className="h-10 px-4 text-right align-middle font-medium">Total Honor</th>
+                                            <th className="h-10 px-4 text-right align-middle font-medium">Maks. SBML</th>
+                                            <th className="h-10 px-4 text-left align-middle font-medium">Status Honor</th>
+                                            <th className="h-10 px-4 text-center align-middle font-medium">Jml Kegiatan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {petugas.map((p) => (
+                                            <>
+                                                <tr key={p.petugas_id} className="border-b">
+                                                    <td className="p-4 align-middle">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => toggleRow(p.petugas_id)}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            {expandedRows.has(p.petugas_id) ? (
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            ) : (
+                                                                <ChevronRight className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
+                                                    </td>
+                                                    <td className="p-4 align-middle font-medium">{p.nama}</td>
+                                                    <td className="p-4 align-middle text-muted-foreground">{p.nik}</td>
+                                                    <td className="p-4 align-middle">
+                                                        <Badge variant={p.jenis_petugas === 'organik' ? 'default' : 'secondary'}>
+                                                            {p.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="p-4 align-middle text-right font-medium">
+                                                        {formatCurrency(p.total_honor)}
+                                                    </td>
+                                                    <td className="p-4 align-middle text-right text-muted-foreground">
+                                                        {formatCurrency(p.max_allowed)}
+                                                    </td>
+                                                    <td className="p-4 align-middle">{getStatusBadge(p.exceeds, p.percentage)}</td>
+                                                    <td className="p-4 align-middle text-center">{p.kegiatan_count}</td>
+                                                </tr>
+
+                                                {/* Expanded Details */}
+                                                {expandedRows.has(p.petugas_id) && (
+                                                    <tr>
+                                                        <td colSpan={8} className="bg-muted/50 p-0">
+                                                            <div className="p-4 space-y-4">
+                                                                <h4 className="font-semibold text-sm">
+                                                                    Detail Kegiatan & Alokasi
+                                                                </h4>
+                                                                {p.kegiatan_details.map((kegiatan, idx) => (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className="border rounded-lg p-4 bg-background space-y-3"
+                                                                    >
+                                                                        <div className="flex items-start justify-between">
+                                                                            <div className="space-y-1">
+                                                                                <h5 className="font-medium">
+                                                                                    {kegiatan.nama_kegiatan}
+                                                                                </h5>
+                                                                                <div className="flex gap-2">
+                                                                                    <Badge variant="outline" className="text-xs">
+                                                                                        {kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'}
+                                                                                    </Badge>
+                                                                                    <span className="text-sm text-muted-foreground">
+                                                                                        Total: {formatCurrency(kegiatan.total_honor)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Alokasi Table */}
+                                                                        <div className="border rounded-md overflow-hidden">
+                                                                            <table className="w-full text-sm">
+                                                                                <thead className="bg-muted/50">
+                                                                                    <tr>
+                                                                                        <th className="text-left p-2 font-medium">
+                                                                                            Peran
+                                                                                        </th>
+                                                                                        <th className="text-center p-2 font-medium">
+                                                                                            Jumlah Satuan
+                                                                                        </th>
+                                                                                        <th className="text-right p-2 font-medium">
+                                                                                            Total Honor
+                                                                                        </th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
+                                                                                        <tr
+                                                                                            key={alokasiIdx}
+                                                                                            className="border-t"
+                                                                                        >
+                                                                                            <td className="p-2">
+                                                                                                {alokasi.peran}
+                                                                                            </td>
+                                                                                            <td className="p-2 text-center">
+                                                                                                {alokasi.jumlah_satuan}
+                                                                                            </td>
+                                                                                            <td className="p-2 text-right font-medium">
+                                                                                                {formatCurrency(alokasi.total_honor)}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </ContentCard>
+            </div>
+        </AppLayout>
+    )
+}

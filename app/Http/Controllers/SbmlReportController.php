@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Petugas;
 use App\Models\Sbml;
 use Illuminate\Http\Request;
@@ -11,121 +12,140 @@ use Inertia\Response;
 class SbmlReportController extends Controller
 {
     /**
-     * Display SBML monitoring report
+     * Display honor summary report per petugas per month
      */
     public function index(Request $request): Response
     {
         $tahun = $request->input('tahun', date('Y'));
-        $bulan = $request->input('bulan');
-        $jenisKegiatan = $request->input('jenis_kegiatan');
-        $statusKepegawaian = $request->input('status_kepegawaian');
+        $bulan = $request->input('bulan', str_pad(date('m'), 2, '0', STR_PAD_LEFT));
 
-        // Get petugas with their allocations
-        $petugasQuery = Petugas::with(['alokasi' => function ($query) use ($tahun, $bulan, $jenisKegiatan, $statusKepegawaian) {
-            $query->whereHas('periodeAlokasi', function ($q) use ($tahun, $bulan, $jenisKegiatan) {
-                $q->where('tahun', $tahun);
-                if ($bulan) {
-                    $q->where('bulan', $bulan);
+        // Get all petugas who have allocations in the selected month
+        $petugasData = AlokasiPetugas::with([
+            'petugas',
+            'periodeAlokasi.kegiatan',
+        ])
+            ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
+            })
+            ->get()
+            ->groupBy('petugas_id')
+            ->map(function ($alokasis, $petugasId) use ($tahun) {
+                $petugas = $alokasis->first()->petugas;
+
+                if (! $petugas) {
+                    return null;
                 }
-                if ($jenisKegiatan) {
-                    $q->where('jenis_kegiatan', $jenisKegiatan);
-                }
-            });
-            if ($statusKepegawaian) {
-                $query->where('status_kepegawaian', $statusKepegawaian);
-            }
-            $query->with(['periodeAlokasi.kegiatan']);
-        }])->where('status', 'aktif');
 
-        $petugas = $petugasQuery->get()->map(function ($petugas) use ($tahun) {
-            // Group allocations by month, jenis_kegiatan, status_kepegawaian, and peran
-            $monthlyData = [];
+                // Calculate total honor for this petugas in this month
+                $totalHonor = $alokasis->sum('total_honor');
 
-            foreach ($petugas->alokasi as $alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $key = $periode->bulan.'_'.$periode->jenis_kegiatan.'_'.$alokasi->status_kepegawaian;
+                // Get max SBML based on jenis penugasan from allocations
+                $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
 
-                if (! isset($monthlyData[$key])) {
-                    $monthlyData[$key] = [
-                        'bulan' => (int) $periode->bulan,
-                        'jenis_kegiatan' => $periode->jenis_kegiatan,
+                // Collect unique jenis penugasan (peran) from all allocations
+                $jenisPenugasanList = $alokasis->pluck('peran')->unique();
+
+                // Map peran to jenis_penugasan in SBML
+                $jenisPenugasanSbml = $jenisPenugasanList->map(function ($peran) {
+                    return match ($peran) {
+                        'pcl_ppl' => 'pcl_ppl',
+                        'pml' => 'pml',
+                        'pengolahan', 'pengawas_pengolahan' => 'pengolahan',
+                        default => $peran,
+                    };
+                })->unique();
+
+                // Get SBML records for the jenis penugasan
+                $sbmlRecords = Sbml::where('tahun_anggaran', $tahun)
+                    ->where('status_kepegawaian', $statusKepegawaian)
+                    ->whereIn('jenis_penugasan', $jenisPenugasanSbml)
+                    ->where('status', 'aktif')
+                    ->orderByDesc('honor_max')
+                    ->get();
+
+                // Take the highest honor_max from matching SBML records
+                $maxAllowed = $sbmlRecords->isNotEmpty() ? $sbmlRecords->max('honor_max') : 0;
+                $exceeds = $maxAllowed > 0 && $totalHonor > $maxAllowed;
+
+                // Group by kegiatan for details
+                $kegiatanDetails = [];
+                foreach ($alokasis as $alokasi) {
+                    $kegiatanId = $alokasi->periodeAlokasi->kegiatan_id;
+                    $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+
+                    if (! isset($kegiatanDetails[$kegiatanId])) {
+                        $kegiatanDetails[$kegiatanId] = [
+                            'kegiatan_id' => $kegiatanId,
+                            'kegiatan_hashed_id' => $kegiatan->hashed_id,
+                            'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                            'jenis_kegiatan' => $alokasi->periodeAlokasi->jenis_kegiatan,
+                            'total_honor' => 0,
+                            'alokasi' => [],
+                        ];
+                    }
+
+                    $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor;
+                    $kegiatanDetails[$kegiatanId]['alokasi'][] = [
+                        'peran' => $this->formatPeran($alokasi->peran),
+                        'jumlah_satuan' => $alokasi->jumlah_satuan,
+                        'total_honor' => $alokasi->total_honor,
                         'status_kepegawaian' => $alokasi->status_kepegawaian,
-                        'total_honor' => 0,
-                        'highest_peran' => null,
-                        'details' => [],
+                        'catatan' => $alokasi->catatan,
                     ];
                 }
 
-                $monthlyData[$key]['total_honor'] += (float) $alokasi->total_honor;
-                $monthlyData[$key]['details'][] = [
-                    'kegiatan' => $alokasi->kegiatan->nama_kegiatan,
-                    'peran' => $alokasi->peran,
-                    'honor' => (float) $alokasi->total_honor,
+                return [
+                    'petugas_id' => $petugas->id,
+                    'petugas_hashed_id' => $petugas->hashed_id,
+                    'nama' => $petugas->nama,
+                    'nik' => $petugas->nik,
+                    'jenis_petugas' => $petugas->jenis_petugas,
+                    'total_honor' => $totalHonor,
+                    'max_allowed' => $maxAllowed,
+                    'exceeds' => $exceeds,
+                    'difference' => $totalHonor - $maxAllowed,
+                    'percentage' => $maxAllowed > 0 ? ($totalHonor / $maxAllowed) * 100 : 0,
+                    'kegiatan_count' => count($kegiatanDetails),
+                    'kegiatan_details' => array_values($kegiatanDetails),
                 ];
+            })
+            ->filter()
+            ->sortByDesc('total_honor')
+            ->values();
 
-                // Determine highest role
-                if (! $monthlyData[$key]['highest_peran']) {
-                    $monthlyData[$key]['highest_peran'] = $alokasi->peran;
-                } else {
-                    $monthlyData[$key]['highest_peran'] = $this->getHighestRole(
-                        $monthlyData[$key]['highest_peran'],
-                        $alokasi->peran
-                    );
-                }
-            }
-
-            // Calculate max allowed and violations for each month
-            foreach ($monthlyData as $key => &$data) {
-                $maxAllowed = Sbml::getMaxForCriteria(
-                    $tahun,
-                    $data['jenis_kegiatan'],
-                    $data['status_kepegawaian'],
-                    $data['highest_peran']
-                );
-
-                $data['max_allowed'] = $maxAllowed;
-                $data['exceeds'] = $maxAllowed > 0 && $data['total_honor'] > $maxAllowed;
-                $data['difference'] = $data['total_honor'] - $maxAllowed;
-            }
+        // Generate month options for dropdown
+        $bulanOptions = collect(range(1, 12))->map(function ($m) {
+            $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
 
             return [
-                'id' => $petugas->id,
-                'hashed_id' => $petugas->hashed_id,
-                'nama' => $petugas->nama,
-                'nik' => $petugas->nik,
-                'monthly_data' => array_values($monthlyData),
-                'total_honor_tahun' => array_sum(array_column($monthlyData, 'total_honor')),
-                'has_violations' => collect($monthlyData)->contains('exceeds', true),
+                'value' => $monthStr,
+                'label' => \Carbon\Carbon::create()->month($m)->translatedFormat('F'),
             ];
-        })->filter(function ($petugas) {
-            return count($petugas['monthly_data']) > 0;
-        })->values();
+        });
 
         return Inertia::render('Sbml/Report', [
-            'petugas' => $petugas,
-            'tahun' => $tahun,
-            'bulan' => $bulan,
+            'petugas' => $petugasData,
             'filters' => [
-                'tahun' => $tahun,
+                'tahun' => (int) $tahun,
                 'bulan' => $bulan,
-                'jenis_kegiatan' => $jenisKegiatan,
-                'status_kepegawaian' => $statusKepegawaian,
             ],
+            'bulan_options' => $bulanOptions,
         ]);
     }
 
     /**
-     * Get the highest role priority
-     * Priority: pml > pcl_ppl > pengolahan
+     * Format peran untuk display
      */
-    private function getHighestRole(string $role1, string $role2): string
+    private function formatPeran(string $peran): string
     {
-        $priority = [
-            'pml' => 3,
-            'pcl_ppl' => 2,
-            'pengolahan' => 1,
-        ];
-
-        return ($priority[$role1] ?? 0) >= ($priority[$role2] ?? 0) ? $role1 : $role2;
+        return match ($peran) {
+            'pcl_ppl' => 'PCL/PPL',
+            'pml' => 'PML',
+            'pengolahan' => 'Pengolahan',
+            'pengawas_pengolahan' => 'Pengawas Pengolahan',
+            default => ucfirst($peran),
+        };
     }
 }

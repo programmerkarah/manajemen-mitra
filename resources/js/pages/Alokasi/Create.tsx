@@ -69,9 +69,10 @@ interface AlokasiCreateProps {
     used_months_info: Record<number, number[]>
     isEditMode?: boolean
     isRevisiMode?: boolean
+    isViewMode?: boolean
 }
 
-export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year, copiedAlokasi, sourcePeriode, budget_info, used_months_info, isEditMode = false, isRevisiMode = false }: AlokasiCreateProps) {
+export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year, copiedAlokasi, sourcePeriode, budget_info, used_months_info, isEditMode = false, isRevisiMode = false, isViewMode = false }: AlokasiCreateProps) {
     const { auth } = usePage<SharedData>().props
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(preSelectedKegiatan?.id || '')
     const [bulan, setBulan] = useState(isEditMode && sourcePeriode ? parseInt(sourcePeriode.bulan) : new Date().getMonth() + 1)
@@ -296,6 +297,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
 
         // Prepare data
         const formData = {
+            tahun: active_year,
+            bulan: bulan,
             alokasi: alokasiItems.map(item => ({
                 petugas_id: item.petugas_id,
                 peran: item.peran,
@@ -316,18 +319,47 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
             return
         }
 
-        router.post(`/alokasi/kegiatan/${kegiatanHashedId}/store-multiple`, formData, {
-            onSuccess: () => {
-                // Success handled by Inertia
-            },
-            onError: (errors) => {
-                setErrors(errors)
-                setProcessing(false)
-            },
-            onFinish: () => {
-                setProcessing(false)
-            }
-        })
+        // Use different routes for create vs edit mode
+        if (isEditMode || isRevisiMode) {
+            // Edit/Revisi mode - use PUT to update endpoint
+            // Ensure tahun and bulan are in formData for backend validation
+            const tahunValue = formData.tahun || active_year
+            const bulanValue = formData.bulan || bulan
+            
+            const tahunStr = String(tahunValue)
+            const bulanStr = String(bulanValue).padStart(2, '0')
+            
+            // Update formData to ensure consistent values
+            formData.tahun = tahunValue
+            formData.bulan = bulanValue
+            
+            router.put(`/alokasi/periode/${kegiatanHashedId}/${tahunStr}/${bulanStr}`, formData, {
+                onSuccess: () => {
+                    // Success handled by Inertia
+                },
+                onError: (errors) => {
+                    setErrors(errors)
+                    setProcessing(false)
+                },
+                onFinish: () => {
+                    setProcessing(false)
+                }
+            })
+        } else {
+            // Create mode - use POST to store-multiple endpoint
+            router.post(`/alokasi/kegiatan/${kegiatanHashedId}/store-multiple`, formData, {
+                onSuccess: () => {
+                    // Success handled by Inertia
+                },
+                onError: (errors) => {
+                    setErrors(errors)
+                    setProcessing(false)
+                },
+                onFinish: () => {
+                    setProcessing(false)
+                }
+            })
+        }
     }
 
     const months = [
@@ -347,11 +379,11 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tambah Periode Kegiatan" />
+            <Head title={isViewMode ? "Detail Periode Kegiatan" : "Tambah Periode Kegiatan"} />
 
             <PageHeader
-                title="Tambah Periode Kegiatan"
-                description="Alokasikan petugas ke kegiatan untuk periode yang dipilih"
+                title={isViewMode ? "Detail Periode Kegiatan" : "Tambah Periode Kegiatan"}
+                description={isViewMode ? "Detail alokasi petugas pada periode ini" : "Alokasikan petugas ke kegiatan untuk periode yang dipilih"}
             >
                 <Button variant="outline" asChild>
                     <Link href="/alokasi">
@@ -362,7 +394,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
             </PageHeader>
 
             {/* Source Period Info - Only show for copy mode, not edit mode */}
-            {sourcePeriode && !isEditMode && (
+            {sourcePeriode && !isEditMode && !isViewMode && (
                 <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -410,7 +442,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                     onValueChange={setSelectedKegiatanId}
                                     placeholder="Pilih Kegiatan"
                                     searchPlaceholder="Cari kegiatan..."
-                                    disabled={isEditMode}
+                                    disabled={isEditMode || isViewMode}
                                 />
                                 {errors.kegiatan_id && (
                                     <p className="text-sm text-red-500">{errors.kegiatan_id}</p>
@@ -443,8 +475,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                         id="show_pengolahan"
                                         checked={showPengolahan}
                                         onChange={(e) => setShowPengolahan(e.target.checked)}
-                                        disabled={isRevisiMode}
-                                        className={`h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-2 focus:ring-blue-600 dark:border-neutral-700 dark:bg-neutral-900 ${isRevisiMode ? 'disabled:cursor-not-allowed disabled:opacity-50' : ''}`}
+                                        disabled={isRevisiMode || isViewMode}
+                                        className={`h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-2 focus:ring-blue-600 dark:border-neutral-700 dark:bg-neutral-900 ${isRevisiMode || isViewMode ? 'disabled:cursor-not-allowed disabled:opacity-50' : ''}`}
                                     />
                                     <Label htmlFor="show_pengolahan" className="cursor-pointer font-normal">
                                         Tampilkan Petugas Pengolahan
@@ -461,7 +493,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                     id="bulan"
                                     value={bulan}
                                     onChange={(e) => setBulan(parseInt(e.target.value))}
-                                    disabled={isRevisiMode}
+                                    disabled={isRevisiMode || isViewMode}
                                     className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                 >
                                     {months.map((month) => (
@@ -517,8 +549,8 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                 min="1"
                                 max="50"
                                 placeholder="Masukkan jumlah petugas"
-                                disabled={isRevisiMode}
-                                className={isRevisiMode ? "bg-neutral-100 dark:bg-neutral-900 cursor-not-allowed" : ""}
+                                disabled={isRevisiMode || isViewMode}
+                                className={isRevisiMode || isViewMode ? "bg-neutral-100 dark:bg-neutral-900 cursor-not-allowed" : ""}
                             />
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 {jumlahPetugas} baris input petugas akan ditampilkan
@@ -578,6 +610,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                     onValueChange={(value) => updateAlokasiItem(index, 'petugas_id', value)}
                                                     placeholder="Pilih Petugas"
                                                     searchPlaceholder="Cari petugas..."
+                                                    disabled={isViewMode}
                                                 />
                                             </div>
 
@@ -590,6 +623,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                     id={`peran_${index}`}
                                                     value={item.peran}
                                                     onChange={(e) => updateAlokasiItem(index, 'peran', e.target.value)}
+                                                    disabled={isViewMode}
                                                     className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                                 >
                                                     <option value="">Pilih Peran</option>
@@ -648,6 +682,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                     onChange={(e) => updateAlokasiItem(index, 'jumlah_satuan', e.target.value)}
                                                     min="1"
                                                     placeholder="0"
+                                                    disabled={isViewMode}
                                                 />
                                             </div>
 
@@ -674,6 +709,7 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                     value={item.catatan}
                                                     onChange={(e) => updateAlokasiItem(index, 'catatan', e.target.value)}
                                                     placeholder="Catatan tambahan (opsional)"
+                                                    disabled={isViewMode}
                                                 />
                                             </div>
                                         </div>
@@ -741,14 +777,16 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                 )}
 
                 {/* Footer Buttons */}
-                <div className="flex items-center justify-end gap-3">
-                    <Button variant="outline" type="button" asChild>
-                        <Link href="/alokasi">Batal</Link>
-                    </Button>
-                    <Button type="submit" disabled={processing || !selectedKegiatanId}>
-                        {processing ? 'Menyimpan...' : 'Simpan Alokasi'}
-                    </Button>
-                </div>
+                {!isViewMode && (
+                    <div className="flex items-center justify-end gap-3">
+                        <Button variant="outline" type="button" asChild>
+                            <Link href="/alokasi">Batal</Link>
+                        </Button>
+                        <Button type="submit" disabled={processing || !selectedKegiatanId}>
+                            {processing ? 'Menyimpan...' : 'Simpan Alokasi'}
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     )
