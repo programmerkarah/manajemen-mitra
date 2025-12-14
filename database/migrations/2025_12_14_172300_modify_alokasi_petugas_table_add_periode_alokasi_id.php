@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -18,7 +19,7 @@ return new class extends Migration
 
         // Step 2: Migrate data - create PeriodeAlokasi records and link them
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        
+
         $existingAlokasi = DB::table('alokasi_petugas')
             ->whereNull('deleted_at')
             ->get()
@@ -28,7 +29,7 @@ return new class extends Migration
 
         foreach ($existingAlokasi as $group) {
             $first = $group->first();
-            
+
             // Create PeriodeAlokasi
             $periodeId = DB::table('periode_alokasi')->insertGetId([
                 'kegiatan_id' => $first->kegiatan_id,
@@ -59,10 +60,10 @@ return new class extends Migration
             $table->dropForeign('alokasi_petugas_kegiatan_id_foreign');
             $table->dropForeign('alokasi_mitra_submitted_by_foreign');
             $table->dropForeign('alokasi_mitra_approved_by_foreign');
-            
+
             // Drop the unique constraint
             $table->dropUnique('unique_alokasi');
-            
+
             // Drop columns that are now in periode_alokasi
             $table->dropColumn([
                 'kegiatan_id',
@@ -76,14 +77,14 @@ return new class extends Migration
                 'approved_at',
                 'catatan_approval',
             ]);
-            
+
             // Make periode_alokasi_id not nullable and add foreign key
             $table->unsignedBigInteger('periode_alokasi_id')->nullable(false)->change();
             $table->foreign('periode_alokasi_id')
                 ->references('id')
                 ->on('periode_alokasi')
                 ->onDelete('cascade');
-            
+
             // Add unique constraint
             $table->unique(['periode_alokasi_id', 'petugas_id'], 'unique_petugas_per_periode');
         });
@@ -99,7 +100,7 @@ return new class extends Migration
             $table->dropUnique('unique_petugas_per_periode');
             $table->dropForeign(['periode_alokasi_id']);
             $table->dropColumn('periode_alokasi_id');
-            
+
             // Restore old columns
             $table->foreignId('kegiatan_id')->after('id')->constrained('kegiatan')->cascadeOnDelete();
             $table->integer('bulan')->after('petugas_id');
@@ -111,7 +112,7 @@ return new class extends Migration
             $table->foreignId('approved_by')->nullable()->after('submitted_at')->constrained('users')->nullOnDelete();
             $table->timestamp('approved_at')->nullable()->after('approved_by');
             $table->text('catatan_approval')->nullable()->after('approved_at');
-            
+
             // Restore unique constraint
             $table->unique(['kegiatan_id', 'petugas_id', 'bulan', 'tahun'], 'unique_alokasi');
         });

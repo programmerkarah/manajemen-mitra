@@ -2,8 +2,8 @@ import AppLayout from '@/layouts/app-layout'
 import { ContentCard } from '@/components/content-card'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem, Sbml } from '@/types'
-import { Head, Link, router } from '@inertiajs/react'
+import type { BreadcrumbItem, Sbml, SharedData } from '@/types'
+import { Head, Link, router, usePage } from '@inertiajs/react'
 import { Pencil, Plus, Trash2, Eye } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -23,6 +23,9 @@ interface Props {
 }
 
 export default function Index({ sbmls }: Props) {
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
+    
     // Group SBML data by year
     const groupedByYear = sbmls.data.reduce((acc, sbml) => {
         const year = sbml.tahun_anggaran
@@ -60,12 +63,14 @@ export default function Index({ sbmls }: Props) {
                     title="SBML (Satuan Biaya Masukan Lainnya)"
                     description="Kelola batas maksimal honor per bulan untuk semua kategori"
                 >
-                    <Button size="sm" asChild className="gap-2">
-                        <Link href="/sbml/create">
-                            <Plus className="h-4 w-4" />
-                            Tambah Tahun Anggaran
-                        </Link>
-                    </Button>
+                    {!isPJ && (
+                        <Button size="sm" asChild className="gap-2">
+                            <Link href="/sbml/create">
+                                <Plus className="h-4 w-4" />
+                                Tambah Tahun Anggaran
+                            </Link>
+                        </Button>
+                    )}
                 </PageHeader>
 
                 {/* Table */}
@@ -130,24 +135,28 @@ export default function Index({ sbmls }: Props) {
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        asChild
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Link href={`/sbml/${group.tahun_anggaran}/edit`}>
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(group.tahun_anggaran)}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                                                    </Button>
+                                                    {!isPJ && (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                asChild
+                                                                className="h-8 w-8 p-0"
+                                                            >
+                                                                <Link href={`/sbml/${group.tahun_anggaran}/edit`}>
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Link>
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDelete(group.tahun_anggaran)}
+                                                                className="h-8 w-8 p-0"
+                                                            >
+                                                                <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

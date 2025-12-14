@@ -100,8 +100,43 @@ export function AppSidebar() {
                 icon: Users,
             }
         );
+    } else if (hasActiveRole('operator')) {
+        // Operator: Rate Honor, Alokasi Petugas, Tambah Kegiatan, Tambah SBML
+        mainNavItems.push(
+            {
+                title: 'Petugas',
+                href: '#',
+                icon: Users,
+                items: [
+                    {
+                        title: 'Alokasi Petugas',
+                        href: '/alokasi',
+                    },
+                ],
+            },
+            {
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                    {
+                        title: 'SBML',
+                        href: '/sbml',
+                    },
+                ],
+            },
+            {
+                title: 'Laporan SBML',
+                href: '/sbml-report',
+                icon: BarChart3,
+            }
+        );
     } else if (hasActiveRole('ketua_tim')) {
-        // Ketua Tim can see Master (Kegiatan only) and Petugas (Alokasi only)
+        // Ketua Tim: Tambah Kegiatan, Alokasi Petugas (sesuai kegiatan yang diketuai)
         mainNavItems.push(
             {
                 title: 'Master',
@@ -126,9 +161,39 @@ export function AppSidebar() {
                 ],
             }
         );
-    } else if (hasActiveRole('operator')) {
-        // Operator can see Master (Kegiatan, SBML) and Laporan SBML
+    } else if (hasActiveRole('approver')) {
+        // Approver: Kelola Kegiatan (approve/reject)
         mainNavItems.push(
+            {
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [
+                    {
+                        title: 'Kegiatan',
+                        href: '/kegiatan',
+                    },
+                ],
+            }
+        );
+    } else if (hasActiveRole('pj')) {
+        // Penanggung Jawab: Lihat semuanya (read-only)
+        mainNavItems.push(
+            {
+                title: 'Petugas',
+                href: '#',
+                icon: Users,
+                items: [
+                    {
+                        title: 'Manajemen Petugas',
+                        href: '/petugas',
+                    },
+                    {
+                        title: 'Alokasi Petugas',
+                        href: '/alokasi',
+                    },
+                ],
+            },
             {
                 title: 'Master',
                 href: '#',
@@ -148,30 +213,23 @@ export function AppSidebar() {
                 title: 'Laporan SBML',
                 href: '/sbml-report',
                 icon: BarChart3,
-            }
-        );
-    } else if (hasActiveRole('approver')) {
-        // Approver can see Kegiatan and SBML Report
-        mainNavItems.push(
-            {
-                title: 'Master',
-                href: '#',
-                icon: Package,
-                items: [
-                    {
-                        title: 'Kegiatan',
-                        href: '/kegiatan',
-                    },
-                ],
             },
             {
-                title: 'Laporan SBML',
-                href: '/sbml-report',
-                icon: BarChart3,
+                title: 'SK KPA',
+                href: '/sk-kpa',
+                icon: FileText,
+            },
+            {
+                title: 'SPK',
+                href: '/spk',
+                icon: ClipboardList,
+            },
+            {
+                title: 'BAST',
+                href: '/bast',
+                icon: FileText,
             }
         );
-    } else if (hasActiveRole('pj')) {
-        // PJ - no additional menus (just dashboard)
     }
 
     return (

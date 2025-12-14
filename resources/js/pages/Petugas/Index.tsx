@@ -4,8 +4,8 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
@@ -39,6 +39,8 @@ interface PetugasIndexProps {
 }
 
 export default function Index({ petugas, filters }: PetugasIndexProps) {
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
     const [showImportModal, setShowImportModal] = useState(false);
@@ -90,32 +92,36 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                     title="Data Petugas"
                     description="Kelola data petugas mitra yang terlibat dalam kegiatan"
                 >
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                    >
-                        <a href="/petugas/template/download">
-                            <Download className="h-4 w-4" />
-                            Download Template
-                        </a>
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowImportModal(true)}
-                        className="gap-2"
-                    >
-                        <FileUp className="h-4 w-4" />
-                        Import Excel
-                    </Button>
-                    <Button size="sm" asChild className="gap-2">
-                        <Link href="/petugas/create">
-                            <Plus className="h-4 w-4" />
-                            Tambah Petugas
-                        </Link>
-                    </Button>
+                    {!isPJ && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="gap-2"
+                            >
+                                <a href="/petugas/template/download">
+                                    <Download className="h-4 w-4" />
+                                    Download Template
+                                </a>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowImportModal(true)}
+                                className="gap-2"
+                            >
+                                <FileUp className="h-4 w-4" />
+                                Import Excel
+                            </Button>
+                            <Button size="sm" asChild className="gap-2">
+                                <Link href="/petugas/create">
+                                    <Plus className="h-4 w-4" />
+                                    Tambah Petugas
+                                </Link>
+                            </Button>
+                        </>
+                    )}
                 </PageHeader>
 
                 {/* Filters */}
@@ -222,16 +228,18 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                                         <Eye className="h-4 w-4" />
                                                     </Link>
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                    className="h-8 w-8 p-0"
-                                                >
-                                                    <Link href={`/petugas/${Petugas.hashed_id}/edit`}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Link>
-                                                </Button>
+                                                {!isPJ && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Link href={`/petugas/${Petugas.hashed_id}/edit`}>
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

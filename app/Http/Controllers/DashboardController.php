@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,12 +19,12 @@ class DashboardController extends Controller
         $stats = [
             'total_petugas' => Petugas::where('status', 'aktif')->count(),
             'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count(),
-            'alokasi_pending' => AlokasiPetugas::where('status', 'diajukan')->count(),
+            'alokasi_pending' => PeriodeAlokasi::where('status', 'diajukan')->count(),
             'bast_pending' => Bast::where('status', 'draft')->count(),
         ];
 
         // Get recent activities based on user role
-        $recentAlokasi = AlokasiPetugas::query()
+        $recentAlokasi = PeriodeAlokasi::query()
             ->with(['kegiatan', 'petugas', 'rateHonor.satuan'])
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);

@@ -95,18 +95,51 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('kegiatan.reject')
         ->middleware('active.role:admin,approver');
 
-    // Kegiatan Management (Admin, Operator, Ketua Tim, and Approver can view)
-    Route::middleware(['active.role:admin,operator,ketua_tim,approver'])->group(function () {
-        Route::resource('kegiatan', KegiatanController::class);
+    // Kegiatan Management
+    // IMPORTANT: Create route must come before {kegiatan} parameter route
+    Route::get('kegiatan/create', [KegiatanController::class, 'create'])
+        ->name('kegiatan.create')
+        ->middleware('active.role:admin,operator,ketua_tim');
+
+    Route::middleware(['active.role:admin,operator,ketua_tim,approver,pj'])->group(function () {
+        // View routes accessible by all roles (including PJ for read-only)
+        Route::get('kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
+        Route::get('kegiatan/{kegiatan}', [KegiatanController::class, 'show'])->name('kegiatan.show');
     });
 
-    // Alokasi Petugas Management (Admin, Operator, Ketua Tim, Approver can view)
-    Route::middleware(['active.role:admin,operator,ketua_tim,approver'])->group(function () {
+    // Kegiatan modification routes (Admin, Operator, Ketua Tim only)
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::post('kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
+        Route::get('kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->name('kegiatan.edit');
+        Route::put('kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->name('kegiatan.update');
+        Route::patch('kegiatan/{kegiatan}', [KegiatanController::class, 'update']);
+        Route::delete('kegiatan/{kegiatan}', [KegiatanController::class, 'destroy'])->name('kegiatan.destroy');
+    });
+
+    // Alokasi Petugas Management
+    // IMPORTANT: Create route must come before {alokasi} parameter route
+    Route::get('alokasi/create', [AlokasiPetugasController::class, 'create'])
+        ->name('alokasi.create')
+        ->middleware('active.role:admin,operator,ketua_tim');
+
+    Route::middleware(['active.role:admin,operator,ketua_tim,approver,pj'])->group(function () {
+        // View routes accessible by all roles (including PJ for read-only)
+        Route::get('alokasi', [AlokasiPetugasController::class, 'index'])->name('alokasi.index');
+        Route::get('alokasi/{alokasi}', [AlokasiPetugasController::class, 'show'])->name('alokasi.show');
         Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiPetugasController::class, 'manage'])
             ->name('alokasi.manage');
+    });
+
+    // Alokasi modification routes (Admin, Operator, Ketua Tim only)
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::post('alokasi', [AlokasiPetugasController::class, 'store'])->name('alokasi.store');
         Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiPetugasController::class, 'storeMultiple'])
             ->name('alokasi.store-multiple');
-        
+        Route::get('alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'edit'])->name('alokasi.edit');
+        Route::put('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
+        Route::patch('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update']);
+        Route::delete('alokasi/{alokasi}', [AlokasiPetugasController::class, 'destroy'])->name('alokasi.destroy');
+
         // Periode-based actions
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/submit', [AlokasiPetugasController::class, 'submitPeriode'])
             ->name('alokasi.periode.submit');
@@ -118,8 +151,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('alokasi.periode.destroy');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
             ->name('alokasi.periode.revisi');
-        
-        Route::resource('alokasi', AlokasiPetugasController::class);
     });
 
     // Alokasi Approval Workflow
@@ -133,28 +164,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('alokasi.reject')
         ->middleware('active.role:admin,approver');
 
-    // SBML Management (Admin, Operator)
+    // SBML Management
+    Route::middleware(['active.role:admin,operator,pj'])->group(function () {
+        // View routes (including PJ for read-only)
+        Route::get('sbml', [SbmlController::class, 'index'])->name('sbml.index');
+        Route::get('sbml/{tahun}', [SbmlController::class, 'show'])->name('sbml.show')->where('tahun', '[0-9]+');
+    });
+
+    // SBML modification routes (Admin, Operator only)
     Route::middleware(['active.role:admin,operator'])->group(function () {
         Route::delete('sbml/year/{tahun}', [SbmlController::class, 'destroyYear'])->name('sbml.destroyYear');
-        Route::get('sbml', [SbmlController::class, 'index'])->name('sbml.index');
         Route::get('sbml/create', [SbmlController::class, 'create'])->name('sbml.create');
         Route::post('sbml', [SbmlController::class, 'store'])->name('sbml.store');
-        Route::get('sbml/{tahun}', [SbmlController::class, 'show'])->name('sbml.show')->where('tahun', '[0-9]+');
         Route::get('sbml/{tahun}/edit', [SbmlController::class, 'edit'])->name('sbml.edit')->where('tahun', '[0-9]+');
         Route::patch('sbml/{tahun}', [SbmlController::class, 'update'])->name('sbml.update')->where('tahun', '[0-9]+');
         Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
     });
 
-    // SBML Report (Admin, Operator, Approver)
+    // SBML Report (Admin, Operator, PJ can view)
     Route::get('sbml-report', [SbmlReportController::class, 'index'])
         ->name('sbml.report')
-        ->middleware('active.role:admin,operator,approver');
+        ->middleware('active.role:admin,operator,pj');
 
-    // Document Management (Admin or Approver)
+    // Document Management - View routes (Admin, Approver, PJ)
+    Route::middleware(['active.role:admin,approver,pj'])->group(function () {
+        Route::get('sk-kpa', [SkKpaController::class, 'index'])->name('sk-kpa.index');
+        Route::get('sk-kpa/{skKpa}', [SkKpaController::class, 'show'])->name('sk-kpa.show');
+        Route::get('spk', [SpkController::class, 'index'])->name('spk.index');
+        Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
+        Route::get('bast', [BastController::class, 'index'])->name('bast.index');
+        Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
+    });
+
+    // Document Management - Modification routes (Admin, Approver only)
     Route::middleware(['active.role:admin,approver'])->group(function () {
-        Route::resource('sk-kpa', SkKpaController::class);
-        Route::resource('spk', SpkController::class);
-        Route::resource('bast', BastController::class);
+        Route::get('sk-kpa/create', [SkKpaController::class, 'create'])->name('sk-kpa.create');
+        Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store');
+        Route::get('sk-kpa/{skKpa}/edit', [SkKpaController::class, 'edit'])->name('sk-kpa.edit');
+        Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
+        Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);
+        Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
+
+        Route::get('spk/create', [SpkController::class, 'create'])->name('spk.create');
+        Route::post('spk', [SpkController::class, 'store'])->name('spk.store');
+        Route::get('spk/{spk}/edit', [SpkController::class, 'edit'])->name('spk.edit');
+        Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');
+        Route::patch('spk/{spk}', [SpkController::class, 'update']);
+        Route::delete('spk/{spk}', [SpkController::class, 'destroy'])->name('spk.destroy');
+
+        Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
+        Route::post('bast', [BastController::class, 'store'])->name('bast.store');
+        Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
+        Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
+        Route::patch('bast/{bast}', [BastController::class, 'update']);
+        Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
+    });
+
+    // Petugas view routes (Admin, PJ for read-only)
+    Route::middleware(['active.role:admin,pj'])->group(function () {
+        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 });
 

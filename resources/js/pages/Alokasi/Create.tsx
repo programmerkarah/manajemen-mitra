@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import InputError from '@/components/input-error'
-import { type BreadcrumbItem } from '@/types'
-import { Head, Link, router } from '@inertiajs/react'
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { SearchableSelect } from '@/components/searchable-select'
+import { type BreadcrumbItem, type SharedData } from '@/types'
+import { Head, Link, router, usePage } from '@inertiajs/react'
+import { useState, useEffect, useMemo } from 'react'
+import { ArrowLeft, Plus, Trash2, Copy } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -21,7 +22,9 @@ interface Kegiatan {
     hashed_id: string
     kode_kegiatan: string
     nama_kegiatan: string
+    deskripsi?: string | null
     jenis_kegiatan: 'sensus' | 'survei'
+    ketua_tim_user_id: number
     rate_honors: RateHonor[]
 }
 
@@ -60,9 +63,14 @@ interface AlokasiCreateProps {
     petugas: Petugas[]
     selectedKegiatan?: Kegiatan | null
     active_year: number
+    copiedAlokasi?: any[] | null
+    sourcePeriode?: { bulan: string; tahun: number } | null
+    budget_info: Record<number, { pagu_anggaran: number; current_total_spent: number }>
+    used_months_info: Record<number, number[]>
 }
 
-export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year }: AlokasiCreateProps) {
+export default function Create({ kegiatans, petugas, selectedKegiatan: preSelectedKegiatan, active_year, copiedAlokasi, sourcePeriode, budget_info, used_months_info }: AlokasiCreateProps) {
+    const { auth } = usePage<SharedData>().props
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(preSelectedKegiatan?.id || '')
     const [bulan, setBulan] = useState(new Date().getMonth() + 1)
     const [jenisKegiatan, setJenisKegiatan] = useState<'sensus' | 'survei'>('survei')
@@ -74,7 +82,46 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
     const [processing, setProcessing] = useState(false)
     const [errors, setErrors] = useState<any>({})
 
-    const selectedKegiatan = kegiatans.find(k => String(k.id) === String(selectedKegiatanId))
+    // Filter kegiatan based on ketua_tim role
+    const filteredKegiatans = useMemo(() => {
+        if (auth.activeRole?.name === 'ketua_tim') {
+            return kegiatans.filter(k => k.ketua_tim_user_id === auth.user.id)
+        }
+        return kegiatans
+    }, [kegiatans, auth.activeRole, auth.user.id])
+
+    const selectedKegiatan = filteredKegiatans.find(k => String(k.id) === String(selectedKegiatanId))
+
+    // Get budget info for selected kegiatan
+    const currentBudget = selectedKegiatan && selectedKegiatanId
+        ? budget_info[Number(selectedKegiatan.id)] || { pagu_anggaran: 0, current_total_spent: 0 }
+        : { pagu_anggaran: 0, current_total_spent: 0 }
+
+    const pagu_anggaran = currentBudget.pagu_anggaran
+    const current_total_spent = currentBudget.current_total_spent
+
+    // Get used months for selected kegiatan
+    const usedMonths = selectedKegiatan && selectedKegiatanId
+        ? used_months_info[Number(selectedKegiatan.id)] || []
+        : []
+
+    // Initialize with copied data if available
+    useEffect(() => {
+        if (copiedAlokasi && copiedAlokasi.length > 0) {
+            const initialItems = copiedAlokasi.map(alokasi => ({
+                petugas_id: String(alokasi.petugas_id || ''),
+                peran: alokasi.peran === 'pcl_ppl' ? 'PCL' : 
+                      alokasi.peran === 'pml' ? 'PML' : 
+                      alokasi.peran === 'pengolahan' ? 'Pengolahan' : 
+                      alokasi.peran === 'pengawas_pengolahan' ? 'Pengawas Pengolahan' : '',
+                jumlah_satuan: String(alokasi.jumlah_satuan),
+                estimasi_honor: 0, // Will be recalculated
+                catatan: alokasi.catatan || '',
+            }))
+            setAlokasiItems(initialItems)
+            setJumlahPetugas(initialItems.length)
+        }
+    }, [copiedAlokasi])
 
     // Debug: Log kegiatans data
     console.log('All Kegiatans:', kegiatans)
@@ -223,6 +270,19 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
     // Calculate total estimasi
     const totalEstimasi = alokasiItems.reduce((sum, item) => sum + item.estimasi_honor, 0)
 
+    // Calculate sisa pagu
+    const sisaPagu = pagu_anggaran - current_total_spent - totalEstimasi
+    const isSufficient = sisaPagu >= 0
+
+    // Format currency
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+        }).format(amount)
+    }
+
     // Handle submit
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -280,14 +340,6 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
         })
     }
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(amount)
-    }
-
     const months = [
         { value: 1, label: 'Januari' },
         { value: 2, label: 'Februari' },
@@ -319,6 +371,26 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                 </Button>
             </PageHeader>
 
+            {/* Source Period Info */}
+            {sourcePeriode && (
+                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                            <Copy className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                                Menyalin Alokasi dari Periode Sebelumnya
+                            </h3>
+                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+                                Data alokasi berikut disalin dari periode {months.find(m => m.value === parseInt(sourcePeriode.bulan))?.label} {sourcePeriode.tahun}. 
+                                Anda dapat mengubah petugas, jumlah beban tugas, atau menambah/mengurangi petugas sesuai kebutuhan.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Step 1: Periode Kegiatan */}
                 <ContentCard>
@@ -338,19 +410,17 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                 <Label htmlFor="kegiatan_id">
                                     Kegiatan <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="kegiatan_id"
+                                <SearchableSelect
+                                    options={filteredKegiatans.map((kegiatan) => ({
+                                        value: kegiatan.id,
+                                        label: kegiatan.nama_kegiatan,
+                                        searchKeywords: `${kegiatan.kode_kegiatan} ${kegiatan.nama_kegiatan} ${kegiatan.deskripsi || ''}`,
+                                    }))}
                                     value={selectedKegiatanId}
-                                    onChange={(e) => setSelectedKegiatanId(e.target.value)}
-                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
-                                >
-                                    <option value="">Pilih Kegiatan</option>
-                                    {kegiatans.map((kegiatan) => (
-                                        <option key={kegiatan.id} value={kegiatan.id}>
-                                            {kegiatan.kode_kegiatan} - {kegiatan.nama_kegiatan}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onValueChange={setSelectedKegiatanId}
+                                    placeholder="Pilih Kegiatan"
+                                    searchPlaceholder="Cari kegiatan..."
+                                />
                                 {errors.kegiatan_id && (
                                     <p className="text-sm text-red-500">{errors.kegiatan_id}</p>
                                 )}
@@ -402,8 +472,12 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                     className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                 >
                                     {months.map((month) => (
-                                        <option key={month.value} value={month.value}>
-                                            {month.label}
+                                        <option 
+                                            key={month.value} 
+                                            value={month.value}
+                                            disabled={usedMonths.includes(month.value)}
+                                        >
+                                            {month.label} {usedMonths.includes(month.value) ? '(Sudah digunakan)' : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -492,32 +566,24 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                 <Label htmlFor={`petugas_${index}`}>
                                                     Nama Petugas <span className="text-red-500">*</span>
                                                 </Label>
-                                                <select
-                                                    id={`petugas_${index}`}
-                                                    value={item.petugas_id}
-                                                    onChange={(e) => updateAlokasiItem(index, 'petugas_id', e.target.value)}
-                                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
-                                                >
-                                                    <option value="">Pilih Petugas</option>
-                                                    {petugas.map((p) => {
-                                                        // Check if this petugas is already selected in another row
+                                                <SearchableSelect
+                                                    options={petugas.map((p) => {
                                                         const isSelectedInOtherRow = alokasiItems.some(
                                                             (otherItem, otherIndex) => 
                                                                 otherIndex !== index && 
                                                                 String(otherItem.petugas_id) === String(p.id)
-                                                        );
-                                                        
-                                                        return (
-                                                            <option 
-                                                                key={p.id} 
-                                                                value={p.id}
-                                                                disabled={isSelectedInOtherRow}
-                                                            >
-                                                                {p.nama} {isSelectedInOtherRow ? '(sudah dipilih)' : ''}
-                                                            </option>
-                                                        );
+                                                        )
+                                                        return {
+                                                            value: p.id,
+                                                            label: p.nama,
+                                                            disabled: isSelectedInOtherRow,
+                                                        }
                                                     })}
-                                                </select>
+                                                    value={item.petugas_id}
+                                                    onValueChange={(value) => updateAlokasiItem(index, 'petugas_id', value)}
+                                                    placeholder="Pilih Petugas"
+                                                    searchPlaceholder="Cari petugas..."
+                                                />
                                             </div>
 
                                             {/* Peran */}
@@ -575,10 +641,10 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                                                 </select>
                                             </div>
 
-                                            {/* Jumlah Satuan */}
+                                            {/* Jumlah Beban Tugas */}
                                             <div className="space-y-2">
                                                 <Label htmlFor={`satuan_${index}`}>
-                                                    Jumlah Satuan <span className="text-red-500">*</span>
+                                                    Jumlah Beban Tugas <span className="text-red-500">*</span>
                                                 </Label>
                                                 <Input
                                                     type="number"
@@ -623,22 +689,57 @@ export default function Create({ kegiatans, petugas, selectedKegiatan: preSelect
                     </ContentCard>
                 )}
 
-                {/* Total Estimasi Honor */}
+                {/* Estimasi Sisa Pagu */}
                 {selectedKegiatanId && totalEstimasi > 0 && (
                     <ContentCard>
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-900/20">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                        Total Estimasi Honor
-                                    </p>
-                                    <p className="text-xs text-blue-700 dark:text-blue-400">
+                        <div className={`rounded-lg border-2 p-6 ${isSufficient ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}>
+                            <div className="flex items-start gap-4">
+                                <div className={`flex-shrink-0 rounded-full p-3 ${isSufficient ? 'bg-green-500' : 'bg-red-500'}`}>
+                                    {isSufficient ? (
+                                        <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className={`text-lg font-bold ${isSufficient ? 'text-green-900 dark:text-green-300' : 'text-red-900 dark:text-red-300'}`}>
+                                        {isSufficient ? 'Pagu Anggaran Mencukupi' : 'Pagu Anggaran Tidak Mencukupi'}
+                                    </h3>
+                                    <p className={`mt-1 text-sm ${isSufficient ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                                         Untuk {jumlahPetugas} petugas
                                     </p>
+                                    
+                                    <div className="mt-4 space-y-2.5">
+                                        <div className={`flex justify-between text-sm ${isSufficient ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
+                                            <span className="font-medium">Pagu Anggaran:</span>
+                                            <span className="font-semibold">{formatCurrency(pagu_anggaran)}</span>
+                                        </div>
+                                        <div className={`flex justify-between text-sm ${isSufficient ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
+                                            <span className="font-medium">Total Terpakai (Periode Lain):</span>
+                                            <span className="font-semibold">{formatCurrency(current_total_spent)}</span>
+                                        </div>
+                                        <div className={`flex justify-between text-sm ${isSufficient ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
+                                            <span className="font-medium">Estimasi Periode Ini:</span>
+                                            <span className="font-semibold">{formatCurrency(totalEstimasi)}</span>
+                                        </div>
+                                        <div className={`flex justify-between border-t pt-2.5 text-base ${isSufficient ? 'border-green-400 dark:border-green-700' : 'border-red-400 dark:border-red-700'}`}>
+                                            <span className={`font-bold ${isSufficient ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}>Estimasi Sisa Pagu:</span>
+                                            <span className={`text-xl font-bold ${isSufficient ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}>{formatCurrency(sisaPagu)}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {!isSufficient && (
+                                        <div className="mt-4 rounded-md border border-red-300 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
+                                            <p className="text-sm font-medium text-red-900 dark:text-red-300">
+                                                ⚠️ Estimasi total honor melebihi pagu anggaran yang tersisa. Silakan periksa lagi isian atau ubah pagu anggaran melalui Fitur Revisi di halaman Kegiatan.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">
-                                    {formatCurrency(totalEstimasi)}
-                                </p>
                             </div>
                         </div>
                     </ContentCard>

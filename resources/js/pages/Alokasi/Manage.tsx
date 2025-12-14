@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import InputError from '@/components/input-error'
 import type { Kegiatan, Petugas, RateHonor, Satuan, AlokasiPetugas, SharedData, BreadcrumbItem } from '@/types'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { AlertCircle, Copy } from 'lucide-react'
 
 interface Props {
     kegiatan: Kegiatan & {
@@ -22,6 +23,19 @@ interface Props {
         >
     }
     petugas: Petugas[]
+    copiedAlokasi?: Array<{
+        petugas_id: number
+        petugas_nama: string
+        status_kepegawaian: string
+        peran: string
+        jumlah_satuan: number
+        total_honor: number
+        catatan: string | null
+    }>
+    sourcePeriode?: {
+        bulan: string
+        tahun: number
+    }
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -35,7 +49,7 @@ interface AlokasiForm {
     catatan: string
 }
 
-export default function Manage({ kegiatan, petugas }: Props) {
+export default function Manage({ kegiatan, petugas, copiedAlokasi, sourcePeriode }: Props) {
     const { auth, activeYear } = usePage<SharedData>().props
     
     // Global bulan for all allocations, tahun uses activeYear from global state
@@ -48,6 +62,24 @@ export default function Manage({ kegiatan, petugas }: Props) {
             catatan: '',
         },
     ])
+
+    // Initialize with copied data if available
+    useEffect(() => {
+        if (copiedAlokasi && copiedAlokasi.length > 0) {
+            const initialList = copiedAlokasi.map(alokasi => ({
+                petugas_id: String(alokasi.petugas_id),
+                jumlah_satuan: String(alokasi.jumlah_satuan),
+                catatan: alokasi.catatan || '',
+            }))
+            setAlokasiList(initialList)
+            setData('alokasi', initialList.map(item => ({
+                ...item,
+                bulan: selectedBulan,
+                tahun: activeYear,
+                jenis_kegiatan: kegiatan.jenis_kegiatan,
+            })))
+        }
+    }, [copiedAlokasi])
 
     // Get available months based on kegiatan dates
     const getAvailableMonths = () => {
@@ -247,8 +279,26 @@ export default function Manage({ kegiatan, petugas }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Kelola Alokasi petugas - ${kegiatan.nama_kegiatan}`} />
-
-            <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+                {/* Source Period Info */}
+                {sourcePeriode && (
+                    <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                <Copy className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                                    Menyalin Alokasi dari Periode Sebelumnya
+                                </h3>
+                                <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+                                    Data alokasi berikut disalin dari periode {months.find(m => m.value === parseInt(sourcePeriode.bulan))?.label} {sourcePeriode.tahun}. 
+                                    Anda dapat mengubah petugas, jumlah beban tugas, atau menambah/mengurangi petugas sesuai kebutuhan.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -298,7 +348,7 @@ export default function Manage({ kegiatan, petugas }: Props) {
                 </div>
 
                 {/* Existing Alokasi */}
-                {kegiatan.alokasi.length > 0 && (
+                {kegiatan.alokasi && kegiatan.alokasi.length > 0 && (
                     <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
                         <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -601,10 +651,10 @@ export default function Manage({ kegiatan, petugas }: Props) {
                                                 />
                                             </div>
 
-                                            {/* Jumlah Satuan */}
+                                            {/* Jumlah Beban Tugas */}
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Jumlah Satuan{' '}
+                                                    Jumlah Beban Tugas{' '}
                                                     <span className="text-red-500">*</span>
                                                 </label>
                                                 <input
@@ -667,6 +717,25 @@ export default function Manage({ kegiatan, petugas }: Props) {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Budget Error Display */}
+                            {errors.budget && (
+                                <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <AlertCircle className="h-5 w-5 text-red-400" />
+                                        </div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
+                                                Anggaran Tidak Mencukupi
+                                            </h3>
+                                            <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                                                <p>{errors.budget}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Submit Buttons */}
                             <div className="flex items-center justify-end gap-4 border-t border-gray-200 px-6 py-4 dark:border-gray-700">

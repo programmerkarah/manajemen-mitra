@@ -81,7 +81,18 @@ class PetugasController extends Controller
      */
     public function show(Petugas $petugas): Response
     {
-        $petugas->load(['alokasi.kegiatan', 'alokasi.rateHonor.satuan']);
+        $petugas->load(['alokasi.periodeAlokasi.kegiatan']);
+
+        // Transform alokasi to include bulan, tahun, jenis_kegiatan from periode
+        $petugas->alokasi->each(function ($alok) {
+            $periode = $alok->periodeAlokasi;
+            $alok->bulan = (int) $periode->bulan;
+            $alok->tahun = $periode->tahun;
+            $alok->jenis_kegiatan = $periode->jenis_kegiatan;
+            $alok->status = $periode->status;
+            $alok->kegiatan = $periode->kegiatan;
+            unset($alok->periodeAlokasi);
+        });
 
         return Inertia::render('Petugas/Show', [
             'petugas' => $petugas,

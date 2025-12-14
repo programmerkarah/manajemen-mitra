@@ -86,9 +86,9 @@ class Kegiatan extends Model
         return $date->format('Y-m-d');
     }
 
-    public function alokasi(): HasMany
+    public function periodeAlokasi(): HasMany
     {
-        return $this->hasMany(AlokasiPetugas::class);
+        return $this->hasMany(PeriodeAlokasi::class);
     }
 
     public function rateHonorApprovedBy(): BelongsTo

@@ -7,11 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PeriodeAlokasi extends Model
 {
-    use HasFactory, HasHashedRouteKey, SoftDeletes;
+    use HasFactory, HasHashedRouteKey;
 
     protected $table = 'periode_alokasi';
 
@@ -21,6 +20,7 @@ class PeriodeAlokasi extends Model
         'tahun',
         'jenis_kegiatan',
         'status',
+        'sisa_pagu',
         'submitted_by',
         'submitted_at',
         'approved_by',

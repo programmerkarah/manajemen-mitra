@@ -10,6 +10,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Sbml;
+use App\Services\ActiveYearService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +25,12 @@ class AlokasiPetugasController extends Controller
      */
     public function index(Request $request): Response
     {
+        $activeYear = ActiveYearService::get();
         $query = PeriodeAlokasi::query()
-            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id', 'alokasiPetugas'])
-            ->withCount('alokasiPetugas as jumlah_petugas');
+            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,anggaran', 'alokasiPetugas'])
+            ->withCount('alokasiPetugas as jumlah_petugas')
+            ->where('status', '!=', 'dihapus') // Exclude deleted periods
+            ->where('tahun', $activeYear);
 
         // Search by kegiatan
         if ($request->filled('search')) {
@@ -40,11 +44,6 @@ class AlokasiPetugasController extends Controller
         // Filter by status
         if ($request->filled('status')) {
             $query->where('status', $request->status);
-        }
-
-        // Filter by tahun
-        if ($request->filled('tahun')) {
-            $query->where('tahun', $request->tahun);
         }
 
         // Filter by bulan
@@ -63,6 +62,12 @@ class AlokasiPetugasController extends Controller
 
         // Transform the result to include necessary data
         $alokasi->getCollection()->transform(function ($periode) {
+            $estimasiHonor = $periode->total_honor;
+            $paguAnggaran = $periode->kegiatan->anggaran ?? 0;
+
+            // Use stored sisa_pagu instead of calculating dynamically
+            $sisaPagu = $periode->sisa_pagu ?? 0;
+
             return [
                 'kegiatan_id' => $periode->kegiatan_id,
                 'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
@@ -70,7 +75,10 @@ class AlokasiPetugasController extends Controller
                 'jenis_kegiatan' => $periode->jenis_kegiatan,
                 'status' => $periode->status,
                 'jumlah_petugas' => $periode->jumlah_petugas,
-                'total_honor' => $periode->total_honor,
+                'total_honor' => $estimasiHonor,
+                'estimasi_honor' => $estimasiHonor,
+                'sisa_pagu' => $sisaPagu,
+                'pagu_anggaran' => $paguAnggaran,
                 'latest_created_at' => $periode->created_at,
                 'kegiatan' => [
                     'id' => $periode->kegiatan->id,
@@ -83,7 +91,8 @@ class AlokasiPetugasController extends Controller
 
         return Inertia::render('Alokasi/Index', [
             'alokasi' => $alokasi,
-            'filters' => $request->only(['search', 'status', 'tahun', 'bulan']),
+            'filters' => $request->only(['search', 'status', 'bulan']),
+            'active_year' => $activeYear,
         ]);
     }
 
@@ -102,7 +111,62 @@ class AlokasiPetugasController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengelola alokasi kegiatan ini.');
         }
 
-        $kegiatan->load(['ketuaTim', 'rateHonors.satuan', 'alokasi.petugas']);
+        $kegiatan->load(['ketuaTim', 'rateHonors.satuan', 'periodeAlokasi.alokasiPetugas.petugas']);
+
+        // Handle copy from existing periode
+        $copiedAlokasi = null;
+        $sourcePeriode = null;
+
+        if ($request->has('copy_from_bulan') && $request->has('copy_from_tahun')) {
+            // Ketua Tim can only copy from their own kegiatan (which is already validated above)
+            $sourcePeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $request->copy_from_tahun)
+                ->where('bulan', $request->copy_from_bulan)
+                ->with(['alokasiPetugas.petugas'])
+                ->first();
+
+            if ($sourcePeriode && $sourcePeriode->alokasiPetugas->isNotEmpty()) {
+                // Calculate kegiatan duration
+                $tanggalMulai = \Carbon\Carbon::parse($kegiatan->tanggal_mulai);
+                $tanggalSelesai = \Carbon\Carbon::parse($kegiatan->tanggal_selesai);
+                $durationMonths = $tanggalMulai->diffInMonths($tanggalSelesai) + 1;
+
+                // Only allow copy if kegiatan spans multiple months
+                if ($durationMonths > 1) {
+                    $copiedAlokasi = $sourcePeriode->alokasiPetugas->map(function ($alokasi) {
+                        return [
+                            'petugas_id' => $alokasi->petugas_id,
+                            'petugas_nama' => $alokasi->petugas->nama,
+                            'status_kepegawaian' => $alokasi->status_kepegawaian,
+                            'peran' => $alokasi->peran,
+                            'jumlah_satuan' => $alokasi->jumlah_satuan,
+                            'total_honor' => $alokasi->total_honor,
+                            'catatan' => $alokasi->catatan,
+                        ];
+                    });
+
+                    $sourcePeriode = [
+                        'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
+                        'tahun' => $request->copy_from_tahun,
+                    ];
+                }
+            }
+        }
+
+        // Flatten periodeAlokasi->alokasiPetugas for backward compatibility
+        $alokasi = $kegiatan->periodeAlokasi->flatMap(function ($periode) {
+            return $periode->alokasiPetugas->map(function ($alok) use ($periode) {
+                $alok->bulan = (int) $periode->bulan;
+                $alok->tahun = $periode->tahun;
+                $alok->jenis_kegiatan = $periode->jenis_kegiatan;
+                $alok->status = $periode->status;
+
+                return $alok;
+            });
+        });
+
+        $kegiatan->alokasi = $alokasi;
+        unset($kegiatan->periodeAlokasi);
 
         $petugas = Petugas::where('status', 'aktif')
             ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
@@ -111,6 +175,8 @@ class AlokasiPetugasController extends Controller
         return Inertia::render('Alokasi/Manage', [
             'kegiatan' => $kegiatan,
             'petugas' => $petugas,
+            'copiedAlokasi' => $copiedAlokasi,
+            'sourcePeriode' => $sourcePeriode,
         ]);
     }
 
@@ -235,19 +301,64 @@ class AlokasiPetugasController extends Controller
 
         // Create PeriodeAlokasi and AlokasiPetugas
         foreach ($periodeGroups as $periodeData) {
-            // Use firstOrCreate with deleted_at null to handle soft-deleted records
-            $periode = PeriodeAlokasi::withTrashed()
-                ->where('kegiatan_id', $kegiatan->id)
+            // Calculate new periode's total honor
+            $newPeriodeTotalHonor = collect($periodeData['alokasi'])->sum('total_honor');
+
+            // Check budget constraint before creating periode
+            $kegiatan->load('periodeAlokasi.alokasiPetugas');
+            $paguAnggaran = $kegiatan->anggaran ?? 0;
+
+            // Calculate total spent across all active periods
+            $totalSpent = $kegiatan->periodeAlokasi
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor');
+                });
+
+            $sisaPagu = $paguAnggaran - $totalSpent;
+
+            // Validate that sisa pagu is sufficient for new periode
+            if ($newPeriodeTotalHonor > $sisaPagu) {
+                DB::rollBack();
+
+                return back()->withErrors([
+                    'budget' => 'Anggaran tidak mencukupi untuk menambahkan periode ini. '.
+                        'Sisa pagu: '.number_format($sisaPagu, 0, ',', '.').', '.
+                        'Estimasi honor periode baru: '.number_format($newPeriodeTotalHonor, 0, ',', '.'),
+                ]);
+            }
+
+            // Calculate sisa_pagu based on previous periods (sequential by month)
+            $previousPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where(function ($query) use ($periodeData) {
+                    $query->where('tahun', '<', $periodeData['tahun'])
+                        ->orWhere(function ($q) use ($periodeData) {
+                            $q->where('tahun', $periodeData['tahun'])
+                                ->where('bulan', '<', $periodeData['bulan']);
+                        });
+                })
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->orderByDesc('tahun')
+                ->orderByDesc('bulan')
+                ->first();
+
+            // Calculate sisa_pagu for this new periode
+            $sisaPaguPeriode = $previousPeriode
+                ? $previousPeriode->sisa_pagu - $newPeriodeTotalHonor
+                : $paguAnggaran - $newPeriodeTotalHonor;
+
+            // Check for existing periode (including dihapus status)
+            $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('bulan', $periodeData['bulan'])
                 ->where('tahun', $periodeData['tahun'])
                 ->first();
 
-            if ($periode && $periode->trashed()) {
-                // Restore soft-deleted periode
-                $periode->restore();
+            if ($periode && $periode->status === 'dihapus') {
+                // Reuse periode that was marked as deleted
                 $periode->update([
                     'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
                     'status' => 'draft',
+                    'sisa_pagu' => $sisaPaguPeriode,
                 ]);
             } elseif (! $periode) {
                 // Create new periode
@@ -257,6 +368,7 @@ class AlokasiPetugasController extends Controller
                     'tahun' => $periodeData['tahun'],
                     'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
                     'status' => 'draft',
+                    'sisa_pagu' => $sisaPaguPeriode,
                 ]);
             }
 
@@ -281,7 +393,7 @@ class AlokasiPetugasController extends Controller
                 ->with('warning', "{$created} alokasi berhasil ditambahkan. ".count($errors).' alokasi ditolak karena melebihi batas SBML.');
         }
 
-        return redirect()->route('alokasi.manage', $kegiatan)
+        return redirect()->route('alokasi.index')
             ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
     }
 
@@ -290,7 +402,7 @@ class AlokasiPetugasController extends Controller
      */
     public function create(Request $request): Response
     {
-        $activeYear = \App\Services\ActiveYearService::get();
+        $activeYear = ActiveYearService::get();
 
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
             ->with([
@@ -301,9 +413,36 @@ class AlokasiPetugasController extends Controller
                         ->with('satuan:id,kode,nama');
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'jenis_kegiatan')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'anggaran', 'ketua_tim_user_id')
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Calculate budget info for all kegiatans
+        $budgetInfo = [];
+        $usedMonthsInfo = [];
+        foreach ($kegiatans as $kegiatan) {
+            $totalSpent = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->with('alokasiPetugas')
+                ->get()
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor');
+                });
+
+            $budgetInfo[$kegiatan->id] = [
+                'pagu_anggaran' => $kegiatan->anggaran ?? 0,
+                'current_total_spent' => $totalSpent,
+            ];
+
+            // Calculate used months for this kegiatan
+            $usedMonthsInfo[$kegiatan->id] = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->pluck('bulan')
+                ->map(fn ($b) => (int) $b)
+                ->toArray();
+        }
 
         $petugas = Petugas::where('status', 'aktif')
             ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
@@ -325,7 +464,7 @@ class AlokasiPetugasController extends Controller
                                     ->with('satuan:id,kode,nama');
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'jenis_kegiatan')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'ketua_tim_user_id')
                         ->first();
                 }
             } catch (\Exception $e) {
@@ -333,11 +472,82 @@ class AlokasiPetugasController extends Controller
             }
         }
 
+        // Handle copy from existing periode
+        $copiedAlokasi = null;
+        $sourcePeriode = null;
+
+        if ($request->filled(['kegiatan_id', 'copy_from_bulan', 'copy_from_tahun'])) {
+            try {
+                $decodedId = Hashids::decode($request->kegiatan_id)[0] ?? null;
+                if ($decodedId) {
+                    $kegiatan = Kegiatan::find($decodedId);
+                    if ($kegiatan) {
+                        // Ketua Tim can only copy from their own kegiatan
+                        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+                            // Don't copy data if ketua_tim tries to copy from other's kegiatan
+                            $copiedAlokasi = null;
+                            $sourcePeriode = null;
+                        } else {
+                            $sourcePeriodeData = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                                ->where('tahun', $request->copy_from_tahun)
+                                ->where('bulan', $request->copy_from_bulan)
+                                ->with(['alokasiPetugas.petugas'])
+                                ->first();
+
+                            if ($sourcePeriodeData && $sourcePeriodeData->alokasiPetugas->isNotEmpty()) {
+                                // Calculate kegiatan duration
+                                $tanggalMulai = \Carbon\Carbon::parse($kegiatan->tanggal_mulai);
+                                $tanggalSelesai = \Carbon\Carbon::parse($kegiatan->tanggal_selesai);
+                                $durationMonths = $tanggalMulai->diffInMonths($tanggalSelesai) + 1;
+
+                                // Only allow copy if kegiatan spans multiple months
+                                if ($durationMonths > 1) {
+                                    $copiedAlokasi = $sourcePeriodeData->alokasiPetugas->map(function ($alokasi) {
+                                        return [
+                                            'petugas_id' => $alokasi->petugas_id,
+                                            'petugas_nama' => $alokasi->petugas->nama,
+                                            'status_kepegawaian' => $alokasi->status_kepegawaian,
+                                            'peran' => $alokasi->peran,
+                                            'jumlah_satuan' => $alokasi->jumlah_satuan,
+                                            'total_honor' => $alokasi->total_honor,
+                                            'catatan' => $alokasi->catatan,
+                                        ];
+                                    });
+
+                                    $sourcePeriode = [
+                                        'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
+                                        'tahun' => $request->copy_from_tahun,
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Invalid data, just ignore
+            }
+        }
+
+        // Calculate budget info for selected kegiatan
+        $paguAnggaran = $selectedKegiatan ? $selectedKegiatan->anggaran : 0;
+        $currentTotalSpent = $selectedKegiatan ? PeriodeAlokasi::where('kegiatan_id', $decodedId)
+            ->where('tahun', $activeYear)
+            ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+            ->with('alokasiPetugas')
+            ->get()
+            ->sum(function ($p) {
+                return $p->alokasiPetugas->sum('total_honor');
+            }) : 0;
+
         return Inertia::render('Alokasi/Create', [
             'kegiatans' => $kegiatans,
             'petugas' => $petugas,
             'selectedKegiatan' => $selectedKegiatan,
             'active_year' => $activeYear,
+            'copiedAlokasi' => $copiedAlokasi,
+            'sourcePeriode' => $sourcePeriode,
+            'budget_info' => $budgetInfo,
+            'used_months_info' => $usedMonthsInfo,
         ]);
     }
 
@@ -578,7 +788,7 @@ class AlokasiPetugasController extends Controller
             ->firstOrFail();
 
         $periode->update([
-            'status' => 'diajukan',
+            'status' => 'dikirim',
             'submitted_by' => $request->user()->id,
             'submitted_at' => now(),
         ]);
@@ -673,7 +883,7 @@ class AlokasiPetugasController extends Controller
     }
 
     /**
-     * Soft delete periode and all its alokasi
+     * Mark periode as deleted (status = dihapus)
      */
     public function destroyPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
     {
@@ -687,15 +897,15 @@ class AlokasiPetugasController extends Controller
             return back()->with('error', 'Tidak ada alokasi draft yang dapat dibatalkan.');
         }
 
-        // Soft delete will cascade to alokasi_petugas
-        $periode->delete();
+        // Update status instead of soft delete
+        $periode->update(['status' => 'dihapus']);
 
         return redirect()->route('alokasi.index')
             ->with('success', 'Alokasi periode berhasil dibatalkan.');
     }
 
     /**
-     * Revisi: Soft delete old periode and create new draft
+     * Revisi: Mark old periode as direvisi and create new draft
      */
     public function revisiPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
     {
@@ -705,7 +915,7 @@ class AlokasiPetugasController extends Controller
             $oldPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $tahun)
                 ->where('bulan', $bulan)
-                ->where('status', 'diajukan')
+                ->where('status', 'dikirim')
                 ->with('alokasiPetugas')
                 ->first();
 
@@ -713,8 +923,8 @@ class AlokasiPetugasController extends Controller
                 return back()->with('error', 'Tidak ada alokasi terkirim untuk direvisi.');
             }
 
-            // Soft delete old periode (will cascade to alokasi_petugas)
-            $oldPeriode->delete();
+            // Mark old periode as direvisi
+            $oldPeriode->update(['status' => 'direvisi']);
 
             // Create new draft periode
             $newPeriode = PeriodeAlokasi::create([

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react'
+import { Head, Link, router, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { ContentCard } from '@/components/content-card'
@@ -13,18 +13,21 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import type { BreadcrumbItem, Kegiatan } from '@/types'
+import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
 import { useState } from 'react'
-import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy } from 'lucide-react'
 
 interface AlokasiPeriod {
     kegiatan_id: number
     bulan: string
     tahun: number
     jenis_kegiatan: 'sensus' | 'survei'
-    status: 'draft' | 'diajukan' | 'approved' | 'rejected'
+    status: 'draft' | 'dikirim' | 'direvisi' | 'dihapus'
     jumlah_petugas: number
     total_honor: number
+    estimasi_honor: number
+    sisa_pagu: number
+    pagu_anggaran: number
     latest_created_at: string
     kegiatan: Kegiatan
 }
@@ -49,15 +52,16 @@ interface Props {
     filters: {
         search?: string
         status?: string
-        tahun?: number
         bulan?: string
     }
 }
 
-export default function Index({ alokasi, filters }: Props) {
+export default function Index({ alokasi, filters, active_year }: Props) {
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
+    
     const [search, setSearch] = useState(filters.search || '')
     const [status, setStatus] = useState(filters.status || '')
-    const [tahun, setTahun] = useState(filters.tahun?.toString() || '')
     const [bulan, setBulan] = useState(filters.bulan || '')
 
     // Modal states
@@ -71,10 +75,6 @@ export default function Index({ alokasi, filters }: Props) {
         tahun: number
         namaKegiatan?: string
     } | null>(null)
-
-    // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
-    const currentYear = new Date().getFullYear()
-    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
 
     const bulanOptions = [
         { value: '01', label: 'Januari' },
@@ -97,7 +97,6 @@ export default function Index({ alokasi, filters }: Props) {
             {
                 search: search || undefined,
                 status: status || undefined,
-                tahun: tahun || undefined,
                 bulan: bulan || undefined,
             },
             {
@@ -110,7 +109,6 @@ export default function Index({ alokasi, filters }: Props) {
     const handleReset = () => {
         setSearch('')
         setStatus('')
-        setTahun('')
         setBulan('')
         router.get('/alokasi')
     }
@@ -176,16 +174,16 @@ export default function Index({ alokasi, filters }: Props) {
 
     const statusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+        dikirim: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        direvisi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        dihapus: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
     }
 
     const statusLabels = {
         draft: 'Draft',
-        diajukan: 'Terkirim',
-        approved: 'Disetujui',
-        rejected: 'Ditolak',
+        dikirim: 'Terkirim',
+        direvisi: 'Direvisi',
+        dihapus: 'Dihapus',
     }
 
     const formatCurrency = (amount: number) => {
@@ -211,17 +209,19 @@ export default function Index({ alokasi, filters }: Props) {
                 title="Alokasi Petugas"
                 description="Kelola alokasi petugas untuk setiap kegiatan"
             >
-                <Button size="sm" asChild className="gap-2">
-                    <Link href="/alokasi/create">
-                        <Plus className="h-4 w-4" />
-                        Tambah Periode Kegiatan
-                    </Link>
-                </Button>
+                {!isPJ && (
+                    <Button size="sm" asChild className="gap-2">
+                        <Link href="/alokasi/create">
+                            <Plus className="h-4 w-4" />
+                            Tambah Periode Kegiatan
+                        </Link>
+                    </Button>
+                )}
             </PageHeader>
 
             {/* Filters */}
             <ContentCard>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div className="space-y-2">
                         <Label htmlFor="search">Cari Kegiatan</Label>
                         <div className="relative">
@@ -265,26 +265,8 @@ export default function Index({ alokasi, filters }: Props) {
                         >
                             <option value="">Semua Status</option>
                             <option value="draft">Draft</option>
-                            <option value="diajukan">Terkirim</option>
-                            <option value="approved">Disetujui</option>
-                            <option value="rejected">Ditolak</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="tahun">Tahun</Label>
-                        <select
-                            id="tahun"
-                            value={tahun}
-                            onChange={(e) => setTahun(e.target.value)}
-                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
-                        >
-                            <option value="">Semua Tahun</option>
-                            {tahunOptions.map((year) => (
-                                <option key={year} value={year}>
-                                    {year}
-                                </option>
-                            ))}
+                            <option value="dikirim">Terkirim</option>
+                            <option value="direvisi">Direvisi</option>
                         </select>
                     </div>
 
@@ -312,7 +294,10 @@ export default function Index({ alokasi, filters }: Props) {
                                     Bulan
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
-                                    Pagu Anggaran
+                                    Estimasi Honor
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                    Sisa Pagu
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
                                     Jumlah Petugas
@@ -355,7 +340,16 @@ export default function Index({ alokasi, filters }: Props) {
                                             {getBulanLabel(periode.bulan)} {periode.tahun}
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-neutral-900 dark:text-white">
-                                            {formatCurrency(periode.total_honor)}
+                                            {formatCurrency(periode.estimasi_honor)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <span className={`font-semibold ${
+                                                periode.sisa_pagu >= 0 
+                                                    ? 'text-green-600 dark:text-green-400' 
+                                                    : 'text-red-600 dark:text-red-400'
+                                            }`}>
+                                                {formatCurrency(periode.sisa_pagu)}
+                                            </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
@@ -371,7 +365,7 @@ export default function Index({ alokasi, filters }: Props) {
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex gap-2">
-                                                {periode.status === 'draft' && (
+                                                {!isPJ && periode.status === 'draft' && (
                                                     <>
                                                         <Button
                                                             size="sm"
@@ -395,6 +389,17 @@ export default function Index({ alokasi, filters }: Props) {
                                                         </Button>
                                                         <Button
                                                             size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                            className="gap-1"
+                                                        >
+                                                            <Link href={`/alokasi/kegiatan/${periode.kegiatan.hashed_id}/manage?copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
+                                                                <Copy className="h-3 w-3" />
+                                                                Salin
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
                                                             variant="destructive"
                                                             className="gap-1"
                                                             onClick={() => handleBatalkan(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
@@ -404,16 +409,29 @@ export default function Index({ alokasi, filters }: Props) {
                                                         </Button>
                                                     </>
                                                 )}
-                                                {periode.status === 'diajukan' && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="gap-1"
-                                                        onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
-                                                    >
-                                                        <RefreshCw className="h-3 w-3" />
-                                                        Revisi
-                                                    </Button>
+                                                {!isPJ && periode.status === 'dikirim' && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                            className="gap-1"
+                                                        >
+                                                            <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
+                                                                <Copy className="h-3 w-3" />
+                                                                Salin
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="gap-1"
+                                                            onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                        >
+                                                            <RefreshCw className="h-3 w-3" />
+                                                            Revisi
+                                                        </Button>
+                                                    </>
                                                 )}
                                             </div>
                                         </td>

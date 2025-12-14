@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Pencil, X, Check, Send } from 'lucide-react';
 import { useState } from 'react';
@@ -40,15 +40,15 @@ interface KegiatanIndexProps {
     filters: {
         search?: string;
         status?: string;
-        tahun?: string;
     };
 }
 
 export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
-    const { auth } = usePage<{ auth: { user: User & { active_role: string } } }>().props;
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
+    
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
-    const [tahun, setTahun] = useState(filters.tahun || '');
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -56,15 +56,11 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    // Generate tahun options (5 tahun ke belakang dan 2 tahun ke depan)
-    const currentYear = new Date().getFullYear();
-    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i);
-
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         router.get(
             '/kegiatan',
-            { search, status, tahun },
+            { search, status },
             { preserveState: true, replace: true }
         );
     };
@@ -72,7 +68,6 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const handleReset = () => {
         setSearch('');
         setStatus('');
-        setTahun('');
         router.get('/kegiatan', {}, { preserveState: true });
     };
 
@@ -208,18 +203,20 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     title="Kegiatan"
                     description="Kelola kegiatan dan anggaran"
                 >
-                    <Button size="sm" asChild className="gap-2">
-                        <Link href="/kegiatan/create">
-                            <Plus className="h-4 w-4" />
-                            Tambah Kegiatan
-                        </Link>
-                    </Button>
+                    {!isPJ && (
+                        <Button size="sm" asChild className="gap-2">
+                            <Link href="/kegiatan/create">
+                                <Plus className="h-4 w-4" />
+                                Tambah Kegiatan
+                            </Link>
+                        </Button>
+                    )}
                 </PageHeader>
 
                 {/* Filters */}
                 <ContentCard>
                     <form onSubmit={handleSearch} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                 <Input
@@ -241,38 +238,24 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 <option value="selesai">Selesai</option>
                                 <option value="dibatalkan">Dibatalkan</option>
                             </select>
-                            <select
-                                value={tahun}
-                                onChange={(e) => setTahun(e.target.value)}
-                                className="h-10 rounded-lg border border-neutral-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            >
-                                    <option value="">Semua Tahun</option>
-                                    {tahunOptions.map((year) => (
-                                        <option key={year} value={year}>
-                                            {year}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="flex gap-2">
-                                    <Button type="submit" className="flex-1 gap-2">
-                                        <Search className="h-4 w-4" />
-                                        Filter
-                                    </Button>
-                                    {(search || status || tahun) && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={handleReset}
-                                            className="gap-2"
-                                        >
-                                            <X className="h-4 w-4" />
-                                            Reset
-                                        </Button>
-                                    )}
-                                </div>
+                            <div className="flex gap-2">
+                                <Button type="submit" className="flex-1 gap-2">
+                                    <Search className="h-4 w-4" />
+                                    Filter
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleReset}
+                                    className="flex-1 gap-2"
+                                >
+                                    <X className="h-4 w-4" />
+                                    Reset
+                                </Button>
                             </div>
-                        </form>
-                    </ContentCard>
+                        </div>
+                    </form>
+                </ContentCard>
 
                 {/* Table */}
                 <ContentCard padding="none">
@@ -346,7 +329,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {canSubmit(kegiatan) && (
+                                                    {!isPJ && canSubmit(kegiatan) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -357,7 +340,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <span className="sr-only sm:not-sr-only">Ajukan</span>
                                                         </Button>
                                                     )}
-                                                    {canApprove(kegiatan) && (
+                                                    {!isPJ && canApprove(kegiatan) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -368,7 +351,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <span className="sr-only sm:not-sr-only">Setujui</span>
                                                         </Button>
                                                     )}
-                                                    {canReject(kegiatan) && (
+                                                    {!isPJ && canReject(kegiatan) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -389,7 +372,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    {canEdit(kegiatan) && (
+                                                    {!isPJ && canEdit(kegiatan) && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"

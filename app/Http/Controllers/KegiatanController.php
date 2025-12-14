@@ -8,6 +8,7 @@ use App\Models\Kegiatan;
 use App\Models\RateHonor;
 use App\Models\Satuan;
 use App\Models\User;
+use App\Services\ActiveYearService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,10 @@ class KegiatanController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = Kegiatan::query()->with('ketuaTim');
+        $activeYear = ActiveYearService::get();
+        $query = Kegiatan::query()
+            ->with('ketuaTim')
+            ->where('tahun_anggaran', $activeYear);
 
         // Search
         if ($request->filled('search')) {
@@ -39,11 +43,6 @@ class KegiatanController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by tahun
-        if ($request->filled('tahun')) {
-            $query->where('tahun_anggaran', $request->tahun);
-        }
-
         // Filter by Ketua Tim for ketua_tim role
         if ($request->user()->isKetuaTim()) {
             $query->where('ketua_tim_user_id', $request->user()->id);
@@ -53,7 +52,7 @@ class KegiatanController extends Controller
 
         return Inertia::render('Kegiatan/Index', [
             'kegiatans' => $kegiatans,
-            'filters' => $request->only(['search', 'status', 'tahun']),
+            'filters' => $request->only(['search', 'status']),
         ]);
     }
 
@@ -143,8 +142,23 @@ class KegiatanController extends Controller
         $kegiatan->load([
             'ketuaTim',
             'rateHonors.satuan',
-            'alokasi.petugas',
+            'periodeAlokasi.alokasiPetugas.petugas',
         ]);
+
+        // Flatten periodeAlokasi->alokasiPetugas for backward compatibility
+        $alokasi = $kegiatan->periodeAlokasi->flatMap(function ($periode) {
+            return $periode->alokasiPetugas->map(function ($alok) use ($periode) {
+                $alok->bulan = (int) $periode->bulan;
+                $alok->tahun = $periode->tahun;
+                $alok->jenis_kegiatan = $periode->jenis_kegiatan;
+                $alok->status = $periode->status;
+
+                return $alok;
+            });
+        });
+
+        $kegiatan->alokasi = $alokasi;
+        unset($kegiatan->periodeAlokasi);
 
         return Inertia::render('Kegiatan/Show', [
             'kegiatan' => $kegiatan,

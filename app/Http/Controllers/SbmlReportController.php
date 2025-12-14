@@ -22,17 +22,19 @@ class SbmlReportController extends Controller
 
         // Get petugas with their allocations
         $petugasQuery = Petugas::with(['alokasi' => function ($query) use ($tahun, $bulan, $jenisKegiatan, $statusKepegawaian) {
-            $query->where('tahun', $tahun);
-            if ($bulan) {
-                $query->where('bulan', $bulan);
-            }
-            if ($jenisKegiatan) {
-                $query->where('jenis_kegiatan', $jenisKegiatan);
-            }
+            $query->whereHas('periodeAlokasi', function ($q) use ($tahun, $bulan, $jenisKegiatan) {
+                $q->where('tahun', $tahun);
+                if ($bulan) {
+                    $q->where('bulan', $bulan);
+                }
+                if ($jenisKegiatan) {
+                    $q->where('jenis_kegiatan', $jenisKegiatan);
+                }
+            });
             if ($statusKepegawaian) {
                 $query->where('status_kepegawaian', $statusKepegawaian);
             }
-            $query->with(['kegiatan']);
+            $query->with(['periodeAlokasi.kegiatan']);
         }])->where('status', 'aktif');
 
         $petugas = $petugasQuery->get()->map(function ($petugas) use ($tahun) {
@@ -40,12 +42,13 @@ class SbmlReportController extends Controller
             $monthlyData = [];
 
             foreach ($petugas->alokasi as $alokasi) {
-                $key = $alokasi->bulan.'_'.$alokasi->jenis_kegiatan.'_'.$alokasi->status_kepegawaian;
+                $periode = $alokasi->periodeAlokasi;
+                $key = $periode->bulan.'_'.$periode->jenis_kegiatan.'_'.$alokasi->status_kepegawaian;
 
                 if (! isset($monthlyData[$key])) {
                     $monthlyData[$key] = [
-                        'bulan' => $alokasi->bulan,
-                        'jenis_kegiatan' => $alokasi->jenis_kegiatan,
+                        'bulan' => (int) $periode->bulan,
+                        'jenis_kegiatan' => $periode->jenis_kegiatan,
                         'status_kepegawaian' => $alokasi->status_kepegawaian,
                         'total_honor' => 0,
                         'highest_peran' => null,
