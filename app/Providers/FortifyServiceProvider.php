@@ -155,7 +155,18 @@ class FortifyServiceProvider extends ServiceProvider
                     if ($rememberDevice && $request->user()) {
                         $user = $request->user();
 
-                        // Check if device already exists
+                        // Expire all existing trusted devices that have different fingerprint
+                        // This ensures only ONE device (the current one) is trusted
+                        TrustedDevice::where('user_id', $user->id)
+                            ->where(function ($query) use ($request) {
+                                $query->where('user_agent', '!=', $request->userAgent())
+                                    ->orWhere('ip_address', '!=', $request->ip());
+                            })
+                            ->update([
+                                'expires_at' => now()->subDay(), // Expire old devices
+                            ]);
+
+                        // Check if current device already exists
                         $existingDevice = TrustedDevice::where('user_id', $user->id)
                             ->where('user_agent', $request->userAgent())
                             ->where('ip_address', $request->ip())

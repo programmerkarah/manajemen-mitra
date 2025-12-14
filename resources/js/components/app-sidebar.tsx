@@ -1,4 +1,3 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { YearSwitcher } from '@/components/year-switcher';
@@ -15,33 +14,14 @@ import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
-    Folder,
     LayoutGrid,
     Users,
-    Briefcase,
-    UserCheck,
-    DollarSign,
+    Package,
     FileText,
     ClipboardList,
-    Package,
-    Calculator,
     BarChart3,
 } from 'lucide-react';
 import AppLogo from './app-logo';
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
@@ -202,7 +182,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <YearSwitcher />
                 <NavUser />
             </SidebarFooter>
