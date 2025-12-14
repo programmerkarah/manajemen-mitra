@@ -90,6 +90,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(Role::class);
     }
 
+    public function trustedDevices(): HasMany
+    {
+        return $this->hasMany(TrustedDevice::class);
+    }
+
     public function hasRole(string $role): bool
     {
         if ($this->relationLoaded('roles')) {

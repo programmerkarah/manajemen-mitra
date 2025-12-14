@@ -1,11 +1,13 @@
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     InputOTP,
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { Label } from '@/components/ui/label';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import AuthLayout from '@/layouts/auth-layout';
 import { store } from '@/routes/two-factor/login';
@@ -13,9 +15,16 @@ import { Form, Head } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useMemo, useState } from 'react';
 
-export default function TwoFactorChallenge() {
+interface TwoFactorChallengeProps {
+    isTrustedDevice?: boolean;
+}
+
+export default function TwoFactorChallenge({
+    isTrustedDevice = false,
+}: TwoFactorChallengeProps) {
     const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
     const [code, setCode] = useState<string>('');
+    const [rememberDevice, setRememberDevice] = useState<boolean>(true);
 
     const authConfigContent = useMemo<{
         title: string;
@@ -101,6 +110,23 @@ export default function TwoFactorChallenge() {
                                     <InputError message={errors.code} />
                                 </div>
                             )}
+
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="remember_device"
+                                    name="remember_device"
+                                    checked={rememberDevice}
+                                    onCheckedChange={(checked) =>
+                                        setRememberDevice(checked as boolean)
+                                    }
+                                />
+                                <Label
+                                    htmlFor="remember_device"
+                                    className="text-sm font-normal text-muted-foreground"
+                                >
+                                    Remember this device for 30 days
+                                </Label>
+                            </div>
 
                             <Button
                                 type="submit"
