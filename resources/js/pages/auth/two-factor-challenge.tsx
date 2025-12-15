@@ -50,6 +50,9 @@ export default function TwoFactorChallenge() {
                             </div>
 
                             <Form method="post" className="flex flex-col gap-6">
+                                {(errors.code || errors.recovery_code) && (
+                                    <InputError message={errors.code || errors.recovery_code} className="mb-2 text-center" />
+                                )}
                                 <div className="grid gap-5">
                                     {!showRecoveryInput ? (
                                         <div className="grid gap-2">
