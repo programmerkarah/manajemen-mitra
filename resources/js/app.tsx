@@ -1,7 +1,6 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
-import { FlashMessage } from './components/flash-message';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -21,10 +20,7 @@ createInertiaApp({
 
         root.render(
             <StrictMode>
-                <>
-                    <App {...props} />
-                    <FlashMessage />
-                </>
+                <App {...props} />
             </StrictMode>,
         );
     },
