@@ -1,16 +1,22 @@
-
+import AppLogo from '@/components/app-logo';
+import AppLogoIcon from '@/components/app-logo-icon';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+} from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const [otp, setOtp] = useState('');
-    // Recovery code state is handled by Inertia form
+    const { data, setData, processing, errors } = useForm({
+        code: '',
+        recovery_code: '',
+    });
 
     return (
         <>
@@ -20,17 +26,7 @@ export default function TwoFactorChallenge() {
                 <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                         <a href="/" className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 dark:bg-blue-500">
-                                {/* Icon placeholder */}
-                            </div>
-                            <div>
-                                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                                    Manajemen Mitra
-                                </h1>
-                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                    BPS Kota Sawahlunto
-                                </p>
-                            </div>
+                            <AppLogo />
                         </a>
                     </div>
                 </header>
@@ -42,92 +38,111 @@ export default function TwoFactorChallenge() {
                             {/* Icon & Title */}
                             <div className="mb-8 text-center">
                                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                                    {/* Icon placeholder */}
+                                    <AppLogoIcon className="size-8 fill-current text-white dark:text-black" />
                                 </div>
                                 <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
                                     Two Factor Challenge
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    Masukkan kode autentikasi atau recovery code Anda
+                                    Masukkan kode autentikasi atau recovery code
+                                    Anda
                                 </p>
                             </div>
 
                             <Form method="post" className="flex flex-col gap-6">
-                                {({ processing, errors, setData }) => (
-                                    <>
-                                        <div className="grid gap-5">
-                                            {!showRecoveryInput ? (
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="code" className="text-neutral-900 dark:text-neutral-100">
-                                                        Kode Autentikasi
-                                                    </Label>
-                                                    <InputOTP
-                                                        id="code"
-                                                        name="code"
-                                                        maxLength={6}
-                                                        pattern="[0-9]*"
-                                                        inputMode="numeric"
-                                                        autoFocus
-                                                        value={otp}
-                                                        onChange={(val: string) => {
-                                                            setOtp(val);
-                                                            setData('code', val);
-                                                        }}
-                                                        containerClassName="justify-center"
-                                                    >
-                                                        <InputOTPGroup>
-                                                            {[...Array(6)].map((_, i) => (
-                                                                <InputOTPSlot key={i} index={i} />
-                                                            ))}
-                                                        </InputOTPGroup>
-                                                    </InputOTP>
-                                                    <InputError message={errors.code} />
-                                                    <Button
-                                                        type="button"
-                                                        variant="link"
-                                                        className="mt-2 px-0 text-sm"
-                                                        onClick={() => setShowRecoveryInput(true)}
-                                                    >
-                                                        Login dengan Recovery Code
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="recovery_code" className="text-neutral-900 dark:text-neutral-100">
-                                                        Recovery Code
-                                                    </Label>
-                                                    <input
-                                                        id="recovery_code"
-                                                        name="recovery_code"
-                                                        type="text"
-                                                        autoFocus
-                                                        autoComplete="one-time-code"
-                                                        placeholder="Recovery code"
-                                                        className="h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                                        onChange={e => setData('recovery_code', e.target.value)}
-                                                    />
-                                                    <InputError message={errors.recovery_code} />
-                                                    <Button
-                                                        type="button"
-                                                        variant="link"
-                                                        className="mt-2 px-0 text-sm"
-                                                        onClick={() => setShowRecoveryInput(false)}
-                                                    >
-                                                        Kembali ke Kode Autentikasi
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            <Button
-                                                type="submit"
-                                                className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                                disabled={processing}
-                                                data-test="two-factor-challenge-button"
+                                <div className="grid gap-5">
+                                    {!showRecoveryInput ? (
+                                        <div className="grid gap-2">
+                                            <Label
+                                                htmlFor="code"
+                                                className="text-neutral-900 dark:text-neutral-100"
                                             >
-                                                Autentikasi
+                                                Kode Autentikasi
+                                            </Label>
+                                            <InputOTP
+                                                id="code"
+                                                name="code"
+                                                maxLength={6}
+                                                pattern="[0-9]*"
+                                                inputMode="numeric"
+                                                autoFocus
+                                                value={data.code}
+                                                onChange={(val: string) =>
+                                                    setData('code', val)
+                                                }
+                                                containerClassName="justify-center"
+                                            >
+                                                <InputOTPGroup>
+                                                    {[...Array(6)].map(
+                                                        (_, i) => (
+                                                            <InputOTPSlot
+                                                                key={i}
+                                                                index={i}
+                                                            />
+                                                        ),
+                                                    )}
+                                                </InputOTPGroup>
+                                            </InputOTP>
+                                            <InputError message={errors.code} />
+                                            <Button
+                                                type="button"
+                                                variant="link"
+                                                className="mt-2 px-0 text-sm"
+                                                onClick={() =>
+                                                    setShowRecoveryInput(true)
+                                                }
+                                            >
+                                                Login dengan Recovery Code
                                             </Button>
                                         </div>
-                                    </>
-                                )}
+                                    ) : (
+                                        <div className="grid gap-2">
+                                            <Label
+                                                htmlFor="recovery_code"
+                                                className="text-neutral-900 dark:text-neutral-100"
+                                            >
+                                                Recovery Code
+                                            </Label>
+                                            <input
+                                                id="recovery_code"
+                                                name="recovery_code"
+                                                type="text"
+                                                autoFocus
+                                                autoComplete="one-time-code"
+                                                placeholder="Recovery code"
+                                                className="h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                                value={data.recovery_code}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'recovery_code',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={errors.recovery_code}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="link"
+                                                className="mt-2 px-0 text-sm"
+                                                onClick={() =>
+                                                    setShowRecoveryInput(false)
+                                                }
+                                            >
+                                                Kembali ke Kode Autentikasi
+                                            </Button>
+                                        </div>
+                                    )}
+                                    <Button
+                                        type="submit"
+                                        className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        disabled={processing}
+                                        data-test="two-factor-challenge-button"
+                                    >
+                                        Autentikasi
+                                    </Button>
+                                </div>
                             </Form>
                         </div>
                     </div>

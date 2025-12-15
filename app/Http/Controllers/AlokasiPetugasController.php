@@ -1008,15 +1008,6 @@ class AlokasiPetugasController extends Controller
         // Check if this is revisi mode from session
         $isRevisiMode = $request->session()->get('is_revisi_mode', false);
 
-        \Log::info('=== EDIT PERIODE CALLED ===', [
-            'is_revisi_mode' => $isRevisiMode,
-            'parent_periode_id' => $request->session()->get('revisi_parent_periode_id'),
-            'kegiatan_id' => $kegiatan->id,
-            'tahun' => $tahun,
-            'bulan' => $bulan,
-            'all_session' => $request->session()->all(),
-        ]);
-
         if ($isRevisiMode) {
             // Load data from parent periode for revision
             $parentPeriodeId = $request->session()->get('revisi_parent_periode_id');

@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
         Route::get('users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
+        Route::post('users/{user}/reset-2fa', \App\Http\Controllers\ResetUserTwoFactorController::class)->name('users.reset-2fa');
     });
 
     // Rate Honor Management per Kegiatan

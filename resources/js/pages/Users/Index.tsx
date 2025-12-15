@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, Pencil, X } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -183,7 +184,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex justify-center">
+                                                <div className="flex justify-center gap-2">
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -195,6 +196,39 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                             Edit Role
                                                         </Link>
                                                     </Button>
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-red-600 border-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                                            >
+                                                                Reset 2FA
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Reset Autentikasi Dua Faktor</DialogTitle>
+                                                                <DialogDescription>
+                                                                    Reset 2FA akan menghapus autentikasi dua faktor user ini. Lanjutkan?
+                                                                </DialogDescription>
+                                                            </DialogHeader>
+                                                            <form method="post" action={`/users/${user.id}/reset-2fa`}>
+                                                                <input type="hidden" name="_token" value={window.Laravel?.csrfToken || document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''} />
+                                                                <DialogFooter>
+                                                                    <DialogClose asChild>
+                                                                        <Button type="button" variant="outline">
+                                                                            Batal
+                                                                        </Button>
+                                                                    </DialogClose>
+                                                                    <Button type="submit" variant="destructive">
+                                                                        Reset 2FA
+                                                                    </Button>
+                                                                </DialogFooter>
+                                                            </form>
+                                                        </DialogContent>
+                                                    </Dialog>
                                                 </div>
                                             </td>
                                         </tr>

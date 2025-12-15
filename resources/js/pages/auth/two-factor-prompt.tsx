@@ -7,10 +7,10 @@ import { ShieldCheck } from 'lucide-react';
 export default function TwoFactorPrompt() {
     return (
         <AuthLayout
-            title="Two-Factor Authentication Required"
-            description="To keep your account secure, please enable two-factor authentication before accessing the application."
+            title="Diperlukan Autentikasi Dua Faktor"
+            description="Untuk menjaga keamanan akun Anda, aktifkan autentikasi dua faktor sebelum mengakses aplikasi."
         >
-            <Head title="Enable Two-Factor Authentication" />
+            <Head title="Aktifkan Autentikasi Dua Faktor" />
 
             <div className="space-y-6">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
@@ -18,13 +18,10 @@ export default function TwoFactorPrompt() {
                         <ShieldCheck className="mt-0.5 size-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                         <div className="space-y-1">
                             <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-                                Security Enhancement Required
+                                Peningkatan Keamanan Diperlukan
                             </h3>
                             <p className="text-sm text-amber-800 dark:text-amber-200">
-                                Two-factor authentication (2FA) adds an extra
-                                layer of security to your account. You'll need
-                                to enter a code from your authenticator app each
-                                time you log in.
+                                Autentikasi dua faktor (2FA) menambah lapisan keamanan pada akun Anda. Anda akan diminta memasukkan kode dari aplikasi autentikator setiap kali login.
                             </p>
                         </div>
                     </div>
@@ -32,18 +29,17 @@ export default function TwoFactorPrompt() {
 
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium">
-                        How to set up 2FA:
+                        Cara mengaktifkan 2FA:
                     </h4>
                     <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
                         <li>
-                            Install an authenticator app (Google Authenticator,
-                            Authy, etc.)
+                            Instal aplikasi autentikator (Google Authenticator, Authy, dsb)
                         </li>
                         <li>
-                            Scan the QR code or enter the setup key manually
+                            Pindai kode QR atau masukkan kode setup secara manual
                         </li>
-                        <li>Enter the 6-digit code to confirm setup</li>
-                        <li>Save your recovery codes in a safe place</li>
+                        <li>Masukkan kode 6 digit untuk konfirmasi</li>
+                        <li>Simpan kode recovery Anda di tempat aman</li>
                     </ol>
                 </div>
 
@@ -51,7 +47,7 @@ export default function TwoFactorPrompt() {
                     <Link href={show.url({ query: { required: 'true' } })}>
                         <Button className="w-full" size="lg">
                             <ShieldCheck />
-                            Enable Two-Factor Authentication
+                            Aktifkan Autentikasi Dua Faktor
                         </Button>
                     </Link>
                 </div>

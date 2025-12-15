@@ -7,6 +7,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Head, Form, Link } from '@inertiajs/react';
 import { Shield, Lock } from 'lucide-react';
 import { store } from '@/routes/password/confirm';
+import AppLogo from '@/components/app-logo';
 
 export default function ConfirmPassword() {
     return (
@@ -17,17 +18,7 @@ export default function ConfirmPassword() {
                 <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                         <Link href="/" className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 dark:bg-blue-500">
-                                <Shield className="h-6 w-6 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                                    Manajemen Mitra
-                                </h1>
-                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                    BPS Kota Sawahlunto
-                                </p>
-                            </div>
+                                <AppLogo />
                         </Link>
                     </div>
                 </header>

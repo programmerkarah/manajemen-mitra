@@ -277,12 +277,6 @@ class KegiatanController extends Controller
         $newPagu = (float) ($data['anggaran'] ?? 0);
         $paguChanged = $oldPagu != $newPagu;
 
-        \Log::info('Checking pagu change', [
-            'old_pagu' => $oldPagu,
-            'new_pagu' => $newPagu,
-            'pagu_changed' => $paguChanged,
-        ]);
-
         if ($paguChanged) {
             // Load all alokasi for this kegiatan
             $kegiatan->load(['periodeAlokasi' => function ($query) {
@@ -295,18 +289,8 @@ class KegiatanController extends Controller
                 return $periode->alokasiPetugas->sum('total_honor');
             });
 
-            \Log::info('Validating pagu vs allocated honor', [
-                'new_pagu' => $newPagu,
-                'total_honor_alokasi' => $totalHonorAlokasi,
-                'is_valid' => $newPagu >= $totalHonorAlokasi,
-            ]);
-
             // Check if new pagu is smaller than total allocated honor
             if ($newPagu < $totalHonorAlokasi) {
-                \Log::warning('Pagu validation failed - insufficient budget', [
-                    'new_pagu' => $newPagu,
-                    'total_honor_alokasi' => $totalHonorAlokasi,
-                ]);
 
                 return back()->withErrors([
                     'pagu_anggaran' => sprintf(
@@ -338,15 +322,6 @@ class KegiatanController extends Controller
                 $currentSisaPagu = $currentSisaPagu - $periodeTotalHonor;
 
                 $periode->update(['sisa_pagu' => $currentSisaPagu]);
-
-                \Log::info('Recalculated sisa_pagu after kegiatan pagu update', [
-                    'kegiatan_id' => $kegiatan->id,
-                    'periode_id' => $periode->id,
-                    'bulan' => $periode->bulan,
-                    'tahun' => $periode->tahun,
-                    'periode_total' => $periodeTotalHonor,
-                    'new_sisa_pagu' => $currentSisaPagu,
-                ]);
             }
 
             return redirect()->route('kegiatan.index')

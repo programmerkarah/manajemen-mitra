@@ -58,7 +58,7 @@ interface Props {
     hasKegiatans: boolean
 }
 
-export default function Index({ alokasi, filters, active_year, hasKegiatans }: Props) {
+export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
     
