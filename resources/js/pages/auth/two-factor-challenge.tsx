@@ -26,11 +26,8 @@ export default function TwoFactorChallenge({
     const [code, setCode] = useState<string>('');
     const [rememberDevice, setRememberDevice] = useState<boolean>(true);
 
-    const authConfigContent = useMemo<{
-        title: string;
-        description: string;
-        toggleText: string;
-    }>(() => {
+    const authConfigContent = useMemo(() => {
+        // { title, description, toggleText }
         if (showRecoveryInput) {
             return {
                 title: 'Recovery Code',
@@ -40,6 +37,7 @@ export default function TwoFactorChallenge({
             };
         }
 
+
         return {
             title: 'Authentication Code',
             description:
@@ -48,110 +46,105 @@ export default function TwoFactorChallenge({
         };
     }, [showRecoveryInput]);
 
-    const toggleRecoveryMode = (clearErrors: () => void): void => {
-        setShowRecoveryInput(!showRecoveryInput);
-        clearErrors();
-        setCode('');
-    };
 
     return (
-        <AuthLayout
-            title={authConfigContent.title}
-            description={authConfigContent.description}
-        >
-            <Head title="Two-Factor Authentication" />
+        <>
+            <Head title="Two Factor Challenge" />
+            <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">
+                {/* Header */}
+                <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+                        <a href="/" className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 dark:bg-blue-500">
+                                {/* Icon placeholder */}
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
+                                    Manajemen Mitra
+                                </h1>
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                    BPS Kota Sawahlunto
+                                </p>
+                            </div>
+                        </a>
+                    </div>
+                </header>
 
-            <div className="space-y-6">
-                <Form
-                    {...store.form()}
-                    className="space-y-4"
-                    resetOnError
-                    resetOnSuccess={!showRecoveryInput}
-                >
-                    {({ errors, processing, clearErrors }) => (
-                        <>
-                            {showRecoveryInput ? (
-                                <>
-                                    <Input
-                                        name="recovery_code"
-                                        type="text"
-                                        placeholder="Enter recovery code"
-                                        autoFocus={showRecoveryInput}
-                                        required
-                                    />
-                                    <InputError
-                                        message={errors.recovery_code}
-                                    />
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center space-y-3 text-center">
-                                    <div className="flex w-full items-center justify-center">
-                                        <InputOTP
-                                            name="code"
-                                            maxLength={OTP_MAX_LENGTH}
-                                            value={code}
-                                            onChange={(value) => setCode(value)}
-                                            disabled={processing}
-                                            pattern={REGEXP_ONLY_DIGITS}
-                                        >
-                                            <InputOTPGroup>
-                                                {Array.from(
-                                                    { length: OTP_MAX_LENGTH },
-                                                    (_, index) => (
-                                                        <InputOTPSlot
-                                                            key={index}
-                                                            index={index}
-                                                        />
-                                                    ),
-                                                )}
-                                            </InputOTPGroup>
-                                        </InputOTP>
-                                    </div>
-                                    <InputError message={errors.code} />
+                {/* Main Content */}
+                <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+                    <div className="w-full max-w-md">
+                        <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+                            {/* Icon & Title */}
+                            <div className="mb-8 text-center">
+                                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                    {/* Icon placeholder */}
                                 </div>
-                            )}
-
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="remember_device"
-                                    name="remember_device"
-                                    checked={rememberDevice}
-                                    onCheckedChange={(checked) =>
-                                        setRememberDevice(checked as boolean)
-                                    }
-                                />
-                                <Label
-                                    htmlFor="remember_device"
-                                    className="text-sm font-normal text-muted-foreground"
-                                >
-                                    Remember this device for 30 days
-                                </Label>
+                                <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                    Two Factor Challenge
+                                </h2>
+                                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                    Masukkan kode autentikasi atau recovery code Anda
+                                </p>
                             </div>
 
-                            <Button
-                                type="submit"
-                                className="w-full"
-                                disabled={processing}
-                            >
-                                Continue
-                            </Button>
+                            <Form {...store.form()} resetOnSuccess={['code', 'recovery_code']} className="flex flex-col gap-6">
+                                {({ processing, errors }) => (
+                                    <>
+                                        <div className="grid gap-5">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="code" className="text-neutral-900 dark:text-neutral-100">
+                                                    Kode Autentikasi
+                                                </Label>
+                                                <Input
+                                                    id="code"
+                                                    type="text"
+                                                    name="code"
+                                                    autoFocus
+                                                    autoComplete="one-time-code"
+                                                    placeholder="Kode autentikasi"
+                                                    className="h-11"
+                                                />
+                                                <InputError message={errors.code} />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="recovery_code" className="text-neutral-900 dark:text-neutral-100">
+                                                    Recovery Code
+                                                </Label>
+                                                <Input
+                                                    id="recovery_code"
+                                                    type="text"
+                                                    name="recovery_code"
+                                                    autoComplete="one-time-code"
+                                                    placeholder="Recovery code"
+                                                    className="h-11"
+                                                />
+                                                <InputError message={errors.recovery_code} />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                disabled={processing}
+                                                data-test="two-factor-challenge-button"
+                                            >
+                                                Autentikasi
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            </Form>
+                        </div>
+                    </div>
+                </main>
 
-                            <div className="text-center text-sm text-muted-foreground">
-                                <span>or you can </span>
-                                <button
-                                    type="button"
-                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                    onClick={() =>
-                                        toggleRecoveryMode(clearErrors)
-                                    }
-                                >
-                                    {authConfigContent.toggleText}
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                {/* Footer */}
+                <footer className="border-t border-neutral-200/50 py-4 dark:border-neutral-800">
+                    <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                            © {new Date().getFullYear()} BPS Kota Sawahlunto
+                        </p>
+                    </div>
+                </footer>
             </div>
-        </AuthLayout>
+        </>
     );
 }
