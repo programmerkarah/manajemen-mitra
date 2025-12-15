@@ -68,9 +68,11 @@ export default function TwoFactorChallenge() {
                                                 inputMode="numeric"
                                                 autoFocus
                                                 value={data.code}
-                                                onChange={(val: string) =>
-                                                    setData('code', val)
-                                                }
+                                                onChange={(val: string) => {
+                                                    if (/^\d*$/.test(val)) {
+                                                        setData('code', val);
+                                                    }
+                                                }}
                                                 containerClassName="justify-center"
                                             >
                                                 <InputOTPGroup>
