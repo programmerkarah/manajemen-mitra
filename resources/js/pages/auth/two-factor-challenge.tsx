@@ -8,15 +8,16 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { Form, Head, useForm } from '@inertiajs/react';
+import { Form, Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData, processing } = useForm({
         code: '',
         recovery_code: '',
     });
+    const { errors } = usePage().props as { errors: Record<string, string> };
 
     return (
         <>
