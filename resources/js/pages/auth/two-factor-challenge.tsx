@@ -1,51 +1,16 @@
+
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import {
-    InputOTP,
-    InputOTPGroup,
-    InputOTPSlot,
-} from '@/components/ui/input-otp';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
-import AuthLayout from '@/layouts/auth-layout';
-import { store } from '@/routes/two-factor/login';
 import { Form, Head } from '@inertiajs/react';
-import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
-interface TwoFactorChallengeProps {
-    isTrustedDevice?: boolean;
-}
-
-export default function TwoFactorChallenge({
-    isTrustedDevice = false,
-}: TwoFactorChallengeProps) {
-    const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
-    const [code, setCode] = useState<string>('');
-    const [rememberDevice, setRememberDevice] = useState<boolean>(true);
-
-    const authConfigContent = useMemo(() => {
-        // { title, description, toggleText }
-        if (showRecoveryInput) {
-            return {
-                title: 'Recovery Code',
-                description:
-                    'Please confirm access to your account by entering one of your emergency recovery codes.',
-                toggleText: 'login using an authentication code',
-            };
-        }
-
-
-        return {
-            title: 'Authentication Code',
-            description:
-                'Enter the authentication code provided by your authenticator application.',
-            toggleText: 'login using a recovery code',
-        };
-    }, [showRecoveryInput]);
-
+export default function TwoFactorChallenge() {
+    const [showRecoveryInput, setShowRecoveryInput] = useState(false);
+    const [otp, setOtp] = useState('');
+    // Recovery code state is handled by Inertia form
 
     return (
         <>
@@ -87,39 +52,71 @@ export default function TwoFactorChallenge({
                                 </p>
                             </div>
 
-                            <Form {...store.form()} resetOnSuccess={['code', 'recovery_code']} className="flex flex-col gap-6">
-                                {({ processing, errors }) => (
+                            <Form method="post" className="flex flex-col gap-6">
+                                {({ processing, errors, setData }) => (
                                     <>
                                         <div className="grid gap-5">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="code" className="text-neutral-900 dark:text-neutral-100">
-                                                    Kode Autentikasi
-                                                </Label>
-                                                <Input
-                                                    id="code"
-                                                    type="text"
-                                                    name="code"
-                                                    autoFocus
-                                                    autoComplete="one-time-code"
-                                                    placeholder="Kode autentikasi"
-                                                    className="h-11"
-                                                />
-                                                <InputError message={errors.code} />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="recovery_code" className="text-neutral-900 dark:text-neutral-100">
-                                                    Recovery Code
-                                                </Label>
-                                                <Input
-                                                    id="recovery_code"
-                                                    type="text"
-                                                    name="recovery_code"
-                                                    autoComplete="one-time-code"
-                                                    placeholder="Recovery code"
-                                                    className="h-11"
-                                                />
-                                                <InputError message={errors.recovery_code} />
-                                            </div>
+                                            {!showRecoveryInput ? (
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="code" className="text-neutral-900 dark:text-neutral-100">
+                                                        Kode Autentikasi
+                                                    </Label>
+                                                    <InputOTP
+                                                        id="code"
+                                                        name="code"
+                                                        maxLength={6}
+                                                        pattern="[0-9]*"
+                                                        inputMode="numeric"
+                                                        autoFocus
+                                                        value={otp}
+                                                        onChange={(val: string) => {
+                                                            setOtp(val);
+                                                            setData('code', val);
+                                                        }}
+                                                        containerClassName="justify-center"
+                                                    >
+                                                        <InputOTPGroup>
+                                                            {[...Array(6)].map((_, i) => (
+                                                                <InputOTPSlot key={i} index={i} />
+                                                            ))}
+                                                        </InputOTPGroup>
+                                                    </InputOTP>
+                                                    <InputError message={errors.code} />
+                                                    <Button
+                                                        type="button"
+                                                        variant="link"
+                                                        className="mt-2 px-0 text-sm"
+                                                        onClick={() => setShowRecoveryInput(true)}
+                                                    >
+                                                        Login dengan Recovery Code
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="recovery_code" className="text-neutral-900 dark:text-neutral-100">
+                                                        Recovery Code
+                                                    </Label>
+                                                    <input
+                                                        id="recovery_code"
+                                                        name="recovery_code"
+                                                        type="text"
+                                                        autoFocus
+                                                        autoComplete="one-time-code"
+                                                        placeholder="Recovery code"
+                                                        className="h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                                        onChange={e => setData('recovery_code', e.target.value)}
+                                                    />
+                                                    <InputError message={errors.recovery_code} />
+                                                    <Button
+                                                        type="button"
+                                                        variant="link"
+                                                        className="mt-2 px-0 text-sm"
+                                                        onClick={() => setShowRecoveryInput(false)}
+                                                    >
+                                                        Kembali ke Kode Autentikasi
+                                                    </Button>
+                                                </div>
+                                            )}
                                             <Button
                                                 type="submit"
                                                 className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
