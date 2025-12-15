@@ -12,14 +12,25 @@ export default function AppSidebarLayout({
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
     return (
         <AppShell variant="sidebar">
-            <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
-                <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-                    {children}
+            <div className="flex h-screen w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">
+                {/* Sidebar */}
+                <AppSidebar />
+
+                {/* Main Content */}
+                <div className="flex flex-1 flex-col min-w-0">
+                    {/* Sticky Header */}
+                    <div className="sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur border-b border-neutral-200 dark:border-neutral-800 transition-all">
+                        <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                    </div>
+                    {/* Content */}
+                    <AppContent variant="sidebar" className="overflow-x-hidden">
+                        <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+                            {children}
+                        </div>
+                    </AppContent>
+                    <FlashMessage />
                 </div>
-            </AppContent>
-            <FlashMessage />
+            </div>
         </AppShell>
     );
 }

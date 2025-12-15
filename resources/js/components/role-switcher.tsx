@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react'
-import { Check, ChevronDown, Shield } from 'lucide-react'
+import { Check, ChevronDown, Shield, User, Crown, Briefcase, KeyRound, Users, Award } from 'lucide-react'
 import { useState } from 'react'
 import type { SharedData } from '@/types'
 import {
@@ -36,6 +36,26 @@ export default function RoleSwitcher() {
         return null
     }
 
+    // Map role name to unique icon
+    const getRoleIcon = (roleName?: string) => {
+        switch (roleName) {
+            case 'admin':
+                return <Crown className="size-4 text-yellow-500" />;
+            case 'operator':
+                return <Briefcase className="size-4 text-blue-500" />;
+            case 'petugas':
+                return <User className="size-4 text-green-500" />;
+            case 'approver':
+                return <KeyRound className="size-4 text-purple-500" />;
+            case 'pj':
+                return <Award className="size-4 text-pink-500" />;
+            case 'ketua_tim':
+                return <Users className="size-4 text-cyan-500" />;
+            default:
+                return <Shield className="size-4 text-gray-400" />;
+        }
+    };
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -45,7 +65,7 @@ export default function RoleSwitcher() {
                     className="gap-2"
                     disabled={switching}
                 >
-                    <Shield className="size-4" />
+                    {getRoleIcon(auth.activeRole?.name)}
                     <span className="hidden sm:inline">
                         {auth.activeRole?.display_name || 'Pilih Role'}
                     </span>

@@ -187,7 +187,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // SBML Report (Admin, Operator, PJ can view)
-    Route::get('sbml-report', [SbmlReportController::class, 'index'])
+    Route::get('rekap-honor', [SbmlReportController::class, 'index'])
         ->name('sbml.report')
         ->middleware('active.role:admin,operator,pj');
 

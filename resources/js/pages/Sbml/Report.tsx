@@ -72,7 +72,7 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
 
 
     const handleFilterChange = (tahun: string, bulan: string) => {
-        router.get('/sbml-report', { tahun, bulan }, { preserveState: true })
+        router.get('/rekap-honor', { tahun, bulan }, { preserveState: true })
     }
 
     const formatCurrency = (amount: number) => {
