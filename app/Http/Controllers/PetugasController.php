@@ -87,7 +87,7 @@ class PetugasController extends Controller
         }
 
         $petugas = Petugas::findOrFail($id);
-        $petugas->load(['alokasi.periodeAlokasi.kegiatan']);
+        $petugas->load(['alokasi.periodeAlokasi.kegiatan.rateHonors.satuan']);
 
         // Transform alokasi to include bulan, tahun, jenis_kegiatan from periode
         $petugas->alokasi->each(function ($alok) {
@@ -97,12 +97,50 @@ class PetugasController extends Controller
             $alok->jenis_kegiatan = $periode->jenis_kegiatan;
             $alok->status = $periode->status;
             $alok->kegiatan = $periode->kegiatan;
+
+            // Find the appropriate rate_honor based on petugas type and peran
+            $rateHonor = $periode->kegiatan->rateHonors->first(function ($rate) use ($alok) {
+                return $rate->status_kepegawaian === $alok->status_kepegawaian
+                    && $rate->jenis_penugasan === $alok->peran;
+            });
+
+            if ($rateHonor) {
+                $alok->rate_honor = [
+                    'posisi' => $this->getPositionLabel($alok->peran),
+                    'rate' => $alok->jumlah_satuan > 0 ? $alok->total_honor / $alok->jumlah_satuan : 0,
+                    'satuan' => [
+                        'nama' => $rateHonor->satuan->nama ?? '-',
+                    ],
+                ];
+            } else {
+                // Fallback if rate honor not found
+                $alok->rate_honor = [
+                    'posisi' => $this->getPositionLabel($alok->peran),
+                    'rate' => $alok->jumlah_satuan > 0 ? $alok->total_honor / $alok->jumlah_satuan : 0,
+                    'satuan' => ['nama' => '-'],
+                ];
+            }
+
             unset($alok->periodeAlokasi);
         });
 
         return Inertia::render('Petugas/Show', [
             'petugas' => $petugas,
         ]);
+    }
+
+    /**
+     * Get position label from jenis_penugasan
+     */
+    private function getPositionLabel(string $jenisPenugasan): string
+    {
+        return match ($jenisPenugasan) {
+            'pcl_ppl' => 'PCL/PPL',
+            'pml' => 'PML',
+            'pengolahan' => 'Pengolahan',
+            'pengawas_pengolahan' => 'Pengawas Pengolahan',
+            default => $jenisPenugasan,
+        };
     }
 
     /**
