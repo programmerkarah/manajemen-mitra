@@ -1576,29 +1576,31 @@ class AlokasiPetugasController extends Controller
                 'sisa_pagu_listing' => $sisaPaguPeriodeListing,
             ]);
 
-            // If this is a revision, recalculate sisa_pagu for all subsequent periods
-            if ($isRevision && $parentPeriodeId) {
+            // Always recalculate sisa_pagu for all subsequent periods when any periode is updated
+            // This ensures that changes to any periode cascade correctly to future periods
+            $subsequentPeriods = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where(function ($query) use ($tahun, $bulan) {
+                    $query->where('tahun', '>', $tahun)
+                        ->orWhere(function ($q) use ($tahun, $bulan) {
+                            $q->where('tahun', $tahun)
+                                ->where('bulan', '>', $bulan);
+                        });
+                })
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+                ->orderBy('tahun')
+                ->orderBy('bulan')
+                ->get();
 
-                // Get all periods after this one
-                $subsequentPeriods = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                    ->where(function ($query) use ($tahun, $bulan) {
-                        $query->where('tahun', '>', $tahun)
-                            ->orWhere(function ($q) use ($tahun, $bulan) {
-                                $q->where('tahun', $tahun)
-                                    ->where('bulan', '>', $bulan);
-                            });
-                    })
-                    ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
-                    ->orderBy('tahun')
-                    ->orderBy('bulan')
-                    ->get();
-
+            // Recalculate sisa_pagu for all subsequent periods sequentially
+            if ($subsequentPeriods->isNotEmpty()) {
                 $currentSisaPagu = $sisaPaguPeriode;
                 $currentSisaPaguListing = $sisaPaguPeriodeListing;
+
                 foreach ($subsequentPeriods as $nextPeriode) {
                     $nextPeriode->load('alokasiPetugas');
                     $nextPeriodeTotal = $nextPeriode->alokasiPetugas->sum('total_honor');
                     $nextPeriodeTotalListing = $nextPeriode->alokasiPetugas->sum('total_honor_listing');
+
                     $currentSisaPagu = $currentSisaPagu - $nextPeriodeTotal;
                     $currentSisaPaguListing = $currentSisaPaguListing - $nextPeriodeTotalListing;
 
