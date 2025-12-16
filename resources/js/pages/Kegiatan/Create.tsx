@@ -2,8 +2,6 @@ import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/page-header';
 import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
@@ -86,10 +84,10 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                     <ContentCard>
                         <div className="space-y-6">
                             {/* Info: Kode Kegiatan Otomatis */}
-                            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <div className="flex items-start space-x-3">
                                     <svg
-                                        className="mt-0.5 size-5 flex-shrink-0 text-blue-600 dark:text-blue-400"
+                                        className="mt-0.5 size-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -102,10 +100,10 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         />
                                     </svg>
                                     <div>
-                                        <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                             Kode Kegiatan Otomatis
                                         </h3>
-                                        <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
+                                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
                                             Kode kegiatan akan dibuat otomatis oleh sistem dengan format: KEG-{data.tahun_anggaran}-XXX
                                         </p>
                                     </div>
@@ -125,7 +123,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     id="nama_kegiatan"
                                     value={data.nama_kegiatan}
                                     onChange={(e) => setData('nama_kegiatan', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
                                     placeholder="Nama kegiatan"
                                 />
                                 <InputError message={errors.nama_kegiatan} className="mt-2" />
@@ -143,7 +141,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     id="jenis_kegiatan"
                                     value={data.jenis_kegiatan}
                                     onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
                                 >
                                     <option value="survei">Survei</option>
                                     <option value="sensus">Sensus</option>
@@ -167,61 +165,11 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     rows={4}
                                     value={data.deskripsi}
                                     onChange={(e) => setData('deskripsi', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
                                     placeholder="Deskripsi kegiatan (opsional)"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />
                             </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                {/* Tahun Anggaran */}
-                                <div>
-                                    <label
-                                        htmlFor="tahun_anggaran"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
-                                        Tahun Anggaran <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
-                                        id="tahun_anggaran"
-                                        value={data.tahun_anggaran}
-                                        onChange={(e) =>
-                                            setData('tahun_anggaran', parseInt(e.target.value))
-                                        }
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                    >
-                                        {tahunOptions.map((tahun) => (
-                                            <option key={tahun} value={tahun}>
-                                                {tahun}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.tahun_anggaran} className="mt-2" />
-                                </div>
-
-                                {/* Pagu Pencacahan */}
-                                <div>
-                                    <label
-                                        htmlFor="pagu_pencacahan"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                    >
-                                        Pagu Pencacahan (Rp)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="pagu_pencacahan"
-                                        value={data.pagu_pencacahan ? formatCurrency(data.pagu_pencacahan) : ''}
-                                        onChange={(e) => {
-                                            const raw = parseCurrency(e.target.value)
-                                            setData('pagu_pencacahan', raw)
-                                        }}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
-                                        placeholder="0"
-                                    />
-                                    <InputError message={errors.pagu_pencacahan} className="mt-2" />
-                                </div>
-                            </div>
-
 
                             {/* Tahapan Listing/Updating */}
                             <div>
@@ -233,7 +181,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     id="has_listing_updating"
                                     checked={data.has_listing_updating}
                                     onChange={e => setData('has_listing_updating', e.target.checked)}
-                                    className="mt-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900"
+                                    className="mt-2 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800"
                                 />
                                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Aktifkan jika ada tahapan listing/updating sebelum pencacahan/pendataan lapangan.</span>
                             </div>
@@ -252,12 +200,41 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                             const raw = parseCurrency(e.target.value)
                                             setData('pagu_listing', raw)
                                         }}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
                                         placeholder="0"
                                     />
                                     <InputError message={errors.pagu_listing} className="mt-2" />
                                 </div>
                             )}
+
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
+                                
+
+                                {/* Pagu Pencacahan */}
+                                <div>
+                                    <label
+                                        htmlFor="pagu_pencacahan"
+                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >
+                                        Pagu Pencacahan (Rp)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="pagu_pencacahan"
+                                        value={data.pagu_pencacahan ? formatCurrency(data.pagu_pencacahan) : ''}
+                                        onChange={(e) => {
+                                            const raw = parseCurrency(e.target.value)
+                                            setData('pagu_pencacahan', raw)
+                                        }}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
+                                        placeholder="0"
+                                    />
+                                    <InputError message={errors.pagu_pencacahan} className="mt-2" />
+                                </div>
+                            </div>
+
+
+                            
 
                             {/* Ketua Tim - Hidden for ketua_tim role */}
                             {!isKetuaTim && (
@@ -272,7 +249,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="ketua_tim_user_id"
                                         value={data.ketua_tim_user_id}
                                         onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
                                     >
                                         <option value="">Pilih Ketua Tim</option>
                                         {ketuaTimUsers.map((user) => (
@@ -299,7 +276,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="tanggal_mulai"
                                         value={data.tanggal_mulai}
                                         onChange={(e) => setData('tanggal_mulai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
                                     />
                                     <InputError message={errors.tanggal_mulai} className="mt-2" />
                                 </div>
@@ -317,7 +294,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="tanggal_selesai"
                                         value={data.tanggal_selesai}
                                         onChange={(e) => setData('tanggal_selesai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
                                     />
                                     <InputError message={errors.tanggal_selesai} className="mt-2" />
                                 </div>

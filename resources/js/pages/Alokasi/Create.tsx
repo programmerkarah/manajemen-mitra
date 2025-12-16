@@ -743,16 +743,16 @@ export default function Create({
 
             {/* Source Period Info - Only show for copy mode, not edit mode */}
             {sourcePeriode && !isEditMode && !isViewMode && (
-                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
                     <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                            <Copy className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                            <Copy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                            <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                                 Menyalin Alokasi dari Periode Sebelumnya
                             </h3>
-                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+                            <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
                                 Data alokasi berikut disalin dari periode{' '}
                                 {
                                     months.find(
@@ -1296,7 +1296,7 @@ export default function Create({
                                     >
                                         <div className="flex items-start gap-4">
                                             <div
-                                                className={`flex-shrink-0 rounded-full p-3 ${isSufficientListing ? 'bg-blue-500' : 'bg-red-500'}`}
+                                                className={`flex-shrink-0 rounded-full p-3 ${isSufficientListing ? 'bg-green-500' : 'bg-red-500'}`}
                                             >
                                                 {isSufficientListing ? (
                                                     <svg
