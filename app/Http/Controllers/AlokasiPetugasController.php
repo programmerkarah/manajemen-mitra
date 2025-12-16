@@ -277,6 +277,7 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
             'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
+            'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
         ]);
 
@@ -1293,6 +1294,7 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
             'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
+            'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
         ]);
 

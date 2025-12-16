@@ -99,13 +99,47 @@ export default function Create({
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
     );
-    const [bulan, setBulan] = useState(
-        isEditMode && sourcePeriode
-            ? parseInt(sourcePeriode.bulan)
-            : sourcePeriode
-              ? (parseInt(sourcePeriode.bulan) % 12) + 1
-              : new Date().getMonth() + 1,
-    );
+
+    // Helper function to find first available month
+    const getFirstAvailableMonth = (
+        usedMonthsList: number[],
+        startMonth: number = 1,
+    ): number => {
+        for (let month = startMonth; month <= 12; month++) {
+            if (!usedMonthsList.includes(month)) {
+                return month;
+            }
+        }
+        // If all months from startMonth to 12 are used, try from 1
+        for (let month = 1; month < startMonth; month++) {
+            if (!usedMonthsList.includes(month)) {
+                return month;
+            }
+        }
+        // If all months are used, return startMonth
+        return startMonth;
+    };
+
+    const [bulan, setBulan] = useState(() => {
+        if (isEditMode && sourcePeriode) {
+            // Edit mode: use source periode bulan
+            return parseInt(sourcePeriode.bulan);
+        }
+        
+        // Get used months for the selected kegiatan
+        const kegiatanId = preSelectedKegiatan?.id;
+        const usedMonthsList = kegiatanId ? (used_months_info[Number(kegiatanId)] || []) : [];
+        
+        if (sourcePeriode) {
+            // Copy mode: find first available month starting from source month + 1
+            const nextMonth = (parseInt(sourcePeriode.bulan) % 12) + 1;
+            return getFirstAvailableMonth(usedMonthsList, nextMonth);
+        }
+        
+        // New mode: find first available month starting from current month
+        const currentMonth = new Date().getMonth() + 1;
+        return getFirstAvailableMonth(usedMonthsList, currentMonth);
+    });
     const [tahapan, setTahapan] = useState<'both' | 'listing_only' | 'pencacahan_only'>('both');
     const [jenisKegiatan, setJenisKegiatan] = useState<'sensus' | 'survei'>(
         'survei',
