@@ -49,7 +49,7 @@ export default function Dashboard({
                         Selamat Datang, {auth.user.name}! 👋
                     </h1>
                     <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-                        Sistem Manajemen Mitra - Kelola data petugas, kegiatan, dan alokasi dengan mudah
+                        SIMANTIK (Sistem Manajemen Petugas dan Administrasi Kegiatan Statistik) - Kelola data petugas, kegiatan, dan alokasi dengan mudah
                     </p>
                 </div>
 

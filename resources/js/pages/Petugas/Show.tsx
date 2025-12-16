@@ -2,8 +2,8 @@ import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { type BreadcrumbItem, SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Pencil, Trash2, ArrowLeft } from 'lucide-react';
 
 interface Petugas {
@@ -56,6 +56,11 @@ const bulanNames = [
 ];
 
 export default function Show({ petugas }: ShowProps) {
+    const { auth } = usePage<SharedData>().props;
+    
+    // Check if user can edit (not pj or administrator)
+    const canEdit = auth.activeRole?.name !== 'pj' && auth.activeRole?.name !== 'administrator';
+    
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Petugas', href: '/petugas' },
         { title: petugas.nama, href: `/petugas/${petugas.hashed_id}` },
@@ -89,26 +94,30 @@ export default function Show({ petugas }: ShowProps) {
                             Kembali
                         </Link>
                     </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                    >
-                        <Link href={`/petugas/${petugas.hashed_id}/edit`}>
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                        </Link>
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDelete}
-                        className="gap-2"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                        Hapus
-                    </Button>
+                    {canEdit && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="gap-2"
+                            >
+                                <Link href={`/petugas/${petugas.hashed_id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    Edit
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleDelete}
+                                className="gap-2"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                Hapus
+                            </Button>
+                        </>
+                    )}
                 </PageHeader>
 
                 {/* Informasi Dasar */}

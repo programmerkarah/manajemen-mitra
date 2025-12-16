@@ -46,7 +46,15 @@ export default function Index({ users, filters }: UsersIndexProps) {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/users', { search }, { preserveState: true, replace: true });
+        router.get(
+            '/users',
+            { search },
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
     };
 
     const getRoleBadgeColor = (roleName: string) => {

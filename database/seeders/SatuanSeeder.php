@@ -50,7 +50,7 @@ class SatuanSeeder extends Seeder
                 'status' => 'aktif',
             ],
             [
-                'kode' => 'SGMN',
+                'kode' => 'SGMEN',
                 'nama' => 'Segmen',
                 'deskripsi' => 'Segmen (untuk KSA dan Ubinan)',
                 'status' => 'aktif',

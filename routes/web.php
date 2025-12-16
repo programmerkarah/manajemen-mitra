@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\BastController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DasarHukumController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
+use App\Http\Controllers\KepalaBpsController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
@@ -64,11 +66,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Year Switching
     Route::post('switch-year', [YearSwitchController::class, 'switch'])->name('year.switch');
 
-    // Petugas Management (Admin only)
+    // Petugas Management (Admin only for modify, Admin+Administrator for view)
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
-        Route::resource('petugas', PetugasController::class);
+    });
+
+    // View routes (Admin, PJ, and Administrator for read-only access)
+    Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
+        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
+    });
+
+    Route::middleware(['active.role:admin'])->group(function () {
+        Route::get('petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
+        Route::post('petugas', [PetugasController::class, 'store'])->name('petugas.store');
+        Route::get('petugas/{petugas}/edit', [PetugasController::class, 'edit'])->name('petugas.edit');
+        Route::put('petugas/{petugas}', [PetugasController::class, 'update'])->name('petugas.update');
+        Route::patch('petugas/{petugas}', [PetugasController::class, 'update']);
+        Route::delete('petugas/{petugas}', [PetugasController::class, 'destroy'])->name('petugas.destroy');
 
         // User Role Management
         Route::get('users', [UserRoleController::class, 'index'])->name('users.index');
@@ -103,8 +119,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('kegiatan.create')
         ->middleware('active.role:admin,operator,ketua_tim');
 
-    Route::middleware(['active.role:admin,operator,ketua_tim,approver,pj'])->group(function () {
-        // View routes accessible by all roles (including PJ for read-only)
+    Route::middleware(['active.role:admin,operator,ketua_tim,approver,pj,administrator'])->group(function () {
+        // View routes accessible by all roles (including PJ and Administrator for read-only)
         Route::get('kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
         Route::get('kegiatan/{kegiatan}', [KegiatanController::class, 'show'])->name('kegiatan.show');
     });
@@ -186,14 +202,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
     });
 
-    // Dasar Hukum SK Management
+    // Master Data Management (Admin, Operator access)
     Route::middleware(['active.role:admin,operator,pj'])->group(function () {
-        // View routes (including PJ for read-only)
+        // Kepala BPS - View routes
+        Route::get('kepala-bps', [KepalaBpsController::class, 'index'])->name('kepala-bps.index');
+
+        // DIPA - View routes
+        Route::get('dipa', [DipaController::class, 'index'])->name('dipa.index');
+
+        // Dasar Hukum - View routes (including PJ for read-only)
         Route::get('dasar-hukum', [DasarHukumController::class, 'index'])->name('dasar-hukum.index');
     });
 
-    // Dasar Hukum modification routes (Admin, Operator only)
+    // Master Data modification routes (Admin, Operator only)
     Route::middleware(['active.role:admin,operator'])->group(function () {
+        // Kepala BPS
+        Route::get('kepala-bps/create', [KepalaBpsController::class, 'create'])->name('kepala-bps.create');
+        Route::post('kepala-bps', [KepalaBpsController::class, 'store'])->name('kepala-bps.store');
+        Route::get('kepala-bps/{kepalaBp}/edit', [KepalaBpsController::class, 'edit'])->name('kepala-bps.edit');
+        Route::put('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'update'])->name('kepala-bps.update');
+        Route::patch('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'update']);
+        Route::delete('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'destroy'])->name('kepala-bps.destroy');
+
+        // DIPA
+        Route::get('dipa/create', [DipaController::class, 'create'])->name('dipa.create');
+        Route::post('dipa', [DipaController::class, 'store'])->name('dipa.store');
+        Route::get('dipa/{dipa}/edit', [DipaController::class, 'edit'])->name('dipa.edit');
+        Route::put('dipa/{dipa}', [DipaController::class, 'update'])->name('dipa.update');
+        Route::patch('dipa/{dipa}', [DipaController::class, 'update']);
+        Route::delete('dipa/{dipa}', [DipaController::class, 'destroy'])->name('dipa.destroy');
+
+        // Dasar Hukum
         Route::get('dasar-hukum/create', [DasarHukumController::class, 'create'])->name('dasar-hukum.create');
         Route::post('dasar-hukum', [DasarHukumController::class, 'store'])->name('dasar-hukum.store');
         Route::get('dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
@@ -217,9 +256,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
     });
 
-    // Document Management - Modification routes (Admin, PJ only)
+    // Document Management - Upload signed file (Admin, PJ, Operator can upload)
+    Route::middleware(['active.role:admin,pj,operator'])->group(function () {
+        Route::post('sk-kpa/{skKpaHashedId}/upload-signed', [SkKpaController::class, 'uploadSigned'])->name('sk-kpa.upload-signed');
+    });
+
+    // Document Management - Generate SK (Admin, PJ only - NOT operator)
     Route::middleware(['active.role:admin,pj'])->group(function () {
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}/create', [SkKpaController::class, 'create'])->name('sk-kpa.create-for-kegiatan');
+        Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/preview', [SkKpaController::class, 'previewSk'])->name('sk-kpa.preview');
+        Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/generate', [SkKpaController::class, 'generateSk'])->name('sk-kpa.generate');
         Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store');
         Route::get('sk-kpa/{skKpa}/edit', [SkKpaController::class, 'edit'])->name('sk-kpa.edit');
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
@@ -239,12 +285,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
         Route::patch('bast/{bast}', [BastController::class, 'update']);
         Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
-    });
-
-    // Petugas view routes (Admin, PJ for read-only)
-    Route::middleware(['active.role:admin,pj'])->group(function () {
-        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
-        Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 });
 

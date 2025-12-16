@@ -111,6 +111,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             {
                 preserveState: true,
                 preserveScroll: true,
+                replace: true,
             }
         )
     }
@@ -119,7 +120,15 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         setSearch('')
         setStatus('all')
         setBulan('all')
-        router.get('/alokasi')
+        router.get(
+            '/alokasi',
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        )
     }
 
     const handleKirim = (kegiatanHashedId: string, bulan: string, tahun: number, namaKegiatan: string) => {

@@ -24,6 +24,8 @@ class SkKpa extends Model
             'tanggal_sk' => 'date:Y-m-d',
             'bulan' => 'integer',
             'tahun' => 'integer',
+            'is_signed' => 'boolean',
+            'signed_at' => 'datetime',
         ];
     }
 
@@ -34,10 +36,13 @@ class SkKpa extends Model
         'tahun',
         'tanggal_sk',
         'nama_kpa',
-        'nip_kpa',
         'perihal',
         'dasar_hukum',
         'file_path',
+        'signed_file_path',
+        'is_signed',
+        'signed_at',
+        'signed_by',
         'status',
         'created_by',
     ];
@@ -58,6 +63,11 @@ class SkKpa extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function signedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_by');
     }
 
     public function spk(): HasMany

@@ -42,12 +42,20 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'tahun_bergabung' => $row['tahun_bergabung'] ?? now()->year,
                 'status' => strtolower(trim($row['status'] ?? 'aktif')),
                 'jenis_petugas' => strtolower(trim($row['jenis_petugas'] ?? 'non-organik')),
+                'jabatan' => $row['jabatan'] ?? null,
+                'golongan' => $row['golongan'] ?? null,
                 'npwp' => isset($row['npwp']) ? (string) $row['npwp'] : null,
                 'bank' => $row['bank'] ?? null,
                 'no_rekening' => isset($row['no_rekening']) ? (string) $row['no_rekening'] : null,
                 'nama_rekening' => $row['nama_rekening'] ?? null,
                 'catatan' => $row['catatan'] ?? null,
             ];
+
+            // Auto-set jabatan and golongan for non-organik
+            if ($data['jenis_petugas'] === 'non-organik') {
+                $data['jabatan'] = 'Mitra Statistik';
+                $data['golongan'] = 'Non PNS';
+            }
 
             // Validate the row
             $validator = Validator::make($data, [
@@ -60,6 +68,8 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'tahun_bergabung' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
                 'status' => ['nullable', Rule::in(['aktif', 'nonaktif'])],
                 'jenis_petugas' => ['nullable', Rule::in(['organik', 'non-organik'])],
+                'jabatan' => ['nullable', 'string', 'max:255'],
+                'golongan' => ['nullable', 'string', 'max:50'],
                 'npwp' => ['nullable', 'string', 'max:20'],
                 'bank' => ['nullable', 'string', 'max:255'],
                 'no_rekening' => ['nullable', 'string', 'max:255'],

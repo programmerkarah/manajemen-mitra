@@ -1,8 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/page-header';
 import { ContentCard } from '@/components/content-card';
-import { BreadcrumbItem, Sbml } from '@/types';
+import { BreadcrumbItem, Sbml, SharedData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
@@ -19,6 +19,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 export default function Show({ tahun, sbmlEntries, status, keterangan }: ShowProps) {
+    const { auth } = usePage<SharedData>().props;
+    
+    // Check if user can edit (not administrator)
+    const canEdit = auth.activeRole?.name !== 'administrator';
+    
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -77,21 +82,25 @@ export default function Show({ tahun, sbmlEntries, status, keterangan }: ShowPro
                                 Kembali
                             </Link>
                         </Button>
-                        <Button size="sm" variant="outline" asChild className="gap-2">
-                            <Link href={`/sbml/${tahun}/edit`}>
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                            </Link>
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={handleDelete}
-                            className="gap-2"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            Hapus
-                        </Button>
+                        {canEdit && (
+                            <>
+                                <Button size="sm" variant="outline" asChild className="gap-2">
+                                    <Link href={`/sbml/${tahun}/edit`}>
+                                        <Pencil className="h-4 w-4" />
+                                        Edit
+                                    </Link>
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    className="gap-2"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Hapus
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </PageHeader>
 

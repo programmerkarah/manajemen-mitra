@@ -1,0 +1,301 @@
+import AppLayout from '@/layouts/app-layout';
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Master Data', href: '#' },
+    { title: 'DIPA', href: '/dipa' },
+];
+
+interface Dipa {
+    id: number;
+    nomor_dipa: string;
+    tahun: number;
+    tanggal_dipa: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+interface DipaIndexProps {
+    dipaList: {
+        data: Dipa[];
+        links: any[];
+        meta: any;
+    };
+    tahunOptions: number[];
+    filters: {
+        search?: string;
+        status?: string;
+        tahun?: string;
+    };
+}
+
+export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProps) {
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
+    const [search, setSearch] = useState(filters.search || '');
+    const [status, setStatus] = useState(filters.status || '');
+    const [tahun, setTahun] = useState(filters.tahun || '');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [selectedDipa, setSelectedDipa] = useState<Dipa | null>(null);
+    const [processing, setProcessing] = useState(false);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.get(
+            '/dipa',
+            { search, status, tahun },
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
+    };
+
+    const handleDeleteClick = (dipa: Dipa) => {
+        setSelectedDipa(dipa);
+        setShowDeleteDialog(true);
+    };
+
+    const handleDelete = () => {
+        if (!selectedDipa) return;
+
+        setProcessing(true);
+        router.delete(`/dipa/${selectedDipa.id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false);
+                setShowDeleteDialog(false);
+                setSelectedDipa(null);
+            },
+        });
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+    };
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="DIPA" />
+
+            <div className="space-y-6">
+                <PageHeader
+                    title="DIPA"
+                    description="Kelola data DIPA (Daftar Isian Pelaksanaan Anggaran)"
+                >
+                    {!isPJ && (
+                        <Button asChild size="sm" className="gap-2">
+                            <Link href="/dipa/create">
+                                <Plus className="h-4 w-4" />
+                                Tambah DIPA
+                            </Link>
+                        </Button>
+                    )}
+                </PageHeader>
+
+                <ContentCard>
+                    {/* Search and Filter */}
+                    <form onSubmit={handleSearch} className="mb-6 flex flex-col gap-4 sm:flex-row">
+                        <div className="flex-1">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder="Cari nomor DIPA atau tahun..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="h-10 pl-10"
+                                />
+                            </div>
+                        </div>
+
+                        <Select value={tahun || 'all'} onValueChange={(value) => setTahun(value === 'all' ? '' : value)}>
+                            <SelectTrigger className="h-10 w-full sm:w-[150px]">
+                                <SelectValue placeholder="Semua Tahun" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Tahun</SelectItem>
+                                {tahunOptions.map((year) => (
+                                    <SelectItem key={year} value={year.toString()}>
+                                        {year}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+                            <SelectTrigger className="h-10 w-full sm:w-[150px]">
+                                <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="aktif">Aktif</SelectItem>
+                                <SelectItem value="nonaktif">Non-Aktif</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Button type="submit" className="h-10">
+                            <Search className="mr-2 h-4 w-4" />
+                            Cari
+                        </Button>
+                    </form>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="border-b bg-muted/50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-sm font-medium">Nomor DIPA</th>
+                                    <th className="px-4 py-3 text-center text-sm font-medium">Tahun</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium">Tanggal DIPA</th>
+                                    <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                                    {!isPJ && (
+                                        <th className="px-4 py-3 text-center text-sm font-medium">Aksi</th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {dipaList.data.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={isPJ ? 4 : 5}
+                                            className="px-4 py-8 text-center text-sm text-muted-foreground"
+                                        >
+                                            Tidak ada data
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    dipaList.data.map((dipa) => (
+                                        <tr key={dipa.id} className="hover:bg-muted/50">
+                                            <td className="px-4 py-3 text-sm font-medium">
+                                                {dipa.nomor_dipa}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-sm font-semibold">
+                                                {dipa.tahun}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm">
+                                                {formatDate(dipa.tanggal_dipa)}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span
+                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                                        dipa.is_active
+                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                                    }`}
+                                                >
+                                                    {dipa.is_active ? 'Aktif' : 'Non-Aktif'}
+                                                </span>
+                                            </td>
+                                            {!isPJ && (
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            asChild
+                                                            className="h-8 gap-1.5"
+                                                        >
+                                                            <Link href={`/dipa/${dipa.id}/edit`}>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                                <span className="sr-only sm:not-sr-only">
+                                                                    Edit
+                                                                </span>
+                                                            </Link>
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteClick(dipa)}
+                                                            className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Hapus
+                                                            </span>
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {dipaList.links.length > 3 && (
+                        <div className="mt-6 flex items-center justify-center gap-2">
+                            {dipaList.links.map((link: any, index: number) => (
+                                <Button
+                                    key={index}
+                                    variant={link.active ? 'default' : 'outline'}
+                                    size="sm"
+                                    disabled={!link.url || processing}
+                                    onClick={() => {
+                                        if (link.url) {
+                                            router.visit(link.url);
+                                        }
+                                    }}
+                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </ContentCard>
+            </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi Hapus</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Apakah Anda yakin ingin menghapus DIPA{' '}
+                        <span className="font-semibold">{selectedDipa?.nomor_dipa}</span> tahun{' '}
+                        <span className="font-semibold">{selectedDipa?.tahun}</span>?
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={processing}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={processing}
+                        >
+                            {processing ? 'Menghapus...' : 'Hapus'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </AppLayout>
+    );
+}

@@ -9,6 +9,7 @@ import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 
 interface Petugas {
     id: number;
@@ -21,6 +22,8 @@ interface Petugas {
     pendidikan: string;
     tahun_bergabung: number;
     jenis_petugas: 'organik' | 'non-organik';
+    jabatan: string | null;
+    golongan: string | null;
     npwp: string | null;
     bank: string | null;
     no_rekening: string | null;
@@ -40,6 +43,8 @@ export default function Edit({ petugas }: EditProps) {
         { title: 'Edit', href: `/petugas/${petugas.hashed_id}/edit` },
     ];
 
+    const [jenisPetugas, setJenisPetugas] = useState<'organik' | 'non-organik'>(petugas.jenis_petugas);
+
     const { data, setData, put, processing, errors } = useForm({
         nama: petugas.nama,
         nik: petugas.nik,
@@ -49,12 +54,37 @@ export default function Edit({ petugas }: EditProps) {
         pendidikan: petugas.pendidikan,
         tahun_bergabung: petugas.tahun_bergabung,
         jenis_petugas: petugas.jenis_petugas,
+        jabatan: petugas.jabatan || (petugas.jenis_petugas === 'non-organik' ? 'Mitra Statistik' : ''),
+        golongan: petugas.golongan || (petugas.jenis_petugas === 'non-organik' ? 'Non PNS' : ''),
         npwp: petugas.npwp || '',
         bank: petugas.bank || '',
         no_rekening: petugas.no_rekening || '',
         nama_rekening: petugas.nama_rekening || '',
         status: petugas.status,
     });
+
+    const handleJenisPetugasChange = (value: 'organik' | 'non-organik') => {
+        setJenisPetugas(value);
+        setData('jenis_petugas', value);
+        
+        // Auto-set jabatan and golongan for non-organik
+        if (value === 'non-organik') {
+            setData(prevData => ({
+                ...prevData,
+                jenis_petugas: value,
+                jabatan: 'Mitra Statistik',
+                golongan: 'Non PNS',
+            }));
+        } else {
+            // Clear for organik to allow user input
+            setData(prevData => ({
+                ...prevData,
+                jenis_petugas: value,
+                jabatan: petugas.jabatan || '',
+                golongan: petugas.golongan || '',
+            }));
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -213,7 +243,7 @@ export default function Edit({ petugas }: EditProps) {
                                 </label>
                                 <select
                                     value={data.jenis_petugas}
-                                    onChange={(e) => setData('jenis_petugas', e.target.value as 'organik' | 'non-organik')}
+                                    onChange={(e) => handleJenisPetugasChange(e.target.value as 'organik' | 'non-organik')}
                                     className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                 >
                                     <option value="organik">Organik</option>
@@ -221,6 +251,48 @@ export default function Edit({ petugas }: EditProps) {
                                 </select>
                                 {errors.jenis_petugas && (
                                     <p className="mt-1 text-sm text-red-600">{errors.jenis_petugas}</p>
+                                )}
+                            </div>
+
+                            {/* Jabatan */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Jabatan
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.jabatan}
+                                    onChange={(e) => setData('jabatan', e.target.value)}
+                                    disabled={jenisPetugas === 'non-organik'}
+                                    placeholder={jenisPetugas === 'non-organik' ? 'Mitra Statistik' : 'Contoh: Statistisi Ahli Pertama'}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800 disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-900"
+                                />
+                                {jenisPetugas === 'non-organik' && (
+                                    <p className="mt-1 text-xs text-muted-foreground">Jabatan untuk non-organik otomatis: Mitra Statistik</p>
+                                )}
+                                {errors.jabatan && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.jabatan}</p>
+                                )}
+                            </div>
+
+                            {/* Golongan */}
+                            <div>
+                                <label className="block text-sm font-medium">
+                                    Golongan
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.golongan}
+                                    onChange={(e) => setData('golongan', e.target.value)}
+                                    disabled={jenisPetugas === 'non-organik'}
+                                    placeholder={jenisPetugas === 'non-organik' ? 'Non PNS' : 'Contoh: III/b'}
+                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800 disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-900"
+                                />
+                                {jenisPetugas === 'non-organik' && (
+                                    <p className="mt-1 text-xs text-muted-foreground">Golongan untuk non-organik otomatis: Non PNS</p>
+                                )}
+                                {errors.golongan && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.golongan}</p>
                                 )}
                             </div>
 

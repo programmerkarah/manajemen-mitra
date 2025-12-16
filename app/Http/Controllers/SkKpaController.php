@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Kegiatan;
 use App\Models\SkKpa;
 use App\Services\ActiveYearService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -55,6 +56,9 @@ class SkKpaController extends Controller
             $skCount = $keg->skKpa->count();
             $latestSk = $keg->skKpa->first();
 
+            // Check if there are personnel changes AFTER the latest SK (for SK Perubahan eligibility)
+            $hasPersonnelChanges = $this->checkPersonnelChanges($keg->id, $latestSk);
+
             // Determine SK status label
             if ($skCount === 0) {
                 $skStatus = 'Belum Dibuat';
@@ -78,6 +82,7 @@ class SkKpaController extends Controller
                 'sk_status' => $skStatus,
                 'sk_status_type' => $skStatusType,
                 'sk_count' => $skCount,
+                'has_personnel_changes' => $hasPersonnelChanges,
                 'latest_sk' => $latestSk ? [
                     'id' => $latestSk->id,
                     'hashed_id' => $latestSk->hashed_id,
@@ -85,6 +90,7 @@ class SkKpaController extends Controller
                     'tanggal_sk' => $latestSk->tanggal_sk,
                     'status' => $latestSk->status,
                     'file_path' => $latestSk->file_path,
+                    'signed_file_path' => $latestSk->signed_file_path,
                 ] : null,
             ];
         });
@@ -129,7 +135,6 @@ class SkKpaController extends Controller
                     'nomor_sk' => $sk->nomor_sk,
                     'tanggal_sk' => $sk->tanggal_sk,
                     'nama_kpa' => $sk->nama_kpa,
-                    'nip_kpa' => $sk->nip_kpa,
                     'perihal' => $sk->perihal,
                     'status' => $sk->status,
                     'file_path' => $sk->file_path,
@@ -144,9 +149,54 @@ class SkKpaController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(string $kegiatanHashedId): Response|RedirectResponse
     {
-        //
+        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+
+        if (! $kegiatanId) {
+            abort(404);
+        }
+
+        $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // Check if there are any approved periodes
+        $hasApprovedPeriodes = $kegiatan->periodeAlokasi()
+            ->where('status', 'dikirim')
+            ->exists();
+
+        if (! $hasApprovedPeriodes) {
+            return redirect()->route('sk-kpa.index')
+                ->with('error', 'Belum ada periode yang dikirim untuk kegiatan ini.');
+        }
+
+        // Get active dasar hukum
+        $dasarHukum = \App\Models\DasarHukum::where('status', 'aktif')
+            ->orderBy('tahun', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'kategori' => $item->kategori,
+                    'instansi' => $item->instansi,
+                    'nomor' => $item->nomor,
+                    'tentang' => $item->tentang,
+                    'tahun' => $item->tahun,
+                    'status' => $item->status,
+                ];
+            });
+
+        return Inertia::render('SkKpa/Create', [
+            'kegiatan' => [
+                'id' => $kegiatan->id,
+                'hashed_id' => $kegiatan->hashed_id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'tahun_anggaran' => $kegiatan->tahun_anggaran,
+            ],
+            'dasarHukumList' => $dasarHukum,
+            'oldInput' => old(),
+        ]);
     }
 
     /**
@@ -160,9 +210,89 @@ class SkKpaController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(SkKpa $skKpa)
+    public function show(string $skKpaHashedId): Response
     {
-        //
+        $skKpaId = \Vinkla\Hashids\Facades\Hashids::decode($skKpaHashedId)[0] ?? null;
+
+        if (! $skKpaId) {
+            abort(404);
+        }
+
+        $skKpa = SkKpa::with(['kegiatan', 'createdBy:id,name', 'signedBy:id,name'])
+            ->findOrFail($skKpaId);
+
+        // Get all SK for this kegiatan for history
+        $allSk = SkKpa::where('kegiatan_id', $skKpa->kegiatan_id)
+            ->with(['createdBy:id,name', 'signedBy:id,name'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($sk, $index) use ($skKpa) {
+                return [
+                    'id' => $sk->id,
+                    'hashed_id' => $sk->hashed_id,
+                    'nomor_sk' => $sk->nomor_sk,
+                    'tanggal_sk' => $sk->tanggal_sk->format('d-m-Y'),
+                    'nama_kpa' => $sk->nama_kpa,
+                    'perihal' => $sk->perihal,
+                    'status' => $sk->status,
+                    'file_path' => $sk->file_path,
+                    'signed_file_path' => $sk->signed_file_path,
+                    'is_signed' => $sk->is_signed,
+                    'signed_at' => $sk->signed_at?->format('d-m-Y H:i'),
+                    'signed_by' => $sk->signedBy?->name,
+                    'created_by' => $sk->createdBy?->name ?? '-',
+                    'created_at' => $sk->created_at->format('d-m-Y H:i'),
+                    'is_current' => $sk->id === $skKpa->id,
+                ];
+            });
+
+        // Parse dasar hukum JSON
+        $dasarHukumIds = json_decode($skKpa->dasar_hukum, true) ?? [];
+        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $dasarHukumIds)
+            ->get()
+            ->map(function ($dh) {
+                $kategoriLabel = match ($dh->kategori) {
+                    'undang_undang' => 'Undang-Undang',
+                    'peraturan_pemerintah' => 'Peraturan Pemerintah',
+                    'peraturan_presiden' => 'Peraturan Presiden',
+                    'peraturan_menteri_badan' => 'Peraturan '.($dh->instansi && stripos($dh->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$dh->instansi,
+                    'keputusan_menteri_kepala_badan' => 'Keputusan '.($dh->instansi && stripos($dh->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$dh->instansi,
+                    default => $dh->kategori,
+                };
+
+                return $kategoriLabel.' Nomor '.$dh->nomor.' Tahun '.$dh->tahun.' tentang '.$dh->tentang;
+            });
+
+        return Inertia::render('SkKpa/Show', [
+            'skKpa' => [
+                'id' => $skKpa->id,
+                'hashed_id' => $skKpa->hashed_id,
+                'nomor_sk' => $skKpa->nomor_sk,
+                'tanggal_sk' => $skKpa->tanggal_sk->format('d-m-Y'),
+                'nama_kpa' => $skKpa->nama_kpa,
+                'perihal' => $skKpa->perihal,
+                'bulan' => $skKpa->bulan,
+                'tahun' => $skKpa->tahun,
+                'status' => $skKpa->status,
+                'file_path' => $skKpa->file_path,
+                'signed_file_path' => $skKpa->signed_file_path,
+                'is_signed' => $skKpa->is_signed,
+                'signed_at' => $skKpa->signed_at?->format('d-m-Y H:i'),
+                'signed_by' => $skKpa->signedBy?->name,
+                'created_by' => $skKpa->createdBy?->name ?? '-',
+                'created_at' => $skKpa->created_at->format('d-m-Y H:i'),
+                'dasar_hukum' => $dasarHukum->toArray(),
+            ],
+            'kegiatan' => [
+                'id' => $skKpa->kegiatan->id,
+                'hashed_id' => $skKpa->kegiatan->hashed_id,
+                'kode_kegiatan' => $skKpa->kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $skKpa->kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $skKpa->kegiatan->jenis_kegiatan,
+                'tahun_anggaran' => $skKpa->kegiatan->tahun_anggaran,
+            ],
+            'sk_history' => $allSk->values()->toArray(),
+        ]);
     }
 
     /**
@@ -187,5 +317,480 @@ class SkKpaController extends Controller
     public function destroy(SkKpa $skKpa)
     {
         //
+    }
+
+    /**
+     * Upload signed SK file
+     */
+    public function uploadSigned(Request $request, string $skKpaHashedId): RedirectResponse
+    {
+        $skKpaId = \Vinkla\Hashids\Facades\Hashids::decode($skKpaHashedId)[0] ?? null;
+
+        if (! $skKpaId) {
+            abort(404);
+        }
+
+        $skKpa = SkKpa::findOrFail($skKpaId);
+
+        $validated = $request->validate([
+            'signed_file' => ['required', 'file', 'mimes:pdf', 'max:10240'], // 10MB
+        ]);
+
+        // Delete old signed file if exists
+        if ($skKpa->signed_file_path && file_exists(public_path($skKpa->signed_file_path))) {
+            unlink(public_path($skKpa->signed_file_path));
+        }
+
+        // Upload new signed file
+        $file = $request->file('signed_file');
+        $filename = 'SK_'.str_replace('/', '-', $skKpa->nomor_sk).'_'.$skKpa->kegiatan->nama_kegiatan.'_'.now()->format('YmdHis').'(signed)'.'.pdf';
+
+        // Ensure sk directory exists
+        $skDirectory = public_path('sk');
+        if (! file_exists($skDirectory)) {
+            mkdir($skDirectory, 0755, true);
+        }
+
+        $filePath = 'sk/'.$filename;
+        $file->move(public_path('sk'), $filename);
+
+        // Update SK record
+        $skKpa->update([
+            'signed_file_path' => $filePath,
+            'is_signed' => true,
+            'signed_at' => now(),
+            'signed_by' => auth()->id(),
+        ]);
+
+        return redirect()->route('sk-kpa.show', ['skKpa' => $skKpa->hashed_id])
+            ->with('success', 'SK yang sudah ditandatangani berhasil diupload.');
+    }
+
+    /**
+     * Preview SK PDF (tidak save ke database)
+     */
+    public function previewSk(Request $request, string $kegiatanHashedId)
+    {
+        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+
+        if (! $kegiatanId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'nomor_sk' => ['required', 'string', 'max:255'],
+            'tanggal_sk' => ['required', 'date'],
+            'dasar_hukum_ids' => ['required', 'array', 'min:1'],
+            'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
+        ]);
+
+        $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // Get active Kepala BPS and DIPA from database
+        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $dipa = \App\Models\Dipa::active()->firstOrFail();
+
+        // Get dasar hukum
+        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+            ->orderBy('tahun', 'asc')
+            ->get()
+            ->map(function ($item) {
+                $kategoriLabel = match ($item->kategori) {
+                    'undang_undang' => 'Undang-Undang',
+                    'peraturan_pemerintah' => 'Peraturan Pemerintah',
+                    'peraturan_presiden' => 'Peraturan Presiden',
+                    'peraturan_menteri_badan' => 'Peraturan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$item->instansi,
+                    'keputusan_menteri_kepala_badan' => 'Keputusan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$item->instansi,
+                    default => $item->kategori,
+                };
+
+                // Build nama lengkap
+                $namaLengkap = $kategoriLabel.' Nomor '.$item->nomor.' Tahun '.$item->tahun;
+
+                return (object) [
+                    'kategori' => $kategoriLabel,
+                    'nomor' => $item->nomor,
+                    'tentang' => $item->tentang,
+                    'tahun' => $item->tahun,
+                    'nama_lengkap' => $namaLengkap,
+                    'lembaran' => $item->lembaran,
+                ];
+            });
+
+        // Check if this is SK Perubahan (ada SK sebelumnya) atau SK pertama
+        $existingSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('tahun', 'desc')
+            ->orderBy('bulan', 'desc')
+            ->first();
+
+        // Get periode for petugas data
+        // Jika SK Perubahan, ambil periode terbaru (latest)
+        // Jika SK pertama, ambil periode pertama
+        $periodeQuery = $kegiatan->periodeAlokasi()
+            ->with(['alokasiPetugas' => function ($query) {
+                $query->with('petugas');
+            }])
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
+            ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
+
+        $periode = $periodeQuery->firstOrFail();
+
+        // Parse alokasi petugas with rates
+        $alokasiList = $periode->alokasiPetugas->map(function ($alokasi) use ($kegiatan) {
+            // Make sure petugas relationship is loaded
+            if (! isset($alokasi->petugas)) {
+                return null;
+            }
+
+            // Get rate honor for this petugas based on their peran
+            $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+                ->where('jenis_penugasan', $alokasi->peran)
+                ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
+                ->with(['satuan', 'satuanListing'])
+                ->first();
+
+            $roles = [];
+            if ($rateHonor) {
+                // Add listing rate first if exists
+                if ($rateHonor->rate_listing && $rateHonor->satuanListing) {
+                    $biayaSatuanListing = number_format($rateHonor->rate_listing, 0, ',', '.');
+                    $satuanListing = $rateHonor->satuanListing->nama ?? '';
+
+                    $roles[] = (object) [
+                        'peran' => $this->getPeranLabel($alokasi->peran, true),
+                        'biaya_satuan' => 'Rp. '."{$biayaSatuanListing},-".' / '."{$satuanListing}",
+                    ];
+                }
+
+                // Add regular rate
+                if ($rateHonor->rate && $rateHonor->satuan) {
+                    $biayaSatuan = number_format($rateHonor->rate, 0, ',', '.');
+                    $satuan = $rateHonor->satuan->kode ?? '';
+
+                    $roles[] = (object) [
+                        'peran' => $this->getPeranLabel($alokasi->peran, false),
+                        'biaya_satuan' => 'Rp. '."{$biayaSatuan},-".' / '."{$satuan}",
+                    ];
+                }
+            }
+
+            return (object) [
+                'nama' => $alokasi->petugas->nama,
+                'nip' => $alokasi->petugas->nik ?? '-',
+                'golongan' => $alokasi->petugas->golongan ?? '-',
+                'jabatan' => $alokasi->petugas->jabatan ?? '-',
+                'roles' => $roles,
+            ];
+        })->filter(); // Remove null values
+
+        $data = [
+            'kegiatan' => $kegiatan,
+            'periode' => $periode,
+            'nomorSk' => $validated['nomor_sk'],
+            'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
+            'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
+            'kategoriKeputusan' => 'KEPUTUSAN',
+            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'dipa' => $dipa->nomor_dipa,
+            'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
+            'dasarHukum' => $dasarHukum,
+            'alokasiList' => $alokasiList,
+        ];
+
+        // Generate and stream PDF directly (tidak save)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sk-petugas', $data)
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Preview_SK_'.$kegiatan->nama_kegiatan.'.pdf');
+    }
+
+    /**
+     * Generate SK PDF
+     */
+    public function generateSk(Request $request, string $kegiatanHashedId)
+    {
+        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+
+        if (! $kegiatanId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'nomor_sk' => ['required', 'string', 'max:255'],
+            'tanggal_sk' => ['required', 'date'],
+            'dasar_hukum_ids' => ['required', 'array', 'min:1'],
+            'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
+        ]);
+
+        $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // Get active Kepala BPS and DIPA from database
+        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $dipa = \App\Models\Dipa::active()->firstOrFail();
+
+        // Get dasar hukum
+        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+            ->orderBy('tahun', 'asc')
+            ->get()
+            ->map(function ($item) {
+                $kategoriLabel = match ($item->kategori) {
+                    'undang_undang' => 'Undang-Undang',
+                    'peraturan_pemerintah' => 'Peraturan Pemerintah',
+                    'peraturan_presiden' => 'Peraturan Presiden',
+                    'peraturan_menteri_badan' => 'Peraturan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$item->instansi,
+                    'keputusan_menteri_kepala_badan' => 'Keputusan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$item->instansi,
+                    default => $item->kategori,
+                };
+
+                // Build nama lengkap
+                $namaLengkap = $kategoriLabel.' Nomor '.$item->nomor.' Tahun '.$item->tahun;
+
+                return (object) [
+                    'kategori' => $kategoriLabel,
+                    'nomor' => $item->nomor,
+                    'tentang' => $item->tentang,
+                    'tahun' => $item->tahun,
+                    'nama_lengkap' => $namaLengkap,
+                    'lembaran' => $item->lembaran,
+                ];
+            });
+
+        // Check if this is SK Perubahan (ada SK sebelumnya) atau SK pertama
+        $existingSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('tahun', 'desc')
+            ->orderBy('bulan', 'desc')
+            ->first();
+
+        // Get periode for petugas data
+        // Jika SK Perubahan, ambil periode terbaru (latest)
+        // Jika SK pertama, ambil periode pertama
+        $periodeQuery = $kegiatan->periodeAlokasi()
+            ->with(['alokasiPetugas' => function ($query) {
+                $query->with('petugas');
+            }])
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
+            ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
+
+        $periode = $periodeQuery->firstOrFail();
+
+        // Parse alokasi petugas with rates
+        $alokasiList = $periode->alokasiPetugas->map(function ($alokasi) use ($kegiatan) {
+            // Make sure petugas relationship is loaded
+            if (! isset($alokasi->petugas)) {
+                return null;
+            }
+
+            // Get rate honor for this petugas based on their peran
+            $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+                ->where('jenis_penugasan', $alokasi->peran)
+                ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
+                ->with(['satuan', 'satuanListing'])
+                ->first();
+
+            $roles = [];
+            if ($rateHonor) {
+                // Add listing rate first if exists
+                if ($rateHonor->rate_listing && $rateHonor->satuanListing) {
+                    $biayaSatuanListing = number_format($rateHonor->rate_listing, 0, ',', '.');
+                    $satuanListing = $rateHonor->satuanListing->nama ?? '';
+
+                    $roles[] = (object) [
+                        'peran' => $this->getPeranLabel($alokasi->peran, true),
+                        'biaya_satuan' => 'Rp. '."{$biayaSatuanListing},-".' / '."{$satuanListing}",
+                    ];
+                }
+
+                // Add regular rate
+                if ($rateHonor->rate && $rateHonor->satuan) {
+                    $biayaSatuan = number_format($rateHonor->rate, 0, ',', '.');
+                    $satuan = $rateHonor->satuan->kode ?? '';
+
+                    $roles[] = (object) [
+                        'peran' => $this->getPeranLabel($alokasi->peran, false),
+                        'biaya_satuan' => 'Rp. '."{$biayaSatuan},-".' / '."{$satuan}",
+                    ];
+                }
+            }
+
+            return (object) [
+                'nama' => $alokasi->petugas->nama,
+                'nip' => $alokasi->petugas->nik ?? '-',
+                'golongan' => $alokasi->petugas->golongan ?? '-',
+                'jabatan' => $alokasi->petugas->jabatan ?? '-',
+                'roles' => $roles,
+            ];
+        })->filter(); // Remove null values
+
+        $data = [
+            'kegiatan' => $kegiatan,
+            'periode' => $periode,
+            'nomorSk' => $validated['nomor_sk'],
+            'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
+            'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
+            'kategoriKeputusan' => 'KEPUTUSAN',
+            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'dipa' => $dipa->nomor_dipa,
+            'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
+            'dasarHukum' => $dasarHukum,
+            'alokasiList' => $alokasiList,
+        ];
+
+        // Generate PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sk-petugas', $data)
+            ->setPaper('a4', 'portrait');
+
+        // Create filename
+        $filename = 'SK_'.str_replace('/', '-', $validated['nomor_sk']).'_'.$kegiatan->nama_kegiatan.'_'.now()->format('YmdHis').'.pdf';
+
+        // Ensure sk directory exists
+        $skDirectory = public_path('sk');
+        if (! file_exists($skDirectory)) {
+            mkdir($skDirectory, 0755, true);
+        }
+
+        // Save PDF to public/sk
+        $filePath = 'sk/'.$filename;
+        $pdf->save(public_path($filePath));
+
+        // Save SK record to database
+        try {
+            SkKpa::create([
+                'nomor_sk' => $validated['nomor_sk'],
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => $periode->bulan,
+                'tahun' => $periode->tahun,
+                'tanggal_sk' => $validated['tanggal_sk'],
+                'nama_kpa' => $kepalaBps->nama,
+                'perihal' => 'Petugas '.$kegiatan->nama_kegiatan.' '.$kegiatan->tahun_anggaran,
+                'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
+                'file_path' => $filePath,
+                'status' => 'diterbitkan',
+                'created_by' => auth()->id(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Delete the generated PDF file
+            if (file_exists(public_path($filePath))) {
+                unlink(public_path($filePath));
+            }
+
+            // Check if it's a duplicate entry error
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'Duplicate entry')) {
+                return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
+                    ->withInput()
+                    ->with('error', 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan. Silakan gunakan nomor SK yang berbeda.');
+            }
+
+            // For other database errors
+            return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat menyimpan SK: '.$e->getMessage());
+        }
+
+        return redirect()->route('sk-kpa.index')
+            ->with('success', 'SK berhasil digenerate dan disimpan.');
+    }
+
+    private function getPeranLabel(string $peran, bool $isListing = false): string
+    {
+        if ($isListing) {
+            return match ($peran) {
+                'pcl_ppl' => 'Petugas Listing/Updating',
+                'pml' => 'Pemeriksa Listing/Updating',
+                'pengolahan' => 'Petugas Pengolahan - Listing',
+                'pengawas_pengolahan' => 'Pemeriksa Pengolahan - Listing',
+                default => $peran.' - Listing',
+            };
+        }
+
+        return match ($peran) {
+            'pcl_ppl' => 'Petugas Pencacahan',
+            'pml' => 'Pemeriksa Lapangan',
+            'pengolahan' => 'Petugas Pengolahan',
+            'pengawas_pengolahan' => 'Pemeriksa Pengolahan',
+            default => $peran,
+        };
+    }
+
+    /**
+     * Check if there are personnel changes between consecutive periods
+     * If latestSk is provided, only check changes AFTER that SK's period
+     */
+    private function checkPersonnelChanges(int $kegiatanId, ?\App\Models\SkKpa $latestSk = null): bool
+    {
+        $activeYear = ActiveYearService::get();
+
+        // Get all approved/submitted periods for this kegiatan, ordered by month
+        $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
+            ->where('tahun', $activeYear)
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->orderBy('bulan')
+            ->get();
+
+        // If no SK exists yet, check all periods for changes
+        if (! $latestSk) {
+            // Need at least 2 periods to compare
+            if ($periods->count() < 2) {
+                return false;
+            }
+
+            // Compare consecutive periods
+            for ($i = 1; $i < $periods->count(); $i++) {
+                $previousPeriod = $periods[$i - 1];
+                $currentPeriod = $periods[$i];
+
+                $previousPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $previousPeriod->id)
+                    ->pluck('petugas_id')
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
+                $currentPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $currentPeriod->id)
+                    ->pluck('petugas_id')
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
+                if ($previousPersonnel !== $currentPersonnel) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // If SK exists, get personnel from the SK's month (periode that was covered by latest SK)
+        $skPeriod = $periods->firstWhere('bulan', $latestSk->bulan);
+
+        if (! $skPeriod) {
+            return false;
+        }
+
+        $skPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $skPeriod->id)
+            ->pluck('petugas_id')
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Check if any period AFTER the SK has different personnel
+        $periodsAfterSk = $periods->filter(function ($period) use ($latestSk) {
+            return $period->bulan > $latestSk->bulan;
+        });
+
+        foreach ($periodsAfterSk as $period) {
+            $currentPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $period->id)
+                ->pluck('petugas_id')
+                ->sort()
+                ->values()
+                ->toArray();
+
+            // If personnel is different from SK's personnel, there's a change
+            if ($skPersonnel !== $currentPersonnel) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

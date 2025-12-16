@@ -62,14 +62,26 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         router.get(
             '/kegiatan',
             { search, status },
-            { preserveState: true, replace: true }
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
         );
     };
 
     const handleReset = () => {
         setSearch('');
         setStatus('');
-        router.get('/kegiatan', {}, { preserveState: true });
+        router.get(
+            '/kegiatan',
+            {},
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
     };
 
     const getStatusBadge = (status: string) => {

@@ -71,6 +71,7 @@ export default function Index({ dasarHukum, filters }: Props) {
             {
                 preserveState: true,
                 preserveScroll: true,
+                replace: true,
             },
         )
     }

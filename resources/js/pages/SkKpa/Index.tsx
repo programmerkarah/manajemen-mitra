@@ -22,6 +22,7 @@ interface LatestSk {
     tanggal_sk: string;
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
+    signed_file_path: string | null;
 }
 
 interface KegiatanItem {
@@ -35,6 +36,7 @@ interface KegiatanItem {
     sk_status: string;
     sk_status_type: 'not_created' | 'created' | 'revision';
     sk_count: number;
+    has_personnel_changes: boolean;
     latest_sk: LatestSk | null;
 }
 
@@ -70,19 +72,32 @@ export default function Index({ kegiatan, filters }: IndexProps) {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/sk-kpa', {
-            search: search || undefined,
-            jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.get(
+            '/sk-kpa',
+            {
+                search: search || undefined,
+                jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
     };
 
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
-        router.get('/sk-kpa');
+        router.get(
+            '/sk-kpa',
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
     };
 
     const getStatusBadgeColor = (type: string) => {
@@ -98,12 +113,21 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         }
     };
 
-    const handleDownload = (filePath: string | null) => {
+    const handleDownload = (keg: KegiatanItem) => {
+        const latestSk = keg.latest_sk;
+        if (!latestSk) {
+            alert('SK tidak tersedia');
+            return;
+        }
+
+        // Prioritaskan signed file jika ada
+        const filePath = latestSk.signed_file_path || latestSk.file_path;
         if (!filePath) {
             alert('File SK tidak tersedia');
             return;
         }
-        window.open(`/storage/${filePath}`, '_blank');
+        
+        window.open(`/${filePath}`, '_blank');
     };
 
     return (
@@ -227,33 +251,52 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {/* Lihat Daftar SK - All roles can view */}
-                                                    {keg.sk_count > 0 && (
+                                                    {/* View Latest SK Details - All roles can view */}
+                                                    {keg.latest_sk && (
                                                         <Button
                                                             size="sm"
-                                                            variant="outline"
+                                                            variant="secondary"
                                                             asChild
                                                             className="gap-1"
                                                         >
-                                                            <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}`}>
+                                                            <Link href={`/sk-kpa/${keg.latest_sk.hashed_id}`}>
                                                                 <Eye className="h-3.5 w-3.5" />
-                                                                Lihat SK
+                                                                Detail
                                                             </Link>
                                                         </Button>
                                                     )}
 
                                                     {/* Buat SK / Buat SK Perubahan - Only admin and pj */}
                                                     {canCreateSk && (
-                                                        <Button
-                                                            size="sm"
-                                                            asChild
-                                                            className="gap-1"
-                                                        >
-                                                            <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}>
-                                                                <Plus className="h-3.5 w-3.5" />
-                                                                {keg.sk_count === 0 ? 'Buat SK' : 'SK Perubahan'}
-                                                            </Link>
-                                                        </Button>
+                                                        <>
+                                                            {/* Buat SK - Show only if no SK exists yet */}
+                                                            {keg.sk_count === 0 && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    asChild
+                                                                    className="gap-1"
+                                                                >
+                                                                    <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}>
+                                                                        <Plus className="h-3.5 w-3.5" />
+                                                                        Buat SK
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+
+                                                            {/* SK Perubahan - Show only if SK exists AND there are personnel changes */}
+                                                            {keg.sk_count > 0 && keg.has_personnel_changes && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    asChild
+                                                                    className="gap-1"
+                                                                >
+                                                                    <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}>
+                                                                        <Plus className="h-3.5 w-3.5" />
+                                                                        SK Perubahan
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+                                                        </>
                                                     )}
 
                                                     {/* Download SK Terakhir - All roles can download */}
@@ -261,7 +304,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleDownload(keg.latest_sk?.file_path || null)}
+                                                            onClick={() => handleDownload(keg)}
                                                             className="gap-1"
                                                         >
                                                             <Download className="h-3.5 w-3.5" />

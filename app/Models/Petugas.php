@@ -41,6 +41,8 @@ class Petugas extends Model
         'pendidikan',
         'tahun_bergabung',
         'jenis_petugas',
+        'jabatan',
+        'golongan',
         'status',
         'jenis_petugas',
         'npwp',

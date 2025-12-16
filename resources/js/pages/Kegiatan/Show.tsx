@@ -128,8 +128,8 @@ export default function Show({ kegiatan, auth, can }: Props) {
     // Can edit only if draft
     const canEdit = kegiatan.status === 'draft' && can.update
     
-    // Can manage rate honor and alokasi only if divalidasi or aktif
-    const canManageFeatures = kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif'
+    // Can manage rate honor and alokasi only if divalidasi or aktif, and not PJ role
+    const canManageFeatures = (kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif') && auth.activeRole?.name !== 'pj'
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -148,27 +148,29 @@ export default function Show({ kegiatan, auth, can }: Props) {
                             </Link>
                         </Button>
 
-                        {/* Rate Honor Management - locked until approved */}
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            asChild={canManageFeatures}
-                            className="gap-2"
-                            disabled={!canManageFeatures}
-                            title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
-                        >
-                            {canManageFeatures ? (
-                                <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
-                                    <Settings className="h-4 w-4" />
-                                    Kelola Rate Honor
-                                </Link>
-                            ) : (
-                                <>
-                                    <Settings className="h-4 w-4" />
-                                    Kelola Rate Honor
-                                </>
-                            )}
-                        </Button>
+                        {/* Rate Honor Management - hidden for PJ role */}
+                        {auth.activeRole?.name !== 'pj' && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                asChild={canManageFeatures}
+                                className="gap-2"
+                                disabled={!canManageFeatures}
+                                title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
+                            >
+                                {canManageFeatures ? (
+                                    <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
+                                        <Settings className="h-4 w-4" />
+                                        Kelola Rate Honor
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <Settings className="h-4 w-4" />
+                                        Kelola Rate Honor
+                                    </>
+                                )}
+                            </Button>
+                        )}
 
                         {canEdit && (
                             <Button size="sm" asChild className="gap-2">

@@ -55,7 +55,11 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         router.get(
             '/petugas',
             { search, status },
-            { preserveState: true, replace: true }
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
         );
     };
 

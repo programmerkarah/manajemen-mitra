@@ -31,7 +31,7 @@ interface PeriodeAlokasi {
     bulan: string
     tahun: number
     jenis_kegiatan: 'sensus' | 'survei'
-    status: 'draft' | 'dikirim' | 'perubahan'
+    status: 'draft' | 'dikirim' | 'perubahan' | 'disetujui'
     revision_number: number
     parent_periode_id: number | null
     submitted_at: string | null

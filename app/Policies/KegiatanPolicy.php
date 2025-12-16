@@ -12,8 +12,8 @@ class KegiatanPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Admin, Approver, Operator, dan PJ bisa lihat daftar kegiatan
-        return $user->active_role && in_array($user->active_role, ['admin', 'approver', 'operator', 'ketua_tim']);
+        // Admin, Approver, Operator, PJ, dan Administrator bisa lihat daftar kegiatan
+        return $user->active_role && in_array($user->active_role, ['admin', 'approver', 'operator', 'ketua_tim', 'pj', 'administrator']);
     }
 
     /**
@@ -21,8 +21,8 @@ class KegiatanPolicy
      */
     public function view(User $user, Kegiatan $kegiatan): bool
     {
-        // Admin, Approver, Operator, dan PJ bisa lihat detail kegiatan
-        return $user->active_role && in_array($user->active_role, ['admin', 'approver', 'operator', 'ketua_tim']);
+        // Admin, Approver, Operator, PJ, dan Administrator bisa lihat detail kegiatan
+        return $user->active_role && in_array($user->active_role, ['admin', 'approver', 'operator', 'ketua_tim', 'pj', 'administrator']);
     }
 
     /**
