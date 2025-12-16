@@ -287,7 +287,6 @@ class AlokasiPetugasController extends Controller
 
         // Group by periode (bulan+tahun+jenis_kegiatan) to create PeriodeAlokasi first
         $periodeGroups = [];
-
         foreach ($validated['alokasi'] as $index => $alokasiData) {
             // Get petugas to determine jenis_petugas
             $petugas = Petugas::find($alokasiData['petugas_id']);

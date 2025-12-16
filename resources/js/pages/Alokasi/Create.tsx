@@ -593,7 +593,6 @@ export default function Create({
                 };
             }),
         };
-
         // Use hashed_id for the route (model uses HasHashedRouteKey)
         const kegiatanHashedId = selectedKegiatan?.hashed_id;
 
@@ -707,7 +706,6 @@ export default function Create({
             return active_year > start.getFullYear() && active_year < end.getFullYear();
         });
         
-        console.log('Filtered months:', filtered.map(m => m.label));
         return filtered;
     }, [selectedKegiatan, months, active_year]);
 
