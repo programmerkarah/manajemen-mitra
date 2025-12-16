@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Pencil, X, Check, Send } from 'lucide-react';
@@ -501,9 +502,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="catatan">Catatan Penolakan</Label>
-                                <textarea
+                                <Textarea
                                     id="catatan"
-                                    className="min-h-[100px] w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-neutral-950"
+                                    className="min-h-[100px]"
                                     value={rejectNotes}
                                     onChange={(e) => setRejectNotes(e.target.value)}
                                     placeholder="Masukkan alasan penolakan..."

@@ -4,6 +4,13 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -140,9 +147,14 @@ export default function Create({
         const currentMonth = new Date().getMonth() + 1;
         return getFirstAvailableMonth(usedMonthsList, currentMonth);
     });
-    const [tahapan, setTahapan] = useState<'both' | 'listing_only' | 'pencacahan_only'>('both');
+    const [tahapan, setTahapan] = useState<'both' | 'listing_only' | 'pencacahan_only'>(() => {
+        if (sourcePeriode?.tahapan) {
+            return sourcePeriode.tahapan as 'both' | 'listing_only' | 'pencacahan_only';
+        }
+        return 'both';
+    });
     const [jenisKegiatan, setJenisKegiatan] = useState<'sensus' | 'survei'>(
-        'survei',
+        preSelectedKegiatan?.jenis_kegiatan || 'survei',
     );
     // Store original values from copied/edited alokasi for restoration
     const [originalAlokasiValues, setOriginalAlokasiValues] = useState<Array<{
@@ -218,6 +230,8 @@ export default function Create({
     // Initialize with copied data if available
     useEffect(() => {
         if (copiedAlokasi && copiedAlokasi.length > 0) {
+            console.log('🔍 copiedAlokasi data:', copiedAlokasi);
+            
             // Store original values first for restoration
             const originalValues = copiedAlokasi.map((alokasi) => ({
                 jumlah_satuan: String(alokasi.jumlah_satuan || 0),
@@ -227,39 +241,53 @@ export default function Create({
             }));
             setOriginalAlokasiValues(originalValues);
             
-            const initialItems = copiedAlokasi.map((alokasi) => ({
-                petugas_id: String(alokasi.petugas_id || ''),
-                peran:
-                    alokasi.peran === 'pcl_ppl'
-                        ? 'PCL'
-                        : alokasi.peran === 'pml'
-                          ? 'PML'
-                          : alokasi.peran === 'pengolahan'
-                            ? 'Pengolahan'
-                            : alokasi.peran === 'pengawas_pengolahan'
-                              ? 'Pengawas Pengolahan'
-                              : '',
-                jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
-                estimasi_honor: 0, // Will be recalculated
-                estimasi_honor_listing: 0, // Will be recalculated
-                catatan: alokasi.catatan || '',
-            }));
+            const initialItems = copiedAlokasi.map((alokasi) => {
+                // Map backend peran format to frontend display format
+                let peranDisplay = '';
+                const peranLower = (alokasi.peran || '').toLowerCase();
+                
+                console.log(`🔍 Mapping peran: "${alokasi.peran}" (lowercase: "${peranLower}")`);
+                
+                if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
+                    peranDisplay = 'PCL';
+                } else if (peranLower === 'pml') {
+                    peranDisplay = 'PML';
+                } else if (peranLower === 'pengolahan' || peranLower === 'petugas pengolahan') {
+                    peranDisplay = 'Petugas Pengolahan';
+                } else if (peranLower === 'pengawas_pengolahan' || peranLower === 'pengawas pengolahan') {
+                    peranDisplay = 'Pengawas Pengolahan';
+                } else if (alokasi.peran) {
+                    // If peran exists but doesn't match any known format, keep it as is
+                    peranDisplay = alokasi.peran;
+                }
+                
+                console.log(`✅ Mapped to: "${peranDisplay}"`);
+                
+                return {
+                    petugas_id: String(alokasi.petugas_id || ''),
+                    peran: peranDisplay,
+                    jumlah_satuan: String(alokasi.jumlah_satuan || 0),
+                    jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+                    estimasi_honor: alokasi.total_honor || 0,
+                    estimasi_honor_listing: alokasi.total_honor_listing || 0,
+                    catatan: alokasi.catatan || '',
+                };
+            });
+            
+            console.log('✅ Final initialItems:', initialItems);
+            console.log('📝 [1] Setting alokasiItems from copiedAlokasi');
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
         }
     }, [copiedAlokasi]);
 
-    // Initialize tahapan from sourcePeriode when in edit mode
-    useEffect(() => {
-        if (isEditMode && sourcePeriode?.tahapan) {
-            setTahapan(sourcePeriode.tahapan as 'both' | 'listing_only' | 'pencacahan_only');
-        }
-    }, [isEditMode, sourcePeriode]);
-
-
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
     useEffect(() => {
+        console.log('🔄 Recalculate useEffect triggered', {
+            hasSelectedKegiatan: !!selectedKegiatan,
+            selectedKegiatanId
+        });
+        
         if (!selectedKegiatan) return;
 
         // Update jenis kegiatan from selected kegiatan
@@ -268,7 +296,16 @@ export default function Create({
 
         // Recalculate estimasi for all items using the calculateEstimasi function
         setAlokasiItems((prevItems) => {
-            return prevItems.map((item) => {
+            console.log('🔄 Recalculating with prevItems:', prevItems);
+            
+            // If prevItems is empty or all items have empty petugas_id, don't process
+            if (prevItems.length === 0 || prevItems.every(item => !item.petugas_id)) {
+                console.log('⚠️ Skipping recalculation - no valid items');
+                return prevItems;
+            }
+            
+            const newItems = prevItems.map((item) => {
+                // Preserve all existing fields
                 const updates: Partial<AlokasiItem> = {};
                 
                 // Recalculate pencacahan estimasi
@@ -293,13 +330,20 @@ export default function Create({
                 
                 return { ...item, ...updates };
             });
+            
+            console.log('✅ Recalculated newItems:', newItems);
+            console.log('📝 [2] Setting alokasiItems from recalculate useEffect');
+            return newItems;
         });
-    }, [selectedKegiatanId, selectedKegiatan, petugas]);
+    }, [selectedKegiatanId, selectedKegiatan]);
 
     // Handle tahapan change - clear/restore values based on tahapan
     useEffect(() => {
+        console.log('🔄 Tahapan useEffect triggered', { tahapan, originalAlokasiValuesLength: originalAlokasiValues.length });
+        
         if (originalAlokasiValues.length === 0) return; // Wait until original values are loaded
         
+        console.log('📝 [3] Setting alokasiItems from tahapan useEffect');
         setAlokasiItems((prevItems) => {
             return prevItems.map((item, index) => {
                 const updates: Partial<AlokasiItem> = {};
@@ -352,7 +396,7 @@ export default function Create({
         let jenisPenugasan = '';
         if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
         else if (peran === 'PML') jenisPenugasan = 'pml';
-        else if (peran === 'Pengolahan') jenisPenugasan = 'pengolahan';
+        else if (peran === 'Petugas Pengolahan') jenisPenugasan = 'pengolahan';
         else if (peran === 'Pengawas Pengolahan')
             jenisPenugasan = 'pengawas_pengolahan';
         if (!jenisPenugasan) return 0;
@@ -390,7 +434,7 @@ export default function Create({
         let jenisPenugasan = '';
         if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
         else if (peran === 'PML') jenisPenugasan = 'pml';
-        else if (peran === 'Pengolahan') jenisPenugasan = 'pengolahan';
+        else if (peran === 'Petugas Pengolahan') jenisPenugasan = 'pengolahan';
         else if (peran === 'Pengawas Pengolahan')
             jenisPenugasan = 'pengawas_pengolahan';
         if (!jenisPenugasan) return 0;
@@ -410,20 +454,53 @@ export default function Create({
 
         const currentItems = [...alokasiItems];
         if (newValue > currentItems.length) {
-            // Add new items
+            // Add new items - restore from copiedAlokasi if available
             for (let i = currentItems.length; i < newValue; i++) {
-                currentItems.push({
-                    petugas_id: '',
-                    peran: '',
-                    jumlah_satuan: '',
-                    estimasi_honor: 0,
-                    catatan: '',
-                });
+                // Check if we have data in copiedAlokasi for this index
+                if (copiedAlokasi && copiedAlokasi[i]) {
+                    const alokasi = copiedAlokasi[i];
+                    
+                    // Map backend peran format to frontend display format
+                    let peranDisplay = '';
+                    const peranLower = (alokasi.peran || '').toLowerCase();
+                    
+                    if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
+                        peranDisplay = 'PCL';
+                    } else if (peranLower === 'pml') {
+                        peranDisplay = 'PML';
+                    } else if (peranLower === 'pengolahan' || peranLower === 'petugas pengolahan') {
+                        peranDisplay = 'Petugas Pengolahan';
+                    } else if (peranLower === 'pengawas_pengolahan' || peranLower === 'pengawas pengolahan') {
+                        peranDisplay = 'Pengawas Pengolahan';
+                    } else if (alokasi.peran) {
+                        peranDisplay = alokasi.peran;
+                    }
+                    
+                    currentItems.push({
+                        petugas_id: String(alokasi.petugas_id || ''),
+                        peran: peranDisplay,
+                        jumlah_satuan: String(alokasi.jumlah_satuan || 0),
+                        jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+                        estimasi_honor: alokasi.total_honor || 0,
+                        estimasi_honor_listing: alokasi.total_honor_listing || 0,
+                        catatan: alokasi.catatan || '',
+                    });
+                } else {
+                    // No data in copiedAlokasi, add empty item
+                    currentItems.push({
+                        petugas_id: '',
+                        peran: '',
+                        jumlah_satuan: '',
+                        estimasi_honor: 0,
+                        catatan: '',
+                    });
+                }
             }
         } else if (newValue < currentItems.length) {
             // Remove excess items
             currentItems.splice(newValue);
         }
+        console.log('📝 [4] Setting alokasiItems from handleJumlahPetugasChange');
         setAlokasiItems(currentItems);
     };
 
@@ -434,6 +511,12 @@ export default function Create({
         field: keyof AlokasiItem,
         value: any,
     ) => {
+        // Guard: Don't update peran with empty value if item already has a peran
+        if (field === 'peran' && !value && alokasiItems[index]?.peran) {
+            console.log('⚠️ Prevented empty peran from overwriting existing value');
+            return;
+        }
+        
         const newItems = [...alokasiItems];
         newItems[index] = { ...newItems[index], [field]: value };
         // Recalculate estimasi honor for pencacahan
@@ -461,6 +544,7 @@ export default function Create({
                 newItems[index].jumlah_satuan_listing || '',
             );
         }
+        console.log('📝 [5] Setting alokasiItems from updateAlokasiItem', { index, field, value });
         setAlokasiItems(newItems);
     };
 
@@ -840,30 +924,33 @@ export default function Create({
                                         Tahapan Periode{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <select
-                                        id="tahapan"
+                                    <Select
                                         value={tahapan}
-                                        onChange={(e) =>
+                                        onValueChange={(value) =>
                                             setTahapan(
-                                                e.target.value as
+                                                value as
                                                     | 'both'
                                                     | 'listing_only'
                                                     | 'pencacahan_only',
                                             )
                                         }
                                         disabled={isRevisiMode || isViewMode}
-                                        className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                     >
-                                        <option value="both">
-                                            Listing dan Pencacahan
-                                        </option>
-                                        <option value="listing_only">
-                                            Listing Saja
-                                        </option>
-                                        <option value="pencacahan_only">
-                                            Pencacahan Saja
-                                        </option>
-                                    </select>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih Tahapan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="both">
+                                                Listing dan Pencacahan
+                                            </SelectItem>
+                                            <SelectItem value="listing_only">
+                                                Listing Saja
+                                            </SelectItem>
+                                            <SelectItem value="pencacahan_only">
+                                                Pencacahan Saja
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             )}
 
@@ -873,28 +960,31 @@ export default function Create({
                                     Bulan{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="bulan"
-                                    value={bulan}
-                                    onChange={(e) =>
-                                        setBulan(parseInt(e.target.value))
+                                <Select
+                                    value={bulan.toString()}
+                                    onValueChange={(value) =>
+                                        setBulan(parseInt(value))
                                     }
                                     disabled={isRevisiMode || isViewMode}
-                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                 >
-                                    {filteredMonths.map((month) => (
-                                        <option
-                                            key={month.value}
-                                            value={month.value}
-                                            disabled={usedMonths.includes(month.value)}
-                                        >
-                                            {month.label}{' '}
-                                            {usedMonths.includes(month.value)
-                                                ? '(Sudah digunakan)'
-                                                : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {filteredMonths.map((month) => (
+                                            <SelectItem
+                                                key={month.value}
+                                                value={month.value.toString()}
+                                                disabled={usedMonths.includes(month.value)}
+                                            >
+                                                {month.label}{' '}
+                                                {usedMonths.includes(month.value)
+                                                    ? '(Sudah digunakan)'
+                                                    : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             
@@ -1055,91 +1145,104 @@ export default function Create({
                                                         *
                                                     </span>
                                                 </Label>
-                                                <select
-                                                    id={`peran_${index}`}
-                                                    value={item.peran}
-                                                    onChange={(e) =>
+                                                <Select
+                                                    value={item.peran || undefined}
+                                                    onValueChange={(value) =>
                                                         updateAlokasiItem(
                                                             index,
                                                             'peran',
-                                                            e.target.value,
+                                                            value,
                                                         )
                                                     }
                                                     disabled={isRevisiMode || isViewMode}
-                                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                                 >
-                                                    <option value="">
-                                                        Pilih Peran
-                                                    </option>
-                                                    {(() => {
-                                                        const selectedPetugas =
-                                                            petugas.find(
-                                                                (p) =>
-                                                                    String(
-                                                                        p.id,
-                                                                    ) ===
-                                                                    String(
-                                                                        item.petugas_id,
-                                                                    ),
-                                                            );
-                                                        if (
-                                                            !selectedKegiatan ||
-                                                            !selectedPetugas
-                                                        )
-                                                            return null;
-                                                        const statusKepegawaian =
-                                                            selectedPetugas.jenis_petugas ===
-                                                            'organik'
-                                                                ? 'organik'
-                                                                : 'non_organik';
-                                                        // Ambil jenis_penugasan unik dari rate_honors yang cocok status_kepegawaian
-                                                        const jenisPenugasanList =
-                                                            selectedKegiatan.rate_honors
-                                                                .filter(
-                                                                    (rh) =>
-                                                                        rh.status_kepegawaian ===
-                                                                        statusKepegawaian,
-                                                                )
-                                                                .map(
-                                                                    (rh) =>
-                                                                        rh.jenis_penugasan,
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih Peran" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {(() => {
+                                                            const selectedPetugas =
+                                                                petugas.find(
+                                                                    (p) =>
+                                                                        String(
+                                                                            p.id,
+                                                                        ) ===
+                                                                        String(
+                                                                            item.petugas_id,
+                                                                        ),
                                                                 );
-                                                        const uniqueJenisPenugasan =
-                                                            Array.from(
-                                                                new Set(
-                                                                    jenisPenugasanList,
+                                                            
+                                                            console.log(`🔍 Rendering Select for item ${index}:`, {
+                                                                itemPeran: item.peran,
+                                                                petugasId: item.petugas_id,
+                                                                hasSelectedKegiatan: !!selectedKegiatan,
+                                                                hasSelectedPetugas: !!selectedPetugas,
+                                                                kegiatanId: selectedKegiatan?.id,
+                                                                rateHonorsCount: selectedKegiatan?.rate_honors?.length
+                                                            });
+                                                            
+                                                            if (
+                                                                !selectedKegiatan ||
+                                                                !selectedPetugas
+                                                            )
+                                                                return null;
+                                                            const statusKepegawaian =
+                                                                selectedPetugas.jenis_petugas ===
+                                                                'organik'
+                                                                    ? 'organik'
+                                                                    : 'non_organik';
+                                                            // Ambil jenis_penugasan unik dari rate_honors yang cocok status_kepegawaian
+                                                            const jenisPenugasanList =
+                                                                selectedKegiatan.rate_honors
+                                                                    .filter(
+                                                                        (rh) =>
+                                                                            rh.status_kepegawaian ===
+                                                                            statusKepegawaian,
+                                                                    )
+                                                                    .map(
+                                                                        (rh) =>
+                                                                            rh.jenis_penugasan,
+                                                                    );
+                                                            const uniqueJenisPenugasan =
+                                                                Array.from(
+                                                                    new Set(
+                                                                        jenisPenugasanList,
+                                                                    ),
+                                                                );
+                                                            // Mapping ke label
+                                                            const labelMap: Record<
+                                                                string,
+                                                                string
+                                                            > = {
+                                                                pcl_ppl: 'PCL',
+                                                                pml: 'PML',
+                                                                pengolahan:
+                                                                    'Petugas Pengolahan',
+                                                                pengawas_pengolahan:
+                                                                    'Pengawas Pengolahan',
+                                                            };
+                                                            
+                                                            const options = uniqueJenisPenugasan.map(jp => ({
+                                                                key: jp,
+                                                                value: labelMap[jp] || jp,
+                                                                label: labelMap[jp] || jp
+                                                            }));
+                                                            
+                                                            console.log(`✅ Available options:`, options);
+                                                            
+                                                            return options.map(
+                                                                (opt) => (
+                                                                    <SelectItem
+                                                                        key={opt.key}
+                                                                        value={opt.value}
+                                                                    >
+                                                                        {opt.label}
+                                                                    </SelectItem>
                                                                 ),
                                                             );
-                                                        // Mapping ke label
-                                                        const labelMap: Record<
-                                                            string,
-                                                            string
-                                                        > = {
-                                                            pcl_ppl: 'PCL',
-                                                            pml: 'PML',
-                                                            pengolahan:
-                                                                'Petugas Pengolahan',
-                                                            pengawas_pengolahan:
-                                                                'Pengawas Pengolahan',
-                                                        };
-                                                        return uniqueJenisPenugasan.map(
-                                                            (jp) => (
-                                                                <option
-                                                                    key={jp}
-                                                                    value={
-                                                                        labelMap[
-                                                                            jp
-                                                                        ] || jp
-                                                                    }
-                                                                >
-                                                                    {labelMap[
-                                                                        jp
-                                                                    ] || jp}
-                                                                </option>
-                                                            ),
-                                                        );
-                                                    })()}
-                                                </select>
+                                                        })()}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                             {/* Dual-phase: Listing fields */}
                                             {selectedKegiatan?.has_listing_updating && 

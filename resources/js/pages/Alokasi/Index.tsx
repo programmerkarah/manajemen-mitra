@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -63,8 +70,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const isPJ = auth.activeRole?.name === 'pj';
     
     const [search, setSearch] = useState(filters.search || '')
-    const [status, setStatus] = useState(filters.status || '')
-    const [bulan, setBulan] = useState(filters.bulan || '')
+    const [status, setStatus] = useState(filters.status || 'all')
+    const [bulan, setBulan] = useState(filters.bulan || 'all')
 
     // Modal states
     const [showKirimModal, setShowKirimModal] = useState(false)
@@ -98,8 +105,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             '/alokasi',
             {
                 search: search || undefined,
-                status: status || undefined,
-                bulan: bulan || undefined,
+                status: status && status !== 'all' ? status : undefined,
+                bulan: bulan && bulan !== 'all' ? bulan : undefined,
             },
             {
                 preserveState: true,
@@ -110,8 +117,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
 
     const handleReset = () => {
         setSearch('')
-        setStatus('')
-        setBulan('')
+        setStatus('all')
+        setBulan('all')
         router.get('/alokasi')
     }
 
@@ -244,34 +251,40 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
 
                     <div className="space-y-2">
                         <Label htmlFor="bulan">Bulan</Label>
-                        <select
-                            id="bulan"
+                        <Select
                             value={bulan}
-                            onChange={(e) => setBulan(e.target.value)}
-                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                            onValueChange={(value) => setBulan(value)}
                         >
-                            <option value="">Semua Bulan</option>
-                            {bulanOptions.map((b) => (
-                                <option key={b.value} value={b.value}>
-                                    {b.label}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Semua Bulan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Bulan</SelectItem>
+                                {bulanOptions.map((b) => (
+                                    <SelectItem key={b.value} value={b.value}>
+                                        {b.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="status">Status</Label>
-                        <select
-                            id="status"
+                        <Select
                             value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                            onValueChange={(value) => setStatus(value)}
                         >
-                            <option value="">Semua Status</option>
-                            <option value="draft">Draft</option>
-                            <option value="dikirim">Terkirim</option>
-                            <option value="perubahan">Perubahan</option>
-                        </select>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="dikirim">Terkirim</SelectItem>
+                                <SelectItem value="perubahan">Perubahan</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex items-end gap-2">

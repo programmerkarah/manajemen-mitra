@@ -4,6 +4,14 @@ import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import type { BreadcrumbItem } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
@@ -224,12 +232,11 @@ export default function Create() {
                             {/* Keterangan */}
                             <div>
                                 <Label htmlFor="keterangan">Keterangan</Label>
-                                <textarea
+                                <Textarea
                                     id="keterangan"
                                     value={keterangan}
                                     onChange={(e) => setKeterangan(e.target.value)}
                                     rows={3}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
                                     placeholder="Catatan tambahan (opsional)"
                                 />
                             </div>
@@ -239,15 +246,18 @@ export default function Create() {
                                 <Label htmlFor="status">
                                     Status <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="status"
+                                <Select
                                     value={status}
-                                    onChange={(e) => setStatus(e.target.value as 'aktif' | 'nonaktif')}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    onValueChange={(value) => setStatus(value as 'aktif' | 'nonaktif')}
                                 >
-                                    <option value="aktif">Aktif</option>
-                                    <option value="nonaktif">Nonaktif</option>
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="aktif">Aktif</SelectItem>
+                                        <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </ContentCard>

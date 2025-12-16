@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -234,12 +235,11 @@ export default function Create() {
                                     <Label htmlFor="alamat">
                                         Alamat <span className="text-red-600">*</span>
                                     </Label>
-                                    <textarea
+                                    <Textarea
                                         id="alamat"
                                         name="alamat"
                                         rows={3}
                                         required
-                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
                                     <InputError message={errors.alamat} />
                                 </div>
@@ -247,11 +247,10 @@ export default function Create() {
                                 {/* Catatan */}
                                 <div className="space-y-2 md:col-span-2">
                                     <Label htmlFor="catatan">Catatan</Label>
-                                    <textarea
+                                    <Textarea
                                         id="catatan"
                                         name="catatan"
                                         rows={3}
-                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
                                     <InputError message={errors.catatan} />
                                 </div>

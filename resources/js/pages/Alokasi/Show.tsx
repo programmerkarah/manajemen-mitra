@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import type { AlokasiPetugas, BreadcrumbItem, Kegiatan, Petugas, RateHonor, Satuan, SharedData } from '@/types'
 import { useState } from 'react'
 import InputError from '@/components/input-error'
@@ -439,12 +440,11 @@ export default function Show({ alokasi }: Props) {
                                 >
                                     Catatan {approvalAction === 'reject' && '(Wajib diisi)'}
                                 </label>
-                                <textarea
+                                <Textarea
                                     id="catatan_approval"
                                     rows={4}
                                     value={data.catatan_approval}
                                     onChange={(e) => setData('catatan_approval', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     placeholder="Masukkan catatan..."
                                 />
                                 <InputError message={errors.catatan_approval} className="mt-2" />

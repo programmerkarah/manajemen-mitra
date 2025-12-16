@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/page-header';
 import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
@@ -160,12 +161,11 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                 >
                                     Deskripsi
                                 </label>
-                                <textarea
+                                <Textarea
                                     id="deskripsi"
                                     rows={4}
                                     value={data.deskripsi}
                                     onChange={(e) => setData('deskripsi', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
                                     placeholder="Deskripsi kegiatan (opsional)"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />

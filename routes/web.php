@@ -3,6 +3,7 @@
 use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
@@ -127,8 +128,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // View routes accessible by all roles (including PJ for read-only)
         Route::get('alokasi', [AlokasiPetugasController::class, 'index'])->name('alokasi.index');
         Route::get('alokasi/{alokasi}', [AlokasiPetugasController::class, 'show'])->name('alokasi.show');
-        Route::get('alokasi/kegiatan/{kegiatan}/manage', [AlokasiPetugasController::class, 'manage'])
-            ->name('alokasi.manage');
         // Show periode detail (read-only) - accessible by PJ
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'showPeriode'])
             ->name('alokasi.periode.show');
@@ -185,6 +184,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('sbml/{tahun}/edit', [SbmlController::class, 'edit'])->name('sbml.edit')->where('tahun', '[0-9]+');
         Route::patch('sbml/{tahun}', [SbmlController::class, 'update'])->name('sbml.update')->where('tahun', '[0-9]+');
         Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
+    });
+
+    // Dasar Hukum SK Management
+    Route::middleware(['active.role:admin,operator,pj'])->group(function () {
+        // View routes (including PJ for read-only)
+        Route::get('dasar-hukum', [DasarHukumController::class, 'index'])->name('dasar-hukum.index');
+    });
+
+    // Dasar Hukum modification routes (Admin, Operator only)
+    Route::middleware(['active.role:admin,operator'])->group(function () {
+        Route::get('dasar-hukum/create', [DasarHukumController::class, 'create'])->name('dasar-hukum.create');
+        Route::post('dasar-hukum', [DasarHukumController::class, 'store'])->name('dasar-hukum.store');
+        Route::get('dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
+        Route::patch('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'update'])->name('dasar-hukum.update');
+        Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
     });
 
     // SBML Report (Admin, Operator, PJ can view)

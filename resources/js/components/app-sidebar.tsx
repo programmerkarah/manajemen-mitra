@@ -61,6 +61,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
+                    { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
@@ -86,6 +87,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
+                    { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
@@ -136,6 +138,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
+                    { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },

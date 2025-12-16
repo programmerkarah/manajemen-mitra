@@ -4,6 +4,14 @@ import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import InputError from '@/components/input-error'
 import { type BreadcrumbItem, type AlokasiPetugas } from '@/types'
 import { Head, Link, useForm } from '@inertiajs/react'
@@ -129,19 +137,21 @@ export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: Alokas
                                 <Label htmlFor="kegiatan_id">
                                     Kegiatan <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="kegiatan_id"
-                                    value={data.kegiatan_id}
-                                    onChange={(e) => setData('kegiatan_id', e.target.value)}
-                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                                <Select
+                                    value={data.kegiatan_id || undefined}
+                                    onValueChange={(value) => setData('kegiatan_id', value)}
                                 >
-                                    <option value="">Pilih Kegiatan</option>
-                                    {kegiatans.map((kegiatan) => (
-                                        <option key={kegiatan.id} value={kegiatan.id}>
-                                            {kegiatan.kode_kegiatan} - {kegiatan.nama_kegiatan}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih Kegiatan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {kegiatans.map((kegiatan) => (
+                                            <SelectItem key={kegiatan.id} value={kegiatan.id}>
+                                                {kegiatan.kode_kegiatan} - {kegiatan.nama_kegiatan}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.kegiatan_id} className="mt-2" />
                             </div>
 
@@ -150,19 +160,21 @@ export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: Alokas
                                 <Label htmlFor="petugas_id">
                                     Petugas <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="petugas_id"
-                                    value={data.petugas_id}
-                                    onChange={(e) => setData('petugas_id', e.target.value)}
-                                    className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                                <Select
+                                    value={data.petugas_id || undefined}
+                                    onValueChange={(value) => setData('petugas_id', value)}
                                 >
-                                    <option value="">Pilih Petugas</option>
-                                    {Petugas.map((petugas) => (
-                                        <option key={petugas.id} value={petugas.id}>
-                                            {petugas.nama} - {petugas.nik}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih Petugas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Petugas.map((petugas) => (
+                                            <SelectItem key={petugas.id} value={petugas.id}>
+                                                {petugas.nama} - {petugas.nik}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <InputError message={errors.petugas_id} className="mt-2" />
                             </div>
 
@@ -188,20 +200,21 @@ export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: Alokas
                                     <Label htmlFor="bulan">
                                         Bulan <span className="text-red-500">*</span>
                                     </Label>
-                                    <select
-                                        id="bulan"
-                                        value={data.bulan}
-                                        onChange={(e) =>
-                                            setData('bulan', parseInt(e.target.value))
-                                        }
-                                        className="flex h-10 w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                                    <Select
+                                        value={data.bulan.toString()}
+                                        onValueChange={(value) => setData('bulan', parseInt(value))}
                                     >
-                                        {months.map((month) => (
-                                            <option key={month.value} value={month.value}>
-                                                {month.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {months.map((month) => (
+                                                <SelectItem key={month.value} value={month.value.toString()}>
+                                                    {month.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <InputError message={errors.bulan} className="mt-2" />
                                 </div>
 
@@ -258,12 +271,11 @@ export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: Alokas
                             {/* Catatan */}
                             <div className="space-y-2">
                                 <Label htmlFor="catatan">Catatan</Label>
-                                <textarea
+                                <Textarea
                                     id="catatan"
                                     rows={3}
                                     value={data.catatan}
                                     onChange={(e) => setData('catatan', e.target.value)}
-                                    className="flex w-full rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
                                     placeholder="Catatan tambahan (opsional)"
                                 />
                                 <InputError message={errors.catatan} className="mt-2" />

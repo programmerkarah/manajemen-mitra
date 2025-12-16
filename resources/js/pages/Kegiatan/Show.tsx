@@ -399,14 +399,9 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                                                 <div className="flex gap-2">
-                                                    <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage?bulan=${periode.bulan}&tahun=${periode.tahun}`}>
+                                                    <Link href={`/alokasi/periode/${kegiatan.hashed_id}/${periode.tahun}/${String(periode.bulan).padStart(2, '0')}`}>
                                                         <Button variant="outline" size="sm">
                                                             Lihat
-                                                        </Button>
-                                                    </Link>
-                                                    <Link href={`/alokasi/kegiatan/${kegiatan.hashed_id}/manage?bulan=${periode.bulan}&tahun=${periode.tahun}&edit=true`}>
-                                                        <Button variant="outline" size="sm">
-                                                            Edit
                                                         </Button>
                                                     </Link>
                                                 </div>

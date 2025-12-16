@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -228,11 +229,11 @@ export default function Edit({ petugas }: EditProps) {
                                 <label className="block text-sm font-medium">
                                     Alamat <span className="text-red-600">*</span>
                                 </label>
-                                <textarea
+                                <Textarea
                                     value={data.alamat}
                                     onChange={(e) => setData('alamat', e.target.value)}
                                     rows={3}
-                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                                    className="mt-1"
                                 />
                                 {errors.alamat && (
                                     <p className="mt-1 text-sm text-red-600">{errors.alamat}</p>

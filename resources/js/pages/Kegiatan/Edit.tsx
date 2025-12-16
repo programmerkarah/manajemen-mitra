@@ -4,6 +4,7 @@ import { ContentCard } from '@/components/content-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import InputError from '@/components/input-error'
 import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types'
 import { Head, Link, useForm, usePage } from '@inertiajs/react'
@@ -155,12 +156,11 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                                 <Label htmlFor="deskripsi">
                                     Deskripsi
                                 </Label>
-                                <textarea
+                                <Textarea
                                     id="deskripsi"
                                     rows={4}
                                     value={data.deskripsi}
                                     onChange={(e) => setData('deskripsi', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-neutral-200/70 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     placeholder="Deskripsi kegiatan (opsional)"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />
