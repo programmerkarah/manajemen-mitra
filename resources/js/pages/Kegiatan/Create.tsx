@@ -45,7 +45,9 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
         jenis_kegiatan: 'survei' as 'sensus' | 'survei',
         deskripsi: '',
         tahun_anggaran: new Date().getFullYear(),
-        pagu_anggaran: '',
+        pagu_pencacahan: '',
+        pagu_listing: '',
+        has_listing_updating: false,
         ketua_tim_user_id: '',
         tanggal_mulai: '',
         tanggal_selesai: '',
@@ -53,7 +55,13 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/kegiatan');
+        // Kirim pagu_pencacahan dan pagu_listing sebagai number jika ada
+        const payload = {
+            ...data,
+            pagu_pencacahan: data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null,
+            pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
+        };
+        post('/kegiatan', { data: payload });
     };
 
     return (
@@ -191,28 +199,65 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     <InputError message={errors.tahun_anggaran} className="mt-2" />
                                 </div>
 
-                                {/* Pagu Anggaran */}
+                                {/* Pagu Pencacahan */}
                                 <div>
                                     <label
-                                        htmlFor="pagu_anggaran"
+                                        htmlFor="pagu_pencacahan"
                                         className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                     >
-                                        Pagu Anggaran (Rp)
+                                        Pagu Pencacahan (Rp)
                                     </label>
                                     <input
                                         type="text"
-                                        id="pagu_anggaran"
-                                        value={data.pagu_anggaran ? formatCurrency(data.pagu_anggaran) : ''}
+                                        id="pagu_pencacahan"
+                                        value={data.pagu_pencacahan ? formatCurrency(data.pagu_pencacahan) : ''}
                                         onChange={(e) => {
                                             const raw = parseCurrency(e.target.value)
-                                            setData('pagu_anggaran', raw)
+                                            setData('pagu_pencacahan', raw)
                                         }}
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
                                         placeholder="0"
                                     />
-                                    <InputError message={errors.pagu_anggaran} className="mt-2" />
+                                    <InputError message={errors.pagu_pencacahan} className="mt-2" />
                                 </div>
                             </div>
+
+
+                            {/* Tahapan Listing/Updating */}
+                            <div>
+                                <label htmlFor="has_listing_updating" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Apakah kegiatan ini memiliki tahapan Listing/Updating?
+                                </label>
+                                <input
+                                    type="checkbox"
+                                    id="has_listing_updating"
+                                    checked={data.has_listing_updating}
+                                    onChange={e => setData('has_listing_updating', e.target.checked)}
+                                    className="mt-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900"
+                                />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Aktifkan jika ada tahapan listing/updating sebelum pencacahan/pendataan lapangan.</span>
+                            </div>
+
+                            {/* Pagu Listing */}
+                            {data.has_listing_updating && (
+                                <div>
+                                    <label htmlFor="pagu_listing" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Pagu Listing/Updating (Rp)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="pagu_listing"
+                                        value={data.pagu_listing ? formatCurrency(data.pagu_listing) : ''}
+                                        onChange={e => {
+                                            const raw = parseCurrency(e.target.value)
+                                            setData('pagu_listing', raw)
+                                        }}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                        placeholder="0"
+                                    />
+                                    <InputError message={errors.pagu_listing} className="mt-2" />
+                                </div>
+                            )}
 
                             {/* Ketua Tim - Hidden for ketua_tim role */}
                             {!isKetuaTim && (

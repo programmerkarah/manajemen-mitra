@@ -28,7 +28,7 @@ class UpdateAlokasiPetugasRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'kegiatan_id' => ['required', 'exists:kegiatan,id'],
             'petugas_id' => ['required', 'exists:petugas,id'],
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
@@ -37,6 +37,14 @@ class UpdateAlokasiPetugasRequest extends FormRequest
             'jumlah_satuan' => ['required', 'integer', 'min:1'],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
         ];
+        $kegiatan = \App\Models\Kegiatan::find($this->kegiatan_id);
+        if ($kegiatan && $kegiatan->has_listing_updating) {
+            $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:1'];
+        } else {
+            $rules['jumlah_satuan_listing'] = ['nullable'];
+        }
+
+        return $rules;
     }
 
     /**

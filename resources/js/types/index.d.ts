@@ -72,7 +72,9 @@ export interface Kegiatan {
     jenis_kegiatan: 'sensus' | 'survei';
     deskripsi: string | null;
     tahun_anggaran: number;
-    pagu_anggaran: number | null;
+    pagu_pencacahan: number | null;
+    has_listing_updating: boolean;
+    pagu_listing: number | null;
     ketua_tim_user_id: number;
     rate_honor_id: string | null;
     rate_honor_status: 'pending' | 'approved' | 'rejected' | null;
@@ -114,6 +116,8 @@ export interface RateHonor {
     deskripsi: string | null;
     rate: number;
     satuan_id: string;
+    rate_listing?: number;
+    satuan_listing_id?: string;
     tahun_berlaku: number;
     status: 'aktif' | 'nonaktif';
     kegiatan_id?: string | null;

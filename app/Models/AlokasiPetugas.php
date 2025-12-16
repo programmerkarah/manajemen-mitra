@@ -22,6 +22,8 @@ class AlokasiPetugas extends Model
         return [
             'jumlah_satuan' => 'integer',
             'total_honor' => 'decimal:2',
+            'jumlah_satuan_listing' => 'integer',
+            'total_honor_listing' => 'decimal:2',
         ];
     }
 
@@ -30,6 +32,8 @@ class AlokasiPetugas extends Model
         'petugas_id',
         'jumlah_satuan',
         'total_honor',
+        'jumlah_satuan_listing',
+        'total_honor_listing',
         'peran',
         'status_kepegawaian',
         'catatan',

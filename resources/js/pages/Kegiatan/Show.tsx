@@ -34,7 +34,7 @@ interface Props {
             name: string
             email: string
         }
-        rate_honor?: RateHonor & {
+        rate_honor?: RateHonor[] & {
             satuan: Satuan
         }
         alokasi: Alokasi[]
@@ -243,14 +243,35 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 </p>
                             </div>
 
+
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Pagu Anggaran
+                                    Pagu Pencacahan
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {formatCurrency(kegiatan.pagu_anggaran)}
+                                    {formatCurrency(kegiatan.pagu_pencacahan)}
                                 </p>
                             </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Tahapan Listing/Updating
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.has_listing_updating ? 'Ya' : 'Tidak'}
+                                </p>
+                            </div>
+
+                            {kegiatan.has_listing_updating && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Pagu Listing/Updating
+                                    </label>
+                                    <p className="mt-1 text-gray-900 dark:text-white">
+                                        {formatCurrency(kegiatan.pagu_listing)}
+                                    </p>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -268,14 +289,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Rate Honor
                                 </label>
-                                {kegiatan.rate_honor ? (
+                                {Array.isArray(kegiatan.rate_honors) && kegiatan.rate_honors.length > 0 ? (
                                     <>
                                         <p className="mt-1 text-gray-900 dark:text-white">
-                                            {kegiatan.rate_honor.posisi}
-                                        </p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {formatCurrency(kegiatan.rate_honor.rate)}/
-                                            {kegiatan.rate_honor.satuan.nama}
+                                            Sudah ditentukan
                                         </p>
                                     </>
                                 ) : (
@@ -293,7 +310,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     {formatCurrency(totalAlokasi)}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Sisa: {formatCurrency((kegiatan.pagu_anggaran || 0) - totalAlokasi)}
+                                    Sisa: {formatCurrency((kegiatan.pagu_pencacahan || 0) - totalAlokasi)}
                                 </p>
                             </div>
 

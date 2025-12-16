@@ -27,7 +27,7 @@ class AlokasiPetugasController extends Controller
     {
         $activeYear = ActiveYearService::get();
         $query = PeriodeAlokasi::query()
-            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,anggaran', 'alokasiPetugas'])
+            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating', 'alokasiPetugas'])
             ->withCount('alokasiPetugas as jumlah_petugas')
             ->where('status', '!=', 'dihapus') // Exclude deleted periods
             ->where('status', '!=', 'direvisi') // Exclude old revisions
@@ -72,11 +72,17 @@ class AlokasiPetugasController extends Controller
 
         // Transform the result to include necessary data
         $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan) {
-            $estimasiHonor = $periode->total_honor;
-            $paguAnggaran = $periode->kegiatan->anggaran ?? 0;
+            // Calculate total honor (pencacahan + listing)
+            $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
+            $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
+            $estimasiHonor = $totalHonorPencacahan + $totalHonorListing;
 
-            // Use stored sisa_pagu instead of calculating dynamically
-            $sisaPagu = $periode->sisa_pagu ?? 0;
+            // Calculate combined sisa pagu
+            $sisaPaguPencacahan = $periode->sisa_pagu ?? 0;
+            $sisaPaguListing = $periode->sisa_pagu_listing ?? 0;
+            $sisaPagu = $sisaPaguPencacahan + $sisaPaguListing;
+
+            $paguAnggaran = $periode->kegiatan->pagu_pencacahan ?? 0;
 
             // Check if this is the latest period for this kegiatan
             $isLatestPeriode = $periode->status === 'dikirim' &&
@@ -93,7 +99,7 @@ class AlokasiPetugasController extends Controller
                 'total_honor' => $estimasiHonor,
                 'estimasi_honor' => $estimasiHonor,
                 'sisa_pagu' => $sisaPagu,
-                'pagu_anggaran' => $paguAnggaran,
+                'pagu_pencacahan' => $paguAnggaran,
                 'latest_created_at' => $periode->created_at,
                 'is_latest_periode' => $isLatestPeriode,
                 'kegiatan' => [
@@ -164,7 +170,9 @@ class AlokasiPetugasController extends Controller
                             'status_kepegawaian' => $alokasi->status_kepegawaian,
                             'peran' => $alokasi->peran,
                             'jumlah_satuan' => $alokasi->jumlah_satuan,
+                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                             'total_honor' => $alokasi->total_honor,
+                            'total_honor_listing' => $alokasi->total_honor_listing,
                             'catatan' => $alokasi->catatan,
                         ];
                     });
@@ -172,6 +180,7 @@ class AlokasiPetugasController extends Controller
                     $sourcePeriode = [
                         'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
                         'tahun' => $request->copy_from_tahun,
+                        'tahapan' => $sourcePeriode->tahapan ?? 'both',
                     ];
                 }
             }
@@ -216,7 +225,7 @@ class AlokasiPetugasController extends Controller
 
         $budgetInfo = [
             $kegiatan->id => [
-                'pagu_anggaran' => $kegiatan->anggaran ?? 0,
+                'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $totalSpent,
             ],
         ];
@@ -265,7 +274,8 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
-            'alokasi.*.jumlah_satuan' => 'required|integer|min:1',
+            'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
+            'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.catatan' => 'nullable|string',
         ]);
@@ -319,35 +329,49 @@ class AlokasiPetugasController extends Controller
 
             $totalHonor = $rateHonor->rate * $alokasiData['jumlah_satuan'];
 
-            // Check SBML constraint per assignment
-            $constraintError = $this->checkSbmlConstraint(
-                $alokasiData['tahun'],
-                $alokasiData['jenis_kegiatan'],
-                $rateHonor->status_kepegawaian,
-                $rateHonor->jenis_penugasan,
-                $totalHonor
-            );
-
-            if ($constraintError) {
-                $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
-
-                continue;
+            // Calculate listing honor if kegiatan has listing phase
+            $totalHonorListing = 0;
+            $jumlahSatuanListing = null;
+            if ($kegiatan->has_listing_updating && isset($alokasiData['jumlah_satuan_listing']) && $alokasiData['jumlah_satuan_listing'] > 0) {
+                $jumlahSatuanListing = $alokasiData['jumlah_satuan_listing'];
+                if ($rateHonor->rate_listing) {
+                    $totalHonorListing = $rateHonor->rate_listing * $jumlahSatuanListing;
+                }
             }
 
-            // Check petugas total honor in month across all assignments
-            $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
-                $alokasiData['petugas_id'],
-                $alokasiData['tahun'],
-                $alokasiData['bulan'],
-                $totalHonor,
-                null,
-                $jenisPenugasan
-            );
+            // Check SBML constraint per assignment (skip if honor is 0)
+            if ($totalHonor > 0) {
+                $constraintError = $this->checkSbmlConstraint(
+                    $alokasiData['tahun'],
+                    $alokasiData['jenis_kegiatan'],
+                    $rateHonor->status_kepegawaian,
+                    $rateHonor->jenis_penugasan,
+                    $totalHonor
+                );
 
-            if ($petugasTotalError) {
-                $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
+                if ($constraintError) {
+                    $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
 
-                continue;
+                    continue;
+                }
+            }
+
+            // Check petugas total honor in month across all assignments (skip if honor is 0)
+            if ($totalHonor > 0) {
+                $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
+                    $alokasiData['petugas_id'],
+                    $alokasiData['tahun'],
+                    $alokasiData['bulan'],
+                    $totalHonor,
+                    null,
+                    $jenisPenugasan
+                );
+
+                if ($petugasTotalError) {
+                    $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
+
+                    continue;
+                }
             }
 
             // Store data grouped by periode
@@ -357,6 +381,7 @@ class AlokasiPetugasController extends Controller
                     'bulan' => str_pad($alokasiData['bulan'], 2, '0', STR_PAD_LEFT),
                     'tahun' => $alokasiData['tahun'],
                     'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
+                    'tahapan' => $alokasiData['tahapan'] ?? 'both',
                     'alokasi' => [],
                 ];
             }
@@ -364,7 +389,9 @@ class AlokasiPetugasController extends Controller
             $periodeGroups[$periodeKey]['alokasi'][] = [
                 'petugas_id' => $alokasiData['petugas_id'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
+                'jumlah_satuan_listing' => $jumlahSatuanListing,
                 'total_honor' => $totalHonor,
+                'total_honor_listing' => $totalHonorListing,
                 'peran' => $jenisPenugasan,
                 'status_kepegawaian' => $rateHonor->status_kepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
@@ -377,10 +404,12 @@ class AlokasiPetugasController extends Controller
         foreach ($periodeGroups as $periodeData) {
             // Calculate new periode's total honor
             $newPeriodeTotalHonor = collect($periodeData['alokasi'])->sum('total_honor');
+            $newPeriodeTotalHonorListing = collect($periodeData['alokasi'])->sum('total_honor_listing');
 
             // Check budget constraint before creating periode
             $kegiatan->load('periodeAlokasi.alokasiPetugas');
-            $paguAnggaran = $kegiatan->anggaran ?? 0;
+            $paguAnggaran = $kegiatan->pagu_pencacahan ?? 0;
+            $paguListing = $kegiatan->has_listing_updating ? ($kegiatan->pagu_listing ?? 0) : 0;
 
             // Calculate total spent across all active periods
             $totalSpent = $kegiatan->periodeAlokasi
@@ -389,16 +418,24 @@ class AlokasiPetugasController extends Controller
                     return $p->alokasiPetugas->sum('total_honor');
                 });
 
-            $sisaPagu = $paguAnggaran - $totalSpent;
+            $totalSpentListing = $kegiatan->periodeAlokasi
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor_listing');
+                });
 
+            $sisaPagu = $paguAnggaran - $totalSpent;
+            $sisaPaguListing = $paguListing - $totalSpentListing;
             // Validate that sisa pagu is sufficient for new periode
-            if ($newPeriodeTotalHonor > $sisaPagu) {
+            if ($newPeriodeTotalHonor > $sisaPagu || $newPeriodeTotalHonorListing > $sisaPaguListing) {
                 DB::rollBack();
 
                 return back()->withErrors([
                     'budget' => 'Anggaran tidak mencukupi untuk menambahkan periode ini. '.
                         'Sisa pagu: '.number_format($sisaPagu, 0, ',', '.').', '.
                         'Estimasi honor periode baru: '.number_format($newPeriodeTotalHonor, 0, ',', '.'),
+                    ' Sisa pagu listing: '.number_format($sisaPaguListing, 0, ',', '.').', '.
+                    'Estimasi honor listing periode baru: '.number_format($newPeriodeTotalHonorListing, 0, ',', '.'),
                 ]);
             }
 
@@ -416,10 +453,27 @@ class AlokasiPetugasController extends Controller
                 ->orderByDesc('bulan')
                 ->first();
 
+            $previousPeriodeListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where(function ($query) use ($periodeData) {
+                    $query->where('tahun', '<', $periodeData['tahun'])
+                        ->orWhere(function ($q) use ($periodeData) {
+                            $q->where('tahun', $periodeData['tahun'])
+                                ->where('bulan', '<', $periodeData['bulan']);
+                        });
+                })
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->orderByDesc('tahun')
+                ->orderByDesc('bulan')
+                ->first();
+
             // Calculate sisa_pagu for this new periode
             $sisaPaguPeriode = $previousPeriode
                 ? $previousPeriode->sisa_pagu - $newPeriodeTotalHonor
                 : $paguAnggaran - $newPeriodeTotalHonor;
+
+            $sisaPaguPeriodeListing = $previousPeriodeListing
+                ? $previousPeriodeListing->sisa_pagu_listing - $newPeriodeTotalHonorListing
+                : $paguListing - $newPeriodeTotalHonorListing;
 
             // Check for existing periode (including dihapus status)
             $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -431,8 +485,10 @@ class AlokasiPetugasController extends Controller
                 // Reuse periode that was marked as deleted
                 $periode->update([
                     'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                    'tahapan' => $periodeData['tahapan'] ?? 'both',
                     'status' => 'draft',
                     'sisa_pagu' => $sisaPaguPeriode,
+                    'sisa_pagu_listing' => $sisaPaguPeriodeListing,
                 ]);
             } elseif (! $periode) {
                 // Create new periode
@@ -441,8 +497,10 @@ class AlokasiPetugasController extends Controller
                     'bulan' => $periodeData['bulan'],
                     'tahun' => $periodeData['tahun'],
                     'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                    'tahapan' => $periodeData['tahapan'] ?? 'both',
                     'status' => 'draft',
                     'sisa_pagu' => $sisaPaguPeriode,
+                    'sisa_pagu_listing' => $sisaPaguPeriodeListing,
                 ]);
             }
 
@@ -452,7 +510,9 @@ class AlokasiPetugasController extends Controller
                     'periode_alokasi_id' => $periode->id,
                     'petugas_id' => $alokasiItem['petugas_id'],
                     'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
+                    'jumlah_satuan_listing' => $alokasiItem['jumlah_satuan_listing'],
                     'total_honor' => $alokasiItem['total_honor'],
+                    'total_honor_listing' => $alokasiItem['total_honor_listing'],
                     'peran' => $alokasiItem['peran'],
                     'status_kepegawaian' => $alokasiItem['status_kepegawaian'],
                     'catatan' => $alokasiItem['catatan'],
@@ -474,7 +534,7 @@ class AlokasiPetugasController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
         $activeYear = ActiveYearService::get();
 
@@ -495,14 +555,29 @@ class AlokasiPetugasController extends Controller
                 'rateHonors' => function ($query) use ($activeYear) {
                     $query->where('status', 'aktif')
                         ->where('tahun_berlaku', $activeYear)
-                        ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'satuan_id')
-                        ->with('satuan:id,kode,nama');
+                        ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
+                        ->with([
+                            'satuan:id,kode,nama',
+                            'satuanListing:id,kode,nama',
+                        ]);
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'anggaran', 'ketua_tim_user_id')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Pastikan field rate_listing dan satuan_listing_id selalu ada di setiap rateHonors
+        foreach ($kegiatans as $kegiatan) {
+            foreach ($kegiatan->rateHonors as $rateHonor) {
+                // Pastikan field rate_listing dan satuan_listing_id selalu ada
+                if (! array_key_exists('rate_listing', $rateHonor->getAttributes())) {
+                    $rateHonor->rate_listing = null;
+                }
+                if (! array_key_exists('satuan_listing_id', $rateHonor->getAttributes())) {
+                    $rateHonor->satuan_listing_id = null;
+                }
+            }
+        }
         // Calculate budget info for all kegiatans
         $budgetInfo = [];
         $usedMonthsInfo = [];
@@ -516,9 +591,20 @@ class AlokasiPetugasController extends Controller
                     return $p->alokasiPetugas->sum('total_honor');
                 });
 
+            $totalSpentListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->with('alokasiPetugas')
+                ->get()
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor_listing');
+                });
+
             $budgetInfo[$kegiatan->id] = [
-                'pagu_anggaran' => $kegiatan->anggaran ?? 0,
+                'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $totalSpent,
+                'pagu_listing' => $kegiatan->pagu_listing ?? 0,
+                'current_total_spent_listing' => $totalSpentListing,
             ];
 
             // Calculate used months for this kegiatan
@@ -550,7 +636,7 @@ class AlokasiPetugasController extends Controller
                                     ->with('satuan:id,kode,nama');
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'ketua_tim_user_id')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'ketua_tim_user_id', 'tanggal_mulai', 'tanggal_selesai')
                         ->first();
                 }
             } catch (\Exception $e) {
@@ -603,6 +689,7 @@ class AlokasiPetugasController extends Controller
                                     $sourcePeriode = [
                                         'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
                                         'tahun' => $request->copy_from_tahun,
+                                        'tahapan' => $sourcePeriodeData->tahapan ?? 'both',
                                     ];
                                 }
                             }
@@ -643,12 +730,21 @@ class AlokasiPetugasController extends Controller
     public function store(StoreAlokasiPetugasRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $kegiatan = Kegiatan::findOrFail($data['kegiatan_id']);
+        $hasListing = $kegiatan->has_listing_updating;
 
-        // Calculate total honor
+        // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
         $totalHonor = $rateHonor->rate * $data['jumlah_satuan'];
 
-        // Check SBML constraint
+        // Calculate total honor for listing if present
+        $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
+        $totalHonorListing = null;
+        if ($hasListing && $jumlahSatuanListing !== null) {
+            $totalHonorListing = ($rateHonor->rate_listing ?? 0) * $jumlahSatuanListing;
+        }
+
+        // Check SBML constraint for pencacahan
         $constraintError = $this->checkSbmlConstraint(
             $data['tahun'],
             $data['jenis_kegiatan'],
@@ -656,12 +752,15 @@ class AlokasiPetugasController extends Controller
             $rateHonor->jenis_penugasan,
             $totalHonor
         );
-
         if ($constraintError) {
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
         }
 
+        // Optionally check SBML for listing phase if needed
+
         $data['total_honor'] = $totalHonor;
+        $data['total_honor_listing'] = $totalHonorListing;
+        $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
         $data['peran'] = $rateHonor->posisi;
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
         $data['submitted_by'] = $request->user()->id;
@@ -722,12 +821,21 @@ class AlokasiPetugasController extends Controller
     public function update(UpdateAlokasiPetugasRequest $request, AlokasiPetugas $alokasi): RedirectResponse
     {
         $data = $request->validated();
+        $kegiatan = Kegiatan::findOrFail($data['kegiatan_id']);
+        $hasListing = $kegiatan->has_listing_updating;
 
-        // Calculate total honor
+        // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
         $totalHonor = $rateHonor->rate * $data['jumlah_satuan'];
 
-        // Check SBML constraint
+        // Calculate total honor for listing if present
+        $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
+        $totalHonorListing = null;
+        if ($hasListing && $jumlahSatuanListing !== null) {
+            $totalHonorListing = ($rateHonor->rate_listing ?? 0) * $jumlahSatuanListing;
+        }
+
+        // Check SBML constraint for pencacahan
         $constraintError = $this->checkSbmlConstraint(
             $data['tahun'],
             $data['jenis_kegiatan'],
@@ -735,12 +843,13 @@ class AlokasiPetugasController extends Controller
             $rateHonor->jenis_penugasan,
             $totalHonor
         );
-
         if ($constraintError) {
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
         }
 
         $data['total_honor'] = $totalHonor;
+        $data['total_honor_listing'] = $totalHonorListing;
+        $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
         $data['peran'] = $rateHonor->posisi;
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
 
@@ -908,7 +1017,9 @@ class AlokasiPetugasController extends Controller
             ->firstOrFail();
 
         // Calculate totals
-        $totalEstimasi = $periode->alokasiPetugas->sum('total_honor');
+        $totalEstimasiPencacahan = $periode->alokasiPetugas->sum('total_honor');
+        $totalEstimasiListing = $periode->alokasiPetugas->sum('total_honor_listing');
+        $totalEstimasi = $totalEstimasiPencacahan + $totalEstimasiListing;
         $jumlahPetugas = $periode->alokasiPetugas->count();
 
         // Format periode data
@@ -928,6 +1039,7 @@ class AlokasiPetugasController extends Controller
                 'kode_kegiatan' => $kegiatan->kode_kegiatan,
                 'nama_kegiatan' => $kegiatan->nama_kegiatan,
                 'hashed_id' => $kegiatan->hashed_id,
+                'has_listing_updating' => $kegiatan->has_listing_updating ?? false,
             ],
             'alokasi_petugas' => $periode->alokasiPetugas->map(function ($alokasi) {
                 return [
@@ -939,11 +1051,21 @@ class AlokasiPetugasController extends Controller
                     ],
                     'peran' => $alokasi->peran,
                     'jumlah_satuan' => $alokasi->jumlah_satuan,
+                    'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                     'total_honor' => $alokasi->total_honor,
+                    'total_honor_listing' => $alokasi->total_honor_listing,
+                    'rate_pencacahan' => $alokasi->jumlah_satuan > 0
+                        ? $alokasi->total_honor / $alokasi->jumlah_satuan
+                        : 0,
+                    'rate_listing' => ($alokasi->jumlah_satuan_listing ?? 0) > 0
+                        ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
+                        : 0,
                     'catatan' => $alokasi->catatan,
                 ];
             }),
             'total_estimasi' => $totalEstimasi,
+            'total_estimasi_pencacahan' => $totalEstimasiPencacahan,
+            'total_estimasi_listing' => $totalEstimasiListing,
             'jumlah_petugas' => $jumlahPetugas,
         ];
 
@@ -966,6 +1088,9 @@ class AlokasiPetugasController extends Controller
             ])
             ->get()
             ->map(function ($rev) {
+                $totalPencacahan = $rev->alokasiPetugas->sum('total_honor');
+                $totalListing = $rev->alokasiPetugas->sum('total_honor_listing');
+
                 return [
                     'id' => $rev->id,
                     'revision_number' => $rev->revision_number,
@@ -982,11 +1107,21 @@ class AlokasiPetugasController extends Controller
                             ],
                             'peran' => $alokasi->peran,
                             'jumlah_satuan' => $alokasi->jumlah_satuan,
+                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                             'total_honor' => $alokasi->total_honor,
+                            'total_honor_listing' => $alokasi->total_honor_listing,
+                            'rate_pencacahan' => $alokasi->jumlah_satuan > 0
+                                ? $alokasi->total_honor / $alokasi->jumlah_satuan
+                                : 0,
+                            'rate_listing' => ($alokasi->jumlah_satuan_listing ?? 0) > 0
+                                ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
+                                : 0,
                             'catatan' => $alokasi->catatan,
                         ];
                     }),
-                    'total_estimasi' => $rev->alokasiPetugas->sum('total_honor'),
+                    'total_estimasi' => $totalPencacahan + $totalListing,
+                    'total_estimasi_pencacahan' => $totalPencacahan,
+                    'total_estimasi_listing' => $totalListing,
                     'jumlah_petugas' => $rev->alokasiPetugas->count(),
                 ];
             })
@@ -1003,7 +1138,7 @@ class AlokasiPetugasController extends Controller
     /**
      * Edit all alokasi in a periode
      */
-    public function editPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): Response
+    public function editPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): Response|RedirectResponse
     {
         // Check if this is revisi mode from session
         $isRevisiMode = $request->session()->get('is_revisi_mode', false);
@@ -1029,7 +1164,7 @@ class AlokasiPetugasController extends Controller
         }
 
         // Load kegiatan with rate honors and satuan
-        $kegiatanWithRates = Kegiatan::with(['rateHonors.satuan'])->findOrFail($kegiatan->id);
+        $kegiatanWithRates = Kegiatan::with(['rateHonors.satuan', 'rateHonors.satuanListing'])->findOrFail($kegiatan->id);
 
         // Load all petugas
         $petugas = Petugas::select('id', 'nama', 'jenis_petugas')
@@ -1051,7 +1186,9 @@ class AlokasiPetugasController extends Controller
                 'status_kepegawaian' => $alok->petugas->jenis_petugas,
                 'peran' => $alok->peran,
                 'jumlah_satuan' => $alok->jumlah_satuan,
+                'jumlah_satuan_listing' => $alok->jumlah_satuan_listing,
                 'total_honor' => $alok->total_honor,
+                'total_honor_listing' => $alok->total_honor_listing,
                 'catatan' => $alok->catatan,
             ];
         });
@@ -1078,10 +1215,21 @@ class AlokasiPetugasController extends Controller
                 return $p->alokasiPetugas->sum('total_honor');
             });
 
+        $totalSpentListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('id', '!=', $periode->id) // Exclude current periode
+            ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+            ->with('alokasiPetugas')
+            ->get()
+            ->sum(function ($p) {
+                return $p->alokasiPetugas->sum('total_honor_listing');
+            });
+
         $budgetInfo = [
             $kegiatan->id => [
-                'pagu_anggaran' => $kegiatan->anggaran ?? 0,
+                'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $totalSpent,
+                'pagu_listing' => $kegiatan->pagu_listing ?? 0,
+                'current_total_spent_listing' => $totalSpentListing,
             ],
         ];
 
@@ -1102,6 +1250,7 @@ class AlokasiPetugasController extends Controller
             'sourcePeriode' => [
                 'bulan' => $bulan,
                 'tahun' => $tahun,
+                'tahapan' => $periode->tahapan ?? 'both',
             ],
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
@@ -1141,7 +1290,8 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
-            'alokasi.*.jumlah_satuan' => 'required|integer|min:1',
+            'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
+            'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.catatan' => 'nullable|string',
         ]);
@@ -1152,18 +1302,7 @@ class AlokasiPetugasController extends Controller
             $isRevision = $request->session()->get('is_revisi_mode', false);
             $parentPeriodeId = $request->session()->get('revisi_parent_periode_id');
 
-            \Log::info('=== UPDATE PERIODE START ===', [
-                'isRevision' => $isRevision,
-                'parentPeriodeId' => $parentPeriodeId,
-                'kegiatan_id' => $kegiatan->id,
-                'tahun' => $tahun,
-                'bulan' => $bulan,
-                'validated_alokasi_count' => count($validated['alokasi'] ?? []),
-            ]);
-
             if ($isRevision && $parentPeriodeId) {
-                \Log::info('>>> ENTERING REVISION PATH <<<');
-                // Get parent periode to check for changes
                 $parentPeriode = PeriodeAlokasi::with('alokasiPetugas')->findOrFail($parentPeriodeId);
 
                 // Get original alokasi from parent periode
@@ -1192,21 +1331,8 @@ class AlokasiPetugasController extends Controller
 
                 // Check if there are changes
                 $hasChanges = json_encode($originalAlokasi) !== json_encode($newAlokasi);
-
-                // Debug logging
-                \Log::info('=== REVISION COMPARISON ===', [
-                    'original_count' => count($originalAlokasi),
-                    'new_count' => count($newAlokasi),
-                    'original' => $originalAlokasi,
-                    'new' => $newAlokasi,
-                    'original_json' => json_encode($originalAlokasi),
-                    'new_json' => json_encode($newAlokasi),
-                    'has_changes' => $hasChanges,
-                ]);
-
                 // If no changes, just redirect without creating anything
                 if (! $hasChanges) {
-                    \Log::info('!!! NO CHANGES DETECTED - EARLY RETURN !!!');
                     // Clear session
                     $request->session()->forget(['is_revisi_mode', 'revisi_parent_periode_id', 'revisi_kegiatan_id', 'revisi_tahun', 'revisi_bulan']);
 
@@ -1217,7 +1343,6 @@ class AlokasiPetugasController extends Controller
                 }
 
                 // If there are changes, create new periode with 'perubahan' status
-                \Log::info('>>> CHANGES DETECTED - CREATING NEW PERIODE <<<');
                 $revisionNumber = ($parentPeriode->revision_number ?? 0) + 1;
 
                 $periode = PeriodeAlokasi::create([
@@ -1227,6 +1352,7 @@ class AlokasiPetugasController extends Controller
                     'bulan' => $parentPeriode->bulan,
                     'tahun' => $parentPeriode->tahun,
                     'jenis_kegiatan' => $parentPeriode->jenis_kegiatan,
+                    'tahapan' => $validated['alokasi'][0]['tahapan'] ?? $parentPeriode->tahapan ?? 'both',
                     'status' => 'perubahan',
                 ]);
 
@@ -1239,11 +1365,6 @@ class AlokasiPetugasController extends Controller
                 // Now create alokasi for new periode (continue to loop below)
             } else {
                 // Normal edit - find existing periode
-                \Log::info('>>> ENTERING NORMAL EDIT PATH (not revision) <<<', [
-                    'kegiatan_id' => $kegiatan->id,
-                    'tahun' => $tahun,
-                    'bulan' => $bulan,
-                ]);
 
                 $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                     ->where('tahun', $tahun)
@@ -1253,31 +1374,21 @@ class AlokasiPetugasController extends Controller
                     ->first();
 
                 if (! $periode) {
-                    \Log::error('Periode not found for edit', [
-                        'kegiatan_id' => $kegiatan->id,
-                        'tahun' => $tahun,
-                        'bulan' => $bulan,
-                        'available_periodes' => PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                            ->where('tahun', $tahun)
-                            ->where('bulan', $bulan)
-                            ->get(['id', 'status', 'revision_number'])
-                            ->toArray(),
-                    ]);
-
                     DB::rollBack();
 
                     return back()->withErrors(['periode' => 'Periode tidak ditemukan atau tidak dapat diedit.']);
                 }
+
+                // Update tahapan field
+                $periode->update([
+                    'tahapan' => $validated['alokasi'][0]['tahapan'] ?? 'both',
+                ]);
 
                 // Delete existing alokasi for update
                 AlokasiPetugas::where('periode_alokasi_id', $periode->id)->delete();
             }
 
             // Create new alokasi entries (only executed if not early return above)
-            \Log::info('=== CREATING ALOKASI ENTRIES ===', [
-                'periode_id' => $periode->id,
-                'count' => count($validated['alokasi']),
-            ]);
 
             $errors = [];
             $created = 0;
@@ -1319,39 +1430,53 @@ class AlokasiPetugasController extends Controller
                     continue;
                 }
 
-                // Calculate total honor
+                // Calculate pencacahan honor (can be 0 if listing_only)
                 $totalHonor = $rateHonor->rate * $alokasiData['jumlah_satuan'];
 
-                // Check SBML constraint per assignment
-                $constraintError = $this->checkSbmlConstraint(
-                    (int) $tahun,
-                    $kegiatan->jenis_kegiatan,
-                    $petugasType,
-                    $jenisPenugasan,
-                    $totalHonor
-                );
-
-                if ($constraintError) {
-                    $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
-
-                    continue;
+                // Calculate listing honor if kegiatan has listing phase
+                $totalHonorListing = 0;
+                $jumlahSatuanListing = 0;
+                if ($kegiatan->has_listing_updating) {
+                    $jumlahSatuanListing = $alokasiData['jumlah_satuan_listing'] ?? 0;
+                    if ($jumlahSatuanListing > 0 && $rateHonor->rate_listing) {
+                        $totalHonorListing = $rateHonor->rate_listing * $jumlahSatuanListing;
+                    }
                 }
 
-                // Check petugas total honor in month across all assignments
+                // Check SBML constraint per assignment (skip if honor is 0)
+                if ($totalHonor > 0) {
+                    $constraintError = $this->checkSbmlConstraint(
+                        (int) $tahun,
+                        $kegiatan->jenis_kegiatan,
+                        $petugasType,
+                        $jenisPenugasan,
+                        $totalHonor
+                    );
+
+                    if ($constraintError) {
+                        $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
+
+                        continue;
+                    }
+                }
+
+                // Check petugas total honor in month across all assignments (skip if honor is 0)
                 // For edit/revision, exclude current periode from calculation
-                $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
-                    $alokasiData['petugas_id'],
-                    (int) $tahun,
-                    (int) $bulan,
-                    $totalHonor,
-                    $periode->id,
-                    $jenisPenugasan
-                );
+                if ($totalHonor > 0) {
+                    $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
+                        $alokasiData['petugas_id'],
+                        (int) $tahun,
+                        (int) $bulan,
+                        $totalHonor,
+                        $periode->id,
+                        $jenisPenugasan
+                    );
 
-                if ($petugasTotalError) {
-                    $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
+                    if ($petugasTotalError) {
+                        $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
 
-                    continue;
+                        continue;
+                    }
                 }
 
                 // Create new alokasi
@@ -1359,7 +1484,9 @@ class AlokasiPetugasController extends Controller
                     'periode_alokasi_id' => $periode->id,
                     'petugas_id' => $alokasiData['petugas_id'],
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
+                    'jumlah_satuan_listing' => $jumlahSatuanListing,
                     'total_honor' => $totalHonor,
+                    'total_honor_listing' => $totalHonorListing,
                     'peran' => $jenisPenugasan,
                     'status_kepegawaian' => $petugasType,
                     'catatan' => $alokasiData['catatan'] ?? null,
@@ -1380,16 +1507,19 @@ class AlokasiPetugasController extends Controller
             // Recalculate periode total and sisa_pagu
             $periode->load('alokasiPetugas');
             $newPeriodeTotalHonor = $periode->alokasiPetugas->sum('total_honor');
+            $newPeriodeTotalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
 
             // Calculate sisa_pagu based on previous periods
             $kegiatan->load('periodeAlokasi.alokasiPetugas');
-            $paguAnggaran = $kegiatan->anggaran ?? 0;
+            $paguAnggaran = $kegiatan->pagu_pencacahan ?? 0;
+            $paguListing = $kegiatan->pagu_listing ?? 0;
 
             // For revision, we need to adjust calculation
             if ($isRevision && $parentPeriodeId) {
                 // Get parent periode total (old value that was revised)
                 $parentPeriode = PeriodeAlokasi::with('alokasiPetugas')->find($parentPeriodeId);
                 $oldPeriodeTotalHonor = $parentPeriode ? $parentPeriode->alokasiPetugas->sum('total_honor') : 0;
+                $oldPeriodeTotalHonorListing = $parentPeriode ? $parentPeriode->alokasiPetugas->sum('total_honor_listing') : 0;
 
                 // Find periode BEFORE the parent periode (the one that was just revised)
                 $previousPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1412,13 +1542,9 @@ class AlokasiPetugasController extends Controller
                     ? $previousPeriode->sisa_pagu + $oldPeriodeTotalHonor - $newPeriodeTotalHonor
                     : $paguAnggaran - $newPeriodeTotalHonor;
 
-                \Log::info('=== REVISION SISA PAGU CALCULATION ===', [
-                    'previous_periode_id' => $previousPeriode?->id,
-                    'previous_sisa_pagu' => $previousPeriode?->sisa_pagu,
-                    'old_periode_total' => $oldPeriodeTotalHonor,
-                    'new_periode_total' => $newPeriodeTotalHonor,
-                    'calculated_sisa_pagu' => $sisaPaguPeriode,
-                ]);
+                $sisaPaguPeriodeListing = $previousPeriode
+                    ? ($previousPeriode->sisa_pagu_listing ?? 0) + $oldPeriodeTotalHonorListing - $newPeriodeTotalHonorListing
+                    : $paguListing - $newPeriodeTotalHonorListing;
             } else {
                 // Normal edit - use standard calculation
                 $previousPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1437,15 +1563,19 @@ class AlokasiPetugasController extends Controller
                 $sisaPaguPeriode = $previousPeriode
                     ? $previousPeriode->sisa_pagu - $newPeriodeTotalHonor
                     : $paguAnggaran - $newPeriodeTotalHonor;
+
+                $sisaPaguPeriodeListing = $previousPeriode
+                    ? ($previousPeriode->sisa_pagu_listing ?? 0) - $newPeriodeTotalHonorListing
+                    : $paguListing - $newPeriodeTotalHonorListing;
             }
 
             $periode->update([
                 'sisa_pagu' => $sisaPaguPeriode,
+                'sisa_pagu_listing' => $sisaPaguPeriodeListing,
             ]);
 
             // If this is a revision, recalculate sisa_pagu for all subsequent periods
             if ($isRevision && $parentPeriodeId) {
-                \Log::info('=== RECALCULATING SISA PAGU FOR SUBSEQUENT PERIODS ===');
 
                 // Get all periods after this one
                 $subsequentPeriods = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1462,19 +1592,17 @@ class AlokasiPetugasController extends Controller
                     ->get();
 
                 $currentSisaPagu = $sisaPaguPeriode;
+                $currentSisaPaguListing = $sisaPaguPeriodeListing;
                 foreach ($subsequentPeriods as $nextPeriode) {
                     $nextPeriode->load('alokasiPetugas');
                     $nextPeriodeTotal = $nextPeriode->alokasiPetugas->sum('total_honor');
+                    $nextPeriodeTotalListing = $nextPeriode->alokasiPetugas->sum('total_honor_listing');
                     $currentSisaPagu = $currentSisaPagu - $nextPeriodeTotal;
+                    $currentSisaPaguListing = $currentSisaPaguListing - $nextPeriodeTotalListing;
 
-                    $nextPeriode->update(['sisa_pagu' => $currentSisaPagu]);
-
-                    \Log::info('Updated subsequent periode', [
-                        'periode_id' => $nextPeriode->id,
-                        'bulan' => $nextPeriode->bulan,
-                        'tahun' => $nextPeriode->tahun,
-                        'total' => $nextPeriodeTotal,
-                        'new_sisa_pagu' => $currentSisaPagu,
+                    $nextPeriode->update([
+                        'sisa_pagu' => $currentSisaPagu,
+                        'sisa_pagu_listing' => $currentSisaPaguListing,
                     ]);
                 }
             }
@@ -1553,20 +1681,6 @@ class AlokasiPetugasController extends Controller
         $request->session()->put('revisi_tahun', $tahun);
         $request->session()->put('revisi_bulan', $bulan);
         $request->session()->put('is_revisi_mode', true);
-
-        \Log::info('=== REVISI MODE ACTIVATED ===', [
-            'parent_periode_id' => $oldPeriode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'tahun' => $tahun,
-            'bulan' => $bulan,
-            'session_keys_set' => [
-                'revisi_parent_periode_id',
-                'revisi_kegiatan_id',
-                'revisi_tahun',
-                'revisi_bulan',
-                'is_revisi_mode',
-            ],
-        ]);
 
         // Redirect to edit page - will load data from parent periode
         return redirect('/alokasi/periode/'.$kegiatan->hashed_id.'/'.$tahun.'/'.$bulan.'/edit')

@@ -67,7 +67,7 @@ class KegiatanController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
-        $rateHonors = RateHonor::with('satuan')
+        $rateHonors = RateHonor::with(['satuan', 'satuanListing'])
             ->where('status', 'aktif')
             ->where('tahun_berlaku', now()->year)
             ->get();
@@ -122,6 +122,14 @@ class KegiatanController extends Controller
         // Generate kode kegiatan otomatis
         $data['kode_kegiatan'] = $this->generateKodeKegiatan($data['tahun_anggaran']);
 
+        // Pastikan field baru ikut tersimpan
+        if (isset($data['has_listing_updating'])) {
+            $data['has_listing_updating'] = (bool) $data['has_listing_updating'];
+        }
+        if (isset($data['pagu_listing'])) {
+            $data['pagu_listing'] = $data['pagu_listing'];
+        }
+
         if (! isset($data['status'])) {
             $data['status'] = 'draft';
         }
@@ -143,6 +151,7 @@ class KegiatanController extends Controller
         $kegiatan->load([
             'ketuaTim',
             'rateHonors.satuan',
+            'rateHonors.satuanListing',
             'periodeAlokasi.alokasiPetugas.petugas',
         ]);
 
@@ -216,10 +225,13 @@ class KegiatanController extends Controller
 
         $data = $request->validated();
 
-        // Transform pagu_anggaran to anggaran (database column name)
-        if (isset($data['pagu_anggaran'])) {
-            $data['anggaran'] = $data['pagu_anggaran'];
-            unset($data['pagu_anggaran']);
+        // Transform pagu_pencacahan to pagu_pencacahan (database column name)
+        // Pastikan field baru ikut tersimpan
+        if (isset($data['has_listing_updating'])) {
+            $data['has_listing_updating'] = (bool) $data['has_listing_updating'];
+        }
+        if (isset($data['pagu_listing'])) {
+            $data['pagu_listing'] = $data['pagu_listing'];
         }
 
         // Ketua Tim can validate kegiatan (check before updating)
@@ -272,9 +284,9 @@ class KegiatanController extends Controller
             }
         }
 
-        // Check if anggaran (pagu) is being changed
-        $oldPagu = (float) ($kegiatan->anggaran ?? 0);
-        $newPagu = (float) ($data['anggaran'] ?? 0);
+        // Check if pagu_pencacahan (pagu) is being changed
+        $oldPagu = (float) ($kegiatan->pagu_pencacahan ?? 0);
+        $newPagu = (float) ($data['pagu_pencacahan'] ?? 0);
         $paguChanged = $oldPagu != $newPagu;
 
         if ($paguChanged) {
@@ -291,9 +303,8 @@ class KegiatanController extends Controller
 
             // Check if new pagu is smaller than total allocated honor
             if ($newPagu < $totalHonorAlokasi) {
-
                 return back()->withErrors([
-                    'pagu_anggaran' => sprintf(
+                    'pagu_pencacahan' => sprintf(
                         'Pagu anggaran tidak boleh lebih kecil dari total honor yang sudah dialokasikan (Rp %s). Total honor saat ini: Rp %s',
                         number_format($newPagu, 0, ',', '.'),
                         number_format($totalHonorAlokasi, 0, ',', '.')
@@ -362,7 +373,7 @@ class KegiatanController extends Controller
         $kegiatan->load(['rateHonors' => function ($query) {
             $query->orderBy('status_kepegawaian')
                 ->orderBy('jenis_penugasan');
-        }]);
+        }, 'rateHonors.satuan', 'rateHonors.satuanListing']);
 
         // Get all available satuan
         $satuans = Satuan::where('status', 'aktif')->get();
@@ -387,7 +398,9 @@ class KegiatanController extends Controller
             'rate_honors.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
             'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
             'rate_honors.*.rate' => ['required', 'numeric', 'min:0'],
-            'rate_honors.*.satuan_id' => ['required', 'exists:satuan,id'],
+            'satuan_id' => ['required', 'exists:satuan,id'],
+            'satuan_listing_id' => ['nullable', 'exists:satuan,id'],
+            'rate_honors.*.rate_listing' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         // Delete existing rate honors for this kegiatan
@@ -408,7 +421,7 @@ class KegiatanController extends Controller
             ];
             $penugasanLabel = $penugasanLabels[$rateHonorData['jenis_penugasan']] ?? $rateHonorData['jenis_penugasan'];
 
-            RateHonor::create([
+            $data = [
                 'kegiatan_id' => $kegiatan->id,
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'posisi' => "{$kegiatan->nama_kegiatan} - {$statusLabel} - {$penugasanLabel}",
@@ -416,10 +429,16 @@ class KegiatanController extends Controller
                 'status_kepegawaian' => $rateHonorData['status_kepegawaian'],
                 'deskripsi' => "Rate honor untuk kegiatan {$kegiatan->kode_kegiatan}",
                 'rate' => $rateHonorData['rate'],
-                'satuan_id' => $rateHonorData['satuan_id'],
+                'satuan_id' => $request->satuan_id,
                 'tahun_berlaku' => $kegiatan->tahun_anggaran,
                 'status' => 'aktif',
-            ]);
+            ];
+            // Simpan rate_listing dan satuan_listing_id jika ada (untuk tahapan listing/updating)
+            if (array_key_exists('rate_listing', $rateHonorData)) {
+                $data['rate_listing'] = $rateHonorData['rate_listing'] ?? null;
+                $data['satuan_listing_id'] = $request->satuan_listing_id ?? null;
+            }
+            RateHonor::create($data);
         }
 
         return redirect()->route('kegiatan.show', $kegiatan->hashed_id)

@@ -17,6 +17,8 @@ import { BreadcrumbItem } from '@/types'
 interface AlokasiDetail {
     peran: string
     jumlah_satuan: number
+    jumlah_satuan_listing: number | null
+    total_honor_listing: number
     total_honor: number
     status_kepegawaian: string
     catatan: string | null
@@ -104,14 +106,14 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
         }
         if (percentage >= 90) {
             return (
-                <Badge variant="warning" className="gap-1">
+                <Badge variant="secondary" className="gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Mendekati Batas ({percentage.toFixed(1)}%)
                 </Badge>
             )
         }
         return (
-            <Badge variant="success">
+            <Badge variant="outline">
                 Normal ({percentage.toFixed(1)}%)
             </Badge>
         )
@@ -290,7 +292,25 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
                                                                                 </h5>
                                                                                 <div className="flex gap-2">
                                                                                     <Badge variant="outline" className="text-xs">
+                                                                                        Jenis Kegiatan
+                                                                                    </Badge>
+                                                                                    <span className="text-sm text-muted-foreground">
                                                                                         {kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="flex gap-2">
+                                                                                    <Badge variant="outline" className="text-xs">
+                                                                                        Penugasan
+                                                                                    </Badge>
+                                                                                    {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
+                                                                                    <span key={`peran-${idx}-${alokasiIdx}`} className="text-sm text-muted-foreground">
+                                                                                        {(alokasi.peran)}
+                                                                                    </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <div className="flex gap-2">
+                                                                                    <Badge variant="outline" className="text-xs">
+                                                                                        Total Alokasi Honor
                                                                                     </Badge>
                                                                                     <span className="text-sm text-muted-foreground">
                                                                                         Total: {formatCurrency(kegiatan.total_honor)}
@@ -305,7 +325,7 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
                                                                                 <thead className="bg-muted/50">
                                                                                     <tr>
                                                                                         <th className="text-left p-2 font-medium">
-                                                                                            Peran
+                                                                                            Tahapan
                                                                                         </th>
                                                                                         <th className="text-center p-2 font-medium">
                                                                                             Jumlah Satuan
@@ -317,20 +337,47 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
                                                                                 </thead>
                                                                                 <tbody>
                                                                                     {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
-                                                                                        <tr
-                                                                                            key={alokasiIdx}
-                                                                                            className="border-t"
-                                                                                        >
-                                                                                            <td className="p-2">
-                                                                                                {alokasi.peran}
-                                                                                            </td>
-                                                                                            <td className="p-2 text-center">
-                                                                                                {alokasi.jumlah_satuan}
-                                                                                            </td>
-                                                                                            <td className="p-2 text-right font-medium">
-                                                                                                {formatCurrency(alokasi.total_honor)}
-                                                                                            </td>
-                                                                                        </tr>
+                                                                                        alokasi.jumlah_satuan_listing !== null ? (
+                                                                                            <>
+                                                                                                <tr key={`${alokasiIdx}-listing`} className="border-t">
+                                                                                                    <td className="p-2">
+                                                                                                        Listing
+                                                                                                    </td>
+                                                                                                    <td className="p-2 text-center">
+                                                                                                        {alokasi.jumlah_satuan_listing}
+                                                                                                    </td>
+                                                                                                    <td className="p-2 text-right font-medium">
+                                                                                                        {formatCurrency(alokasi.total_honor_listing)}
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                                <tr key={`${alokasiIdx}-pencacahan`} className="border-t">
+                                                                                                    <td className="p-2">
+                                                                                                        Pencacahan
+                                                                                                    </td>
+                                                                                                    <td className="p-2 text-center">
+                                                                                                        {alokasi.jumlah_satuan}
+                                                                                                    </td>
+                                                                                                    <td className="p-2 text-right font-medium">
+                                                                                                        {formatCurrency(alokasi.total_honor)}
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <tr
+                                                                                                key={`${alokasiIdx}-pcah`}
+                                                                                                className="border-t"
+                                                                                            >
+                                                                                                <td className="p-2">
+                                                                                                    Pencacahan
+                                                                                                </td>
+                                                                                                <td className="p-2 text-center">
+                                                                                                    {alokasi.jumlah_satuan}
+                                                                                                </td>
+                                                                                                <td className="p-2 text-right font-medium">
+                                                                                                    {formatCurrency(alokasi.total_honor)}
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        )
                                                                                     ))}
                                                                                 </tbody>
                                                                             </table>

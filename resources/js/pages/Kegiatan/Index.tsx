@@ -26,7 +26,7 @@ interface Kegiatan {
     kode_kegiatan: string;
     nama_kegiatan: string;
     tahun_anggaran: number;
-    pagu_anggaran: number | null;
+    pagu_pencacahan: number | null;
     status: string;
     ketua_tim: User;
 }

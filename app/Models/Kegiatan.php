@@ -26,7 +26,9 @@ class Kegiatan extends Model
             'tanggal_validasi' => 'date:Y-m-d',
             'rate_honor_approved_at' => 'datetime',
             'tahun_anggaran' => 'integer',
-            'anggaran' => 'decimal:2',
+            'pagu_pencacahan' => 'decimal:2',
+            'has_listing_updating' => 'boolean',
+            'pagu_listing' => 'decimal:2',
         ];
     }
 
@@ -38,8 +40,7 @@ class Kegiatan extends Model
         'tanggal_mulai',
         'tanggal_selesai',
         'tahun_anggaran',
-        'anggaran',
-        'pagu_anggaran', // alias for anggaran
+        'pagu_pencacahan',
         'ketua_tim_user_id',
         'rate_honor_id',
         'rate_honor_status',
@@ -49,6 +50,8 @@ class Kegiatan extends Model
         'status',
         'tanggal_validasi',
         'catatan',
+        'has_listing_updating',
+        'pagu_listing',
     ];
 
     public function ketuaTim(): BelongsTo
@@ -66,16 +69,21 @@ class Kegiatan extends Model
         return $this->hasMany(RateHonor::class, 'kegiatan_id');
     }
 
-    // Accessor untuk pagu_anggaran (alias untuk anggaran)
-    public function getPaguAnggaranAttribute(): ?float
+    public function satuanListing(): BelongsTo
     {
-        return $this->anggaran;
+        return $this->belongsTo(Satuan::class, 'satuan_listing_id');
     }
 
-    // Mutator untuk pagu_anggaran (simpan ke anggaran)
+    // Accessor untuk pagu_anggaran (alias untuk pagu_pencacahan)
+    public function getPaguAnggaranAttribute(): ?float
+    {
+        return $this->pagu_pencacahan;
+    }
+
+    // Mutator untuk pagu_anggaran (simpan ke pagu_pencacahan)
     public function setPaguAnggaranAttribute($value): void
     {
-        $this->attributes['anggaran'] = $value;
+        $this->attributes['pagu_pencacahan'] = $value;
     }
 
     /**

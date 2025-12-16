@@ -21,7 +21,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'kegiatan_id' => ['required', 'exists:kegiatan,id'],
             'petugas_id' => ['required', 'exists:petugas,id'],
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
@@ -31,6 +31,15 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
+        // Dual-phase: require jumlah_satuan_listing if kegiatan has listing
+        $kegiatan = \App\Models\Kegiatan::find($this->kegiatan_id);
+        if ($kegiatan && $kegiatan->has_listing_updating) {
+            $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:1'];
+        } else {
+            $rules['jumlah_satuan_listing'] = ['nullable'];
+        }
+
+        return $rules;
     }
 
     /**

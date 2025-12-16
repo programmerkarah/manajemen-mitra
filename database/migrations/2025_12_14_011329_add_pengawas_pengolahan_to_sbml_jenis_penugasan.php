@@ -10,11 +10,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify the enum to add 'pengawas_pengolahan'
-        DB::statement("ALTER TABLE sbml MODIFY COLUMN jenis_penugasan ENUM('pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan') NOT NULL");
-
-        // Also change honor_max to decimal(15,0) - no decimal places
-        DB::statement('ALTER TABLE sbml MODIFY COLUMN honor_max DECIMAL(15,0) NOT NULL');
+        // Only run enum modification if not using SQLite (for testing compatibility)
+        if (DB::getDriverName() !== 'sqlite') {
+            // Modify the enum to add 'pengawas_pengolahan'
+            DB::statement("ALTER TABLE sbml MODIFY COLUMN jenis_penugasan ENUM('pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan') NOT NULL");
+            // Also change honor_max to decimal(15,0) - no decimal places
+            DB::statement('ALTER TABLE sbml MODIFY COLUMN honor_max DECIMAL(15,0) NOT NULL');
+        }
     }
 
     /**
@@ -22,13 +24,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove entries with pengawas_pengolahan first
-        DB::table('sbml')->where('jenis_penugasan', 'pengawas_pengolahan')->delete();
-
-        // Revert enum to original values
-        DB::statement("ALTER TABLE sbml MODIFY COLUMN jenis_penugasan ENUM('pcl_ppl', 'pml', 'pengolahan') NOT NULL");
-
-        // Revert honor_max back to decimal(15,2)
-        DB::statement('ALTER TABLE sbml MODIFY COLUMN honor_max DECIMAL(15,2) NOT NULL');
+        if (DB::getDriverName() !== 'sqlite') {
+            // Remove entries with pengawas_pengolahan first
+            DB::table('sbml')->where('jenis_penugasan', 'pengawas_pengolahan')->delete();
+            // Revert enum to original values
+            DB::statement("ALTER TABLE sbml MODIFY COLUMN jenis_penugasan ENUM('pcl_ppl', 'pml', 'pengolahan') NOT NULL");
+            // Revert honor_max back to decimal(15,2)
+            DB::statement('ALTER TABLE sbml MODIFY COLUMN honor_max DECIMAL(15,2) NOT NULL');
+        }
     }
 };

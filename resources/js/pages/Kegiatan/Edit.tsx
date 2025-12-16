@@ -48,13 +48,22 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
         return value.replace(/\./g, '')
     }
 
+    // Helper untuk konversi nominal float ke string tanpa desimal
+    const nominalToString = (val: number | null | undefined): string => {
+        if (val === null || val === undefined) return ''
+        // Jika float, bulatkan ke integer (misal 4941000.00 -> '4941000')
+        return Math.round(val).toString()
+    }
+
     const { data, setData, put, processing, errors } = useForm({
         kode_kegiatan: kegiatan.kode_kegiatan || '',
         nama_kegiatan: kegiatan.nama_kegiatan || '',
         jenis_kegiatan: kegiatan.jenis_kegiatan || 'survei',
         deskripsi: kegiatan.deskripsi || '',
         tahun_anggaran: kegiatan.tahun_anggaran || new Date().getFullYear(),
-        pagu_anggaran: kegiatan.pagu_anggaran?.toString() || '',
+        pagu_pencacahan: nominalToString(kegiatan.pagu_pencacahan),
+        pagu_listing: nominalToString(kegiatan.pagu_listing),
+        has_listing_updating: kegiatan.has_listing_updating || false,
         ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
         tanggal_mulai: formatDateForInput(kegiatan.tanggal_mulai),
         tanggal_selesai: formatDateForInput(kegiatan.tanggal_selesai),
@@ -62,7 +71,13 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        put(`/kegiatan/${kegiatan.hashed_id}`)
+        // Kirim pagu_pencacahan dan pagu_listing sebagai number jika ada
+        const payload = {
+            ...data,
+            pagu_pencacahan: data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null,
+            pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
+        }
+        put(`/kegiatan/${kegiatan.hashed_id}`, { data: payload })
     }
 
     return (
@@ -177,21 +192,56 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
 
                                 {/* Pagu Anggaran */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="pagu_anggaran">
-                                        Pagu Anggaran (Rp)
+                                    <Label htmlFor="pagu_pencacahan">
+                                        Pagu Pencacahan (Rp)
                                     </Label>
                                     <Input
-                                        id="pagu_anggaran"
-                                        value={data.pagu_anggaran ? formatCurrency(data.pagu_anggaran) : ''}
+                                        id="pagu_pencacahan"
+                                        value={data.pagu_pencacahan ? formatCurrency(data.pagu_pencacahan) : ''}
                                         onChange={(e) => {
                                             const raw = parseCurrency(e.target.value)
-                                            setData('pagu_anggaran', raw)
+                                            setData('pagu_pencacahan', raw)
                                         }}
                                         placeholder="0"
                                     />
-                                    <InputError message={errors.pagu_anggaran} className="mt-2" />
+                                    <InputError message={errors.pagu_pencacahan} className="mt-2" />
                                 </div>
                             </div>
+
+
+                            {/* Tahapan Listing/Updating */}
+                            <div className="space-y-2">
+                                <label htmlFor="has_listing_updating" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Apakah kegiatan ini memiliki tahapan Listing/Updating?
+                                </label>
+                                <input
+                                    type="checkbox"
+                                    id="has_listing_updating"
+                                    checked={data.has_listing_updating}
+                                    onChange={e => setData('has_listing_updating', e.target.checked)}
+                                    className="mt-2 h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-800 dark:bg-gray-700"
+                                />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Aktifkan jika ada tahapan listing/updating sebelum pencacahan/pendataan lapangan.</span>
+                            </div>
+
+                            {/* Pagu Listing */}
+                            {data.has_listing_updating && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="pagu_listing">
+                                        Pagu Listing/Updating (Rp)
+                                    </Label>
+                                    <Input
+                                        id="pagu_listing"
+                                        value={data.pagu_listing ? formatCurrency(data.pagu_listing) : ''}
+                                        onChange={e => {
+                                            const raw = parseCurrency(e.target.value)
+                                            setData('pagu_listing', raw)
+                                        }}
+                                        placeholder="0"
+                                    />
+                                    <InputError message={errors.pagu_listing} className="mt-2" />
+                                </div>
+                            )}
 
                             {/* Ketua Tim - Hidden for ketua_tim role */}
                             {!isKetuaTim && (

@@ -10,8 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update peran enum to include pengawas_pengolahan
-        DB::statement("ALTER TABLE alokasi_petugas MODIFY COLUMN peran ENUM('pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan') NOT NULL DEFAULT 'pcl_ppl'");
+        // Update peran enum to include pengawas_pengolahan, skip if SQLite
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE alokasi_petugas MODIFY COLUMN peran ENUM('pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan') NOT NULL DEFAULT 'pcl_ppl'");
+        }
     }
 
     /**
@@ -19,7 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to original enum
-        DB::statement("ALTER TABLE alokasi_petugas MODIFY COLUMN peran ENUM('pcl_ppl', 'pml', 'pengolahan') NOT NULL DEFAULT 'pcl_ppl'");
+        // Revert back to original enum, skip if SQLite
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE alokasi_petugas MODIFY COLUMN peran ENUM('pcl_ppl', 'pml', 'pengolahan') NOT NULL DEFAULT 'pcl_ppl'");
+        }
     }
 };

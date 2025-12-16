@@ -17,7 +17,11 @@ interface AlokasiPetugas {
     petugas: Petugas
     peran: string
     jumlah_satuan: number
+    jumlah_satuan_listing?: number
     total_honor: number
+    total_honor_listing?: number
+    rate_pencacahan?: number
+    rate_listing?: number
     catatan: string | null
 }
 
@@ -32,9 +36,11 @@ interface PeriodeAlokasi {
     parent_periode_id: number | null
     submitted_at: string | null
     submitted_by_name: string | null
-    kegiatan: Kegiatan
+    kegiatan: Kegiatan & { has_listing_updating?: boolean }
     alokasi_petugas: AlokasiPetugas[]
     total_estimasi: number
+    total_estimasi_pencacahan?: number
+    total_estimasi_listing?: number
     jumlah_petugas: number
 }
 
@@ -46,6 +52,8 @@ interface PeriodeRevision {
     submitted_by_name: string | null
     alokasi_petugas: AlokasiPetugas[]
     total_estimasi: number
+    total_estimasi_pencacahan?: number
+    total_estimasi_listing?: number
     jumlah_petugas: number
 }
 
@@ -188,6 +196,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                 <div className="text-xl font-bold text-green-600 dark:text-green-400">
                                     {formatCurrency(periode.total_estimasi)}
                                 </div>
+                                {periode.kegiatan.has_listing_updating && (
+                                    <div className="mt-1 space-y-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                        <div>Listing: {formatCurrency(periode.total_estimasi_listing || 0)}</div>
+                                        <div>Pencacahan: {formatCurrency(periode.total_estimasi_pencacahan || 0)}</div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -232,44 +246,125 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Nama Petugas</th>
                                     <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Jenis</th>
                                     <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Peran</th>
-                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Jumlah Beban</th>
+                                    {periode.kegiatan.has_listing_updating && (
+                                        <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Tahapan</th>
+                                    )}
+                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Beban Tugas</th>
+                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Harga Satuan</th>
                                     <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Estimasi Honor</th>
                                     <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Catatan</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
                                 {periode.alokasi_petugas.map((alokasi, index) => (
-                                    <tr key={alokasi.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-                                        <td className="px-4 py-3 text-neutral-900 dark:text-white">{index + 1}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-neutral-900 dark:text-white">
-                                                {alokasi.petugas.nama}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                                                {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-neutral-900 dark:text-white">
-                                            {peranLabels[alokasi.peran] || alokasi.peran}
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
-                                            {alokasi.jumlah_satuan}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
-                                            {formatCurrency(alokasi.total_honor)}
-                                        </td>
-                                        <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
-                                            {alokasi.catatan || '-'}
-                                        </td>
-                                    </tr>
+                                    <>
+                                        {/* Listing Row - only if has_listing_updating and has listing data */}
+                                        {periode.kegiatan.has_listing_updating && (alokasi.jumlah_satuan_listing ?? 0) > 0 && (
+                                            <tr key={`${alokasi.id}-listing`} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
+                                                <td className="px-4 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-4 py-3" rowSpan={2}>
+                                                    <div className="font-medium text-neutral-900 dark:text-white">
+                                                        {alokasi.petugas.nama}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3" rowSpan={2}>
+                                                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                                        {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
+                                                    {peranLabels[alokasi.peran] || alokasi.peran}
+                                                </td>
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                                                    Listing
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                    {alokasi.jumlah_satuan_listing}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                    {formatCurrency(alokasi.rate_listing || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                    {formatCurrency(alokasi.total_honor_listing || 0)}
+                                                </td>
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400" rowSpan={2}>
+                                                    {alokasi.catatan || '-'}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {/* Pencacahan Row */}
+                                        <tr key={`${alokasi.id}-pencacahan`} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
+                                            {!periode.kegiatan.has_listing_updating || (alokasi.jumlah_satuan_listing ?? 0) === 0 ? (
+                                                <>
+                                                    <td className="px-4 py-3 text-neutral-900 dark:text-white">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-neutral-900 dark:text-white">
+                                                            {alokasi.petugas.nama}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                                            {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-neutral-900 dark:text-white">
+                                                        {peranLabels[alokasi.peran] || alokasi.peran}
+                                                    </td>
+                                                </>
+                                            ) : null}
+                                            {periode.kegiatan.has_listing_updating && (
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                                                    Pencacahan
+                                                </td>
+                                            )}
+                                            <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                {alokasi.jumlah_satuan}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                {formatCurrency(alokasi.rate_pencacahan || 0)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                {formatCurrency(alokasi.total_honor)}
+                                            </td>
+                                            {!periode.kegiatan.has_listing_updating || (alokasi.jumlah_satuan_listing ?? 0) === 0 ? (
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                                                    {alokasi.catatan || '-'}
+                                                </td>
+                                            ) : null}
+                                        </tr>
+                                    </>
                                 ))}
                             </tbody>
                             <tfoot className="bg-neutral-100 dark:bg-neutral-900">
+                                {periode.kegiatan.has_listing_updating && (
+                                    <>
+                                        <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                                            <td colSpan={7} className="px-4 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+                                                Total Listing:
+                                            </td>
+                                            <td className="px-4 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                {formatCurrency(periode.total_estimasi_listing || 0)}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                                            <td colSpan={7} className="px-4 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+                                                Total Pencacahan:
+                                            </td>
+                                            <td className="px-4 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                {formatCurrency(periode.total_estimasi_pencacahan || 0)}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </>
+                                )}
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-white">
-                                        Total:
+                                    <td colSpan={periode.kegiatan.has_listing_updating ? 7 : 6} className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-white">
+                                        Total Keseluruhan:
                                     </td>
                                     <td className="px-4 py-3 text-right text-xl font-bold text-green-600 dark:text-green-400">
                                         {formatCurrency(periode.total_estimasi)}

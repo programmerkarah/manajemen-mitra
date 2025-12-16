@@ -22,6 +22,7 @@ class RateHonor extends Model
     {
         return [
             'rate' => 'integer',
+            'rate_listing' => 'integer',
             'tahun_berlaku' => 'integer',
         ];
     }
@@ -35,6 +36,9 @@ class RateHonor extends Model
         'deskripsi',
         'satuan_id',
         'rate',
+        'rate_listing',
+        'satuan_listing_id',
+        'tahapan',
         'tahun_berlaku',
         'status',
     ];
@@ -47,6 +51,11 @@ class RateHonor extends Model
     public function satuan(): BelongsTo
     {
         return $this->belongsTo(Satuan::class);
+    }
+
+    public function satuanListing(): BelongsTo
+    {
+        return $this->belongsTo(Satuan::class, 'satuan_listing_id');
     }
 
     public function alokasi(): HasMany
