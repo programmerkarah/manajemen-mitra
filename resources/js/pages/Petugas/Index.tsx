@@ -132,7 +132,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Cari nama, NIK, atau email..."
+                                    placeholder="Cari nama, NIK/NIP, atau email..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="h-10 pl-10"
@@ -165,7 +165,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         Nama
                                     </th>
                                     <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                        NIK
+                                        NIK/NIP
                                     </th>
                                     <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Email

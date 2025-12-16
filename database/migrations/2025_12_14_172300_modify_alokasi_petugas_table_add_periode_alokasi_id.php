@@ -18,7 +18,12 @@ return new class extends Migration
         });
 
         // Step 2: Migrate data - create PeriodeAlokasi records and link them
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        // Disable foreign key checks for MySQL, use PRAGMA for SQLite
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys=OFF');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        }
 
         $existingAlokasi = DB::table('alokasi_petugas')
             ->whereNull('deleted_at')
@@ -52,17 +57,26 @@ return new class extends Migration
                 ->update(['periode_alokasi_id' => $periodeId]);
         }
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        // Re-enable foreign key checks
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys=ON');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
 
         // Step 3: Now modify the table structure
         Schema::table('alokasi_petugas', function (Blueprint $table) {
-            // Drop foreign keys first
-            $table->dropForeign('alokasi_petugas_kegiatan_id_foreign');
-            $table->dropForeign('alokasi_mitra_submitted_by_foreign');
-            $table->dropForeign('alokasi_mitra_approved_by_foreign');
+            // Drop foreign keys first (skip for SQLite as it doesn't support dropping FKs by name)
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign('alokasi_petugas_kegiatan_id_foreign');
+                $table->dropForeign('alokasi_mitra_submitted_by_foreign');
+                $table->dropForeign('alokasi_mitra_approved_by_foreign');
+            }
 
-            // Drop the unique constraint
-            $table->dropUnique('unique_alokasi');
+            // Drop the unique constraint (skip for SQLite)
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->dropUnique('unique_alokasi');
+            }
 
             // Drop columns that are now in periode_alokasi
             $table->dropColumn([

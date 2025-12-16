@@ -81,7 +81,7 @@ export default function Show({ petugas }: ShowProps) {
             <div className="space-y-6">
                 <PageHeader
                     title={petugas.nama}
-                    description={`NIK: ${petugas.nik_masked} • ${petugas.pendidikan} • ${petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}`}
+                    description={`NIK/nip: ${petugas.nik_masked} • ${petugas.pendidikan} • ${petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}`}
                 >
                     <Button variant="outline" size="sm" asChild className="gap-2">
                         <Link href="/petugas">

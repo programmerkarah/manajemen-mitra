@@ -29,6 +29,13 @@ class AlokasiPetugasSisaPaguRecalculationTest extends TestCase
 
     private RateHonor $rateHonor;
 
+    /**
+     * Define database migrations to exclude
+     */
+    protected $excludedMigrations = [
+        '2025_12_14_172300_modify_alokasi_petugas_table_add_periode_alokasi_id.php',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();

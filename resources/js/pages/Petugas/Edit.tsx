@@ -99,7 +99,7 @@ export default function Edit({ petugas }: EditProps) {
                             {/* NIK */}
                             <div>
                                 <label className="block text-sm font-medium">
-                                    NIK <span className="text-red-600">*</span>
+                                    NIK/NIP <span className="text-red-600">*</span>
                                 </label>
                                 <input
                                     type="text"

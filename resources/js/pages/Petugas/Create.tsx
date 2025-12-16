@@ -59,7 +59,7 @@ export default function Create() {
                                 {/* NIK */}
                                 <div className="space-y-2">
                                     <Label htmlFor="nik">
-                                        NIK <span className="text-red-600">*</span>
+                                        NIK/NIP <span className="text-red-600">*</span>
                                     </Label>
                                     <Input
                                         id="nik"
