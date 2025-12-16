@@ -192,9 +192,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('sbml.report')
         ->middleware('active.role:admin,operator,pj');
 
-    // Document Management - View routes (Admin, Approver, PJ)
-    Route::middleware(['active.role:admin,approver,pj'])->group(function () {
+    // Document Management - View routes (Admin, Operator, PJ, Ketua Tim can view)
+    Route::middleware(['active.role:admin,operator,pj,ketua_tim'])->group(function () {
         Route::get('sk-kpa', [SkKpaController::class, 'index'])->name('sk-kpa.index');
+        Route::get('sk-kpa/kegiatan/{kegiatanHashedId}', [SkKpaController::class, 'listByKegiatan'])->name('sk-kpa.list-by-kegiatan');
         Route::get('sk-kpa/{skKpa}', [SkKpaController::class, 'show'])->name('sk-kpa.show');
         Route::get('spk', [SpkController::class, 'index'])->name('spk.index');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
@@ -202,9 +203,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
     });
 
-    // Document Management - Modification routes (Admin, Approver only)
-    Route::middleware(['active.role:admin,approver'])->group(function () {
-        Route::get('sk-kpa/create', [SkKpaController::class, 'create'])->name('sk-kpa.create');
+    // Document Management - Modification routes (Admin, PJ only)
+    Route::middleware(['active.role:admin,pj'])->group(function () {
+        Route::get('sk-kpa/kegiatan/{kegiatanHashedId}/create', [SkKpaController::class, 'create'])->name('sk-kpa.create-for-kegiatan');
         Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store');
         Route::get('sk-kpa/{skKpa}/edit', [SkKpaController::class, 'edit'])->name('sk-kpa.edit');
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');

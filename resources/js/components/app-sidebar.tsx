@@ -88,6 +88,9 @@ export function AppSidebar() {
                     { title: 'SBML', href: '/sbml' },
                 ],
             },
+            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
+            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'BAST', href: '/bast', icon: FileText },
         );
     } else if (hasActiveRole('ketua_tim')) {
         mainNavItems.push(
@@ -103,6 +106,9 @@ export function AppSidebar() {
                 icon: Users,
                 items: [{ title: 'Alokasi Petugas', href: '/alokasi' }],
             },
+            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
+            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'BAST', href: '/bast', icon: FileText },
         );
     } else if (hasActiveRole('approver')) {
         mainNavItems.push({
