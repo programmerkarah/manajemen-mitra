@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
 import { useState } from 'react'
-import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface AlokasiPeriod {
     kegiatan_id: number
