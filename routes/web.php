@@ -67,20 +67,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('switch-year', [YearSwitchController::class, 'switch'])->name('year.switch');
 
     // Petugas Management (Admin only for modify, Admin+Administrator for view)
+    // Petugas Management - IMPORTANT: Specific routes must come before parameter routes
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
-    });
-
-    // View routes (Admin, PJ, and Administrator for read-only access)
-    Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
-        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
-        Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
-    });
-
-    Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
         Route::post('petugas', [PetugasController::class, 'store'])->name('petugas.store');
+
         Route::get('petugas/{petugas}/edit', [PetugasController::class, 'edit'])->name('petugas.edit');
         Route::put('petugas/{petugas}', [PetugasController::class, 'update'])->name('petugas.update');
         Route::patch('petugas/{petugas}', [PetugasController::class, 'update']);
@@ -91,6 +84,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
         Route::post('users/{user}/reset-2fa', \App\Http\Controllers\ResetUserTwoFactorController::class)->name('users.reset-2fa');
+    });
+
+    // View routes (Admin, PJ, and Administrator for read-only access)
+    Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
+        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 
     // Rate Honor Management per Kegiatan
