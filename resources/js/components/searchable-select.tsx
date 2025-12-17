@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 interface Option {
     value: string
     label: string
+    displayLabel?: string
     disabled?: boolean
     searchKeywords?: string
 }
@@ -81,7 +82,7 @@ export function SearchableSelect({
                 )}
             >
                 <span className={cn('truncate text-left', !value && 'text-neutral-500 dark:text-neutral-400')}>
-                    {selectedOption?.label || placeholder}
+                    {selectedOption?.displayLabel || selectedOption?.label || placeholder}
                 </span>
                 <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </button>

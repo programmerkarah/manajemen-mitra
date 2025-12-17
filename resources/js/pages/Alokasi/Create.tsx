@@ -45,6 +45,7 @@ interface Petugas {
     email: string;
     jenis_petugas: 'organik' | 'non-organik';
     peran?: string;
+    jabatan?: string | null;
 }
 
 interface RateHonor {
@@ -1111,11 +1112,16 @@ export default function Create({
                                                                                 p.id,
                                                                             ),
                                                                 );
+                                                            
+                                                            const jenisPetugasLabel = p.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik';
+                                                            const jabatanLabel = p.jabatan || '-';
+                                                            
                                                             return {
                                                                 value: String(
                                                                     p.id,
                                                                 ),
-                                                                label: p.nama,
+                                                                label: `${p.nama} - ${jenisPetugasLabel} - ${jabatanLabel}`,
+                                                                displayLabel: p.nama,
                                                                 disabled:
                                                                     isSelectedInOtherRow,
                                                             };

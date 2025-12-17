@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import type { BreadcrumbItem, SharedData } from '@/types'
 import { Head, Link, router, usePage } from '@inertiajs/react'
-import { Pencil, Plus, Trash2, Search } from 'lucide-react'
+import { Pencil, Plus, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -281,20 +281,30 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 {dasarHukum.total} data
                             </div>
                             <div className="flex gap-2">
-                                {dasarHukum.links.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.url || '#'}
-                                        className={`rounded px-3 py-1 text-sm ${
-                                            link.active
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
-                                        } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                        dangerouslySetInnerHTML={{
-                                            __html: link.label,
-                                        }}
-                                    />
-                                ))}
+                                {dasarHukum.links.map((link, index) => {
+                                    const isFirst = link.label.includes('Previous');
+                                    const isLast = link.label.includes('Next');
+                                    
+                                    return (
+                                        <Link
+                                            key={index}
+                                            href={link.url || '#'}
+                                            className={`rounded px-3 py-1 text-sm ${
+                                                link.active
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
+                                            } ${!link.url && 'cursor-not-allowed opacity-50'}`}
+                                        >
+                                            {isFirst ? (
+                                                <ChevronLeft className="h-4 w-4" />
+                                            ) : isLast ? (
+                                                <ChevronRight className="h-4 w-4" />
+                                            ) : (
+                                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                            )}
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

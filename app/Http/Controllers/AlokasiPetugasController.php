@@ -496,7 +496,7 @@ class AlokasiPetugasController extends Controller
         }
 
         $petugas = Petugas::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas', 'jabatan')
             ->get();
 
         // Handle pre-selected kegiatan from query string

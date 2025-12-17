@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import {
     Select,
@@ -248,20 +248,32 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                     {/* Pagination */}
                     {dipaList.links.length > 3 && (
                         <div className="mt-6 flex items-center justify-center gap-2">
-                            {dipaList.links.map((link: any, index: number) => (
-                                <Button
-                                    key={index}
-                                    variant={link.active ? 'default' : 'outline'}
-                                    size="sm"
-                                    disabled={!link.url || processing}
-                                    onClick={() => {
-                                        if (link.url) {
-                                            router.visit(link.url);
-                                        }
-                                    }}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            ))}
+                            {dipaList.links.map((link: any, index: number) => {
+                                const isFirst = link.label.includes('Previous');
+                                const isLast = link.label.includes('Next');
+                                
+                                return (
+                                    <Button
+                                        key={index}
+                                        variant={link.active ? 'default' : 'outline'}
+                                        size="sm"
+                                        disabled={!link.url || processing}
+                                        onClick={() => {
+                                            if (link.url) {
+                                                router.visit(link.url);
+                                            }
+                                        }}
+                                    >
+                                        {isFirst ? (
+                                            <ChevronLeft className="h-4 w-4" />
+                                        ) : isLast ? (
+                                            <ChevronRight className="h-4 w-4" />
+                                        ) : (
+                                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                        )}
+                                    </Button>
+                                );
+                            })}
                         </div>
                     )}
                 </ContentCard>

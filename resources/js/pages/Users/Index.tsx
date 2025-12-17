@@ -256,19 +256,31 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                     <span className="font-medium">{users?.meta?.total}</span> hasil
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    {users.links.map((link, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => link.url && router.get(link.url)}
-                                            disabled={!link.url}
-                                            className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                                link.active
-                                                    ? 'bg-blue-600 text-white shadow-sm'
-                                                    : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                            } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
+                                    {users.links.map((link, index) => {
+                                        const isFirst = link.label.includes('Previous');
+                                        const isLast = link.label.includes('Next');
+                                        
+                                        return (
+                                            <button
+                                                key={index}
+                                                onClick={() => link.url && router.get(link.url)}
+                                                disabled={!link.url}
+                                                className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                                    link.active
+                                                        ? 'bg-blue-600 text-white shadow-sm'
+                                                        : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                                                } ${!link.url && 'cursor-not-allowed opacity-50'}`}
+                                            >
+                                                {isFirst ? (
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                ) : isLast ? (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                ) : (
+                                                    link.label
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

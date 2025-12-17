@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Download, FileUp, Plus, Search, Eye, Pencil } from 'lucide-react';
+import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -255,19 +255,31 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                     {/* Pagination */}
                     {petugas.links && (
                         <div className="flex items-center justify-center gap-1 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
-                            {petugas.links.map((link, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => link.url && router.get(link.url)}
-                                    disabled={!link.url}
-                                    className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                        link.active
-                                            ? 'bg-blue-600 text-white shadow-sm'
-                                            : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                    } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            ))}
+                            {petugas.links.map((link, index) => {
+                                const isFirst = link.label.includes('Previous');
+                                const isLast = link.label.includes('Next');
+                                
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => link.url && router.get(link.url)}
+                                        disabled={!link.url}
+                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                            link.active
+                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                                        } ${!link.url && 'cursor-not-allowed opacity-50'}`}
+                                    >
+                                        {isFirst ? (
+                                            <ChevronLeft className="h-4 w-4" />
+                                        ) : isLast ? (
+                                            <ChevronRight className="h-4 w-4" />
+                                        ) : (
+                                            link.label
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </ContentCard>

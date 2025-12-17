@@ -490,18 +490,9 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         </div>
                         <div className="flex gap-1">
                             {alokasi.links.map((link, index) => {
-                                if (link.label === '&laquo; Previous' || link.label === 'Next &raquo;') {
-                                    return (
-                                        <Button
-                                            key={index}
-                                            size="sm"
-                                            variant={link.active ? 'default' : 'outline'}
-                                            disabled={!link.url}
-                                            onClick={() => link.url && router.visit(link.url)}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    )
-                                }
+                                const isFirst = link.label.includes('Previous');
+                                const isLast = link.label.includes('Next');
+                                
                                 return (
                                     <Button
                                         key={index}
@@ -510,9 +501,15 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                         disabled={!link.url}
                                         onClick={() => link.url && router.visit(link.url)}
                                     >
-                                        {link.label}
+                                        {isFirst ? (
+                                            <ChevronLeft className="h-4 w-4" />
+                                        ) : isLast ? (
+                                            <ChevronRight className="h-4 w-4" />
+                                        ) : (
+                                            link.label
+                                        )}
                                     </Button>
-                                )
+                                );
                             })}
                         </div>
                     </div>

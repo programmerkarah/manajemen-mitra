@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Download, Eye, Plus } from 'lucide-react';
+import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 interface LatestSk {
@@ -327,18 +327,30 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                 Menampilkan {kegiatan.from} hingga {kegiatan.to} dari {kegiatan.total} kegiatan
                             </div>
                             <div className="flex gap-2">
-                                {kegiatan.links.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.url || '#'}
-                                        className={`rounded px-3 py-1 text-sm ${
-                                            link.active
-                                                ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
-                                                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
-                                        } ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                    />
-                                ))}
+                                {kegiatan.links.map((link, index) => {
+                                    const isFirst = link.label.includes('Previous');
+                                    const isLast = link.label.includes('Next');
+                                    
+                                    return (
+                                        <Link
+                                            key={index}
+                                            href={link.url || '#'}
+                                            className={`rounded px-3 py-1 text-sm ${
+                                                link.active
+                                                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                                                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
+                                            } ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
+                                        >
+                                            {isFirst ? (
+                                                <ChevronLeft className="h-4 w-4" />
+                                            ) : isLast ? (
+                                                <ChevronRight className="h-4 w-4" />
+                                            ) : (
+                                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                            )}
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
