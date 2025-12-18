@@ -623,10 +623,13 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 })}
                                         </tbody>
                                     </table>
-                                    {/* Rate Honor Pencacahan */}
-                                    <h4 className="px-6 pt-6 pb-2 text-base font-semibold text-gray-900 dark:text-white">
-                                        Rate Honor Pencacahan
-                                    </h4>
+                                </>
+                            )}
+
+                            {/* Rate Honor Pencacahan */}
+                            <h4 className="px-6 pt-6 pb-2 text-base font-semibold text-gray-900 dark:text-white">
+                                Rate Honor Pencacahan
+                            </h4>
                                     {/* Dropdown satuan global untuk pencacahan */}
                                     <div className="flex items-center gap-2 px-6 pt-4 pb-2">
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -775,8 +778,6 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 })}
                                         </tbody>
                                     </table>
-                                </>
-                            )}
                         </div>
                     </div>
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
