@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Search, Pencil, X } from 'lucide-react';
+import { Search, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useState } from 'react';
 
@@ -27,6 +27,8 @@ interface User {
     username: string;
     email: string;
     is_active: boolean;
+    email_verified_at: string | null;
+    two_factor_enabled: boolean;
     roles: Role[];
 }
 
@@ -135,6 +137,12 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                     <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                        Email
+                                    </th>
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                        2FA
+                                    </th>
                                     <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
@@ -144,7 +152,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 {users.data.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={6}
+                                            colSpan={8}
                                             className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
                                             <div className="flex flex-col items-center gap-2">
@@ -188,6 +196,28 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                 ) : (
                                                     <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
                                                         Nonaktif
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.email_verified_at ? (
+                                                    <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                        Terverifikasi
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                                        Belum Verifikasi
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.two_factor_enabled ? (
+                                                    <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                        Aktif
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                                        Tidak Aktif
                                                     </span>
                                                 )}
                                             </td>
