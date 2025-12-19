@@ -233,8 +233,6 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
-            'nomor_bast' => ['required', 'string', 'max:255'],
-            'tanggal_bast' => ['required', 'date'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -259,23 +257,18 @@ class SpkController extends Controller
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'nomorBast' => $validated['nomor_bast'],
-            'tanggalBast' => \Carbon\Carbon::parse($validated['tanggal_bast']),
             'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
         ];
 
-        // Generate 3 separate PDFs and merge them
+        // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
         $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
         
         $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
-        
-        $pdfBast = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-bast', $data)
-            ->setPaper('a4', 'portrait');
 
         // Save temporary PDFs
         $tempPath = storage_path('app/temp');
@@ -286,16 +279,14 @@ class SpkController extends Controller
         $timestamp = time() . '_' . uniqid();
         $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
         $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
-        $bastPath = $tempPath . '/spk_bast_' . $timestamp . '.pdf';
         $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
 
         file_put_contents($mainPath, $pdfMain->output());
         file_put_contents($lampiranPath, $pdfLampiran->output());
-        file_put_contents($bastPath, $pdfBast->output());
 
         // Try to merge PDFs
         $merged = \App\Services\PdfMergerService::mergePdfFiles(
-            [$mainPath, $lampiranPath, $bastPath],
+            [$mainPath, $lampiranPath],
             $mergedPath
         );
 
@@ -305,18 +296,16 @@ class SpkController extends Controller
             // Cleanup temporary files
             @unlink($mainPath);
             @unlink($lampiranPath);
-            @unlink($bastPath);
             @unlink($mergedPath);
 
             return response($pdfContent)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$alokasi->petugas->nama.'.pdf"');
         }
-
+        
         // Cleanup and fallback to single PDF if merge failed
         @unlink($mainPath);
         @unlink($lampiranPath);
-        @unlink($bastPath);
         @unlink($mergedPath);
 
         // Fallback: use old single-file approach with landscape
@@ -341,8 +330,6 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255', 'unique:spk,nomor_spk'],
             'tanggal_spk' => ['required', 'date'],
-            'nomor_bast' => ['required', 'string', 'max:255'],
-            'tanggal_bast' => ['required', 'date'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -367,8 +354,6 @@ class SpkController extends Controller
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'nomorBast' => $validated['nomor_bast'],
-            'tanggalBast' => \Carbon\Carbon::parse($validated['tanggal_bast']),
             'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
@@ -377,15 +362,12 @@ class SpkController extends Controller
 
         DB::beginTransaction();
         try {
-            // Generate 3 separate PDFs
+            // Generate 2 separate PDFs (SPK Main + Lampiran only)
             $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
                 ->setPaper('a4', 'portrait');
             
             $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
                 ->setPaper('a4', 'landscape');
-            
-            $pdfBast = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-bast', $data)
-                ->setPaper('a4', 'portrait');
 
             // Save temporary PDFs
             $tempPath = storage_path('app/temp');
@@ -396,16 +378,14 @@ class SpkController extends Controller
             $timestamp = time() . '_' . uniqid();
             $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
             $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
-            $bastPath = $tempPath . '/spk_bast_' . $timestamp . '.pdf';
             $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
 
             file_put_contents($mainPath, $pdfMain->output());
             file_put_contents($lampiranPath, $pdfLampiran->output());
-            file_put_contents($bastPath, $pdfBast->output());
 
             // Try to merge PDFs
             $merged = \App\Services\PdfMergerService::mergePdfFiles(
-                [$mainPath, $lampiranPath, $bastPath],
+                [$mainPath, $lampiranPath],
                 $mergedPath
             );
 
@@ -422,7 +402,6 @@ class SpkController extends Controller
             // Cleanup temporary files
             @unlink($mainPath);
             @unlink($lampiranPath);
-            @unlink($bastPath);
             @unlink($mergedPath);
 
             // Save PDF file

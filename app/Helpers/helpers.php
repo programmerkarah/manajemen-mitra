@@ -35,3 +35,23 @@ if (!function_exists('terbilang')) {
         return $temp;
     }
 }
+
+if (!function_exists('tanggalTerbilang')) {
+    /**
+     * Convert date number to Indonesian text (1-31)
+     */
+    function tanggalTerbilang($tanggal)
+    {
+        return trim(terbilang($tanggal));
+    }
+}
+
+if (!function_exists('tahunTerbilang')) {
+    /**
+     * Convert year to Indonesian text
+     */
+    function tahunTerbilang($tahun)
+    {
+        return trim(terbilang($tahun));
+    }
+}

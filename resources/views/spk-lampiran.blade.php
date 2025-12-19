@@ -82,7 +82,6 @@
         }
 
         .table-footer {
-            font-style: italic;
             text-align: left;
             padding-left: 10px;
         }

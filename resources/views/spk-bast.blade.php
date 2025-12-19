@@ -149,7 +149,7 @@
     </div>
 
     <div class="content">
-        Pada hari ini {{ $tanggalBast->locale('id')->translatedFormat('l') }}, tanggal {{ $tanggalBast->locale('id')->translatedFormat('d') }}, bulan {{ $tanggalBast->locale('id')->translatedFormat('F') }}, tahun {{ $tanggalBast->locale('id')->translatedFormat('Y') }}, bertempat di Kantor BPS Kota Sawahlunto, yang bertanda tangan di bawah ini:
+        Pada hari ini {{ $tanggalBast->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalBast->day) }}, bulan {{ $tanggalBast->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalBast->year) }}, bertempat di Kantor BPS Kota Sawahlunto, yang bertanda tangan di bawah ini:
     </div>
 
     <div class="parties">

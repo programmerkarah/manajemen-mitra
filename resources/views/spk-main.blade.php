@@ -152,7 +152,7 @@
 
         .signature {
             margin-top: 40px;
-            page-break-inside: avoid;
+            page-break-inside: auto;
         }
 
         .signature-row {
@@ -181,7 +181,7 @@
 </head>
 <body>
     <!-- MAIN SPK DOCUMENT -->
-    <div class="header">
+    <div class="header content">
         <h3>PERJANJIAN KERJA</h3>
         <h3>PETUGAS LAPANGAN KEGIATAN {{ strtoupper($kegiatan->nama_kegiatan) }} TAHUN {{ $kegiatan->tahun_anggaran }}</h3>
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
@@ -189,7 +189,7 @@
     </div>
 
     <div class="content">
-        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ $tanggalSpk->locale('id')->translatedFormat('d') }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ $tanggalSpk->locale('id')->translatedFormat('Y') }}, bertempat di Sawahlunto, yang bertanda tangan di bawah ini:
+        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalSpk->year) }}, bertempat di Sawahlunto, yang bertanda tangan di bawah ini:
     </div>
 
     <div class="parties">
@@ -247,8 +247,19 @@
     <!-- Pasal 4 -->
     <div class="pasal">
         <div class="pasal-title">Pasal 4</div>
-        <div class="pasal-content">
-            <strong>PIHAK KEDUA</strong> berkewajiban melaksanakan seluruh pekerjaan yang diberikan oleh <strong>PIHAK PERTAMA</strong> sampai selesai, sesuai ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2.
+        <div class="pasal-list">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(1)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> berkewajiban melaksanakan pekerjaan yang diberikan oleh <strong>PIHAK PERTAMA</strong> sesuai ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, dengan menerapkan protokol kesehatan yang berlaku di wilayah kerja masing-masing merujuk pada ketentuan pemerintah.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> untuk waktu yang tidak terbatas dan/atau tidak terikat kepada masa berlakunya Perjanjian ini, menjamin untuk memberlakukan sebagai rahasia setiap data/informasi yang diterima atau diperolehnya dari <strong>PIHAK PERTAMA</strong>, serta menjamin bahwa keterangan demikian hanya dipergunakan untuk melaksanakan tujuan menurut Perjanjian ini.
+                </div>
+            </div>
         </div>
     </div>
 
@@ -259,13 +270,13 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(1)</div>
                 <div class="pasal-item-content">
-                    <strong>PIHAK KEDUA</strong> berhak untuk mendapatkan honorarium petugas dari <strong>PIHAK PERTAMA</strong> sebesar Rp {{ number_format($totalHonor, 0, ',', '.') }} ({{ terbilang($totalHonor) }} rupiah) untuk pekerjaan sebagaimana dimaksud dalam Pasal 2, termasuk biaya pajak, bea materai, dan jasa pelayanan keuangan.
+                    <strong>PIHAK KEDUA</strong> apabila melakukan peminjaman dokumen/data/aset milik <strong>PIHAK PERTAMA</strong>, wajib menjaga dan menggunakan sesuai dengan tujuan Perjanjian dan mengembalikan dalam keadaan utuh sama dengan saat peminjaman, serta dilarang menggandakan, menyalin, menunjukkan, dan/atau mendokumentasikan dalam bentuk foto atau bentuk apapun untuk kepentingan pribadi ataupun kepentingan lain yang tidak berkaitan dengan tujuan Perjanjian ini.
                 </div>
             </div>
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    <strong>PIHAK KEDUA</strong> tidak diberikan honorarium tambahan apabila melakukan pekerjaan di luar jadwal atau terdapat tambahan waktu pelaksanaan pekerjaan.
+                    <strong>PIHAK KEDUA</strong> dilarang memberikan dokumen/data/aset milik <strong>PIHAK PERTAMA</strong> yang berada dalam penguasaan <strong>PIHAK KEDUA</strong>, baik secara langsung maupun tidak langsung, termasuk memberikan akses kepada pihak lain untuk menggunakan, menyalin, memfotokopi, menunjukkan, dan/atau mendokumentasikan dalam bentuk foto atau bentuk apapun, sehingga informasi diketahui oleh pihak lain untuk tujuan apapun.
                 </div>
             </div>
         </div>
@@ -278,7 +289,38 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(1)</div>
                 <div class="pasal-item-content">
-                    Pembayaran honorarium sebagaimana dimaksud dalam Pasal 5 dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan seluruh hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA</strong>.
+                    <strong>PIHAK KEDUA</strong> berhak untuk mendapatkan honorarium dari <strong>PIHAK PERTAMA</strong> sebesar Rp {{ number_format($totalHonor, 0, ',', '.') }} ({{ terbilang($totalHonor) }} rupiah) untuk pekerjaan sebagaimana dimaksud dalam Pasal 2, termasuk biaya pajak, bea meterai, dan jasa pelayanan keuangan.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> setelah menyelesaikan seluruh pekerjaan yang ditargetkan sebagaimana tercantum dalam Lampiran Perjanjian, dituangkan dalam Berita Acara Serah Terima Hasil Pekerjaan, dan diserahkan paling lambat tanggal {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth()->subDays(16)->format('d') }} {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->locale('id')->translatedFormat('F Y') }}.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Apabila terdapat hambatan dalam penyerahan hasil pekerjaan sebagaimana dimaksud pada ayat (2), <strong>PIHAK PERTAMA</strong> dapat memberikan tambahan waktu penyerahan seluruh hasil pekerjaan lapangan paling lambat pada tanggal {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth()->subDays(9)->format('d') }} {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->locale('id')->translatedFormat('F Y') }}.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(4)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> tidak diberikan honorarium tambahan apabila melakukan kunjungan di luar jadwal atau terdapat tambahan waktu pelaksanaan pekerjaan di luar jangka waktu Perjanjian sebagaimana dimaksud dalam Pasal 3.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 7 -->
+    <div class="pasal">
+        <div class="pasal-title">Pasal 7</div>
+        <div class="pasal-list">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(1)</div>
+                <div class="pasal-item-content">
+                    Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA</strong>.
                 </div>
             </div>
             <div class="pasal-item">
@@ -290,25 +332,36 @@
         </div>
     </div>
 
-    <!-- Pasal 7 -->
-    <div class="pasal">
-        <div class="pasal-title">Pasal 7</div>
-        <div class="pasal-content">
-            Penyerahan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 dilakukan secara bertahap dan selambat-lambatnya seluruh hasil pekerjaan diserahkan sesuai jadwal yang tercantum dalam lampiran, yang dinyatakan dalam Berita Acara Serah Terima Hasil Pekerjaan yang ditandatangani oleh <strong>PARA PIHAK</strong>.
-        </div>
-    </div>
-
     <!-- Pasal 8 -->
     <div class="pasal">
         <div class="pasal-title">Pasal 8</div>
-        <div class="pasal-content">
-            <strong>PIHAK PERTAMA</strong> dapat memutuskan Perjanjian ini secara sepihak sewaktu-waktu dalam hal <strong>PIHAK KEDUA</strong> tidak dapat melaksanakan kewajibannya sebagaimana dimaksud dalam Pasal 4, dengan menerbitkan Surat Pemutusan Perjanjian Kerja.
+        <div class="pasal-list">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(1)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK PERTAMA</strong> secara berjenjang melalui Tim Teknis BPS Kabupaten/Kota melakukan pemeriksaan dan evaluasi atas target penyelesaian dan kualitas hasil pekerjaan yang dilaksanakan oleh <strong>PIHAK KEDUA</strong> secara berkala.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Hasil pemeriksaan dan evaluasi sebagaimana dimaksud pada ayat (1) menjadi dasar pembayaran honorarium <strong>PIHAK KEDUA</strong> oleh <strong>PIHAK PERTAMA</strong> sebagaimana dimaksud dalam Pasal 6 ayat (2), yang menjadi lampiran Berita Acara Serah Terima Hasil Pekerjaan.
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Pasal 9 -->
     <div class="pasal">
         <div class="pasal-title">Pasal 9</div>
+        <div class="pasal-content">
+            <strong>PIHAK PERTAMA</strong> dapat memutuskan Perjanjian ini secara sepihak sewaktu-waktu dalam hal <strong>PIHAK KEDUA</strong> tidak dapat melaksanakan kewajibannya sebagaimana dimaksud dalam Pasal 4, dengan menerbitkan Surat Pemutusan Perjanjian Kerja.
+        </div>
+    </div>
+
+    <!-- Pasal 10 -->
+    <div class="pasal">
+        <div class="pasal-title">Pasal 10</div>
         <div class="pasal-list">
             <div class="pasal-item">
                 <div class="pasal-item-number">(1)</div>
@@ -317,7 +370,7 @@
                     <div class="sub-item">
                         <div class="sub-item-letter">a.</div>
                         <div class="sub-item-content">
-                            mengundurkan diri setelah pelatihan diberikan sanksi sebesar Rp{{ number_format($totalHonor, 0, ',', '.') }} ({{ terbilang($totalHonor) }} rupiah)
+                            mengundurkan diri setelah pelatihan diberikan sanksi sebesar Rp{{ number_format($totalHonor * 0.356, 0, ',', '.') }} ({{ terbilang($totalHonor * 0.356) }} rupiah);
                         </div>
                     </div>
                     <div class="sub-item">
@@ -331,7 +384,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Dikecualikan tidak membayar ganti rugi sebagaimana dimaksud pada ayat (1) kepada <strong>PIHAK PERTAMA</strong>, apabila <strong>PIHAK KEDUA</strong> meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, dan/atau telah diberikan Surat Pemutusan Perjanjian Kerja dari <strong>PIHAK PERTAMA</strong>.
+                    Dikecualikan tidak dikenakan sanksi sebagaimana dimaksud pada ayat (1) oleh <strong>PIHAK PERTAMA</strong>, apabila <strong>PIHAK KEDUA</strong> meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, dan/atau telah diberikan Surat Pemutusan Perjanjian Kerja dari <strong>PIHAK PERTAMA</strong>.
                 </div>
             </div>
             <div class="pasal-item">
@@ -343,54 +396,72 @@
         </div>
     </div>
 
-    <!-- Pasal 10 -->
+    <!-- Pasal 11 -->
     <div class="pasal">
-        <div class="pasal-title">Pasal 10</div>
+        <div class="pasal-title">Pasal 11</div>
         <div class="pasal-list">
             <div class="pasal-item">
                 <div class="pasal-item-number">(1)</div>
                 <div class="pasal-item-content">
-                    Apabila terjadi Keadaan Kahar, yang meliputi bencana alam dan bencana sosial, <strong>PIHAK KEDUA</strong> memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 7 (tujuh) hari sejak mengetahui atas kejadian Keadaan Kahar dengan menyertakan bukti.
+                    Apabila terjadi Keadaan Kahar, yang meliputi bencana alam, bencana non alam, dan bencana sosial, <strong>PIHAK KEDUA</strong> memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 14 (empat belas) hari kalender sejak mengetahui atas kejadian Keadaan Kahar dengan menyertakan bukti.
                 </div>
             </div>
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Pada saat terjadi Keadaan Kahar, pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah Keadaan Kahar berakhir, namun apabila akibat Keadaan Kahar tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah dilaksanakan.
+                    Apabila terjadi kerusakan perangkat pencacahan yang menyebabkan pelaksanaan pencacahan lapangan {{ $kegiatan->nama_kegiatan }} pada Badan Pusat Statistik Kota Sawahlunto tidak dapat dilakukan, <strong>PIHAK KEDUA</strong> melalui Tim Teknis BPS Kota memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 14 (empat belas) hari kalender sejak terjadi kerusakan dimaksud.
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Pasal 11 -->
-    <div class="pasal">
-        <div class="pasal-title">Pasal 11</div>
-        <div class="pasal-content">
-            Segala sesuatu yang belum atau tidak cukup diatur dalam Perjanjian ini, dituangkan dalam perjanjian tambahan/addendum dan merupakan bagian tidak terpisahkan dari perjanjian ini.
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2), pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah Keadaan Kahar berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(4)</div>
+                <div class="pasal-item-content">
+                    Apabila akibat Keadaan Kahar tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA</strong>.
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Pasal 12 -->
     <div class="pasal">
         <div class="pasal-title">Pasal 12</div>
+        <div class="pasal-content">
+            Hal-hal yang belum diatur dalam Perjanjian ini atau segala perubahan terhadap Perjanjian ini diatur lebih lanjut oleh <strong>PARA PIHAK</strong> dalam perjanjian tambahan/adendum dan merupakan bagian tidak terpisahkan dari Perjanjian ini.
+        </div>
+    </div>
+
+    <!-- Pasal 13 -->
+    <div class="pasal">
+        <div class="pasal-title">Pasal 13</div>
         <div class="pasal-list">
             <div class="pasal-item">
                 <div class="pasal-item-number">(1)</div>
                 <div class="pasal-item-content">
-                    Segala perselisihan atau perbedaan pendapat yang timbul sebagai akibat adanya Perjanjian ini akan diselesaikan secara musyawarah untuk mufakat.
+                    Segala perselisihan atau perbedaan pendapat yang mungkin timbul sebagai akibat dari Perjanjian ini, diselesaikan secara musyawarah untuk mufakat oleh <strong>PARA PIHAK</strong>.
                 </div>
             </div>
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Apabila perselisihan tidak dapat diselesaikan sebagaimana dimaksud pada ayat (1), <strong>PARA PIHAK</strong> sepakat menyelesaikan perselisihan dengan memilih kedudukan/domisili hukum di Panitera Pengadilan Negeri Sawahlunto.
+                    Apabila musyawarah untuk mufakat sebagaimana dimaksud pada ayat (1) tidak berhasil, maka <strong>PARA PIHAK</strong> sepakat untuk menyelesaikan perselisihan dengan memilih kedudukan/domisili hukum di Kepaniteraan Pengadilan Negeri Sawahlunto.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Selama perselisihan dalam proses penyelesaian pengadilan, <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> wajib tetap melaksanakan kewajiban masing-masing berdasarkan Perjanjian ini.
                 </div>
             </div>
         </div>
     </div>
 
     <div class="content">
-        Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK</strong>.
+        Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK</strong>.
     </div>
 
     <!-- Signatures -->

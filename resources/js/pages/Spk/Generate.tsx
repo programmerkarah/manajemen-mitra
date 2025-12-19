@@ -59,8 +59,6 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
     const [formData, setFormData] = useState({
         nomor_spk_prefix: '',
         tanggal_spk: '',
-        nomor_bast_prefix: '',
-        tanggal_bast: '',
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
@@ -85,14 +83,13 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
     };
 
     const handlePreview = (alokasi: AlokasiPetugas) => {
-        if (!formData.nomor_spk_prefix || !formData.tanggal_spk || !formData.nomor_bast_prefix || !formData.tanggal_bast) {
+        if (!formData.nomor_spk_prefix || !formData.tanggal_spk) {
             alert('Lengkapi form terlebih dahulu');
             return;
         }
 
         // Generate unique nomor for this petugas
         const nomorSpk = `${formData.nomor_spk_prefix}/SPK/${periode.bulan}/${periode.tahun}`;
-        const nomorBast = `${formData.nomor_bast_prefix}/BAST/${periode.bulan}/${periode.tahun}`;
 
         // Create a native form and submit to preview endpoint
         const form = document.createElement('form');
@@ -115,8 +112,6 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
         const formDataToSubmit = {
             nomor_spk: nomorSpk,
             tanggal_spk: formData.tanggal_spk,
-            nomor_bast: nomorBast,
-            tanggal_bast: formData.tanggal_bast,
         };
 
         Object.entries(formDataToSubmit).forEach(([key, value]) => {
@@ -138,7 +133,7 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
             return;
         }
 
-        if (!formData.nomor_spk_prefix || !formData.tanggal_spk || !formData.nomor_bast_prefix || !formData.tanggal_bast) {
+        if (!formData.nomor_spk_prefix || !formData.tanggal_spk) {
             alert('Lengkapi form terlebih dahulu');
             return;
         }
@@ -154,15 +149,12 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
             if (!alokasi) return;
 
             const nomorSpk = `${formData.nomor_spk_prefix}/${index + 1}/SPK/${periode.bulan}/${periode.tahun}`;
-            const nomorBast = `${formData.nomor_bast_prefix}/${index + 1}/BAST/${periode.bulan}/${periode.tahun}`;
 
             router.post(
                 `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/generate`,
                 {
                     nomor_spk: nomorSpk,
                     tanggal_spk: formData.tanggal_spk,
-                    nomor_bast: nomorBast,
-                    tanggal_bast: formData.tanggal_bast,
                 },
                 {
                     preserveState: true,
@@ -215,7 +207,7 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                 <ContentCard>
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                            Informasi SPK & BAST
+                            Informasi SPK
                         </h3>
 
                         <div className="grid gap-4 md:grid-cols-2">
@@ -241,32 +233,6 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                                     type="date"
                                     value={formData.tanggal_spk}
                                     onChange={(e) => setFormData({ ...formData, tanggal_spk: e.target.value })}
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="nomor_bast_prefix">Nomor BAST (Prefix)</Label>
-                                <Input
-                                    id="nomor_bast_prefix"
-                                    type="text"
-                                    value={formData.nomor_bast_prefix}
-                                    onChange={(e) => setFormData({ ...formData, nomor_bast_prefix: e.target.value })}
-                                    placeholder="Contoh: 716"
-                                    required
-                                />
-                                <p className="mt-1 text-xs text-neutral-500">
-                                    Format akhir: {formData.nomor_bast_prefix || 'XXX'}/[No Urut]/BAST/{periode.bulan}/{periode.tahun}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="tanggal_bast">Tanggal BAST</Label>
-                                <Input
-                                    id="tanggal_bast"
-                                    type="date"
-                                    value={formData.tanggal_bast}
-                                    onChange={(e) => setFormData({ ...formData, tanggal_bast: e.target.value })}
                                     required
                                 />
                             </div>
@@ -314,11 +280,11 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                                     {petugas_list.map((alokasi) => {
                                         const totalHonor = (alokasi.total_honor || 0) + (alokasi.total_honor_listing || 0);
                                         return (
-                                            <tr key={alokasi.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                            <tr key={alokasi.alokasi_hashed_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                                 <td className="px-6 py-4">
                                                     <Checkbox
-                                                        checked={selectedPetugas.includes(alokasi.hashed_id)}
-                                                        onCheckedChange={() => handlePetugasToggle(alokasi.hashed_id)}
+                                                        checked={selectedPetugas.includes(alokasi.petugas.hashed_id)}
+                                                        onCheckedChange={() => handlePetugasToggle(alokasi.petugas.hashed_id)}
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4">

@@ -41,6 +41,13 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['two_factor_enabled'];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -53,6 +60,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'two_factor_confirmed_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Determine if two-factor authentication is enabled for the user.
+     */
+    public function getTwoFactorEnabledAttribute(): bool
+    {
+        return !is_null($this->two_factor_secret) && !is_null($this->two_factor_confirmed_at);
     }
 
     public function kegiatanDikelola(): HasMany
