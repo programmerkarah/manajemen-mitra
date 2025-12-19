@@ -144,9 +144,8 @@ export default function Create({
             return getFirstAvailableMonth(usedMonthsList, nextMonth);
         }
         
-        // New mode: find first available month starting from current month
-        const currentMonth = new Date().getMonth() + 1;
-        return getFirstAvailableMonth(usedMonthsList, currentMonth);
+        // New mode: find first available month starting from month 1
+        return getFirstAvailableMonth(usedMonthsList, 1);
     });
     const [tahapan, setTahapan] = useState<'both' | 'listing_only' | 'pencacahan_only'>(() => {
         if (sourcePeriode?.tahapan) {
@@ -764,13 +763,11 @@ export default function Create({
         
         // Only show months in the correct year and within the kegiatan's date range
         const filtered = months.filter((m) => {
-            // For each month, check if the month in active_year is within the kegiatan's range
-            const monthStart = new Date(active_year, m.value - 1, 1);
-            const monthEnd = new Date(active_year, m.value, 0, 23, 59, 59, 999);
-            // The month must be in the same year as start or end, or active_year must be between start and end year
+            // The year must be within kegiatan range
             if (active_year < start.getFullYear() || active_year > end.getFullYear()) {
                 return false;
             }
+            
             // If kegiatan starts and ends in the same year
             if (start.getFullYear() === end.getFullYear()) {
                 return (
@@ -779,20 +776,47 @@ export default function Create({
                     m.value <= end.getMonth() + 1
                 );
             }
+            
             // If this is the start year
             if (active_year === start.getFullYear()) {
                 return m.value >= start.getMonth() + 1;
             }
+            
             // If this is the end year
             if (active_year === end.getFullYear()) {
                 return m.value <= end.getMonth() + 1;
             }
+            
             // If this is a year between start and end, show all months
             return active_year > start.getFullYear() && active_year < end.getFullYear();
         });
         
         return filtered;
     }, [selectedKegiatan, months, active_year]);
+
+    // Set default bulan to first available month in filteredMonths
+    useEffect(() => {
+        // Skip if in edit mode or if there's a source periode
+        if (isEditMode || sourcePeriode) {
+            return;
+        }
+
+        // Find first available month from filteredMonths that's not used
+        const availableMonths = filteredMonths.filter(
+            (month) => !usedMonths.includes(month.value)
+        );
+
+        if (availableMonths.length > 0) {
+            const firstAvailableMonth = availableMonths[0].value;
+            // Only update if current bulan is not in available months
+            if (!availableMonths.some(m => m.value === bulan)) {
+                setBulan(firstAvailableMonth);
+            }
+        } else if (filteredMonths.length > 0) {
+            // If all months are used, use the first month from filteredMonths
+            setBulan(filteredMonths[0].value);
+        }
+    }, [filteredMonths, usedMonths, isEditMode, sourcePeriode]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

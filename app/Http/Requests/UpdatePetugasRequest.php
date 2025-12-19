@@ -57,8 +57,8 @@ class UpdatePetugasRequest extends FormRequest
         return [
             'nama.required' => 'Nama petugas wajib diisi.',
             'nik.required' => 'NIK wajib diisi.',
-            'nik.size' => 'NIK harus 16 digit.',
             'nik.unique' => 'NIK sudah terdaftar.',
+            'email.required' => 'Email wajib diisi.',
             'email.required' => 'Email wajib diisi.',
             'email.email' => 'Format email tidak valid.',
             'email.unique' => 'Email sudah terdaftar.',

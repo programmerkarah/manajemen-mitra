@@ -418,10 +418,14 @@ class SkKpaController extends Controller
             });
 
         // Check if this is SK Perubahan (ada SK sebelumnya) atau SK pertama
-        $existingSk = SkKpa::where('kegiatan_id', $kegiatanId)
-            ->orderBy('tahun', 'desc')
-            ->orderBy('bulan', 'desc')
-            ->first();
+        $allExistingSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $existingSk = $allExistingSk->first();
+        $revisionNumber = $allExistingSk->count(); // 0 = SK pertama, 1 = perubahan pertama, 2 = perubahan kedua, dst
+        $firstSkNumber = $existingSk ? $existingSk->nomor_sk : null;
+        $firstSkYear = $existingSk ? $existingSk->tahun : null;
 
         // Get periode for petugas data
         // Jika SK Perubahan, ambil periode terbaru (latest)
@@ -496,6 +500,9 @@ class SkKpaController extends Controller
             'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
             'dasarHukum' => $dasarHukum,
             'alokasiList' => $alokasiList,
+            'revisionNumber' => $revisionNumber,
+            'firstSkNumber' => $firstSkNumber,
+            'firstSkYear' => $firstSkYear,
         ];
 
         // Generate and stream PDF directly (tidak save)
@@ -557,10 +564,14 @@ class SkKpaController extends Controller
             });
 
         // Check if this is SK Perubahan (ada SK sebelumnya) atau SK pertama
-        $existingSk = SkKpa::where('kegiatan_id', $kegiatanId)
-            ->orderBy('tahun', 'desc')
-            ->orderBy('bulan', 'desc')
-            ->first();
+        $allExistingSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $existingSk = $allExistingSk->first();
+        $revisionNumber = $allExistingSk->count(); // 0 = SK pertama, 1 = perubahan pertama, 2 = perubahan kedua, dst
+        $firstSkNumber = $existingSk ? $existingSk->nomor_sk : null;
+        $firstSkYear = $existingSk ? $existingSk->tahun : null;
 
         // Get periode for petugas data
         // Jika SK Perubahan, ambil periode terbaru (latest)
@@ -635,6 +646,9 @@ class SkKpaController extends Controller
             'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
             'dasarHukum' => $dasarHukum,
             'alokasiList' => $alokasiList,
+            'revisionNumber' => $revisionNumber,
+            'firstSkNumber' => $firstSkNumber,
+            'firstSkYear' => $firstSkYear,
         ];
 
         // Generate PDF

@@ -20,6 +20,13 @@
             font-style: normal;
         }
 
+        @font-face {
+            font-family: 'Arial';
+            src: url('{{ public_path("Arial Bold Italic.TTF") }}') format('truetype');
+            font-weight: bold;
+            font-style: italic;
+        }
+
         @page {
             size: A4;
             margin: 2cm 2.4cm;
@@ -183,19 +190,40 @@
     <div class="header">
         <div style="text-align: center; margin-bottom: 0px;">
             <img src="{{ public_path('favicon.svg') }}" alt="Logo BPS" style="width: 140px; height: auto;">
-            <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
+            <h3 style="font-family: 'Arial', sans-serif; font-weight: bold; font-style: italic;">BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         </div>
         <span>{{ $kategoriKeputusan }} KEPALA BADAN PUSAT STATISTIK</span>
         <span>KOTA SAWAHLUNTO</span>
-        <span>NOMOR : {{ $nomorSk }} TAHUN {{ $tahunSk }}</span>
+        <span>NOMOR {{ $nomorSk }} TAHUN {{ $tahunSk }}</span>
     </div>
 
     <div class="title">TENTANG</div>
 
     <div class="title">
-        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-        BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
-        TAHUN ANGGARAN {{ $periode->tahun }}
+        @if($revisionNumber > 0)
+            @php
+                $revisionText = '';
+                if ($revisionNumber == 1) {
+                    $revisionText = 'PERUBAHAN ATAS';
+                } else {
+                    $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+                    $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+                }
+            @endphp
+            {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
+            KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
+            @if($firstSkYear)
+                TAHUN {{ $firstSkYear }}
+            @endif
+            <br>
+            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            TAHUN ANGGARAN {{ $periode->tahun }}
+        @else
+            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            TAHUN ANGGARAN {{ $periode->tahun }}
+        @endif
     </div>
 
     <div style="margin-top: 30px; text-align: center; ">
@@ -231,8 +259,24 @@
             <td>Menetapkan</td>
             <td>:</td>
             <td>
-                {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TENTANG
-                PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
+                @if($revisionNumber > 0)
+                    @php
+                        $revisionText = '';
+                        if ($revisionNumber == 1) {
+                            $revisionText = 'PERUBAHAN ATAS';
+                        } else {
+                            $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+                            $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+                        }
+                    @endphp
+                    {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO 
+                    TENTANG {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO 
+                    NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} 
+                    BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
+                @else
+                    {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TENTANG
+                    PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
+                @endif
             </td>
         </tr>
     </table>
@@ -286,7 +330,7 @@
     <div class="signature">
         <div class="signature-content">
             <div>Ditetapkan di : Sawahlunto</div>
-            <div>Pada tanggal : {{ \Carbon\Carbon::parse($tanggalSk)->isoFormat('D MMMM Y') }}</div>
+            <div>Pada tanggal : {{ \Carbon\Carbon::parse($tanggalSk)->locale('id')->translatedFormat('d F Y') }}</div>
             <div style="margin-top: 10px; font-weight: bold;">
                 KEPALA BADAN PUSAT STATISTIK<br>
                 KOTA SAWAHLUNTO,
@@ -316,9 +360,30 @@
     </div>
 
     <div class="title">
-        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-        BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
-        TAHUN ANGGARAN {{ $periode->tahun }}
+        @if($revisionNumber > 0)
+            @php
+                $revisionText = '';
+                if ($revisionNumber == 1) {
+                    $revisionText = 'PERUBAHAN ATAS';
+                } else {
+                    $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+                    $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+                }
+            @endphp
+            {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
+            KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
+            @if($firstSkYear)
+                TAHUN {{ $firstSkYear }}
+            @endif
+            <br>
+            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            TAHUN ANGGARAN {{ $periode->tahun }}
+        @else
+            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            TAHUN ANGGARAN {{ $periode->tahun }}
+        @endif
     </div>
 
     <table class="petugas">
