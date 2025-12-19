@@ -271,7 +271,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);
         Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
 
-        Route::get('spk/create', [SpkController::class, 'create'])->name('spk.create');
+        // SPK routes
+        Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
+        Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview', [SpkController::class, 'previewSpk'])->name('spk.preview');
+        Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
         Route::post('spk', [SpkController::class, 'store'])->name('spk.store');
         Route::get('spk/{spk}/edit', [SpkController::class, 'edit'])->name('spk.edit');
         Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');

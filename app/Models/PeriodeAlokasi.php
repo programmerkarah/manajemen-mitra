@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class PeriodeAlokasi extends Model
 {
@@ -50,6 +51,18 @@ class PeriodeAlokasi extends Model
     public function alokasiPetugas(): HasMany
     {
         return $this->hasMany(AlokasiPetugas::class);
+    }
+
+    public function spk(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Spk::class,
+            AlokasiPetugas::class,
+            'periode_alokasi_id', // Foreign key on alokasi_petugas table
+            'alokasi_mitra_id',   // Foreign key on spk table
+            'id',                 // Local key on periode_alokasi table
+            'id'                  // Local key on alokasi_petugas table
+        );
     }
 
     public function submittedBy(): BelongsTo
