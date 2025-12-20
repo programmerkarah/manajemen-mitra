@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Spk;
 use Illuminate\Http\Request;
@@ -20,11 +21,11 @@ class SpkController extends Controller
     {
         $activeYear = \App\Services\ActiveYearService::get();
 
-        // Get periode alokasi yang sudah validated
+        // Get periode alokasi yang sudah validated grouped by month
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
-                'alokasiPetugas.petugas:id,nama,nik',
+                'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk' => function ($q) {
                     $q->orderBy('created_at', 'desc');
                 },
@@ -49,48 +50,78 @@ class SpkController extends Controller
             $query->where('bulan', $request->bulan);
         }
 
-        $periodeList = $query->latest()->paginate(15)->withQueryString();
+        $periodes = $query->latest()->get();
 
-        // Transform data
-        $periodeList->getCollection()->transform(function ($periode) {
-            $spkCount = $periode->spk->count();
-            $latestSpk = $periode->spk->first();
+        // Group by month and year
+        $groupedByMonth = $periodes->groupBy(function ($periode) {
+            return $periode->tahun.'-'.$periode->bulan;
+        })->map(function ($monthPeriodes, $key) {
+            [$tahun, $bulan] = explode('-', $key);
 
-            // SPK status
-            $spkStatus = $spkCount > 0 ? 'Sudah Dibuat' : 'Belum Dibuat';
-            $spkStatusType = $spkCount > 0 ? 'created' : 'not_created';
+            // Count total non-organik petugas across all kegiatan in this month
+            $totalPetugasNonOrganik = $monthPeriodes->sum(function ($periode) {
+                return $periode->alokasiPetugas->filter(function ($alokasi) {
+                    return $alokasi->petugas->jenis_petugas === 'non_organik';
+                })->count();
+            });
 
-            return [
-                'id' => $periode->id,
-                'hashed_id' => $periode->hashed_id,
-                'tahun' => $periode->tahun,
-                'bulan' => $periode->bulan,
-                'bulan_label' => $this->getBulanLabel($periode->bulan),
-                'status' => $periode->status,
-                'kegiatan' => [
-                    'hashed_id' => $periode->kegiatan->hashed_id,
+            // Count total SPK created
+            $totalSpk = $monthPeriodes->sum(function ($periode) {
+                return $periode->spk->count();
+            });
+
+            // Get all kegiatan in this month
+            $kegiatanList = $monthPeriodes->map(function ($periode) {
+                return [
+                    'periode_id' => $periode->id,
+                    'periode_hashed_id' => $periode->hashed_id,
+                    'kegiatan_hashed_id' => $periode->kegiatan->hashed_id,
                     'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
                     'jenis_kegiatan' => $periode->kegiatan->jenis_kegiatan,
-                    'tahun_anggaran' => $periode->kegiatan->tahun_anggaran,
-                ],
-                'jumlah_petugas' => $periode->alokasiPetugas->count(),
+                    'jumlah_petugas_non_organik' => $periode->alokasiPetugas->filter(function ($alokasi) {
+                        return $alokasi->petugas->jenis_petugas === 'non_organik';
+                    })->count(),
+                    'spk_count' => $periode->spk->count(),
+                ];
+            })->values();
+
+            // SPK status for the month
+            $spkStatus = $totalSpk > 0 ? 'Sudah Dibuat' : 'Belum Dibuat';
+            $spkStatusType = $totalSpk > 0 ? 'created' : 'not_created';
+
+            return [
+                'tahun' => (int) $tahun,
+                'bulan' => (int) $bulan,
+                'bulan_label' => $this->getBulanLabel((int) $bulan),
+                'total_petugas_non_organik' => $totalPetugasNonOrganik,
+                'total_spk' => $totalSpk,
                 'spk_status' => $spkStatus,
                 'spk_status_type' => $spkStatusType,
-                'spk_count' => $spkCount,
-                'latest_spk' => $latestSpk ? [
-                    'id' => $latestSpk->id,
-                    'hashed_id' => $latestSpk->hashed_id,
-                    'nomor_spk' => $latestSpk->nomor_spk,
-                    'tanggal_spk' => $latestSpk->tanggal_spk,
-                    'status' => $latestSpk->status,
-                    'file_path' => $latestSpk->file_path,
-                ] : null,
+                'kegiatan_list' => $kegiatanList,
             ];
-        });
+        })->sortByDesc(function ($item) {
+            return $item['tahun'].str_pad($item['bulan'], 2, '0', STR_PAD_LEFT);
+        })->values();
+
+        // Paginate manually
+        $perPage = 15;
+        $currentPage = $request->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+
+        $paginatedItems = $groupedByMonth->slice($offset, $perPage)->values();
+        $total = $groupedByMonth->count();
+
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $total,
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return Inertia::render('Spk/Index', [
-            'periodeList' => $periodeList,
+            'periodeList' => $paginator,
             'filters' => $request->only(['search', 'bulan']),
         ]);
     }
@@ -108,8 +139,51 @@ class SpkController extends Controller
 
         $periode = PeriodeAlokasi::with([
             'kegiatan',
-            'alokasiPetugas.petugas',
         ])->findOrFail($periodeId);
+
+        // Check if there are any draft periode in the same month
+        $hasDraftPeriode = PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->where('status', 'draft')
+            ->exists();
+
+        // Get all periode alokasi in the same month and year
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->pluck('id');
+
+        // Get all unique non-organik petugas from all alokasi in this month
+        $petugasList = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->with(['petugas'])
+            ->get()
+            ->filter(function ($alokasi) {
+                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+            })
+            ->unique(function ($alokasi) {
+                // Unique by petugas_id to remove duplicates
+                return $alokasi->petugas_id;
+            })
+            ->sortBy(function ($alokasi) {
+                return $alokasi->petugas->nama;
+            })
+            ->values()
+            ->map(function ($alokasi) {
+                return [
+                    'alokasi_id' => $alokasi->id,
+                    'alokasi_hashed_id' => $alokasi->hashed_id,
+                    'petugas' => [
+                        'id' => $alokasi->petugas->id,
+                        'hashed_id' => $alokasi->petugas->hashed_id,
+                        'nama' => $alokasi->petugas->nama,
+                        'nik' => $alokasi->petugas->nik,
+                        'jenis_petugas' => $alokasi->petugas->jenis_petugas,
+                    ],
+                    'peran' => $alokasi->peran,
+                    'target_listing' => $alokasi->target_listing,
+                    'target_pencacahan' => $alokasi->target_pencacahan,
+                ];
+            });
 
         return Inertia::render('Spk/Generate', [
             'periode' => [
@@ -126,22 +200,8 @@ class SpkController extends Controller
                     'tahun_anggaran' => $periode->kegiatan->tahun_anggaran,
                 ],
             ],
-            'petugas_list' => $periode->alokasiPetugas->map(function ($alokasi) {
-                return [
-                    'alokasi_id' => $alokasi->id,
-                    'alokasi_hashed_id' => $alokasi->hashed_id,
-                    'petugas' => [
-                        'id' => $alokasi->petugas->id,
-                        'hashed_id' => $alokasi->petugas->hashed_id,
-                        'nama' => $alokasi->petugas->nama,
-                        'nik' => $alokasi->petugas->nik,
-                        'jenis_petugas' => $alokasi->petugas->jenis_petugas,
-                    ],
-                    'peran' => $alokasi->peran,
-                    'target_listing' => $alokasi->target_listing,
-                    'target_pencacahan' => $alokasi->target_pencacahan,
-                ];
-            }),
+            'petugas_list' => $petugasList,
+            'has_draft_periode' => $hasDraftPeriode,
         ]);
     }
 
@@ -233,31 +293,53 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
+            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
-        $alokasi = AlokasiPetugas::with('petugas')->where('periode_alokasi_id', $periodeId)->where('petugas_id', $petugasId)->firstOrFail();
+
+        // Get all alokasi for this petugas in the same month
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        $petugas = $allAlokasi->first()->petugas;
 
         // Get active Kepala BPS
-        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
 
-        // Get total honor for this petugas
-        $totalHonor = $this->calculateTotalHonor($periode->kegiatan, $alokasi);
+        // Get total honor for this petugas across all kegiatan
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $bebanAnggaran = '';
 
-        // Get uraian tugas details
-        $uraianTugas = $this->getUraianTugas($periode->kegiatan, $alokasi);
-
-        // Get beban anggaran (MAK)
-        $bebanAnggaran = $this->getBebanAnggaran($periode->kegiatan);
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
 
         $data = [
             'periode' => $periode,
-            'alokasi' => $alokasi,
-            'petugas' => $alokasi->petugas,
+            'alokasi' => $allAlokasi->first(),
+            'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
@@ -266,20 +348,20 @@ class SpkController extends Controller
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
         $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
-        
+
         $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
 
         // Save temporary PDFs
         $tempPath = storage_path('app/temp');
-        if (!file_exists($tempPath)) {
+        if (! file_exists($tempPath)) {
             mkdir($tempPath, 0777, true);
         }
 
-        $timestamp = time() . '_' . uniqid();
-        $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
-        $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
-        $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
+        $timestamp = time().'_'.uniqid();
+        $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
+        $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
+        $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
 
         file_put_contents($mainPath, $pdfMain->output());
         file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -292,7 +374,7 @@ class SpkController extends Controller
 
         if ($merged && file_exists($mergedPath)) {
             $pdfContent = file_get_contents($mergedPath);
-            
+
             // Cleanup temporary files
             @unlink($mainPath);
             @unlink($lampiranPath);
@@ -300,19 +382,163 @@ class SpkController extends Controller
 
             return response($pdfContent)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$alokasi->petugas->nama.'.pdf"');
+                ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$petugas->nama.'.pdf"');
         }
-        
-        // Cleanup and fallback to single PDF if merge failed
+
+        // Cleanup temporary files
         @unlink($mainPath);
         @unlink($lampiranPath);
-        @unlink($mergedPath);
 
-        // Fallback: use old single-file approach with landscape
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
+        // Fallback: return main PDF only if merge failed
+        return response($pdfMain->output())
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$petugas->nama.'.pdf"');
+    }
+
+    /**
+     * Preview SPK Main only
+     */
+    public function previewSpkMain(Request $request, string $periodeHashedId, string $petugasHashedId)
+    {
+        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+
+        if (! $periodeId || ! $petugasId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'nomor_spk' => ['required', 'string', 'max:255'],
+            'tanggal_spk' => ['required', 'date'],
+            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
+        ]);
+
+        $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Get all alokasi for this petugas in the same month
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        $petugas = $allAlokasi->first()->petugas;
+
+        // Get active Kepala BPS
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
+
+        // Get total honor for this petugas across all kegiatan
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $bebanAnggaran = '';
+
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'petugas' => $petugas,
+            'kegiatan' => $periode->kegiatan,
+            'nomorSpk' => $validated['nomor_spk'],
+            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
-        
-        return $pdf->stream('Preview_SPK_'.$alokasi->petugas->nama.'.pdf');
+
+        return $pdf->stream('Preview_SPK_Main_'.$petugas->nama.'.pdf');
+    }
+
+    /**
+     * Preview SPK Lampiran only
+     */
+    public function previewSpkLampiran(Request $request, string $periodeHashedId, string $petugasHashedId)
+    {
+        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+
+        if (! $periodeId || ! $petugasId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'nomor_spk' => ['required', 'string', 'max:255'],
+            'tanggal_spk' => ['required', 'date'],
+            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
+        ]);
+
+        $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Get all alokasi for this petugas in the same month
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        $petugas = $allAlokasi->first()->petugas;
+
+        // Get active Kepala BPS
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
+
+        // Get total honor for this petugas across all kegiatan
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $bebanAnggaran = '';
+
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'petugas' => $petugas,
+            'kegiatan' => $periode->kegiatan,
+            'nomorSpk' => $validated['nomor_spk'],
+            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->stream('Preview_SPK_Lampiran_'.$petugas->nama.'.pdf');
     }
 
     /**
@@ -330,31 +556,54 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255', 'unique:spk,nomor_spk'],
             'tanggal_spk' => ['required', 'date'],
+            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
-        $alokasi = AlokasiPetugas::with('petugas')->where('periode_alokasi_id', $periodeId)->where('petugas_id', $petugasId)->firstOrFail();
+
+        // Get all alokasi for this petugas in the same month
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        $petugas = $allAlokasi->first()->petugas;
 
         // Get active Kepala BPS
-        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
 
-        // Get total honor for this petugas
-        $totalHonor = $this->calculateTotalHonor($periode->kegiatan, $alokasi);
+        // Get total honor for this petugas across all kegiatan
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $bebanAnggaran = '';
 
-        // Get uraian tugas details
-        $uraianTugas = $this->getUraianTugas($periode->kegiatan, $alokasi);
-
-        // Get beban anggaran (MAK)
-        $bebanAnggaran = $this->getBebanAnggaran($periode->kegiatan);
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
 
         $data = [
             'periode' => $periode,
-            'alokasi' => $alokasi,
-            'petugas' => $alokasi->petugas,
+            'alokasi' => $allAlokasi->first(),
+            'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
@@ -365,20 +614,20 @@ class SpkController extends Controller
             // Generate 2 separate PDFs (SPK Main + Lampiran only)
             $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
                 ->setPaper('a4', 'portrait');
-            
+
             $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
                 ->setPaper('a4', 'landscape');
 
             // Save temporary PDFs
             $tempPath = storage_path('app/temp');
-            if (!file_exists($tempPath)) {
+            if (! file_exists($tempPath)) {
                 mkdir($tempPath, 0777, true);
             }
 
-            $timestamp = time() . '_' . uniqid();
-            $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
-            $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
-            $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
+            $timestamp = time().'_'.uniqid();
+            $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
+            $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
+            $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
 
             file_put_contents($mainPath, $pdfMain->output());
             file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -405,20 +654,20 @@ class SpkController extends Controller
             @unlink($mergedPath);
 
             // Save PDF file
-            $fileName = $data['nomorSpk'].'_SPK '.$data['kegiatan']->nama_kegiatan.'_'.$alokasi->petugas->nama.'_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
+            $fileName = $data['nomorSpk'].'_SPK '.$data['kegiatan']->nama_kegiatan.'_'.$petugas->nama.'_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
             $filePath = 'spk/'.date('Y').'/'.date('m').'/'.$fileName;
             \Storage::put($filePath, $pdfOutput);
 
             // Save to database
             $spk = Spk::create([
                 'nomor_spk' => $validated['nomor_spk'],
-                'alokasi_mitra_id' => $alokasi->id,
+                'alokasi_mitra_id' => $allAlokasi->first()->id,
                 'tanggal_spk' => $validated['tanggal_spk'],
                 'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
                 'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
                 'nilai_kontrak' => $totalHonor,
-                'nama_ppk' => preg_replace('/,.*$/', '', $kepalaBps->nama),
-                'nip_ppk' => $kepalaBps->nip ?? null,
+                'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                'nip_ppk' => $penandatangan->nip ?? null,
                 'file_path' => $filePath,
                 'status' => 'draft',
                 'created_by' => auth()->id(),
@@ -464,13 +713,13 @@ class SpkController extends Controller
         $total = 0;
 
         // Calculate from listing rate
-        if ($rateHonor->rate_listing && $alokasi->target_listing) {
-            $total += $rateHonor->rate_listing * $alokasi->target_listing;
+        if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
+            $total += $rateHonor->rate_listing * $alokasi->jumlah_satuan_listing;
         }
 
-        // Calculate from regular rate
-        if ($rateHonor->rate && $alokasi->target_pencacahan) {
-            $total += $rateHonor->rate * $alokasi->target_pencacahan;
+        // Calculate from regular rate (pencacahan)
+        if ($rateHonor->rate && $alokasi->jumlah_satuan) {
+            $total += $rateHonor->rate * $alokasi->jumlah_satuan;
         }
 
         return $total;
@@ -488,29 +737,36 @@ class SpkController extends Controller
             ->first();
 
         $uraian = [];
+        $periode = $alokasi->periodeAlokasi;
 
         if ($rateHonor) {
-            $peranLabel = $this->getPeranLabel($alokasi->peran);
-
             // Add listing task if exists
-            if ($rateHonor->rate_listing && $alokasi->target_listing) {
+            if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
+                $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'listing');
                 $uraian[] = [
-                    'uraian' => "Honor Petugas {$peranLabel} {$kegiatan->nama_kegiatan} {$kegiatan->tahun_anggaran}",
-                    'volume' => $alokasi->target_listing,
+                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} {$periode->tahun} Tahun {$kegiatan->tahun_anggaran} (Listing)",
+                    'volume' => $alokasi->jumlah_satuan_listing,
                     'satuan' => $rateHonor->satuanListing->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate_listing,
-                    'jumlah' => $rateHonor->rate_listing * $alokasi->target_listing,
+                    'jumlah' => $rateHonor->rate_listing * $alokasi->jumlah_satuan_listing,
+                    'tanggal_mulai' => $periode->tanggal_mulai_listing?->format('Y-m-d'),
+                    'tanggal_selesai' => $periode->tanggal_selesai_listing?->format('Y-m-d'),
+                    'phase' => 'listing',
                 ];
             }
 
-            // Add regular task
-            if ($rateHonor->rate && $alokasi->target_pencacahan) {
+            // Add regular task (pencacahan)
+            if ($rateHonor->rate && $alokasi->jumlah_satuan) {
+                $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'pencacahan');
                 $uraian[] = [
-                    'uraian' => "Honor Petugas {$peranLabel} {$kegiatan->nama_kegiatan} {$kegiatan->tahun_anggaran}",
-                    'volume' => $alokasi->target_pencacahan,
+                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} {$periode->tahun} Tahun {$kegiatan->tahun_anggaran}",
+                    'volume' => $alokasi->jumlah_satuan,
                     'satuan' => $rateHonor->satuan->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate,
-                    'jumlah' => $rateHonor->rate * $alokasi->target_pencacahan,
+                    'jumlah' => $rateHonor->rate * $alokasi->jumlah_satuan,
+                    'tanggal_mulai' => $periode->tanggal_mulai?->format('Y-m-d'),
+                    'tanggal_selesai' => $periode->tanggal_selesai?->format('Y-m-d'),
+                    'phase' => 'pencacahan',
                 ];
             }
         }
@@ -519,10 +775,37 @@ class SpkController extends Controller
     }
 
     /**
+     * Get peran kegiatan label based on role and phase
+     */
+    private function getPeranKegiatan(string $peran, string $phase): string
+    {
+        if ($phase === 'listing') {
+            return match ($peran) {
+                'pcl_ppl' => 'Pemutakhiran Lapangan',
+                'pml' => 'Pemeriksaan Pemutakhiran Lapangan',
+                default => 'Pemutakhiran Lapangan',
+            };
+        }
+
+        // pencacahan
+        return match ($peran) {
+            'pcl_ppl' => 'Pendataan Lapangan',
+            'pml' => 'Pemeriksaan Lapangan',
+            default => 'Pendataan Lapangan',
+        };
+    }
+
+    /**
      * Get beban anggaran (MAK)
      */
     private function getBebanAnggaran(Kegiatan $kegiatan): string
     {
+        // Prioritaskan kode_coa dari kegiatan jika ada
+        if (! empty($kegiatan->kode_coa)) {
+            return $kegiatan->kode_coa;
+        }
+
+        // Fallback ke MAK dari DIPA
         $dipa = \App\Models\Dipa::active()->first();
 
         return $dipa->mak ?? '2904.BMA.006.005.A.521213';
@@ -534,10 +817,10 @@ class SpkController extends Controller
     private function getPeranLabel(string $peran): string
     {
         return match ($peran) {
-            'pencacah' => 'Pendataan Lapangan',
-            'pengawas' => 'Pengawas',
-            'pemeriksa' => 'Pemeriksa',
-            'ketua_tim' => 'Ketua Tim',
+            'pcl_ppl' => 'Petugas Pencacahan',
+            'pml' => 'Pemeriksa Lapangan/PML',
+            'pengolahan' => 'Petugas Pengolahan',
+            'pengawas_pengolahan' => 'Pemeriksa Pengolahan',
             default => $peran,
         };
     }

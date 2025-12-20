@@ -158,6 +158,10 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
+            'tanggal_mulai' => 'nullable|date',
+            'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
+            'tanggal_mulai_listing' => 'nullable|date',
+            'tanggal_selesai_listing' => 'nullable|date|after_or_equal:tanggal_mulai_listing',
         ]);
 
         DB::beginTransaction();
@@ -368,6 +372,10 @@ class AlokasiPetugasController extends Controller
                     'status' => 'draft',
                     'sisa_pagu' => $sisaPaguPeriode,
                     'sisa_pagu_listing' => $sisaPaguPeriodeListing,
+                    'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
+                    'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+                    'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
+                    'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
                 ]);
             } elseif (! $periode) {
                 // Create new periode
@@ -380,6 +388,10 @@ class AlokasiPetugasController extends Controller
                     'status' => 'draft',
                     'sisa_pagu' => $sisaPaguPeriode,
                     'sisa_pagu_listing' => $sisaPaguPeriodeListing,
+                    'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
+                    'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+                    'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
+                    'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
                 ]);
             }
 
@@ -443,7 +455,12 @@ class AlokasiPetugasController extends Controller
             ])
             ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->filter(function ($kegiatan) {
+                // Only show kegiatan that has at least one rate honor
+                return $kegiatan->rateHonors->isNotEmpty();
+            })
+            ->values();
 
         // Pastikan field rate_listing dan satuan_listing_id selalu ada di setiap rateHonors
         foreach ($kegiatans as $kegiatan) {
@@ -678,7 +695,7 @@ class AlokasiPetugasController extends Controller
             ->get();
 
         $petugas = Petugas::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas', 'jabatan', 'golongan')
             ->get();
 
         $rateHonors = RateHonor::with('satuan')
@@ -1046,7 +1063,7 @@ class AlokasiPetugasController extends Controller
         $kegiatanWithRates = Kegiatan::with(['rateHonors.satuan', 'rateHonors.satuanListing'])->findOrFail($kegiatan->id);
 
         // Load all petugas
-        $petugas = Petugas::select('id', 'nama', 'jenis_petugas')
+        $petugas = Petugas::select('id', 'nama', 'jenis_petugas', 'golongan', 'jabatan')
             ->orderBy('nama')
             ->get()
             ->map(function ($p) {
@@ -1054,6 +1071,7 @@ class AlokasiPetugasController extends Controller
                     'id' => $p->id,
                     'nama' => $p->nama,
                     'jenis_petugas' => $p->jenis_petugas,
+                    'jabatan' => $p->jabatan,
                 ];
             });
 
@@ -1130,6 +1148,10 @@ class AlokasiPetugasController extends Controller
                 'bulan' => $bulan,
                 'tahun' => $tahun,
                 'tahapan' => $periode->tahapan ?? 'both',
+                'tanggal_mulai' => $periode->tanggal_mulai?->format('Y-m-d'),
+                'tanggal_selesai' => $periode->tanggal_selesai?->format('Y-m-d'),
+                'tanggal_mulai_listing' => $periode->tanggal_mulai_listing?->format('Y-m-d'),
+                'tanggal_selesai_listing' => $periode->tanggal_selesai_listing?->format('Y-m-d'),
             ],
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
@@ -1174,6 +1196,10 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
+            'tanggal_mulai' => 'nullable|date',
+            'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
+            'tanggal_mulai_listing' => 'nullable|date',
+            'tanggal_selesai_listing' => 'nullable|date|after_or_equal:tanggal_mulai_listing',
         ]);
 
         DB::beginTransaction();
@@ -1452,6 +1478,10 @@ class AlokasiPetugasController extends Controller
             $periode->update([
                 'sisa_pagu' => $sisaPaguPeriode,
                 'sisa_pagu_listing' => $sisaPaguPeriodeListing,
+                'tanggal_mulai' => $validated['tanggal_mulai'] ?? $periode->tanggal_mulai,
+                'tanggal_selesai' => $validated['tanggal_selesai'] ?? $periode->tanggal_selesai,
+                'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? $periode->tanggal_mulai_listing,
+                'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? $periode->tanggal_selesai_listing,
             ]);
 
             // Always recalculate sisa_pagu for all subsequent periods when any periode is updated

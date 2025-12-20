@@ -79,7 +79,15 @@ interface AlokasiCreateProps {
     selectedKegiatan?: Kegiatan | null;
     active_year: number;
     copiedAlokasi?: any[] | null;
-    sourcePeriode?: { bulan: string; tahun: number; tahapan?: 'both' | 'listing_only' | 'pencacahan_only' } | null;
+    sourcePeriode?: { 
+        bulan: string; 
+        tahun: number; 
+        tahapan?: 'both' | 'listing_only' | 'pencacahan_only';
+        tanggal_mulai?: string | null;
+        tanggal_selesai?: string | null;
+        tanggal_mulai_listing?: string | null;
+        tanggal_selesai_listing?: string | null;
+    } | null;
     budget_info: Record<
         number,
         { pagu_pencacahan: number; current_total_spent: number }
@@ -103,6 +111,9 @@ export default function Create({
     isRevisiMode = false,
     isViewMode = false,
 }: AlokasiCreateProps) {
+    // Debug: Log petugas data
+    console.log('🔍 Petugas data in Create:', petugas);
+    
     const { auth } = usePage<SharedData>().props;
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
@@ -176,6 +187,11 @@ export default function Create({
             catatan: '',
         },
     ]);
+    // Jadwal Kegiatan states
+    const [tanggalMulai, setTanggalMulai] = useState(sourcePeriode?.tanggal_mulai || '');
+    const [tanggalSelesai, setTanggalSelesai] = useState(sourcePeriode?.tanggal_selesai || '');
+    const [tanggalMulaiListing, setTanggalMulaiListing] = useState(sourcePeriode?.tanggal_mulai_listing || '');
+    const [tanggalSelesaiListing, setTanggalSelesaiListing] = useState(sourcePeriode?.tanggal_selesai_listing || '');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
@@ -236,8 +252,8 @@ export default function Create({
             const originalValues = copiedAlokasi.map((alokasi) => ({
                 jumlah_satuan: String(alokasi.jumlah_satuan || 0),
                 jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
-                estimasi_honor: alokasi.total_honor || 0,
-                estimasi_honor_listing: alokasi.total_honor_listing || 0,
+                estimasi_honor: parseFloat(alokasi.total_honor) || 0,
+                estimasi_honor_listing: parseFloat(alokasi.total_honor_listing) || 0,
             }));
             setOriginalAlokasiValues(originalValues);
             
@@ -263,13 +279,17 @@ export default function Create({
                 
                 console.log(`✅ Mapped to: "${peranDisplay}"`);
                 
+                // Ensure numeric values are properly parsed
+                const estimasiHonor = parseFloat(alokasi.total_honor) || 0;
+                const estimasiHonorListing = parseFloat(alokasi.total_honor_listing) || 0;
+                
                 return {
                     petugas_id: String(alokasi.petugas_id || ''),
                     peran: peranDisplay,
                     jumlah_satuan: String(alokasi.jumlah_satuan || 0),
                     jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
-                    estimasi_honor: alokasi.total_honor || 0,
-                    estimasi_honor_listing: alokasi.total_honor_listing || 0,
+                    estimasi_honor: estimasiHonor,
+                    estimasi_honor_listing: estimasiHonorListing,
                     catatan: alokasi.catatan || '',
                 };
             });
@@ -278,6 +298,18 @@ export default function Create({
             console.log('📝 [1] Setting alokasiItems from copiedAlokasi');
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
+            
+            // Auto-scroll to budget info if any estimasi honor exists
+            const hasEstimasi = initialItems.some(item => item.estimasi_honor > 0 || (item.estimasi_honor_listing && item.estimasi_honor_listing > 0));
+            if (hasEstimasi) {
+                // Delay scroll to ensure DOM is rendered
+                setTimeout(() => {
+                    const budgetSection = document.querySelector('[data-budget-info]');
+                    if (budgetSection) {
+                        budgetSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+            }
         }
     }, [copiedAlokasi]);
 
@@ -630,6 +662,10 @@ export default function Create({
         const formData = {
             tahun: active_year,
             bulan: bulan,
+            tanggal_mulai: tanggalMulai || undefined,
+            tanggal_selesai: tanggalSelesai || undefined,
+            tanggal_mulai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalMulaiListing || undefined) : undefined,
+            tanggal_selesai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalSelesaiListing || undefined) : undefined,
             alokasi: alokasiItems.map((item) => {
                 const base = {
                     petugas_id: item.petugas_id,
@@ -1026,6 +1062,110 @@ export default function Create({
                                 />
                             </div>
                         </div>
+
+                        {/* Jadwal Kegiatan Section */}
+                        {selectedKegiatanId && bulan && (
+                            <div className="space-y-4 border-t pt-6">
+                                <div>
+                                    <h4 className="text-base font-semibold text-neutral-900 dark:text-white">
+                                        Jadwal Kegiatan
+                                    </h4>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Tentukan tanggal pelaksanaan kegiatan untuk periode ini
+                                    </p>
+                                </div>
+
+                                {/* Jadwal Listing - Show only if tahapan includes listing */}
+                                {(tahapan === 'both' || tahapan === 'listing_only') && selectedKegiatan?.has_listing_updating && (
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                        <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                            Jadwal Listing
+                                        </h5>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="tanggal_mulai_listing">
+                                                    Tanggal Mulai Listing
+                                                    <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    type="date"
+                                                    id="tanggal_mulai_listing"
+                                                    value={tanggalMulaiListing}
+                                                    onChange={(e) => setTanggalMulaiListing(e.target.value)}
+                                                    disabled={isViewMode}
+                                                    className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                                />
+                                                {errors.tanggal_mulai_listing && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai_listing}</p>
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="tanggal_selesai_listing">
+                                                    Tanggal Selesai Listing
+                                                    <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    type="date"
+                                                    id="tanggal_selesai_listing"
+                                                    value={tanggalSelesaiListing}
+                                                    onChange={(e) => setTanggalSelesaiListing(e.target.value)}
+                                                    min={tanggalMulaiListing}
+                                                    disabled={isViewMode}
+                                                    className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                                />
+                                                {errors.tanggal_selesai_listing && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai_listing}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Jadwal Pencacahan */}
+                                <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                                    <h5 className="mb-3 text-sm font-semibold text-green-900 dark:text-green-300">
+                                        Jadwal {tahapan === 'listing_only' ? 'Kegiatan' : 'Pencacahan'}
+                                    </h5>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="tanggal_mulai">
+                                                Tanggal Mulai
+                                                <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                type="date"
+                                                id="tanggal_mulai"
+                                                value={tanggalMulai}
+                                                onChange={(e) => setTanggalMulai(e.target.value)}
+                                                disabled={isViewMode}
+                                                className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                            />
+                                            {errors.tanggal_mulai && (
+                                                <p className="text-sm text-red-500">{errors.tanggal_mulai}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="tanggal_selesai">
+                                                Tanggal Selesai
+                                                <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                type="date"
+                                                id="tanggal_selesai"
+                                                value={tanggalSelesai}
+                                                onChange={(e) => setTanggalSelesai(e.target.value)}
+                                                min={tanggalMulai}
+                                                disabled={isViewMode}
+                                                className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                            />
+                                            {errors.tanggal_selesai && (
+                                                <p className="text-sm text-red-500">{errors.tanggal_selesai}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </ContentCard>
 
@@ -1415,9 +1555,9 @@ export default function Create({
 
                 {/* Estimasi Sisa Pagu */}
                 {selectedKegiatanId &&
-                    (totalEstimasiPencacahan > 0 ||
-                        totalEstimasiListing > 0) && (
-                        <ContentCard>
+                    alokasiItems.length > 0 &&
+                    alokasiItems.some(item => item.petugas_id && item.peran) && (
+                        <ContentCard data-budget-info>
                             {selectedKegiatan?.has_listing_updating ? (
                                 <div className="space-y-8">
                                     {/* Listing Phase - Show if tahapan is 'both' or 'listing_only' */}

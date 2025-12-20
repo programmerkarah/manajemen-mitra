@@ -4,9 +4,9 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText } from 'lucide-react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { ArrowLeft, Download, FileText, Pencil } from 'lucide-react';
 
 interface Spk {
     id: number;
@@ -77,6 +77,9 @@ const bulanLabels: Record<number, string> = {
 };
 
 export default function Show({ spk, petugas, kegiatan, periode, bast }: ShowProps) {
+    const { auth } = usePage<SharedData>().props;
+    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+
     const handleDownload = (filePath: string) => {
         window.open(`/${filePath}`, '_blank');
     };

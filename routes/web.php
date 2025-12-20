@@ -6,7 +6,7 @@ use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
-use App\Http\Controllers\KepalaBpsController;
+use App\Http\Controllers\PenandatanganController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
@@ -203,8 +203,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Master Data Management (Admin, Operator access)
     Route::middleware(['active.role:admin,operator,pj'])->group(function () {
-        // Kepala BPS - View routes
-        Route::get('kepala-bps', [KepalaBpsController::class, 'index'])->name('kepala-bps.index');
+        // Penandatangan - View routes
+        Route::get('penandatangan', [PenandatanganController::class, 'index'])->name('penandatangan.index');
 
         // DIPA - View routes
         Route::get('dipa', [DipaController::class, 'index'])->name('dipa.index');
@@ -215,13 +215,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Master Data modification routes (Admin, Operator only)
     Route::middleware(['active.role:admin,operator'])->group(function () {
-        // Kepala BPS
-        Route::get('kepala-bps/create', [KepalaBpsController::class, 'create'])->name('kepala-bps.create');
-        Route::post('kepala-bps', [KepalaBpsController::class, 'store'])->name('kepala-bps.store');
-        Route::get('kepala-bps/{kepalaBp}/edit', [KepalaBpsController::class, 'edit'])->name('kepala-bps.edit');
-        Route::put('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'update'])->name('kepala-bps.update');
-        Route::patch('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'update']);
-        Route::delete('kepala-bps/{kepalaBp}', [KepalaBpsController::class, 'destroy'])->name('kepala-bps.destroy');
+        // Penandatangan
+        Route::get('penandatangan/create', [PenandatanganController::class, 'create'])->name('penandatangan.create');
+        Route::post('penandatangan', [PenandatanganController::class, 'store'])->name('penandatangan.store');
+        Route::get('penandatangan/{penandatangan}/edit', [PenandatanganController::class, 'edit'])->name('penandatangan.edit');
+        Route::put('penandatangan/{penandatangan}', [PenandatanganController::class, 'update'])->name('penandatangan.update');
+        Route::patch('penandatangan/{penandatangan}', [PenandatanganController::class, 'update']);
+        Route::delete('penandatangan/{penandatangan}', [PenandatanganController::class, 'destroy'])->name('penandatangan.destroy');
 
         // DIPA
         Route::get('dipa/create', [DipaController::class, 'create'])->name('dipa.create');
@@ -245,7 +245,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('active.role:admin,operator,pj');
 
     // Document Management - View routes (Admin, Operator, PJ, Ketua Tim can view)
-    Route::middleware(['active.role:admin,operator,pj,ketua_tim'])->group(function () {
+    Route::middleware(['active.role:admin,operator,pj,approver,ketua_tim'])->group(function () {
         Route::get('sk-kpa', [SkKpaController::class, 'index'])->name('sk-kpa.index');
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}', [SkKpaController::class, 'listByKegiatan'])->name('sk-kpa.list-by-kegiatan');
         Route::get('sk-kpa/{skKpa}', [SkKpaController::class, 'show'])->name('sk-kpa.show');
@@ -256,7 +256,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Document Management - Upload signed file (Admin, PJ, Operator can upload)
-    Route::middleware(['active.role:admin,pj,operator'])->group(function () {
+    Route::middleware(['active.role:admin,pj,operator,ketua_tim'])->group(function () {
         Route::post('sk-kpa/{skKpaHashedId}/upload-signed', [SkKpaController::class, 'uploadSigned'])->name('sk-kpa.upload-signed');
     });
 
@@ -272,8 +272,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
 
         // SPK routes
+
+    });
+
+    Route::middleware(['active.role:admin,approver'])->group(function () {
         Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview', [SpkController::class, 'previewSpk'])->name('spk.preview');
+        Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-main', [SpkController::class, 'previewSpkMain'])->name('spk.preview.main');
+        Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-lampiran', [SpkController::class, 'previewSpkLampiran'])->name('spk.preview.lampiran');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
         Route::post('spk', [SpkController::class, 'store'])->name('spk.store');
         Route::get('spk/{spk}/edit', [SpkController::class, 'edit'])->name('spk.edit');

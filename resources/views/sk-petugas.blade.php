@@ -215,13 +215,12 @@
             @if($firstSkYear)
                 TAHUN {{ $firstSkYear }}
             @endif
-            <br>
-            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
             TAHUN ANGGARAN {{ $periode->tahun }}
         @else
-            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
             TAHUN ANGGARAN {{ $periode->tahun }}
         @endif
     </div>
@@ -314,9 +313,34 @@
         </tr>
     </table>
 
+    @if($revisionNumber > 0)
     <table class="dictum">
         <tr>
             <td>KEEMPAT</td>
+            <td>:</td>
+            <td>
+                Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}
+                @if($revisionNumber > 1)
+                    sebagaimana telah diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $revisionSkNumber }} Tahun {{ $revisionSkYear }} tentang 
+                    @php
+                        if ($revisionNumber == 2) {
+                            echo 'Perubahan Atas';
+                        } else {
+                            $numberWords = ['', '', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh', 'Kedelapan', 'Kesembilan', 'Kesepuluh'];
+                            echo 'Perubahan ' . ($numberWords[$revisionNumber - 1] ?? ($revisionNumber - 1)) . ' Atas';
+                        }
+                    @endphp
+                    Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}
+                @endif
+                dinyatakan <strong>tidak berlaku</strong> dan <strong>diganti</strong> dengan Lampiran sebagaimana tercantum dalam Keputusan ini.
+            </td>
+        </tr>
+    </table>
+    @endif
+
+    <table class="dictum">
+        <tr>
+            <td>{{ $revisionNumber > 0 ? 'KELIMA' : 'KEEMPAT' }}</td>
             <td>:</td>
             <td>
                 Keputusan ini mulai berlaku pada tanggal ditetapkan, dengan ketentuan apabila dikemudian hari terdapat
@@ -415,7 +439,7 @@
                     {{ $alokasi->jabatan }}
                 </td>
                 <td style="text-align: center; vertical-align: top;" rowspan="{{ count($alokasi->roles) }}">
-                    @if($alokasi->nip && $alokasi->nip !== '-')
+                    @if($alokasi->nip && $alokasi->nip !== '-'&& $alokasi->golongan !=="Non PNS")
                     {{ $alokasi->nip }}/<br>
                     {{ $alokasi->golongan }}
                     @else

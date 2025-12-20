@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { SearchableSelect } from '@/components/searchable-select'
 import InputError from '@/components/input-error'
 import { type BreadcrumbItem, type AlokasiPetugas } from '@/types'
 import { Head, Link, useForm } from '@inertiajs/react'
@@ -42,6 +43,8 @@ interface petugas {
     nama: string
     nik: string
     email: string
+    jenis_petugas: 'organik' | 'non-organik'
+    jabatan?: string | null
 }
 
 interface RateHonor {
@@ -57,11 +60,14 @@ interface RateHonor {
 interface AlokasiEditProps {
     alokasi: AlokasiPetugas
     kegiatans: Kegiatan[]
-    Petugas: petugas[]
+    petugas: petugas[]
     rateHonors: RateHonor[]
 }
 
-export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: AlokasiEditProps) {
+export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: AlokasiEditProps) {
+    // Debug: log petugas data
+    console.log('🔍 Petugas data in Edit:', petugas.slice(0, 3));
+    
     const { data, setData, put, processing, errors } = useForm({
         kegiatan_id: alokasi.kegiatan_id || '',
         petugas_id: alokasi.petugas_id || '',
@@ -160,21 +166,22 @@ export default function Edit({ alokasi, kegiatans, Petugas, rateHonors }: Alokas
                                 <Label htmlFor="petugas_id">
                                     Petugas <span className="text-red-500">*</span>
                                 </Label>
-                                <Select
-                                    value={data.petugas_id || undefined}
+                                <SearchableSelect
+                                    options={petugas.map((p) => {
+                                        const jenisPetugasLabel = p.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik';
+                                        const jabatanLabel = p.jabatan || '-';
+                                        
+                                        return {
+                                            value: String(p.id),
+                                            label: `${p.nama} - ${jenisPetugasLabel} - ${jabatanLabel}`,
+                                            displayLabel: p.nama,
+                                        };
+                                    })}
+                                    value={data.petugas_id}
                                     onValueChange={(value) => setData('petugas_id', value)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Pilih Petugas" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Petugas.map((petugas) => (
-                                            <SelectItem key={petugas.id} value={petugas.id}>
-                                                {petugas.nama} - {petugas.nik}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    placeholder="Pilih Petugas"
+                                    searchPlaceholder="Cari petugas..."
+                                />
                                 <InputError message={errors.petugas_id} className="mt-2" />
                             </div>
 

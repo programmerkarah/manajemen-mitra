@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kegiatan;
+use App\Models\Penandatangan;
 use App\Models\SkKpa;
 use App\Services\ActiveYearService;
 use Illuminate\Http\RedirectResponse;
@@ -387,7 +388,7 @@ class SkKpaController extends Controller
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
         // Get active Kepala BPS and DIPA from database
-        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
         $dipa = \App\Models\Dipa::active()->firstOrFail();
 
         // Get dasar hukum
@@ -423,6 +424,7 @@ class SkKpaController extends Controller
             ->get();
 
         $existingSk = $allExistingSk->first();
+        $latestSk = $allExistingSk->last();
         $revisionNumber = $allExistingSk->count(); // 0 = SK pertama, 1 = perubahan pertama, 2 = perubahan kedua, dst
         $firstSkNumber = $existingSk ? $existingSk->nomor_sk : null;
         $firstSkYear = $existingSk ? $existingSk->tahun : null;
@@ -447,17 +449,17 @@ class SkKpaController extends Controller
                 return null;
             }
 
-            // Get rate honor for this petugas based on their peran
-            $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+            // Get all rate honors for this petugas based on their peran
+            $rateHonors = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
                 ->where('jenis_penugasan', $alokasi->peran)
                 ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
                 ->with(['satuan', 'satuanListing'])
-                ->first();
+                ->get();
 
             $roles = [];
-            if ($rateHonor) {
+            foreach ($rateHonors as $rateHonor) {
                 // Add listing rate first if exists
-                if ($rateHonor->rate_listing && $rateHonor->satuanListing) {
+                if ($rateHonor->rate_listing !== null && $rateHonor->satuanListing) {
                     $biayaSatuanListing = number_format($rateHonor->rate_listing, 0, ',', '.');
                     $satuanListing = $rateHonor->satuanListing->nama ?? '';
 
@@ -468,7 +470,7 @@ class SkKpaController extends Controller
                 }
 
                 // Add regular rate
-                if ($rateHonor->rate && $rateHonor->satuan) {
+                if ($rateHonor->rate !== null && $rateHonor->satuan) {
                     $biayaSatuan = number_format($rateHonor->rate, 0, ',', '.');
                     $satuan = $rateHonor->satuan->kode ?? '';
 
@@ -495,12 +497,14 @@ class SkKpaController extends Controller
             'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
             'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
             'kategoriKeputusan' => 'KEPUTUSAN',
-            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'dipa' => $dipa->nomor_dipa,
             'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
             'dasarHukum' => $dasarHukum,
             'alokasiList' => $alokasiList,
             'revisionNumber' => $revisionNumber,
+            'revisionSkNumber' => $latestSk ? $latestSk->nomor_sk : null,
+            'revisionSkYear' => $latestSk ? $latestSk->tahun : null,
             'firstSkNumber' => $firstSkNumber,
             'firstSkYear' => $firstSkYear,
         ];
@@ -533,7 +537,7 @@ class SkKpaController extends Controller
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
         // Get active Kepala BPS and DIPA from database
-        $kepalaBps = \App\Models\KepalaBps::active()->firstOrFail();
+        $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
         $dipa = \App\Models\Dipa::active()->firstOrFail();
 
         // Get dasar hukum
@@ -569,6 +573,7 @@ class SkKpaController extends Controller
             ->get();
 
         $existingSk = $allExistingSk->first();
+        $latestSk = $allExistingSk->last();
         $revisionNumber = $allExistingSk->count(); // 0 = SK pertama, 1 = perubahan pertama, 2 = perubahan kedua, dst
         $firstSkNumber = $existingSk ? $existingSk->nomor_sk : null;
         $firstSkYear = $existingSk ? $existingSk->tahun : null;
@@ -593,17 +598,17 @@ class SkKpaController extends Controller
                 return null;
             }
 
-            // Get rate honor for this petugas based on their peran
-            $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+            // Get all rate honors for this petugas based on their peran
+            $rateHonors = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
                 ->where('jenis_penugasan', $alokasi->peran)
                 ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
                 ->with(['satuan', 'satuanListing'])
-                ->first();
+                ->get();
 
             $roles = [];
-            if ($rateHonor) {
+            foreach ($rateHonors as $rateHonor) {
                 // Add listing rate first if exists
-                if ($rateHonor->rate_listing && $rateHonor->satuanListing) {
+                if ($rateHonor->rate_listing !== null && $rateHonor->satuanListing) {
                     $biayaSatuanListing = number_format($rateHonor->rate_listing, 0, ',', '.');
                     $satuanListing = $rateHonor->satuanListing->nama ?? '';
 
@@ -614,7 +619,7 @@ class SkKpaController extends Controller
                 }
 
                 // Add regular rate
-                if ($rateHonor->rate && $rateHonor->satuan) {
+                if ($rateHonor->rate !== null && $rateHonor->satuan) {
                     $biayaSatuan = number_format($rateHonor->rate, 0, ',', '.');
                     $satuan = $rateHonor->satuan->kode ?? '';
 
@@ -641,12 +646,14 @@ class SkKpaController extends Controller
             'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
             'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
             'kategoriKeputusan' => 'KEPUTUSAN',
-            'kepalaBps' => preg_replace('/,.*$/', '', $kepalaBps->nama),
+            'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'dipa' => $dipa->nomor_dipa,
             'tanggalDipa' => $dipa->tanggal_dipa->format('d-m-Y'),
             'dasarHukum' => $dasarHukum,
             'alokasiList' => $alokasiList,
             'revisionNumber' => $revisionNumber,
+            'revisionSkNumber' => $latestSk ? $latestSk->nomor_sk : null,
+            'revisionSkYear' => $latestSk ? $latestSk->tahun : null,
             'firstSkNumber' => $firstSkNumber,
             'firstSkYear' => $firstSkYear,
         ];
@@ -676,7 +683,7 @@ class SkKpaController extends Controller
                 'bulan' => $periode->bulan,
                 'tahun' => $periode->tahun,
                 'tanggal_sk' => $validated['tanggal_sk'],
-                'nama_kpa' => $kepalaBps->nama,
+                'nama_kpa' => $penandatangan->nama,
                 'perihal' => 'Petugas '.$kegiatan->nama_kegiatan.' '.$kegiatan->tahun_anggaran,
                 'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
                 'file_path' => $filePath,

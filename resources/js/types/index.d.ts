@@ -73,6 +73,7 @@ export interface Kegiatan {
     deskripsi: string | null;
     tahun_anggaran: number;
     pagu_pencacahan: number | null;
+    kode_coa: string | null;
     has_listing_updating: boolean;
     pagu_listing: number | null;
     ketua_tim_user_id: number;

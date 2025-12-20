@@ -171,6 +171,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         // Ambil satuan_id dan satuan_listing_id dari rate_honors pertama (jika ada)
         const first = kegiatan.rate_honors?.[0];
         data['satuan_id'] = first?.satuan_id?.toString() || '';
+        data['kode_coa'] = kegiatan.kode_coa || '';
         if (kegiatan.has_listing_updating) {
             data['satuan_listing_id'] =
                 first?.satuan_listing_id?.toString() || '';
@@ -288,6 +289,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             satuan_id: formData['satuan_id']
                 ? parseInt(formData['satuan_id'])
                 : null,
+            kode_coa: formData['kode_coa'] || null,
         };
         if (kegiatan.has_listing_updating) {
             payload.satuan_listing_id = formData['satuan_listing_id']
@@ -389,6 +391,38 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 </span>
                                 . Rate honor ini akan digunakan untuk menghitung
                                 honor petugas dalam kegiatan ini.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Kode CoA (Beban Anggaran) */}
+                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                    <div className="p-6">
+                        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+                            Kode CoA (Beban Anggaran)
+                        </h3>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Kode CoA
+                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                                    (Berlaku sama untuk listing dan pencacahan)
+                                </span>
+                            </label>
+                            <input
+                                type="text"
+                                value={formData['kode_coa'] || ''}
+                                onChange={(e) =>
+                                    handleInputChange('kode_coa', e.target.value, true)
+                                }
+                                placeholder="Contoh: 054.01.GG.2905.BMA.004.005.A.521211"
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                            />
+                            {errors['kode_coa'] && (
+                                <InputError message={errors['kode_coa']} />
+                            )}
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Kode CoA akan digunakan dalam lampiran SPK
                             </p>
                         </div>
                     </div>

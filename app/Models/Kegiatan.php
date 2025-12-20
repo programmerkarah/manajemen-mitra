@@ -41,6 +41,7 @@ class Kegiatan extends Model
         'tanggal_selesai',
         'tahun_anggaran',
         'pagu_pencacahan',
+        'kode_coa',
         'ketua_tim_user_id',
         'rate_honor_id',
         'rate_honor_status',

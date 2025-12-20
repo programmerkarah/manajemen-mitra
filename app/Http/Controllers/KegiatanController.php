@@ -401,6 +401,12 @@ class KegiatanController extends Controller
             'satuan_id' => ['required', 'exists:satuan,id'],
             'satuan_listing_id' => ['nullable', 'exists:satuan,id'],
             'rate_honors.*.rate_listing' => ['nullable', 'numeric', 'min:0'],
+            'kode_coa' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        // Update kode_coa di kegiatan
+        $kegiatan->update([
+            'kode_coa' => $request->kode_coa,
         ]);
 
         // Delete existing rate honors for this kegiatan

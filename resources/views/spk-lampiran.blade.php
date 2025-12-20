@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 1.5cm 2cm;
+            margin: 2cm 3cm 2cm 3cm;
         }
 
         @font-face {
@@ -35,6 +35,7 @@
             font-size: 11pt;
             line-height: 1.6;
             color: #000;
+            margin: 2cm 2.5cm 2cm 2.5cm;
         }
 
         .lampiran-header {
@@ -42,7 +43,8 @@
         }
 
         .lampiran-title {
-            text-align: right;
+            text-align: left;
+            margin-left: 60%;
             line-height: 1.4;
             font-size: 10pt;
         }
@@ -92,7 +94,7 @@
         <div class="lampiran-title">
             Lampiran<br>
             PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN {{ strtoupper($kegiatan->nama_kegiatan) }} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
-            <strong>NOMOR: {{ $nomorSpk }}</strong>
+            NOMOR: {{ $nomorSpk }}
         </div>
     </div>
 
@@ -131,7 +133,14 @@
             <tr>
                 <td>{{ $index + 1 }}</td>
                 <td class="left">{{ $tugas['uraian'] }}</td>
-                <td>{{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->format('d') }}-{{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth()->format('d') }} {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->locale('id')->translatedFormat('F Y') }}</td>
+                <td>
+                    @if(!empty($tugas['tanggal_mulai']) && !empty($tugas['tanggal_selesai']))
+                        {{ \Carbon\Carbon::parse($tugas['tanggal_mulai'])->format('d') }}-{{ \Carbon\Carbon::parse($tugas['tanggal_selesai'])->format('d') }} {{ \Carbon\Carbon::parse($tugas['tanggal_mulai'])->locale('id')->translatedFormat('F Y') }}
+                    @else
+                        {{-- Fallback ke tanggal bulan jika tidak ada tanggal spesifik --}}
+                        {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->format('d') }}-{{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth()->format('d') }} {{ \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->locale('id')->translatedFormat('F Y') }}
+                    @endif
+                </td>
                 <td>{{ $tugas['volume'] }}</td>
                 <td>{{ $tugas['satuan'] }}</td>
                 <td class="right">{{ number_format($tugas['harga_satuan'], 0, ',', '.') }}</td>
@@ -140,11 +149,10 @@
             </tr>
             @endforeach
             <tr>
-                <td colspan="6" class="table-footer"><strong>TOTAL NILAI PERJANJIAN</strong></td>
-                <td colspan="2" class="table-footer"><strong>Terbilang: {{ terbilang($totalHonor) }} rupiah</strong></td>
-            </tr>
-            <tr>
-                <td colspan="8" style="text-align: right;"><strong>{{ number_format($totalHonor, 0, ',', '.') }}</strong></td>
+                <!-- <td colspan="2" class="table-footer"><strong>TOTAL NILAI PERJANJIAN</strong></td> -->
+                <td colspan="5" class="table-footer" style="text-align: center;"><strong>Terbilang: {{ terbilang($totalHonor) }} rupiah</strong></td>
+                <td colspan="2" class ="table-footer" style="text-align: right;"><strong>Rp {{ number_format($totalHonor, 0, ',', '.') }}</strong></td>
+                <td></td>
             </tr>
         </tbody>
     </table>

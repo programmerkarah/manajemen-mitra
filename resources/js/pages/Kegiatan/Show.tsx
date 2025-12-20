@@ -1,135 +1,181 @@
-import { Head, Link } from '@inertiajs/react'
-import AppLayout from '@/layouts/app-layout'
-import { PageHeader } from '@/components/page-header'
-import { ContentCard } from '@/components/content-card'
-import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem, Kegiatan, Petugas, RateHonor, Satuan } from '@/types'
-import { ArrowLeft, Pencil, Settings, Users } from 'lucide-react'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
+import type {
+    BreadcrumbItem,
+    Kegiatan,
+    Petugas,
+    RateHonor,
+    Satuan,
+} from '@/types';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft, Pencil, Settings } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Kegiatan', href: '/kegiatan' },
-        { title: 'Detail Kegiatan', href: '#' },
-    ];
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Kegiatan', href: '/kegiatan' },
+    { title: 'Detail Kegiatan', href: '#' },
+];
 
 interface Alokasi {
-    id: string
-    hashed_id: string
-    bulan: number
-    tahun: number
-    petugas: Petugas
+    id: string;
+    hashed_id: string;
+    bulan: number;
+    tahun: number;
+    petugas: Petugas;
     rate_honor: RateHonor & {
-        satuan: Satuan
-    }
-    volume: number
-    total_honor: number
-    status: string
-    tanggal_pengajuan: string
+        satuan: Satuan;
+    };
+    volume: number;
+    total_honor: number;
+    status: string;
+    tanggal_pengajuan: string;
 }
 
 interface Props {
     kegiatan: Kegiatan & {
         ketua_tim: {
-            id: number
-            name: string
-            email: string
-        }
+            id: number;
+            name: string;
+            email: string;
+        };
         rate_honor?: RateHonor[] & {
-            satuan: Satuan
-        }
-        alokasi: Alokasi[]
-    }
+            satuan: Satuan;
+        };
+        alokasi: Alokasi[];
+    };
     auth: {
         user: {
-            id: number
-            role: string
-        }
-    }
+            id: number;
+            role: string;
+        };
+        activeRole?: {
+            name: string;
+        };
+    };
     can: {
-        update: boolean
-        approve: boolean
-        reject: boolean
-        delete: boolean
-    }
+        update: boolean;
+        approve: boolean;
+        reject: boolean;
+        delete: boolean;
+    };
 }
 
 export default function Show({ kegiatan, auth, can }: Props) {
     const statusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        divalidasi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        diajukan:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        divalidasi:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
         aktif: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        selesai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        selesai:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         dibatalkan: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    }
+    };
 
     const alokasiStatusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        disetujui_pj: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        disetujui: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        diajukan:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        disetujui_pj:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        disetujui:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         ditolak: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    }
+    };
 
     const formatCurrency = (amount: number | null | undefined) => {
-        if (!amount || isNaN(amount)) return 'Rp 0'
+        if (!amount || isNaN(amount)) return 'Rp 0';
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
-        }).format(amount)
-    }
+        }).format(amount);
+    };
 
     const formatDate = (date: string) => {
         // Laravel mengirim format Y-m-d, parse manual untuk menghindari timezone shift
-        const [year, month, day] = date.split('-')
-        const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        const [year, month, day] = date.split('-');
+        const localDate = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+        );
         return localDate.toLocaleDateString('id-ID', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-        })
-    }
+        });
+    };
 
     const totalAlokasi = kegiatan.alokasi.reduce(
         (sum: number, alokasi: Alokasi) => sum + alokasi.total_honor,
-        0
-    )
+        0,
+    );
 
     // Group alokasi by bulan-tahun
-    const groupedAlokasi = kegiatan.alokasi.reduce((acc: Record<string, { bulan: number, tahun: number, jumlah_petugas: number, alokasi: Alokasi[] }>, alokasi) => {
-        const key = `${alokasi.tahun}-${alokasi.bulan}`
-        if (!acc[key]) {
-            acc[key] = {
-                bulan: alokasi.bulan,
-                tahun: alokasi.tahun,
-                jumlah_petugas: 0,
-                alokasi: []
+    const groupedAlokasi = kegiatan.alokasi.reduce(
+        (
+            acc: Record<
+                string,
+                {
+                    bulan: number;
+                    tahun: number;
+                    jumlah_petugas: number;
+                    alokasi: Alokasi[];
+                }
+            >,
+            alokasi,
+        ) => {
+            const key = `${alokasi.tahun}-${alokasi.bulan}`;
+            if (!acc[key]) {
+                acc[key] = {
+                    bulan: alokasi.bulan,
+                    tahun: alokasi.tahun,
+                    jumlah_petugas: 0,
+                    alokasi: [],
+                };
             }
-        }
-        acc[key].jumlah_petugas++
-        acc[key].alokasi.push(alokasi)
-        return acc
-    }, {})
+            acc[key].jumlah_petugas++;
+            acc[key].alokasi.push(alokasi);
+            return acc;
+        },
+        {},
+    );
 
     const periodeAlokasi = Object.values(groupedAlokasi).sort((a, b) => {
-        if (a.tahun !== b.tahun) return b.tahun - a.tahun
-        return b.bulan - a.bulan
-    })
+        if (a.tahun !== b.tahun) return b.tahun - a.tahun;
+        return b.bulan - a.bulan;
+    });
 
     const getBulanName = (bulan: number) => {
-        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-        return months[bulan - 1] || ''
-    }
+        const months = [
+            'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember',
+        ];
+        return months[bulan - 1] || '';
+    };
 
-    // Check if kegiatan is approved (divalidasi or aktif)
-    const isApproved = kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif'
-    
     // Can edit only if draft
-    const canEdit = kegiatan.status === 'draft' && can.update
-    
+    const canEdit = kegiatan.status === 'draft' && can.update;
+
     // Can manage rate honor and alokasi only if divalidasi or aktif, and not PJ role
-    const canManageFeatures = (kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif') && auth.activeRole?.name !== 'pj'
+    const canManageFeatures =
+        (kegiatan.status === 'divalidasi' || kegiatan.status === 'aktif') &&
+        auth.activeRole?.name !== 'pj' &&
+        auth.activeRole?.name !== 'approver';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -141,7 +187,12 @@ export default function Show({ kegiatan, auth, can }: Props) {
                     description="Informasi lengkap kegiatan dan alokasi petugas"
                 >
                     <div className="flex gap-3">
-                        <Button variant="outline" size="sm" asChild className="gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="gap-2"
+                        >
                             <Link href="/kegiatan">
                                 <ArrowLeft className="h-4 w-4" />
                                 Kembali
@@ -149,32 +200,38 @@ export default function Show({ kegiatan, auth, can }: Props) {
                         </Button>
 
                         {/* Rate Honor Management - hidden for PJ role */}
-                        {auth.activeRole?.name !== 'pj' && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                asChild={canManageFeatures}
-                                className="gap-2"
-                                disabled={!canManageFeatures}
-                                title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
-                            >
-                                {canManageFeatures ? (
-                                    <Link href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}>
-                                        <Settings className="h-4 w-4" />
-                                        Kelola Rate Honor
-                                    </Link>
-                                ) : (
-                                    <>
-                                        <Settings className="h-4 w-4" />
-                                        Kelola Rate Honor
-                                    </>
-                                )}
-                            </Button>
-                        )}
+                        {auth.activeRole?.name !== 'pj' &&
+                            auth.activeRole?.name !== 'approver' && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild={canManageFeatures}
+                                    className="gap-2"
+                                    disabled={!canManageFeatures}
+                                    title={
+                                        !canManageFeatures
+                                            ? 'Kegiatan harus divalidasi terlebih dahulu'
+                                            : undefined
+                                    }
+                                >
+                                    {canManageFeatures ? (
+                                        <Link
+                                            href={`/kegiatan/${kegiatan.hashed_id}/rate-honor/manage`}
+                                        >
+                                            <Settings className="h-4 w-4" />
+                                            Kelola Rate Honor
+                                        </Link>
+                                    ) : (
+                                        ''
+                                    )}
+                                </Button>
+                            )}
 
                         {canEdit && (
                             <Button size="sm" asChild className="gap-2">
-                                <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
+                                <Link
+                                    href={`/kegiatan/${kegiatan.hashed_id}/edit`}
+                                >
                                     <Pencil className="h-4 w-4" />
                                     Edit
                                 </Link>
@@ -209,11 +266,15 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
                                     >
                                         {kegiatan.status === 'draft' && 'Draft'}
-                                        {kegiatan.status === 'diajukan' && 'Diajukan'}
-                                        {kegiatan.status === 'divalidasi' && 'Divalidasi'}
+                                        {kegiatan.status === 'diajukan' &&
+                                            'Diajukan'}
+                                        {kegiatan.status === 'divalidasi' &&
+                                            'Divalidasi'}
                                         {kegiatan.status === 'aktif' && 'Aktif'}
-                                        {kegiatan.status === 'selesai' && 'Selesai'}
-                                        {kegiatan.status === 'dibatalkan' && 'Dibatalkan'}
+                                        {kegiatan.status === 'selesai' &&
+                                            'Selesai'}
+                                        {kegiatan.status === 'dibatalkan' &&
+                                            'Dibatalkan'}
                                     </span>
                                 </div>
                             </div>
@@ -245,7 +306,6 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 </p>
                             </div>
 
-
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Pagu Pencacahan
@@ -260,10 +320,12 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     Tahapan Listing/Updating
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.has_listing_updating ? 'Ya' : 'Tidak'}
+                                    {kegiatan.has_listing_updating
+                                        ? 'Ya'
+                                        : 'Tidak'}
                                 </p>
                             </div>
-
+                                    
                             {kegiatan.has_listing_updating && (
                                 <div>
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -291,7 +353,8 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Rate Honor
                                 </label>
-                                {Array.isArray(kegiatan.rate_honors) && kegiatan.rate_honors.length > 0 ? (
+                                {Array.isArray(kegiatan.rate_honors) &&
+                                kegiatan.rate_honors.length > 0 ? (
                                     <>
                                         <p className="mt-1 text-gray-900 dark:text-white">
                                             Sudah ditentukan
@@ -312,7 +375,11 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     {formatCurrency(totalAlokasi)}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Sisa: {formatCurrency((kegiatan.pagu_pencacahan || 0) - totalAlokasi)}
+                                    Sisa:{' '}
+                                    {formatCurrency(
+                                        (kegiatan.pagu_pencacahan || 0) -
+                                            totalAlokasi,
+                                    )}
                                 </p>
                             </div>
 
@@ -341,22 +408,29 @@ export default function Show({ kegiatan, auth, can }: Props) {
                     <div className="border-b border-neutral-200/70 px-6 py-4 dark:border-neutral-800">
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                Alokasi Petugas ({periodeAlokasi.length} Periode)
+                                Alokasi Petugas ({periodeAlokasi.length}{' '}
+                                Periode)
                             </h2>
-                            <Button 
-                                size="sm"
-                                asChild={canManageFeatures}
-                                disabled={!canManageFeatures}
-                                title={!canManageFeatures ? 'Kegiatan harus divalidasi terlebih dahulu' : undefined}
-                            >
-                                {canManageFeatures ? (
-                                    <Link href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}>
+                            {canManageFeatures ? (
+                                <Button
+                                    size="sm"
+                                    asChild={canManageFeatures}
+                                    disabled={!canManageFeatures}
+                                    title={
+                                        !canManageFeatures
+                                            ? 'Kegiatan harus divalidasi terlebih dahulu'
+                                            : undefined
+                                    }
+                                >
+                                    <Link
+                                        href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
+                                    >
                                         Tambah Periode Kegiatan
                                     </Link>
-                                ) : (
-                                    <>Tambah Periode Kegiatan</>
-                                )}
-                            </Button>
+                                </Button>
+                            ) : (
+                                ''
+                            )}
                         </div>
                     </div>
 
@@ -371,38 +445,48 @@ export default function Show({ kegiatan, auth, can }: Props) {
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead className="bg-gray-50 dark:bg-gray-900">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             No
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             Bulan
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             Jumlah Petugas
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             Aksi
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                                     {periodeAlokasi.map((periode, index) => (
-                                        <tr key={`${periode.tahun}-${periode.bulan}`}>
-                                            <td className="whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white">
+                                        <tr
+                                            key={`${periode.tahun}-${periode.bulan}`}
+                                        >
+                                            <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">
                                                 {index + 1}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4">
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="font-medium text-gray-900 dark:text-white">
-                                                    {getBulanName(periode.bulan)} {periode.tahun}
+                                                    {getBulanName(
+                                                        periode.bulan,
+                                                    )}{' '}
+                                                    {periode.tahun}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-gray-900 dark:text-white">
+                                            <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">
                                                 {periode.jumlah_petugas} petugas
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <td className="px-6 py-4 text-sm whitespace-nowrap">
                                                 <div className="flex gap-2">
-                                                    <Link href={`/alokasi/periode/${kegiatan.hashed_id}/${periode.tahun}/${String(periode.bulan).padStart(2, '0')}`}>
-                                                        <Button variant="outline" size="sm">
+                                                    <Link
+                                                        href={`/alokasi/periode/${kegiatan.hashed_id}/${periode.tahun}/${String(periode.bulan).padStart(2, '0')}`}
+                                                    >
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                        >
                                                             Lihat
                                                         </Button>
                                                     </Link>
@@ -417,6 +501,5 @@ export default function Show({ kegiatan, auth, can }: Props) {
                 </ContentCard>
             </div>
         </AppLayout>
-    )
+    );
 }
-

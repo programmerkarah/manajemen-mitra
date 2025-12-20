@@ -61,7 +61,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
-                    { title: 'Kepala BPS', href: '/kepala-bps' },
+                    { title: 'Penandatangan', href: '/penandatangan' },
                     { title: 'DIPA', href: '/dipa' },
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
@@ -89,7 +89,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
-                    { title: 'Kepala BPS', href: '/kepala-bps' },
+                    { title: 'Penandatangan', href: '/penandatangan' },
                     { title: 'DIPA', href: '/dipa' },
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
@@ -122,7 +122,9 @@ export function AppSidebar() {
             href: '#',
             icon: Package,
             items: [{ title: 'Kegiatan', href: '/kegiatan' }],
-        });
+        },
+            { title: 'SPK', href: '/spk', icon: ClipboardList },
+        );
     } else if (hasActiveRole('pj')) {
         mainNavItems.push(
             {
@@ -142,7 +144,7 @@ export function AppSidebar() {
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
-                    { title: 'Kepala BPS', href: '/kepala-bps' },
+                    { title: 'Penandatangan', href: '/penandatangan' },
                     { title: 'DIPA', href: '/dipa' },
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
@@ -182,3 +184,4 @@ export function AppSidebar() {
         </Sidebar>
     );
 }
+

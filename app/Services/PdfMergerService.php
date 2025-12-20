@@ -13,7 +13,7 @@ class PdfMergerService
         // Since we can't easily merge PDFs without external library,
         // we'll use a simpler approach: concatenate the PDFs
         // This works with some PDF readers but is not perfect
-        
+
         if (count($pdfContents) === 1) {
             return $pdfContents[0];
         }
@@ -21,7 +21,7 @@ class PdfMergerService
         // For now, return the first PDF
         // In production, you'd use a proper PDF merger library
         // or generate as single document with page breaks
-        
+
         return implode('', $pdfContents);
     }
 
@@ -32,7 +32,7 @@ class PdfMergerService
     {
         // Check if pdftk is available
         $pdftkPath = self::findPdftk();
-        
+
         if ($pdftkPath) {
             $inputFiles = implode(' ', array_map('escapeshellarg', $pdfPaths));
             $command = sprintf(
@@ -41,14 +41,15 @@ class PdfMergerService
                 $inputFiles,
                 escapeshellarg($outputPath)
             );
-            
+
             exec($command, $output, $returnVar);
+
             return $returnVar === 0;
         }
 
         // Fallback: check for ghostscript
         $gsPath = self::findGhostscript();
-        
+
         if ($gsPath) {
             $inputFiles = implode(' ', array_map('escapeshellarg', $pdfPaths));
             $command = sprintf(
@@ -57,8 +58,9 @@ class PdfMergerService
                 escapeshellarg($outputPath),
                 $inputFiles
             );
-            
+
             exec($command, $output, $returnVar);
+
             return $returnVar === 0;
         }
 
@@ -86,7 +88,7 @@ class PdfMergerService
 
         // Try to find in PATH
         exec('where pdftk 2>nul', $output);
-        if (!empty($output[0])) {
+        if (! empty($output[0])) {
             return $output[0];
         }
 
@@ -105,7 +107,7 @@ class PdfMergerService
 
             // Check if XAMPP includes ghostscript
             if (defined('PHP_BINDIR')) {
-                $xamppGs = dirname(PHP_BINDIR) . '\\bin\\gswin64c.exe';
+                $xamppGs = dirname(PHP_BINDIR).'\\bin\\gswin64c.exe';
                 array_unshift($possiblePaths, $xamppGs);
             }
         } else {
@@ -120,7 +122,7 @@ class PdfMergerService
 
         // Try to find in PATH
         exec('where gs 2>nul', $output);
-        if (!empty($output[0])) {
+        if (! empty($output[0])) {
             return $output[0];
         }
 

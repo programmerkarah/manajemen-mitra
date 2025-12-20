@@ -25,6 +25,8 @@ interface AlokasiPetugas {
     peran: string;
     target_listing?: number;
     target_pencacahan?: number;
+    total_honor?: number;
+    total_honor_listing?: number;
 }
 
 interface Kegiatan {
@@ -47,6 +49,7 @@ interface PeriodeAlokasi {
 interface GenerateProps {
     periode: PeriodeAlokasi;
     petugas_list: AlokasiPetugas[];
+    has_draft_periode: boolean;
 }
 
 const bulanLabels: Record<number, string> = {
@@ -55,17 +58,18 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Generate({ periode, petugas_list }: GenerateProps) {
+export default function Generate({ periode, petugas_list, has_draft_periode }: GenerateProps) {
     const [formData, setFormData] = useState({
-        nomor_spk_prefix: '',
         tanggal_spk: '',
+        sampai_tanggal: '',
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
 
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'SPK', href: '/spk' },
-        { title: `Generate SPK - ${periode.kegiatan.nama_kegiatan} (${periode.bulan_label} ${periode.tahun})`, href: '#' },
+        { title: `Generate SPK - ${periode.bulan_label} ${periode.tahun}`, href: '#' },
     ];
 
     const handleSelectAll = () => {
@@ -83,13 +87,24 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
     };
 
     const handlePreview = (alokasi: AlokasiPetugas) => {
-        if (!formData.nomor_spk_prefix || !formData.tanggal_spk) {
-            alert('Lengkapi form terlebih dahulu');
+        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+            alert('Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu');
             return;
         }
 
-        // Generate unique nomor for this petugas
-        const nomorSpk = `${formData.nomor_spk_prefix}/SPK/${periode.bulan}/${periode.tahun}`;
+        // Get year from tanggal_spk
+        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
+
+        // Sort all petugas by name to get correct urutan
+        const sortedPetugas = [...petugas_list].sort((a, b) => 
+            a.petugas.nama.localeCompare(b.petugas.nama)
+        );
+        
+        // Find the index (1-based) of this petugas in sorted list
+        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+
+        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
 
         // Create a native form and submit to preview endpoint
         const form = document.createElement('form');
@@ -112,6 +127,121 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
         const formDataToSubmit = {
             nomor_spk: nomorSpk,
             tanggal_spk: formData.tanggal_spk,
+            sampai_tanggal: formData.sampai_tanggal,
+        };
+
+        Object.entries(formDataToSubmit).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    };
+
+    const handlePreviewMain = (alokasi: any) => {
+        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+            alert('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            return;
+        }
+
+        // Get year from tanggal_spk
+        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
+        
+        // Sort all petugas by name to get correct urutan
+        const sortedPetugas = [...petugas_list].sort((a, b) => 
+            a.petugas.nama.localeCompare(b.petugas.nama)
+        );
+        
+        // Find the index (1-based) of this petugas in sorted list
+        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+
+        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+
+        // Create a native form and submit to preview-main endpoint
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-main`;
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        // Add CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Add form data
+        const formDataToSubmit = {
+            nomor_spk: nomorSpk,
+            tanggal_spk: formData.tanggal_spk,
+            sampai_tanggal: formData.sampai_tanggal,
+        };
+
+        Object.entries(formDataToSubmit).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    };
+
+    const handlePreviewLampiran = (alokasi: any) => {
+        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+            alert('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            return;
+        }
+
+        // Get year from tanggal_spk
+        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
+        
+        // Sort all petugas by name to get correct urutan
+        const sortedPetugas = [...petugas_list].sort((a, b) => 
+            a.petugas.nama.localeCompare(b.petugas.nama)
+        );
+        
+        // Find the index (1-based) of this petugas in sorted list
+        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+
+        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+
+        // Create a native form and submit to preview-lampiran endpoint
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-lampiran`;
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        // Add CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Add form data
+        const formDataToSubmit = {
+            nomor_spk: nomorSpk,
+            tanggal_spk: formData.tanggal_spk,
+            sampai_tanggal: formData.sampai_tanggal,
         };
 
         Object.entries(formDataToSubmit).forEach(([key, value]) => {
@@ -133,28 +263,37 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
             return;
         }
 
-        if (!formData.nomor_spk_prefix || !formData.tanggal_spk) {
+        if (!formData.tanggal_spk) {
             alert('Lengkapi form terlebih dahulu');
             return;
         }
 
         setProcessing(true);
 
+        // Get year from tanggal_spk
+        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
+
+        // Sort petugas by name (alphabetically) to ensure consistent numbering
+        const sortedPetugas = [...petugas_list]
+            .filter(a => selectedPetugas.includes(a.petugas.hashed_id))
+            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama));
+
         // Generate SPK for selected petugas
         let successCount = 0;
-        const totalPetugas = selectedPetugas.length;
+        const totalPetugas = sortedPetugas.length;
 
-        selectedPetugas.forEach((petugasHashedId, index) => {
-            const alokasi = petugas_list.find(a => a.petugas.hashed_id === petugasHashedId);
-            if (!alokasi) return;
-
-            const nomorSpk = `${formData.nomor_spk_prefix}/${index + 1}/SPK/${periode.bulan}/${periode.tahun}`;
+        sortedPetugas.forEach((alokasi, index) => {
+            const noUrut = index + 1;
+            
+            // Format: PPIS/13730/{No Urut}/{tahun}
+            const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
 
             router.post(
                 `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/generate`,
                 {
                     nomor_spk: nomorSpk,
                     tanggal_spk: formData.tanggal_spk,
+                    sampai_tanggal: formData.sampai_tanggal,
                 },
                 {
                     preserveState: true,
@@ -164,7 +303,7 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                         if (successCount === totalPetugas) {
                             setProcessing(false);
                             alert(`SPK berhasil dibuat untuk ${successCount} petugas`);
-                            router.visit('/spk');
+                            window.location.href = '/spk';
                         }
                     },
                     onError: (errors) => {
@@ -178,10 +317,10 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
-            'pencacah': 'Pencacah',
-            'pengawas': 'Pengawas',
-            'pemeriksa': 'Pemeriksa',
-            'ketua_tim': 'Ketua Tim',
+            'pcl_ppl': 'Petugas Pencacahan',
+            'pml': 'Pemeriksa Lapangan',
+            'pengolahan': 'Petugas Pengolahan',
+            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
     };
@@ -193,7 +332,7 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Generate SPK"
-                    description={`Generate Surat Perjanjian Kerja untuk ${periode.kegiatan.nama_kegiatan} - ${bulanLabels[periode.bulan]} ${periode.tahun}`}
+                    description={`Generate Surat Perjanjian Kerja untuk kegiatan bulan ${periode.bulan_label} ${periode.tahun}`}
                 >
                     <Button variant="outline" asChild>
                         <Link href="/spk">
@@ -202,6 +341,36 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                         </Link>
                     </Button>
                 </PageHeader>
+
+                {/* Warning Alert jika ada periode draft */}
+                {has_draft_periode && (
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                        <div className="flex items-start space-x-3">
+                            <svg
+                                className="mt-0.5 size-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                />
+                            </svg>
+                            <div>
+                                <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                                    Tidak Dapat Generate SPK
+                                </h3>
+                                <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">
+                                    Masih terdapat periode alokasi kegiatan dengan status <strong>draft</strong> di bulan {periode.bulan_label} {periode.tahun}. 
+                                    Pastikan semua periode alokasi kegiatan sudah dikirim atau disetujui terlebih dahulu untuk menghindari ada kegiatan yang belum ditambahkan.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Form SPK */}
                 <ContentCard>
@@ -212,21 +381,6 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
 
                         <div className="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label htmlFor="nomor_spk_prefix">Nomor SPK (Prefix)</Label>
-                                <Input
-                                    id="nomor_spk_prefix"
-                                    type="text"
-                                    value={formData.nomor_spk_prefix}
-                                    onChange={(e) => setFormData({ ...formData, nomor_spk_prefix: e.target.value })}
-                                    placeholder="Contoh: 220"
-                                    required
-                                />
-                                <p className="mt-1 text-xs text-neutral-500">
-                                    Format akhir: {formData.nomor_spk_prefix || 'XXX'}/[No Urut]/SPK/{periode.bulan}/{periode.tahun}
-                                </p>
-                            </div>
-
-                            <div>
                                 <Label htmlFor="tanggal_spk">Tanggal SPK</Label>
                                 <Input
                                     id="tanggal_spk"
@@ -236,7 +390,26 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                                     required
                                 />
                             </div>
+
+                            <div>
+                                <Label htmlFor="sampai_tanggal">Sampai Tanggal</Label>
+                                <Input
+                                    id="sampai_tanggal"
+                                    type="date"
+                                    value={formData.sampai_tanggal}
+                                    onChange={(e) => setFormData({ ...formData, sampai_tanggal: e.target.value })}
+                                    required
+                                />
+                                <p className="mt-1 text-xs text-neutral-500">
+                                    Tanggal akhir pelaksanaan pekerjaan (Pasal 3)
+                                </p>
+                            </div>
                         </div>
+
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Format Nomor SPK: PPIS/13730/[No Urut]/[Tahun]<br />
+                            Contoh: PPIS/13730/1/{formData.tanggal_spk ? new Date(formData.tanggal_spk).getFullYear() : '2025'}
+                        </p>
                     </div>
                 </ContentCard>
 
@@ -304,15 +477,41 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                                                     Rp {totalHonor.toLocaleString('id-ID')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-sm">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handlePreview(alokasi)}
-                                                        className="gap-1"
-                                                    >
-                                                        <FileText className="h-3.5 w-3.5" />
-                                                        Preview
-                                                    </Button>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handlePreview(alokasi)}
+                                                            className="gap-1"
+                                                            title="Preview SPK + Lampiran (Merged)"
+                                                            disabled={has_draft_periode}
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" />
+                                                            Preview
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handlePreviewMain(alokasi)}
+                                                            className="gap-1"
+                                                            title="Preview SPK Main Saja"
+                                                            disabled={has_draft_periode}
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" />
+                                                            SPK
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handlePreviewLampiran(alokasi)}
+                                                            className="gap-1"
+                                                            title="Preview Lampiran Saja"
+                                                            disabled={has_draft_periode}
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" />
+                                                            Lampiran
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -331,9 +530,9 @@ export default function Generate({ periode, petugas_list }: GenerateProps) {
                         </Button>
                         <Button
                             onClick={handleGenerateAll}
-                            disabled={processing || selectedPetugas.length === 0}
+                            disabled={processing || selectedPetugas.length === 0 || !formData.tanggal_spk || !formData.sampai_tanggal || has_draft_periode}
                         >
-                            {processing ? 'Memproses...' : `Generate SPK (${selectedPetugas.length} Petugas)`}
+                            {processing ? 'Memproses...' : has_draft_periode ? 'Tidak dapat generate (ada periode draft)' : `Generate SPK (${selectedPetugas.length} Petugas)`}
                         </Button>
                     </div>
                 </ContentCard>

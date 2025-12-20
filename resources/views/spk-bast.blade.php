@@ -158,7 +158,7 @@
             <div class="party-name">Nama</div>
             <div class="party-colon">:</div>
             <div class="party-detail">
-                {{ $kepalaBps }}<br>
+                {{ $penandatangan }}<br>
                 Jabatan : Pejabat Pembuat Komitmen BPS Kota Sawahlunto<br>
                 Alamat Kantor : Jalan Bagindo Aziz Chan Kelurahan Aur Mulyo Kecamatan Lembah Segar Kota Sawahlunto, yang selanjutnya disebut sebagai <strong>PIHAK PERTAMA</strong>.
             </div>
@@ -208,7 +208,7 @@
             </div>
             <div class="signature-col">
                 <div class="signature-title">PIHAK PERTAMA,</div>
-                <div class="signature-name">{{ strtoupper($kepalaBps) }}</div>
+                <div class="signature-name">{{ strtoupper($penandatangan) }}</div>
             </div>
         </div>
     </div>

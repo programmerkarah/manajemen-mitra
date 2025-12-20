@@ -431,7 +431,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                             asChild
                                                             className="gap-1"
                                                         >
-                                                            <Link href={`/alokasi/kegiatan/${periode.kegiatan.hashed_id}/manage?copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
+                                                            <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
                                                                 <Copy className="h-3 w-3" />
                                                                 Salin
                                                             </Link>

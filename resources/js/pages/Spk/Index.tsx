@@ -15,39 +15,31 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
-interface LatestSpk {
-    id: number;
-    hashed_id: string;
-    nomor_spk: string;
-    tanggal_spk: string;
-    status: 'draft' | 'diterbitkan' | 'dibatalkan';
-    file_path: string | null;
+interface KegiatanItem {
+    periode_id: number;
+    periode_hashed_id: string;
+    kegiatan_hashed_id: string;
+    kode_kegiatan: string;
+    nama_kegiatan: string;
+    jenis_kegiatan: 'sensus' | 'survei';
+    jumlah_petugas_non_organik: number;
+    spk_count: number;
 }
 
-interface PeriodeItem {
-    id: number;
-    hashed_id: string;
+interface MonthlyPeriodeItem {
     tahun: number;
     bulan: number;
     bulan_label: string;
-    status: 'draft' | 'dikirim' | 'disetujui' | 'ditolak';
-    kegiatan: {
-        hashed_id: string;
-        kode_kegiatan: string;
-        nama_kegiatan: string;
-        jenis_kegiatan: 'sensus' | 'survei';
-        tahun_anggaran: number;
-    };
-    jumlah_petugas: number;
+    total_petugas_non_organik: number;
+    total_spk: number;
     spk_status: string;
     spk_status_type: 'not_created' | 'created';
-    spk_count: number;
-    latest_spk: LatestSpk | null;
+    kegiatan_list: KegiatanItem[];
 }
 
 interface IndexProps {
     periodeList: {
-        data: PeriodeItem[];
+        data: MonthlyPeriodeItem[];
         links: Array<{
             url: string | null;
             label: string;
@@ -89,7 +81,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
     const [bulan, setBulan] = useState(filters.bulan?.toString() || 'all');
 
     // Check if user can create SPK (only admin and pj)
-    const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj';
+    const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -119,33 +111,6 @@ export default function Index({ periodeList, filters }: IndexProps) {
                 replace: true,
             }
         );
-    };
-
-    const getStatusBadgeColor = (type: string) => {
-        switch (type) {
-            case 'not_created':
-                return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
-            case 'created':
-                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-            default:
-                return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
-        }
-    };
-
-    const handleDownload = (periode: PeriodeItem) => {
-        const latestSpk = periode.latest_spk;
-        if (!latestSpk) {
-            alert('SPK tidak tersedia');
-            return;
-        }
-
-        const filePath = latestSpk.file_path;
-        if (!filePath) {
-            alert('File SPK tidak tersedia');
-            return;
-        }
-        
-        window.open(`/${filePath}`, '_blank');
     };
 
     return (
@@ -216,13 +181,16 @@ export default function Index({ periodeList, filters }: IndexProps) {
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                        Kegiatan
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Periode
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                        Jumlah Petugas
+                                        Kegiatan
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        Jumlah Petugas Non Organik
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        Total SPK
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Status SPK
@@ -235,88 +203,73 @@ export default function Index({ periodeList, filters }: IndexProps) {
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                 {periodeList.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
+                                        <td colSpan={6} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
                                             Tidak ada periode yang memerlukan SPK
                                         </td>
                                     </tr>
                                 ) : (
-                                    periodeList.data.map((periode) => (
-                                        <tr key={periode.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                    periodeList.data.map((monthData, index) => (
+                                        <tr key={`${monthData.tahun}-${monthData.bulan}`} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                {monthData.bulan_label} {monthData.tahun}
+                                            </td>
                                             <td className="px-6 py-4">
-                                                <div>
-                                                    <div className="font-medium text-neutral-900 dark:text-white">
-                                                        {periode.kegiatan.nama_kegiatan}
-                                                    </div>
-                                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                        {periode.kegiatan.kode_kegiatan}
-                                                    </div>
+                                                <div className="space-y-1">
+                                                    {monthData.kegiatan_list.map((kegiatan, kegIndex) => (
+                                                        <div key={kegiatan.periode_id} className="text-sm">
+                                                            <div className="font-medium text-neutral-900 dark:text-white">
+                                                                {kegiatan.nama_kegiatan}
+                                                            </div>
+                                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                {kegiatan.kode_kegiatan} • {kegiatan.jumlah_petugas_non_organik} petugas • {kegiatan.spk_count} SPK
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                {periode.bulan_label} {periode.tahun}
+                                                {monthData.total_petugas_non_organik} petugas
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                {periode.jumlah_petugas} petugas
+                                                {monthData.total_spk} SPK
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeColor(periode.spk_status_type)}`}>
-                                                    {periode.spk_status}
+                                                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                                    monthData.spk_status_type === 'created' 
+                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                                        : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200'
+                                                }`}>
+                                                    {monthData.spk_status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {/* View Petugas List - Link to allocation page */}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        asChild
-                                                        className="gap-1"
-                                                    >
-                                                        <Link href={`/alokasi?kegiatan=${periode.kegiatan.hashed_id}&bulan=${periode.bulan}`}>
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                            Lihat Petugas
-                                                        </Link>
-                                                    </Button>
-
-                                                    {/* Generate SPK - Only admin and pj */}
-                                                    {canCreateSpk && periode.spk_count === 0 && (
+                                                    {/* Generate SPK for all kegiatan in this month - Only if none exist yet */}
+                                                    {canCreateSpk && monthData.total_spk === 0 && monthData.kegiatan_list.length > 0 && (
                                                         <Button
                                                             size="sm"
                                                             asChild
                                                             className="gap-1"
                                                         >
-                                                            <Link href={`/spk/periode/${periode.hashed_id}/generate`}>
+                                                            <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}>
                                                                 <Plus className="h-3.5 w-3.5" />
                                                                 Generate SPK
                                                             </Link>
                                                         </Button>
                                                     )}
 
-                                                    {/* View SPK Details - Show when SPK exists */}
-                                                    {periode.spk_count > 0 && periode.latest_spk && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            asChild
-                                                            className="gap-1"
-                                                        >
-                                                            <Link href={`/spk/${periode.latest_spk.hashed_id}`}>
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                                Lihat SPK
-                                                            </Link>
-                                                        </Button>
-                                                    )}
-
-                                                    {/* Download SPK - All roles can download */}
-                                                    {periode.latest_spk?.file_path && (
+                                                    {/* View Petugas per Kegiatan */}
+                                                    {monthData.kegiatan_list.length > 0 && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleDownload(periode)}
+                                                            asChild
                                                             className="gap-1"
                                                         >
-                                                            <Download className="h-3.5 w-3.5" />
-                                                            Download
+                                                            <Link href={`/alokasi?kegiatan=${monthData.kegiatan_list[0].kegiatan_hashed_id}&bulan=${monthData.bulan}`}>
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                                Lihat Alokasi
+                                                            </Link>
                                                         </Button>
                                                     )}
                                                 </div>
@@ -332,7 +285,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                     {periodeList.data.length > 0 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Menampilkan {periodeList.from} hingga {periodeList.to} dari {periodeList.total} periode
+                                Menampilkan {periodeList.from} hingga {periodeList.to} dari {periodeList.total} bulan
                             </div>
                             <div className="flex gap-2">
                                 {periodeList.links.map((link, index) => {
