@@ -303,7 +303,7 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                         if (successCount === totalPetugas) {
                             setProcessing(false);
                             alert(`SPK berhasil dibuat untuk ${successCount} petugas`);
-                            window.location.href = '/spk';
+                            router.get('/spk');
                         }
                     },
                     onError: (errors) => {
