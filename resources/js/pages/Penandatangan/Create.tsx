@@ -8,7 +8,7 @@ import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
@@ -49,7 +49,7 @@ export default function Create() {
                                 <div className="grid gap-6 md:grid-cols-2">
                                     {/* Nama */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="nama">
+                                        <Label htmlFor="nama" className="text-base font-semibold">
                                             Nama Lengkap <span className="text-red-600">*</span>
                                         </Label>
                                         <Input
@@ -57,7 +57,7 @@ export default function Create() {
                                             type="text"
                                             name="nama"
                                             required
-                                            className="h-10"
+                                            className="h-11 text-base"
                                             placeholder="Contoh: Dr. Ahmad Sutrisno, M.Si"
                                         />
                                         <InputError message={errors.nama} />
@@ -65,12 +65,12 @@ export default function Create() {
 
                                     {/* NIP */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="nip">NIP</Label>
+                                        <Label htmlFor="nip" className="text-base font-semibold">NIP</Label>
                                         <Input
                                             id="nip"
                                             type="text"
                                             name="nip"
-                                            className="h-10"
+                                            className="h-11 text-base"
                                             placeholder="Contoh: 197001011990031001"
                                         />
                                         <InputError message={errors.nip} />
@@ -78,11 +78,11 @@ export default function Create() {
 
                                     {/* Jenis Penandatangan */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="jenis_penandatangan">
+                                        <Label htmlFor="jenis_penandatangan" className="text-base font-semibold">
                                             Jenis Penandatangan <span className="text-red-600">*</span>
                                         </Label>
                                         <Select name="jenis_penandatangan" required>
-                                            <SelectTrigger className="h-10">
+                                            <SelectTrigger className="h-11">
                                                 <SelectValue placeholder="Pilih jenis penandatangan" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -98,7 +98,7 @@ export default function Create() {
 
                                     {/* Jabatan */}
                                     <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="jabatan">
+                                        <Label htmlFor="jabatan" className="text-base font-semibold">
                                             Jabatan <span className="text-red-600">*</span>
                                         </Label>
                                         <Input
@@ -106,7 +106,7 @@ export default function Create() {
                                             type="text"
                                             name="jabatan"
                                             required
-                                            className="h-10"
+                                            className="h-11 text-base"
                                             defaultValue="Penandatangan Kota Sawahlunto"
                                         />
                                         <InputError message={errors.jabatan} />
@@ -114,34 +114,34 @@ export default function Create() {
 
                                     {/* Periode Mulai */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="periode_mulai">Periode Mulai</Label>
+                                        <Label htmlFor="periode_mulai" className="text-base font-semibold">Periode Mulai</Label>
                                         <Input
                                             id="periode_mulai"
                                             type="date"
                                             name="periode_mulai"
-                                            className="h-10"
+                                            className="h-11 text-base"
                                         />
                                         <InputError message={errors.periode_mulai} />
                                     </div>
 
                                     {/* Periode Selesai */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="periode_selesai">Periode Selesai</Label>
+                                        <Label htmlFor="periode_selesai" className="text-base font-semibold">Periode Selesai</Label>
                                         <Input
                                             id="periode_selesai"
                                             type="date"
                                             name="periode_selesai"
-                                            className="h-10"
+                                            className="h-11 text-base"
                                         />
                                         <InputError message={errors.periode_selesai} />
                                     </div>
 
                                     {/* Is Active */}
                                     <div className="flex items-center space-x-2 md:col-span-2">
-                                        <Checkbox id="is_active" name="is_active" value="1" defaultChecked />
+                                        <Checkbox id="is_active" name="is_active" value="1" defaultChecked className="h-5 w-5" />
                                         <Label
                                             htmlFor="is_active"
-                                            className="cursor-pointer text-sm font-normal"
+                                            className="cursor-pointer text-base font-normal"
                                         >
                                             Status Aktif
                                         </Label>
@@ -149,11 +149,24 @@ export default function Create() {
                                 </div>
 
                                 <div className="mt-6 flex justify-end gap-3">
-                                    <Button type="button" variant="outline" asChild>
-                                        <Link href="/penandatangan">Batal</Link>
+                                    <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                                        <Link href="/penandatangan">
+                                            <X className="h-5 w-5" />
+                                            Batal
+                                        </Link>
                                     </Button>
-                                    <Button type="submit" disabled={processing}>
-                                        {processing ? 'Menyimpan...' : 'Simpan'}
+                                    <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                                        {processing ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-5 w-5" />
+                                                Simpan
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
                             </>

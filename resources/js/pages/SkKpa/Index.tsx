@@ -14,6 +14,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { StatusBadge } from '@/components/status-badge';
 
 interface LatestSk {
     id: number;
@@ -245,9 +246,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                 {keg.ketua_tim}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeColor(keg.sk_status_type)}`}>
-                                                    {keg.sk_status}
-                                                </span>
+                                                <StatusBadge status={keg.sk_status_type} />
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm">
                                                 <div className="flex items-center justify-end gap-2">

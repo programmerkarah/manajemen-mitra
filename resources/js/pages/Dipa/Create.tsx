@@ -8,7 +8,7 @@ import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Form } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
@@ -53,7 +53,7 @@ export default function Create({ tahunOptions }: CreateProps) {
                                 <div className="grid gap-6 md:grid-cols-2">
                                     {/* Nomor DIPA */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="nomor_dipa">
+                                        <Label htmlFor="nomor_dipa" className="text-base font-semibold">
                                             Nomor DIPA <span className="text-red-600">*</span>
                                         </Label>
                                         <Input
@@ -61,7 +61,7 @@ export default function Create({ tahunOptions }: CreateProps) {
                                             type="text"
                                             name="nomor_dipa"
                                             required
-                                            className="h-10"
+                                            className="h-11 text-base"
                                             placeholder="Contoh: SP DIPA-025.04.1.652512/2024"
                                         />
                                         <InputError message={errors.nomor_dipa} />
@@ -69,11 +69,11 @@ export default function Create({ tahunOptions }: CreateProps) {
 
                                     {/* Tahun */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="tahun">
+                                        <Label htmlFor="tahun" className="text-base font-semibold">
                                             Tahun <span className="text-red-600">*</span>
                                         </Label>
                                         <Select name="tahun" required>
-                                            <SelectTrigger className="h-10">
+                                            <SelectTrigger className="h-11">
                                                 <SelectValue placeholder="Pilih tahun" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -89,7 +89,7 @@ export default function Create({ tahunOptions }: CreateProps) {
 
                                     {/* Tanggal DIPA */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="tanggal_dipa">
+                                        <Label htmlFor="tanggal_dipa" className="text-base font-semibold">
                                             Tanggal DIPA <span className="text-red-600">*</span>
                                         </Label>
                                         <Input
@@ -97,17 +97,17 @@ export default function Create({ tahunOptions }: CreateProps) {
                                             type="date"
                                             name="tanggal_dipa"
                                             required
-                                            className="h-10"
+                                            className="h-11 text-base"
                                         />
                                         <InputError message={errors.tanggal_dipa} />
                                     </div>
 
                                     {/* Is Active */}
                                     <div className="flex items-center space-x-2">
-                                        <Checkbox id="is_active" name="is_active" value="1" defaultChecked />
+                                        <Checkbox id="is_active" name="is_active" value="1" defaultChecked className="h-5 w-5" />
                                         <Label
                                             htmlFor="is_active"
-                                            className="cursor-pointer text-sm font-normal"
+                                            className="cursor-pointer text-base font-normal"
                                         >
                                             Status Aktif
                                         </Label>
@@ -115,11 +115,24 @@ export default function Create({ tahunOptions }: CreateProps) {
                                 </div>
 
                                 <div className="mt-6 flex justify-end gap-3">
-                                    <Button type="button" variant="outline" asChild>
-                                        <Link href="/dipa">Batal</Link>
+                                    <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                                        <Link href="/dipa">
+                                            <X className="h-5 w-5" />
+                                            Batal
+                                        </Link>
                                     </Button>
-                                    <Button type="submit" disabled={processing}>
-                                        {processing ? 'Menyimpan...' : 'Simpan'}
+                                    <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                                        {processing ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-5 w-5" />
+                                                Simpan
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
                             </>

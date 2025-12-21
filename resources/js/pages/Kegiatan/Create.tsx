@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info, Save, X, Loader2 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -115,7 +115,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                             <div>
                                 <label
                                     htmlFor="nama_kegiatan"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                 >
                                     Nama Kegiatan <span className="text-red-500">*</span>
                                 </label>
@@ -124,8 +124,8 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     id="nama_kegiatan"
                                     value={data.nama_kegiatan}
                                     onChange={(e) => setData('nama_kegiatan', e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
-                                    placeholder="Nama kegiatan"
+                                    className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                    placeholder="Masukkan nama kegiatan..."
                                 />
                                 <InputError message={errors.nama_kegiatan} className="mt-2" />
                             </div>
@@ -134,7 +134,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                             <div>
                                 <label
                                     htmlFor="jenis_kegiatan"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                 >
                                     Jenis Kegiatan <span className="text-red-500">*</span>
                                 </label>
@@ -142,14 +142,14 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     id="jenis_kegiatan"
                                     value={data.jenis_kegiatan}
                                     onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
+                                    className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                 >
                                     <option value="survei">Survei</option>
                                     <option value="sensus">Sensus</option>
                                 </select>
                                 <InputError message={errors.jenis_kegiatan} className="mt-2" />
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    Jenis kegiatan akan menentukan rate honor yang tersedia
+                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                    💡 Jenis kegiatan akan menentukan rate honor yang tersedia
                                 </p>
                             </div>
 
@@ -157,7 +157,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                             <div>
                                 <label
                                     htmlFor="deskripsi"
-                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                 >
                                     Deskripsi
                                 </label>
@@ -166,30 +166,33 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     rows={4}
                                     value={data.deskripsi}
                                     onChange={(e) => setData('deskripsi', e.target.value)}
-                                    placeholder="Deskripsi kegiatan (opsional)"
+                                    placeholder="Masukkan deskripsi kegiatan... (opsional)"
+                                    className="mt-2 text-base"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />
                             </div>
 
                             {/* Tahapan Listing/Updating */}
                             <div>
-                                <label htmlFor="has_listing_updating" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label htmlFor="has_listing_updating" className="block text-base font-semibold text-gray-900 dark:text-gray-100">
                                     Apakah kegiatan ini memiliki tahapan Listing/Updating?
                                 </label>
-                                <input
-                                    type="checkbox"
-                                    id="has_listing_updating"
-                                    checked={data.has_listing_updating}
-                                    onChange={e => setData('has_listing_updating', e.target.checked)}
-                                    className="mt-2 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800"
-                                />
-                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Aktifkan jika ada tahapan listing/updating sebelum pencacahan/pendataan lapangan.</span>
+                                <div className="mt-3 flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="has_listing_updating"
+                                        checked={data.has_listing_updating}
+                                        onChange={e => setData('has_listing_updating', e.target.checked)}
+                                        className="mt-1 h-5 w-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
+                                    />
+                                    <span className="text-base text-gray-700 dark:text-gray-300">Aktifkan jika ada tahapan listing/updating sebelum pencacahan/pendataan lapangan.</span>
+                                </div>
                             </div>
 
                             {/* Pagu Listing */}
                             {data.has_listing_updating && (
                                 <div>
-                                    <label htmlFor="pagu_listing" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <label htmlFor="pagu_listing" className="block text-base font-semibold text-gray-900 dark:text-gray-100">
                                         Pagu Listing/Updating (Rp)
                                     </label>
                                     <input
@@ -200,8 +203,8 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                             const raw = parseCurrency(e.target.value)
                                             setData('pagu_listing', raw)
                                         }}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
-                                        placeholder="0"
+                                        className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                        placeholder="Masukkan nominal pagu listing..."
                                     />
                                     <InputError message={errors.pagu_listing} className="mt-2" />
                                 </div>
@@ -214,7 +217,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                 <div>
                                     <label
                                         htmlFor="pagu_pencacahan"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                     >
                                         Pagu Pencacahan (Rp)
                                     </label>
@@ -226,8 +229,8 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                             const raw = parseCurrency(e.target.value)
                                             setData('pagu_pencacahan', raw)
                                         }}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 sm:text-sm"
-                                        placeholder="0"
+                                        className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                        placeholder="Masukkan nominal pagu pencacahan..."
                                     />
                                     <InputError message={errors.pagu_pencacahan} className="mt-2" />
                                 </div>
@@ -241,7 +244,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                 <div>
                                     <label
                                         htmlFor="ketua_tim_user_id"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                     >
                                         Ketua Tim <span className="text-red-500">*</span>
                                     </label>
@@ -249,7 +252,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="ketua_tim_user_id"
                                         value={data.ketua_tim_user_id}
                                         onChange={(e) => setData('ketua_tim_user_id', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
+                                        className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     >
                                         <option value="">Pilih Ketua Tim</option>
                                         {ketuaTimUsers.map((user) => (
@@ -267,7 +270,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                 <div>
                                     <label
                                         htmlFor="tanggal_mulai"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                     >
                                         Tanggal Mulai <span className="text-red-500">*</span>
                                     </label>
@@ -276,7 +279,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="tanggal_mulai"
                                         value={data.tanggal_mulai}
                                         onChange={(e) => setData('tanggal_mulai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
+                                        className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     />
                                     <InputError message={errors.tanggal_mulai} className="mt-2" />
                                 </div>
@@ -285,7 +288,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                 <div>
                                     <label
                                         htmlFor="tanggal_selesai"
-                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                     >
                                         Tanggal Selesai <span className="text-red-500">*</span>
                                     </label>
@@ -294,7 +297,7 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                         id="tanggal_selesai"
                                         value={data.tanggal_selesai}
                                         onChange={(e) => setData('tanggal_selesai', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
+                                        className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     />
                                     <InputError message={errors.tanggal_selesai} className="mt-2" />
                                 </div>
@@ -306,14 +309,30 @@ export default function Create({ ketuaTimUsers, tahunOptions }: KegiatanCreatePr
                                     type="button"
                                     variant="outline"
                                     asChild
+                                    className="gap-2"
+                                    disabled={processing}
                                 >
-                                    <Link href="/kegiatan">Batal</Link>
+                                    <Link href="/kegiatan">
+                                        <X className="h-5 w-5" />
+                                        Batal
+                                    </Link>
                                 </Button>
                                 <Button
                                     type="submit"
                                     disabled={processing}
+                                    className="gap-2 min-w-[180px]"
                                 >
-                                    {processing ? 'Menyimpan...' : 'Simpan Kegiatan'}
+                                    {processing ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="h-5 w-5" />
+                                            Simpan Kegiatan
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </div>

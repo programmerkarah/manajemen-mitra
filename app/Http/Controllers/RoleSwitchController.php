@@ -25,13 +25,13 @@ class RoleSwitchController extends Controller
 
         // Verify target user has this role
         if (! $targetUser->roles()->where('role_id', $validated['role_id'])->exists()) {
-            return back()->with('error', 'User tidak memiliki akses ke role tersebut.');
+            return back()->with('error', 'Maaf, Anda tidak memiliki izin untuk menggunakan role ini.');
         }
 
         // Set active role in session
         $role = Role::find($validated['role_id']);
         $targetUser->setActiveRole($validated['role_id']);
 
-        return back()->with('success', "Role berhasil diubah ke {$role->display_name}.");
+        return back()->with('success', "Peran Anda sekarang sudah berubah menjadi {$role->display_name}.");
     }
 }

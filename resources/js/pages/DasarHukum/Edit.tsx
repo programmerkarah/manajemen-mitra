@@ -15,7 +15,7 @@ import {
 import type { BreadcrumbItem } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -265,11 +265,23 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                             variant="outline"
                             onClick={() => router.visit('/dasar-hukum')}
                             disabled={processing}
+                            className="gap-2 min-w-[180px]"
                         >
+                            <X className="h-5 w-5" />
                             Batal
                         </Button>
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan Perubahan
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

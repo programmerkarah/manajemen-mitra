@@ -76,7 +76,7 @@ class DasarHukumController extends Controller
         DasarHukum::create($validated);
 
         return redirect()->route('dasar-hukum.index')
-            ->with('success', 'Dasar hukum berhasil ditambahkan.');
+            ->with('success', 'Data dasar hukum sudah berhasil disimpan ke sistem.');
     }
 
     public function edit(DasarHukum $dasarHukum): Response
@@ -117,7 +117,7 @@ class DasarHukumController extends Controller
         $dasarHukum->update($validated);
 
         return redirect()->route('dasar-hukum.index')
-            ->with('success', 'Dasar hukum berhasil diperbarui.');
+            ->with('success', 'Perubahan data dasar hukum sudah berhasil disimpan.');
     }
 
     public function destroy(DasarHukum $dasarHukum): RedirectResponse
@@ -125,6 +125,6 @@ class DasarHukumController extends Controller
         $dasarHukum->delete();
 
         return redirect()->route('dasar-hukum.index')
-            ->with('success', 'Dasar hukum berhasil dihapus.');
+            ->with('success', 'Data dasar hukum sudah berhasil dihapus dari sistem.');
     }
 }

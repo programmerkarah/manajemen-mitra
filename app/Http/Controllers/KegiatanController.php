@@ -141,7 +141,7 @@ class KegiatanController extends Controller
         Kegiatan::create($data);
 
         return redirect()->route('kegiatan.index')
-            ->with('success', 'Kegiatan berhasil ditambahkan.');
+            ->with('success', 'Data kegiatan baru sudah berhasil disimpan ke sistem.');
     }
 
     /**
@@ -226,7 +226,7 @@ class KegiatanController extends Controller
 
         // Additional check: only allow updating draft or divalidasi status
         if (! in_array($kegiatan->status, ['draft', 'divalidasi'])) {
-            return back()->with('error', 'Kegiatan hanya bisa diedit jika statusnya draft atau divalidasi.');
+            return back()->with('error', 'Maaf, kegiatan ini tidak bisa diubah karena statusnya sudah bukan draft atau divalidasi.');
         }
 
         $data = $request->validated();
@@ -349,7 +349,7 @@ class KegiatanController extends Controller
         // Normal update (no pagu change)
 
         return redirect()->route('kegiatan.index')
-            ->with('success', 'Kegiatan berhasil diperbarui.');
+            ->with('success', 'Perubahan data kegiatan sudah berhasil disimpan.');
     }
 
     /**
@@ -363,7 +363,7 @@ class KegiatanController extends Controller
         $kegiatan->delete();
 
         return redirect()->route('kegiatan.index')
-            ->with('success', 'Kegiatan berhasil dihapus.');
+            ->with('success', 'Data kegiatan sudah berhasil dihapus dari sistem.');
     }
 
     /**

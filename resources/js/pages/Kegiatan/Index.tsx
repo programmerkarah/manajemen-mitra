@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { StatusBadge } from '@/components/status-badge';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
@@ -82,30 +83,6 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                 replace: true,
             }
         );
-    };
-
-    const getStatusBadge = (status: string) => {
-        const badges: Record<string, string> = {
-            draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400',
-            diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-            divalidasi: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-            aktif: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-            selesai: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-            dibatalkan: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-        };
-        return badges[status] || badges.draft;
-    };
-
-    const getStatusLabel = (status: string) => {
-        const labels: Record<string, string> = {
-            draft: 'Draft',
-            diajukan: 'Diajukan',
-            divalidasi: 'Divalidasi',
-            aktif: 'Aktif',
-            selesai: 'Selesai',
-            dibatalkan: 'Dibatalkan',
-        };
-        return labels[status] || status;
     };
 
     const formatCurrency = (value: number | null | undefined) => {
@@ -230,39 +207,47 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                 <ContentCard>
                     <form onSubmit={handleSearch} className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                                <Input
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari kegiatan..."
-                                    className="h-10 pl-10"
-                                />
+                            <div className="space-y-2">
+                                <Label htmlFor="search" className="text-base font-semibold">Cari Kegiatan</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+                                    <Input
+                                        id="search"
+                                        type="text"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Cari nama atau kode kegiatan..."
+                                        className="pl-10"
+                                    />
+                                </div>
                             </div>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                                className="h-10 rounded-lg border border-neutral-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            >
-                                <option value="">Semua Status</option>
-                                <option value="draft">Draft</option>
-                                <option value="divalidasi">Divalidasi</option>
-                                <option value="selesai">Selesai</option>
-                                <option value="dibatalkan">Dibatalkan</option>
-                            </select>
-                            <div className="flex gap-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="status" className="text-base font-semibold">Status</Label>
+                                <select
+                                    id="status"
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value)}
+                                    className="h-11 w-full rounded-lg border-2 border-neutral-300 px-4 text-base font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                >
+                                    <option value="">Semua Status</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="divalidasi">Divalidasi</option>
+                                    <option value="selesai">Selesai</option>
+                                    <option value="dibatalkan">Dibatalkan</option>
+                                </select>
+                            </div>
+                            <div className="flex items-end gap-2">
                                 <Button type="submit" className="flex-1 gap-2">
-                                    <Search className="h-4 w-4" />
+                                    <Filter className="h-5 w-5" />
                                     Filter
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleReset}
-                                    className="flex-1 gap-2"
+                                    className="gap-2"
                                 >
-                                    <X className="h-4 w-4" />
+                                    <RotateCcw className="h-5 w-5" />
                                     Reset
                                 </Button>
                             </div>
@@ -334,66 +319,64 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                 {kegiatan.ketua_tim.name}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusBadge(kegiatan.status)}`}
-                                                >
-                                                    {getStatusLabel(kegiatan.status)}
-                                                </span>
+                                                <StatusBadge status={kegiatan.status} />
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2">
                                                     {!isPJ && canSubmit(kegiatan) && (
                                                         <Button
-                                                            variant="outline"
+                                                            variant="default"
                                                             size="sm"
+                                                            className="gap-2 bg-blue-600 hover:bg-blue-700"
                                                             onClick={() => handleSubmitClick(kegiatan)}
-                                                            className="h-8 gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300"
                                                         >
-                                                            <Send className="h-3.5 w-3.5" />
+                                                            <Send className="h-4 w-4" />
                                                             <span className="sr-only sm:not-sr-only">Ajukan</span>
                                                         </Button>
                                                     )}
                                                     {!isPJ && canApprove(kegiatan) && (
                                                         <Button
-                                                            variant="outline"
+                                                            variant="default"
                                                             size="sm"
+                                                            className="gap-2 bg-green-600 hover:bg-green-700"
                                                             onClick={() => handleApproveClick(kegiatan)}
-                                                            className="h-8 gap-1.5 border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950 dark:hover:text-green-300"
                                                         >
-                                                            <Check className="h-3.5 w-3.5" />
+                                                            <Check className="h-4 w-4" />
                                                             <span className="sr-only sm:not-sr-only">Setujui</span>
                                                         </Button>
                                                     )}
                                                     {!isPJ && canReject(kegiatan) && (
                                                         <Button
-                                                            variant="outline"
+                                                            variant="destructive"
                                                             size="sm"
+                                                            className="gap-2"
                                                             onClick={() => handleRejectClick(kegiatan)}
-                                                            className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
                                                         >
-                                                            <X className="h-3.5 w-3.5" />
+                                                            <X className="h-4 w-4" />
                                                             <span className="sr-only sm:not-sr-only">Tolak</span>
                                                         </Button>
                                                     )}
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
                                                         asChild
-                                                        className="h-8 w-8 p-0"
+                                                        className="gap-2"
                                                     >
                                                         <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
                                                             <Eye className="h-4 w-4" />
+                                                            <span className="sr-only sm:not-sr-only">Detail</span>
                                                         </Link>
                                                     </Button>
                                                     {!isPJ && canEdit(kegiatan) && (
                                                         <Button
-                                                            variant="ghost"
+                                                            variant="outline"
                                                             size="sm"
                                                             asChild
-                                                            className="h-8 w-8 p-0"
+                                                            className="gap-2"
                                                         >
                                                             <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
                                                                 <Pencil className="h-4 w-4" />
+                                                                <span className="sr-only sm:not-sr-only">Edit</span>
                                                             </Link>
                                                         </Button>
                                                     )}

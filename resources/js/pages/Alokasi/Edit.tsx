@@ -17,7 +17,7 @@ import InputError from '@/components/input-error'
 import { type BreadcrumbItem, type AlokasiPetugas } from '@/types'
 import { Head, Link, useForm } from '@inertiajs/react'
 import { useEffect, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -140,7 +140,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
                     <div className="space-y-6">
                             {/* Kegiatan */}
                             <div className="space-y-2">
-                                <Label htmlFor="kegiatan_id">
+                                <Label htmlFor="kegiatan_id" className="text-base font-semibold">
                                     Kegiatan <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
@@ -163,7 +163,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                             {/* Petugas */}
                             <div className="space-y-2">
-                                <Label htmlFor="petugas_id">
+                                <Label htmlFor="petugas_id" className="text-base font-semibold">
                                     Petugas <span className="text-red-500">*</span>
                                 </Label>
                                 <SearchableSelect
@@ -204,7 +204,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Bulan */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="bulan">
+                                    <Label htmlFor="bulan" className="text-base font-semibold">
                                         Bulan <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
@@ -227,7 +227,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                                 {/* Tahun */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="tahun">
+                                    <Label htmlFor="tahun" className="text-base font-semibold">
                                         Tahun <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
@@ -239,6 +239,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
                                         }
                                         min="2020"
                                         max="2099"
+                                        className="h-11 text-base"
                                     />
                                     <InputError message={errors.tahun} className="mt-2" />
                                 </div>
@@ -246,7 +247,7 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                             {/* Jumlah Satuan */}
                             <div className="space-y-2">
-                                <Label htmlFor="jumlah_satuan">
+                                <Label htmlFor="jumlah_satuan" className="text-base font-semibold">
                                     Jumlah {selectedRateHonor?.satuan.nama || 'Satuan'}{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
@@ -255,7 +256,8 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
                                     id="jumlah_satuan"
                                     value={data.jumlah_satuan}
                                     onChange={(e) => setData('jumlah_satuan', e.target.value)}
-                                    placeholder="0"
+                                    placeholder="Masukkan jumlah..."
+                                    className="h-11 text-base"
                                     min="1"
                                 />
                                 <InputError message={errors.jumlah_satuan} className="mt-2" />
@@ -277,13 +279,14 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                             {/* Catatan */}
                             <div className="space-y-2">
-                                <Label htmlFor="catatan">Catatan</Label>
+                                <Label htmlFor="catatan" className="text-base font-semibold">Catatan</Label>
                                 <Textarea
                                     id="catatan"
                                     rows={3}
                                     value={data.catatan}
                                     onChange={(e) => setData('catatan', e.target.value)}
                                     placeholder="Catatan tambahan (opsional)"
+                                    className="text-base"
                                 />
                                 <InputError message={errors.catatan} className="mt-2" />
                             </div>
@@ -292,11 +295,24 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                     {/* Footer Buttons */}
                     <div className="flex items-center justify-end gap-3">
-                        <Button variant="outline" asChild>
-                            <Link href={`/alokasi/${alokasi.hashed_id}`}>Batal</Link>
+                        <Button variant="outline" asChild className="gap-2" disabled={processing}>
+                            <Link href={`/alokasi/${alokasi.hashed_id}`}>
+                                <X className="h-5 w-5" />
+                                Batal
+                            </Link>
                         </Button>
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan Perubahan
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

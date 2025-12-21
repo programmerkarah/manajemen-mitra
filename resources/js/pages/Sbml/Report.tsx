@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { BreadcrumbItem } from '@/types'
+import { StatusBadge } from '@/components/status-badge'
 
 interface AlokasiDetail {
     peran: string
@@ -96,28 +97,10 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
         setExpandedRows(newExpanded)
     }
 
-    const getStatusBadge = (exceeds: boolean, percentage: number) => {
-        if (exceeds) {
-            return (
-                <Badge variant="destructive" className="gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Melebihi Batas ({percentage.toFixed(1)}%)
-                </Badge>
-            )
-        }
-        if (percentage >= 90) {
-            return (
-                <Badge variant="secondary" className="gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Mendekati Batas ({percentage.toFixed(1)}%)
-                </Badge>
-            )
-        }
-        return (
-            <Badge variant="outline">
-                Normal ({percentage.toFixed(1)}%)
-            </Badge>
-        )
+    const getStatusForPercentage = (exceeds: boolean, percentage: number): string => {
+        if (exceeds) return 'melebihi_batas'
+        if (percentage >= 90) return 'mendekati_batas'
+        return 'normal'
     }
 
     const currentMonth = bulan_options.find(b => b.value === selectedBulan)
@@ -267,7 +250,12 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                                                     <td className="p-4 align-middle text-right text-muted-foreground">
                                                         {formatCurrency(p.max_allowed)}
                                                     </td>
-                                                    <td className="p-4 align-middle">{getStatusBadge(p.exceeds, p.percentage)}</td>
+                                                    <td className="p-4 align-middle">
+                                                        <StatusBadge 
+                                                            status={getStatusForPercentage(p.exceeds, p.percentage)} 
+                                                            label={`${p.percentage.toFixed(1)}%`}
+                                                        />
+                                                    </td>
                                                     <td className="p-4 align-middle text-center">{p.kegiatan_count}</td>
                                                 </tr>
 

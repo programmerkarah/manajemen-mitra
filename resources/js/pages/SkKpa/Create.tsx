@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { type BreadcrumbItem } from '@/types'
 import { Head, Link } from '@inertiajs/react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 interface DasarHukum {
@@ -307,22 +307,37 @@ export default function Create({ kegiatan, dasarHukumList, oldInput }: CreatePro
 
                     {/* Submit Buttons */}
                     <div className="flex items-center justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-                        <Button type="button" variant="outline" asChild>
-                            <Link href="/sk-kpa">Batal</Link>
+                        <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                            <Link href="/sk-kpa">
+                                <X className="h-5 w-5" />
+                                Batal
+                            </Link>
                         </Button>
                         <Button
                             type="button"
                             variant="secondary"
                             onClick={handlePreview}
                             disabled={processing || selectedDasarHukum.length === 0}
+                            className="gap-2"
                         >
                             Preview SK
                         </Button>
                         <Button
                             type="submit"
                             disabled={processing || selectedDasarHukum.length === 0}
+                            className="gap-2 min-w-[180px]"
                         >
-                            {processing ? 'Generating...' : 'Generate SK'}
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Generate SK
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

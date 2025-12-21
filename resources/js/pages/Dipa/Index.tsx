@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -198,15 +199,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                                 {formatDate(dipa.tanggal_dipa)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                                        dipa.is_active
-                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                                                    }`}
-                                                >
-                                                    {dipa.is_active ? 'Aktif' : 'Non-Aktif'}
-                                                </span>
+                                                <StatusBadge status={dipa.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
                                             {!isPJ && (
                                                 <td className="px-4 py-3">

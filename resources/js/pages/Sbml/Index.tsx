@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem, Sbml, SharedData } from '@/types'
 import { Head, Link, router, usePage } from '@inertiajs/react'
 import { Pencil, Plus, Trash2, Eye } from 'lucide-react'
+import { StatusBadge } from '@/components/status-badge'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -91,15 +92,7 @@ export default function Index({ year_groups }: Props) {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                                                        group.status === 'aktif'
-                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                    }`}
-                                                >
-                                                    {group.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
-                                                </span>
+                                                <StatusBadge status={group.status} />
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2">

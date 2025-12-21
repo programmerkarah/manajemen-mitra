@@ -15,7 +15,7 @@ import {
 import type { BreadcrumbItem, Sbml } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -244,11 +244,25 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
                             type="button"
                             variant="outline"
                             asChild
+                            className="gap-2 min-w-[180px]"
                         >
-                            <Link href="/sbml">Batal</Link>
+                            <Link href="/sbml">
+                                <X className="h-5 w-5" />
+                                Batal
+                            </Link>
                         </Button>
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan Perubahan
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

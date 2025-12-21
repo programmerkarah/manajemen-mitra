@@ -74,7 +74,7 @@ class PetugasController extends Controller
         Petugas::create($request->validated());
 
         return redirect()->route('petugas.index')
-            ->with('success', 'Petugas berhasil ditambahkan.');
+            ->with('success', 'Data petugas baru sudah berhasil disimpan ke sistem.');
     }
 
     /**
@@ -180,7 +180,7 @@ class PetugasController extends Controller
         $petugas->update($request->validated());
 
         return redirect()->route('petugas.index')
-            ->with('success', 'Petugas berhasil diperbarui.');
+            ->with('success', 'Perubahan data petugas sudah berhasil disimpan.');
     }
 
     /**
@@ -198,7 +198,7 @@ class PetugasController extends Controller
         $petugas->delete();
 
         return redirect()->route('petugas.index')
-            ->with('success', 'Petugas berhasil dihapus.');
+            ->with('success', 'Data petugas sudah berhasil dihapus dari sistem.');
     }
 
     /**

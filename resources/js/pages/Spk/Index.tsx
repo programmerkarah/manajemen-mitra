@@ -14,6 +14,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight, FileEdit } from 'lucide-react';
 import { useState } from 'react';
+import { StatusBadge } from '@/components/status-badge';
 
 interface KegiatanItem {
     periode_id: number;
@@ -235,13 +236,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                 {monthData.total_spk} SPK
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                                    monthData.spk_status_type === 'created' 
-                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                        : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200'
-                                                }`}>
-                                                    {monthData.spk_status}
-                                                </span>
+                                                <StatusBadge status={monthData.spk_status_type} />
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm">
                                                 <div className="flex items-center justify-end gap-2">

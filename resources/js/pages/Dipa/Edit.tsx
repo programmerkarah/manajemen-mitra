@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
@@ -143,11 +143,24 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                         </div>
 
                         <div className="mt-6 flex justify-end gap-3">
-                            <Button type="button" variant="outline" asChild>
-                                <Link href="/dipa">Batal</Link>
+                            <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                                <Link href="/dipa">
+                                    <X className="h-5 w-5" />
+                                    Batal
+                                </Link>
                             </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                                {processing ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="h-5 w-5" />
+                                        Simpan Perubahan
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </form>

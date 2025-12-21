@@ -14,7 +14,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy } from 'lucide-react';
+import { ArrowLeft, Copy, Save, X, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -2330,14 +2330,28 @@ export default function Create({
                 {/* Footer Buttons */}
                 {!isViewMode && (
                     <div className="flex items-center justify-end gap-3">
-                        <Button variant="outline" type="button" asChild>
-                            <Link href="/alokasi">Batal</Link>
+                        <Button variant="outline" type="button" asChild className="gap-2" disabled={processing}>
+                            <Link href="/alokasi">
+                                <X className="h-5 w-5" />
+                                Batal
+                            </Link>
                         </Button>
                         <Button
                             type="submit"
                             disabled={processing || !selectedKegiatanId}
+                            className="gap-2 min-w-[180px]"
                         >
-                            {processing ? 'Menyimpan...' : 'Simpan Alokasi'}
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan Alokasi
+                                </>
+                            )}
                         </Button>
                     </div>
                 )}

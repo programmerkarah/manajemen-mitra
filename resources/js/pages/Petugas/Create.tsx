@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -344,14 +344,29 @@ export default function Create() {
                                     type="button"
                                     variant="outline"
                                     asChild
+                                    className="gap-2 min-w-[180px]"
                                 >
-                                    <Link href="/petugas">Batal</Link>
+                                    <Link href="/petugas">
+                                        <X className="h-5 w-5" />
+                                        Batal
+                                    </Link>
                                 </Button>
                                 <Button
                                     type="submit"
                                     disabled={processing}
+                                    className="gap-2 min-w-[180px]"
                                 >
-                                    {processing ? 'Menyimpan...' : 'Simpan'}
+                                    {processing ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="h-5 w-5" />
+                                            Simpan
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </form>

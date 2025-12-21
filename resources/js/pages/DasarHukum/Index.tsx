@@ -14,6 +14,7 @@ import type { BreadcrumbItem, SharedData } from '@/types'
 import { Head, Link, router, usePage } from '@inertiajs/react'
 import { Pencil, Plus, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { StatusBadge } from '@/components/status-badge'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -224,17 +225,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                     </div>
                                                 </td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-center">
-                                                    <span
-                                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                                            item.status === 'aktif'
-                                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                                                : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300'
-                                                        }`}
-                                                    >
-                                                        {item.status === 'aktif'
-                                                            ? 'Aktif'
-                                                            : 'Nonaktif'}
-                                                    </span>
+                                                    <StatusBadge status={item.status} />
                                                 </td>
                                                 {!isPJ && (
                                                     <td className="whitespace-nowrap px-6 py-4">

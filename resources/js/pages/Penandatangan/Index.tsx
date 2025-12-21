@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -212,15 +213,7 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                                                 {formatDate(Penandatangan.periode_selesai)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <span
-                                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                                        Penandatangan.is_active
-                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                                                    }`}
-                                                >
-                                                    {Penandatangan.is_active ? 'Aktif' : 'Non-Aktif'}
-                                                </span>
+                                                <StatusBadge status={Penandatangan.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
                                             {!isPJ && (
                                                 <td className="px-4 py-3">

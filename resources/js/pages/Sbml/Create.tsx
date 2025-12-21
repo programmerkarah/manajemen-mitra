@@ -15,7 +15,7 @@ import {
 import type { BreadcrumbItem } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -150,14 +150,14 @@ export default function Create({ tahun_options }: CreateProps) {
                         <div className="space-y-6">
                             {/* Tahun Anggaran */}
                             <div>
-                                <Label htmlFor="tahun_anggaran">
+                                <Label htmlFor="tahun_anggaran" className="text-base font-semibold">
                                     Tahun Anggaran <span className="text-red-500">*</span>
                                 </Label>
                                 <select
                                     id="tahun_anggaran"
                                     value={tahun}
                                     onChange={(e) => setTahun(parseInt(e.target.value))}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
+                                    className="mt-1 block h-11 w-full rounded-md border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                                 >
                                     {tahun_options.map((year) => (
                                         <option key={year} value={year}>
@@ -172,7 +172,7 @@ export default function Create({ tahun_options }: CreateProps) {
 
                             {/* Table of all combinations */}
                             <div>
-                                <Label className="mb-3 block">
+                                <Label className="mb-3 block text-base font-semibold">
                                     Batas Honor Maksimal <span className="text-red-500">*</span>
                                 </Label>
                                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -217,7 +217,7 @@ export default function Create({ tahun_options }: CreateProps) {
                                                             value={entry.honor_max}
                                                             onChange={(e) => handleHonorChange(index, e.target.value)}
                                                             placeholder="0"
-                                                            className="w-full"
+                                                            className="h-11 w-full text-base"
                                                         />
                                                     </td>
                                                 </tr>
@@ -232,19 +232,20 @@ export default function Create({ tahun_options }: CreateProps) {
 
                             {/* Keterangan */}
                             <div>
-                                <Label htmlFor="keterangan">Keterangan</Label>
+                                <Label htmlFor="keterangan" className="text-base font-semibold">Keterangan</Label>
                                 <Textarea
                                     id="keterangan"
                                     value={keterangan}
                                     onChange={(e) => setKeterangan(e.target.value)}
                                     rows={3}
                                     placeholder="Catatan tambahan (opsional)"
+                                    className="text-base"
                                 />
                             </div>
 
                             {/* Status */}
                             <div>
-                                <Label htmlFor="status">
+                                <Label htmlFor="status" className="text-base font-semibold">
                                     Status <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
@@ -264,11 +265,24 @@ export default function Create({ tahun_options }: CreateProps) {
                     </ContentCard>
 
                     <div className="flex justify-end gap-3">
-                        <Button type="button" variant="outline" asChild>
-                            <Link href="/sbml">Batal</Link>
+                        <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                            <Link href="/sbml">
+                                <X className="h-5 w-5" />
+                                Batal
+                            </Link>
                         </Button>
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan'}
+                        <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

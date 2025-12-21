@@ -20,9 +20,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import { StatusBadge } from '@/components/status-badge'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
 import { useState } from 'react'
-import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight, Filter, RotateCcw, Users } from 'lucide-react'
 
 interface AlokasiPeriod {
     kegiatan_id: number
@@ -190,21 +191,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         }
     }
 
-    const statusColors = {
-        draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        dikirim: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        direvisi: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        dihapus: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-        perubahan: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    }
 
-    const statusLabels = {
-        draft: 'Draft',
-        dikirim: 'Terkirim',
-        direvisi: 'Direvisi',
-        dihapus: 'Dihapus',
-        perubahan: 'Perubahan',
-    }
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -243,9 +230,9 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             <ContentCard>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div className="space-y-2">
-                        <Label htmlFor="search">Cari Kegiatan</Label>
+                        <Label htmlFor="search" className="text-base font-semibold">Cari Kegiatan</Label>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-500" />
                             <Input
                                 id="search"
                                 type="text"
@@ -253,13 +240,13 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleFilter()}
                                 placeholder="Nama atau kode kegiatan..."
-                                className="pl-9"
+                                className="pl-10"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="bulan">Bulan</Label>
+                        <Label htmlFor="bulan" className="text-base font-semibold">Bulan</Label>
                         <Select
                             value={bulan}
                             onValueChange={(value) => setBulan(value)}
@@ -279,7 +266,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
+                        <Label htmlFor="status" className="text-base font-semibold">Status</Label>
                         <Select
                             value={status}
                             onValueChange={(value) => setStatus(value)}
@@ -297,10 +284,12 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                     </div>
 
                     <div className="flex items-end gap-2">
-                        <Button onClick={handleFilter} className="flex-1">
+                        <Button onClick={handleFilter} className="flex-1 gap-2">
+                            <Filter className="h-5 w-5" />
                             Filter
                         </Button>
-                        <Button onClick={handleReset} variant="outline">
+                        <Button onClick={handleReset} variant="outline" className="gap-2">
+                            <RotateCcw className="h-5 w-5" />
                             Reset
                         </Button>
                     </div>
@@ -378,16 +367,13 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                             </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                                            <span className="inline-flex items-center gap-2 rounded-full border-2 border-blue-300 bg-blue-100 px-4 py-2 text-base font-semibold text-blue-900 dark:border-blue-600 dark:bg-blue-900 dark:text-blue-200 shadow-sm">
+                                                <Users className="h-5 w-5 shrink-0" strokeWidth={2.5} />
                                                 {periode.jumlah_petugas} petugas
                                             </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <span
-                                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[periode.status]}`}
-                                            >
-                                                {statusLabels[periode.status]}
-                                            </span>
+                                            <StatusBadge status={periode.status} />
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div className="flex gap-2">
@@ -395,11 +381,11 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                     size="sm"
                                                     variant="outline"
                                                     asChild
-                                                    className="gap-1"
+                                                    className="gap-2"
                                                     title="Lihat Detail"
                                                 >
                                                     <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}`}>
-                                                        <Eye className="h-3 w-3" />
+                                                        <Eye className="h-4 w-4" />
                                                         Detail
                                                     </Link>
                                                 </Button>
@@ -407,21 +393,21 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                     <>
                                                         <Button
                                                             size="sm"
-                                                            variant="outline"
-                                                            className="gap-1"
+                                                            variant="default"
+                                                            className="gap-2 bg-blue-600 hover:bg-blue-700"
                                                             onClick={() => handleKirim(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
                                                         >
-                                                            <Send className="h-3 w-3" />
+                                                            <Send className="h-4 w-4" />
                                                             Kirim
                                                         </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
                                                             asChild
-                                                            className="gap-1"
+                                                            className="gap-2"
                                                         >
                                                             <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}/edit`}>
-                                                                <Edit2 className="h-3 w-3" />
+                                                                <Edit2 className="h-4 w-4" />
                                                                 Edit
                                                             </Link>
                                                         </Button>
@@ -429,20 +415,20 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                             size="sm"
                                                             variant="outline"
                                                             asChild
-                                                            className="gap-1"
+                                                            className="gap-2"
                                                         >
                                                             <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
-                                                                <Copy className="h-3 w-3" />
+                                                                <Copy className="h-4 w-4" />
                                                                 Salin
                                                             </Link>
                                                         </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="destructive"
-                                                            className="gap-1"
+                                                            className="gap-2"
                                                             onClick={() => handleBatalkan(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
                                                         >
-                                                            <X className="h-3 w-3" />
+                                                            <X className="h-4 w-4" />
                                                             Batalkan
                                                         </Button>
                                                     </>
@@ -453,21 +439,21 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                             size="sm"
                                                             variant="outline"
                                                             asChild
-                                                            className="gap-1"
+                                                            className="gap-2"
                                                         >
                                                             <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
-                                                                <Copy className="h-3 w-3" />
+                                                                <Copy className="h-4 w-4" />
                                                                 Salin
                                                             </Link>
                                                         </Button>
                                                         {periode.is_latest_periode && (
                                                             <Button
                                                                 size="sm"
-                                                                variant="outline"
-                                                                className="gap-1"
+                                                                variant="default"
+                                                                className="gap-2 bg-purple-600 hover:bg-purple-700"
                                                                 onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
                                                             >
-                                                                <RefreshCw className="h-3 w-3" />
+                                                                <RefreshCw className="h-4 w-4" />
                                                                 Revisi
                                                             </Button>
                                                         )}

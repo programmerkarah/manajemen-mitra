@@ -15,7 +15,7 @@ import {
 import type { BreadcrumbItem } from '@/types'
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -101,7 +101,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                         <div className="space-y-6">
                             {/* Kategori */}
                             <div className="space-y-2">
-                                <Label htmlFor="kategori">
+                                <Label htmlFor="kategori" className="text-base font-semibold">
                                     Kategori <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
@@ -109,7 +109,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                     onValueChange={setKategori}
                                     disabled={processing}
                                 >
-                                    <SelectTrigger id="kategori">
+                                    <SelectTrigger id="kategori" className="h-11">
                                         <SelectValue placeholder="Pilih Kategori" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -133,7 +133,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             {/* Instansi - Conditional */}
                             {needsInstansi && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="instansi">
+                                    <Label htmlFor="instansi" className="text-base font-semibold">
                                         Nama Instansi{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -144,6 +144,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                         onChange={(e) => setInstansi(e.target.value)}
                                         placeholder="Contoh: Keuangan, Badan Pusat Statistik"
                                         disabled={processing}
+                                        className="h-11 text-base"
                                     />
                                     {errors.instansi && (
                                         <p className="text-sm text-red-500">
@@ -155,7 +156,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                             {/* Nomor */}
                             <div className="space-y-2">
-                                <Label htmlFor="nomor">
+                                <Label htmlFor="nomor" className="text-base font-semibold">
                                     Nomor <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -165,6 +166,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                     onChange={(e) => setNomor(e.target.value)}
                                     placeholder="Contoh: 16"
                                     disabled={processing}
+                                    className="h-11 text-base"
                                 />
                                 {errors.nomor && (
                                     <p className="text-sm text-red-500">
@@ -175,7 +177,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                             {/* Tentang */}
                             <div className="space-y-2">
-                                <Label htmlFor="tentang">
+                                <Label htmlFor="tentang" className="text-base font-semibold">
                                     Tentang <span className="text-red-500">*</span>
                                 </Label>
                                 <Textarea
@@ -185,6 +187,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                     placeholder="Contoh: Standar Biaya Masukan Tahun Anggaran 2023"
                                     rows={3}
                                     disabled={processing}
+                                    className="text-base"
                                 />
                                 {errors.tentang && (
                                     <p className="text-sm text-red-500">
@@ -196,7 +199,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Tahun */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="tahun">
+                                    <Label htmlFor="tahun" className="text-base font-semibold">
                                         Tahun <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
@@ -207,6 +210,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                         min="1900"
                                         max="2100"
                                         disabled={processing}
+                                        className="h-11 text-base"
                                     />
                                     {errors.tahun && (
                                         <p className="text-sm text-red-500">
@@ -217,7 +221,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                                 {/* Status */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="status">
+                                    <Label htmlFor="status" className="text-base font-semibold">
                                         Status <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
@@ -227,7 +231,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                         }
                                         disabled={processing}
                                     >
-                                        <SelectTrigger id="status">
+                                        <SelectTrigger id="status" className="h-11">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -254,11 +258,23 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             variant="outline"
                             onClick={() => router.visit('/dasar-hukum')}
                             disabled={processing}
+                            className="gap-2 min-w-[180px]"
                         >
+                            <X className="h-5 w-5" />
                             Batal
                         </Button>
-                        <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan'}
+                        <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                            {processing ? (
+                                <>
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-5 w-5" />
+                                    Simpan
+                                </>
+                            )}
                         </Button>
                     </div>
                 </form>

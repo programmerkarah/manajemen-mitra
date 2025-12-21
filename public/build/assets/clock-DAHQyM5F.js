@@ -1,0 +1,1 @@
+import{c}from"./app-logo-icon-FYJTdvXd.js";const e=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"m9 9 6 6",key:"z0biqf"}]],r=c("CircleX",e);const o=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["polyline",{points:"12 6 12 12 16 14",key:"68esgv"}]],l=c("Clock",o);export{r as C,l as a};

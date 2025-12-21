@@ -8,6 +8,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Petugas', href: '/petugas' },
@@ -210,15 +211,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                             {Petugas.pendidikan}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span
-                                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                                                    Petugas.status === 'aktif'
-                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                }`}
-                                            >
-                                                {Petugas.status}
-                                            </span>
+                                            <StatusBadge status={Petugas.status} />
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
