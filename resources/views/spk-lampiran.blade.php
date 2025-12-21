@@ -93,7 +93,7 @@
     <div class="lampiran-header">
         <div class="lampiran-title">
             Lampiran<br>
-            PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN {{ strtoupper($kegiatan->nama_kegiatan) }} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SENSUS DAN SURVEI BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
             NOMOR: {{ $nomorSpk }}
         </div>
     </div>

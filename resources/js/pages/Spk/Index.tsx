@@ -34,6 +34,7 @@ interface MonthlyPeriodeItem {
     spk_status: string;
     spk_status_type: 'not_created' | 'created';
     has_revision: boolean;
+    has_addendum: boolean;
     kegiatan_list: KegiatanItem[];
 }
 
@@ -258,37 +259,35 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* View SPK Details - Show list of generated SPK */}
+                                                    {/* View SPK Details - Always show if SPK exists */}
                                                     {monthData.total_spk > 0 && (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => router.post('/spk/month', {
-                                                                    bulan: monthData.bulan,
-                                                                    tahun: monthData.tahun
-                                                                })}
-                                                                className="gap-1"
-                                                            >
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                                Lihat Detail SPK
-                                                            </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => router.post('/spk/month', {
+                                                                bulan: monthData.bulan,
+                                                                tahun: monthData.tahun
+                                                            })}
+                                                            className="gap-1"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                            Lihat Detail SPK
+                                                        </Button>
+                                                    )}
 
-                                                            {/* Addendum SPK - Show if there are revisions */}
-                                                            {canCreateSpk && monthData.has_revision && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="default"
-                                                                    asChild
-                                                                    className="gap-1"
-                                                                >
-                                                                    <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
-                                                                        <FileEdit className="h-3.5 w-3.5" />
-                                                                        Addendum SPK
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
-                                                        </>
+                                                    {/* Addendum SPK - Show if there are revisions AND no addendum created yet */}
+                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_revision && !monthData.has_addendum && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            asChild
+                                                            className="gap-1"
+                                                        >
+                                                            <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
+                                                                <FileEdit className="h-3.5 w-3.5" />
+                                                                Addendum SPK
+                                                            </Link>
+                                                        </Button>
                                                     )}
                                                 </div>
                                             </td>
