@@ -60,9 +60,10 @@ interface Props {
         bulan: string
     }
     bulan_options: BulanOption[]
+    tahun_options: number[]
 }
 
-export default function Report({ petugas, filters, bulan_options }: Props) {
+export default function Report({ petugas, filters, bulan_options, tahun_options }: Props) {
     const [selectedTahun, setSelectedTahun] = useState(filters.tahun.toString())
     const [selectedBulan, setSelectedBulan] = useState(filters.bulan)
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
@@ -152,13 +153,11 @@ export default function Report({ petugas, filters, bulan_options }: Props) {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(
-                                        (year) => (
-                                            <SelectItem key={year} value={year.toString()}>
-                                                {year}
-                                            </SelectItem>
-                                        )
-                                    )}
+                                    {tahun_options.map((year) => (
+                                        <SelectItem key={year} value={year.toString()}>
+                                            {year}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

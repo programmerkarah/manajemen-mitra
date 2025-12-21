@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('spk', function (Blueprint $table) {
             $table->unsignedBigInteger('parent_spk_id')->nullable()->after('id');
             $table->integer('addendum_number')->default(0)->after('parent_spk_id')->comment('0 for original SPK, 1+ for addendums');
-            
+
             $table->foreign('parent_spk_id')->references('id')->on('spk')->onDelete('cascade');
             $table->index(['parent_spk_id', 'addendum_number']);
         });

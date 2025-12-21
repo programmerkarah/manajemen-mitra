@@ -238,13 +238,34 @@ class SpkController extends Controller
     }
 
     /**
-     * Show SPK for a specific month with petugas list
+     * Show SPK for a specific month with petugas list (GET version)
+     */
+    public function showByMonthGet(Request $request): Response|\Illuminate\Http\RedirectResponse
+    {
+        $bulan = $request->query('bulan');
+        $tahun = $request->query('tahun');
+        $spkHashedId = $request->query('spk');
+
+        return $this->renderShowByMonth($bulan, $tahun, $spkHashedId);
+    }
+
+    /**
+     * Show SPK for a specific month with petugas list (POST version)
      */
     public function showByMonth(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $spkHashedId = $request->input('spk');
+
+        return $this->renderShowByMonth($bulan, $tahun, $spkHashedId);
+    }
+
+    /**
+     * Internal method to render ShowByMonth view
+     */
+    private function renderShowByMonth($bulan, $tahun, $spkHashedId): Response|\Illuminate\Http\RedirectResponse
+    {
 
         if (! $bulan || ! $tahun) {
             return redirect()->route('spk.index');
@@ -517,7 +538,12 @@ class SpkController extends Controller
             'status' => 'diterbitkan',
         ]);
 
-        return redirect()->back()->with('success', 'Dokumen SPK berhasil diunggah');
+        // Redirect back to ShowByMonth with proper payload
+        return redirect()->route('spk.show-by-month-get', [
+            'bulan' => $periode->bulan,
+            'tahun' => $periode->tahun,
+            'spk' => $spk->hashed_id,
+        ])->with('success', 'Dokumen SPK berhasil diunggah');
     }
 
     /**
@@ -1040,16 +1066,7 @@ class SpkController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Addendum SPK berhasil di-generate',
-                'spk' => [
-                    'id' => $spk->id,
-                    'hashed_id' => $spk->hashed_id,
-                    'nomor_spk' => $spk->nomor_spk,
-                    'file_path' => \Storage::disk('public')->url($filePath),
-                ],
-            ]);
+            return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error generating addendum SPK: '.$e->getMessage());
@@ -1572,7 +1589,7 @@ class SpkController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'SPK berhasil dibuat');
+            return redirect()->route('spk.index')->with('success', 'SPK berhasil dibuat');
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;

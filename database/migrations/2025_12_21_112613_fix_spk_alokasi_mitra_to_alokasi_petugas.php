@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('spk', function (Blueprint $table) {
             // Drop old foreign key if exists
             $table->dropForeign(['alokasi_mitra_id']);
-            
+
             // Rename column
             $table->renameColumn('alokasi_mitra_id', 'alokasi_petugas_id');
         });
@@ -36,7 +36,7 @@ return new class extends Migration
         Schema::table('spk', function (Blueprint $table) {
             // Drop new foreign key
             $table->dropForeign(['alokasi_petugas_id']);
-            
+
             // Rename back
             $table->renameColumn('alokasi_petugas_id', 'alokasi_mitra_id');
         });

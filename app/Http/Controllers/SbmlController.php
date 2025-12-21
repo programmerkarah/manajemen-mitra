@@ -15,14 +15,21 @@ class SbmlController extends Controller
      */
     public function index(): Response
     {
-        $sbmls = Sbml::orderBy('tahun_anggaran', 'desc')
-            ->orderBy('jenis_kegiatan', 'asc')
-            ->orderBy('status_kepegawaian', 'asc')
-            ->orderBy('jenis_penugasan', 'asc')
-            ->paginate(20);
+        // Get grouped count by year with status
+        $yearGroups = Sbml::selectRaw('tahun_anggaran, MAX(status) as status, COUNT(*) as count')
+            ->groupBy('tahun_anggaran')
+            ->orderBy('tahun_anggaran', 'desc')
+            ->get()
+            ->map(function ($group) {
+                return [
+                    'tahun_anggaran' => (int) $group->tahun_anggaran,
+                    'status' => $group->status,
+                    'count' => (int) $group->count,
+                ];
+            });
 
         return Inertia::render('Sbml/Index', [
-            'sbmls' => $sbmls,
+            'year_groups' => $yearGroups,
         ]);
     }
 
@@ -31,7 +38,30 @@ class SbmlController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Sbml/Create');
+        $currentYear = (int) date('Y');
+
+        // Get unique years from SBML data
+        $tahunOptions = Sbml::select('tahun_anggaran')
+            ->distinct()
+            ->orderBy('tahun_anggaran', 'desc')
+            ->pluck('tahun_anggaran')
+            ->map(fn ($t) => (int) $t)
+            ->toArray();
+
+        // Always include current year and next year (for preparation)
+        if (! in_array($currentYear, $tahunOptions)) {
+            $tahunOptions[] = $currentYear;
+        }
+        if (! in_array($currentYear + 1, $tahunOptions)) {
+            $tahunOptions[] = $currentYear + 1;
+        }
+
+        // Sort descending
+        rsort($tahunOptions);
+
+        return Inertia::render('Sbml/Create', [
+            'tahun_options' => $tahunOptions,
+        ]);
     }
 
     /**

@@ -52,7 +52,7 @@ const bulanLabels: Record<number, string> = {
 export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps) {
     const [selectedSpkId, setSelectedSpkId] = useState<number | null>(spk_list[0]?.id || null);
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadingSpkId, setUploadingSpkId] = useState<number | null>(null);
+    const [uploadingSpkHashedId, setUploadingSpkHashedId] = useState<string | null>(null);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         file: File | null;
@@ -94,8 +94,8 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
         return labels[peran] || peran;
     };
 
-    const handleUploadClick = (spkId: number) => {
-        setUploadingSpkId(spkId);
+    const handleUploadClick = (spkHashedId: string) => {
+        setUploadingSpkHashedId(spkHashedId);
         setShowUploadModal(true);
     };
 
@@ -107,15 +107,15 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
 
     const handleUploadSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!uploadingSpkId || !data.file) return;
+        if (!uploadingSpkHashedId || !data.file) return;
 
         const formData = new FormData();
         formData.append('file', data.file);
 
-        post(`/spk/${uploadingSpkId}/upload-signed`, {
+        post(`/spk/${uploadingSpkHashedId}/upload-signed`, {
             onSuccess: () => {
                 setShowUploadModal(false);
-                setUploadingSpkId(null);
+                setUploadingSpkHashedId(null);
                 reset();
             },
         });

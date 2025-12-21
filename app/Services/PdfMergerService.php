@@ -15,10 +15,10 @@ class PdfMergerService
         try {
             // Normalize output path to use forward slashes
             $outputPath = str_replace('\\', '/', $outputPath);
-            
+
             // Use FPDI with TCPDF for PHP 8 compatibility
-            $pdf = new Fpdi();
-            
+            $pdf = new Fpdi;
+
             // TCPDF specific settings
             $pdf->SetCreator('BPS');
             $pdf->SetAuthor('BPS');
@@ -29,7 +29,7 @@ class PdfMergerService
             foreach ($pdfPaths as $pdfPath) {
                 // Normalize input path
                 $pdfPath = str_replace('\\', '/', $pdfPath);
-                
+
                 if (! file_exists($pdfPath)) {
                     continue;
                 }
@@ -63,7 +63,8 @@ class PdfMergerService
             return file_exists($outputPath);
         } catch (\Exception $e) {
             // Log error for debugging
-            \Log::error('PDF Merge Error: ' . $e->getMessage());
+            \Log::error('PDF Merge Error: '.$e->getMessage());
+
             // If FPDI fails, try external tools
             return self::mergePdfFilesWithExternalTools($pdfPaths, $outputPath);
         }

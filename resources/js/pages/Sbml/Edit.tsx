@@ -100,9 +100,7 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
             status,
         }
 
-        // Ambil hashed_id dari entry pertama
-        const hashedId = entries[0]?.hashed_id
-        router.put(`/sbml/${hashedId}`, payload, {
+        router.patch(`/sbml/${tahun}`, payload, {
             onSuccess: () => {
                 setProcessing(false)
             },

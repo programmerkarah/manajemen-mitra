@@ -11,41 +11,19 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'SBML', href: '/sbml' },
 ]
 
-interface Props {
-    sbmls: {
-        data: Sbml[]
-        links: any[]
-        current_page: number
-        last_page: number
-        per_page: number
-        total: number
-    }
+interface YearGroup {
+    tahun_anggaran: number
+    status: string
+    count: number
 }
 
-export default function Index({ sbmls }: Props) {
+interface Props {
+    year_groups: YearGroup[]
+}
+
+export default function Index({ year_groups }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    
-    // Group SBML data by year
-    const groupedByYear = sbmls.data.reduce((acc, sbml) => {
-        const year = sbml.tahun_anggaran
-        
-        if (!acc[year]) {
-            acc[year] = {
-                tahun_anggaran: year,
-                status: sbml.status,
-                count: 0,
-            }
-        }
-        acc[year].count++
-        // If any entry is active, the year is considered active
-        if (sbml.status === 'aktif') {
-            acc[year].status = 'aktif'
-        }
-        return acc
-    }, {} as Record<number, { tahun_anggaran: number; status: string; count: number }>)
-
-    const yearGroups = Object.values(groupedByYear).sort((a, b) => b.tahun_anggaran - a.tahun_anggaran)
 
     const handleDelete = (tahun: number) => {
         if (confirm(`Apakah Anda yakin ingin menghapus semua SBML untuk tahun ${tahun}?`)) {
@@ -91,7 +69,7 @@ export default function Index({ sbmls }: Props) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {yearGroups.length === 0 ? (
+                                {year_groups.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={3}
@@ -101,7 +79,7 @@ export default function Index({ sbmls }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    yearGroups.map((group) => (
+                                    year_groups.map((group) => (
                                         <tr
                                             key={group.tahun_anggaran}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"

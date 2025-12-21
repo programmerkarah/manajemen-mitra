@@ -130,6 +130,27 @@ class SbmlReportController extends Controller
             ];
         });
 
+        $currentYear = (int) date('Y');
+
+        // Get unique years from alokasi petugas
+        $tahunOptions = \App\Models\PeriodeAlokasi::select('tahun')
+            ->distinct()
+            ->orderBy('tahun', 'desc')
+            ->pluck('tahun')
+            ->map(fn ($t) => (int) $t)
+            ->toArray();
+
+        // Always include current year and next year (for preparation)
+        if (! in_array($currentYear, $tahunOptions)) {
+            $tahunOptions[] = $currentYear;
+        }
+        if (! in_array($currentYear + 1, $tahunOptions)) {
+            $tahunOptions[] = $currentYear + 1;
+        }
+
+        // Sort descending
+        rsort($tahunOptions);
+
         return Inertia::render('Sbml/Report', [
             'petugas' => $petugasData,
             'filters' => [
@@ -137,6 +158,7 @@ class SbmlReportController extends Controller
                 'bulan' => $bulan,
             ],
             'bulan_options' => $bulanOptions,
+            'tahun_options' => $tahunOptions,
         ]);
     }
 

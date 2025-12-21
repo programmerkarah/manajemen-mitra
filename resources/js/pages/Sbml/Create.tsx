@@ -30,11 +30,12 @@ interface SbmlEntry {
     honor_max: string
 }
 
-export default function Create() {
-    const currentYear = new Date().getFullYear()
-    const tahunOptions = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
+interface CreateProps {
+    tahun_options: number[];
+}
 
-    const [tahun, setTahun] = useState(currentYear)
+export default function Create({ tahun_options }: CreateProps) {
+    const [tahun, setTahun] = useState(tahun_options[0] || new Date().getFullYear())
     const [keterangan, setKeterangan] = useState('')
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif')
 
@@ -158,7 +159,7 @@ export default function Create() {
                                     onChange={(e) => setTahun(parseInt(e.target.value))}
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm"
                                 >
-                                    {tahunOptions.map((year) => (
+                                    {tahun_options.map((year) => (
                                         <option key={year} value={year}>
                                             {year}
                                         </option>

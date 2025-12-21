@@ -107,7 +107,7 @@ const bulanLabels: Record<number, string> = {
 
 export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list, periode, bast, petugas_list, bulan, tahun, bulan_label }: ShowByMonthProps) {
     const { auth } = usePage<SharedData>().props;
-    const [uploadingDocId, setUploadingDocId] = useState<number | null>(null);
+    const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         file: File | null;
@@ -163,7 +163,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
         e.preventDefault();
         if (!data.file || !uploadingDocId) return;
 
-        const doc = spk_documents.find(d => d.id === uploadingDocId);
+        const doc = spk_documents.find(d => d.hashed_id === uploadingDocId);
         if (!doc) return;
 
         post(`/spk/${doc.hashed_id}/upload-signed`, {
@@ -180,6 +180,13 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
         if (addendumNumber === 2) return 'SPK Addendum Kedua';
         if (addendumNumber === 3) return 'SPK Addendum Ketiga';
         return `SPK Addendum Ke-${addendumNumber}`;
+    };
+
+    const formatIndonesianDate = (isoDate: string): string => {
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const date = new Date(isoDate);
+        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {
@@ -291,7 +298,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                 </div>
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Tanggal SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.tanggal_spk}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium">{formatIndonesianDate(spk.tanggal_spk)}</p>
                                 </div>
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
@@ -461,7 +468,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => setUploadingDocId(doc.id)}
+                                                                onClick={() => setUploadingDocId(doc.hashed_id)}
                                                             >
                                                                 <Upload className="mr-2 h-3.5 w-3.5" />
                                                                 Upload Signed
@@ -475,7 +482,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => setUploadingDocId(doc.id)}
+                                                                onClick={() => setUploadingDocId(doc.hashed_id)}
                                                             >
                                                                 <Upload className="mr-2 h-3.5 w-3.5" />
                                                                 Upload
@@ -528,7 +535,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
 
             {/* Upload Modal */}
             {uploadingDocId && (() => {
-                const doc = spk_documents.find(d => d.id === uploadingDocId);
+                const doc = spk_documents.find(d => d.hashed_id === uploadingDocId);
                 if (!doc) return null;
                 return (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setUploadingDocId(null)}>
