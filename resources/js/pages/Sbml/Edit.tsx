@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react'
 
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Master Data', href: '#' },
     { title: 'SBML', href: '/sbml' },
     { title: 'Edit SBML', href: '/sbml/edit' },
 ]

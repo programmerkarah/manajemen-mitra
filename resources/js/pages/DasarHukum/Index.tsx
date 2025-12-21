@@ -16,7 +16,7 @@ import { Pencil, Plus, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-
 import { useEffect, useState } from 'react'
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
 ]
 
