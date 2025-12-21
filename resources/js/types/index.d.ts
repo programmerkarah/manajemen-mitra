@@ -14,6 +14,13 @@ export interface Auth {
     userRoles: Role[];
     emailVerified: boolean;
     twoFactorEnabled: boolean;
+    isViewingAsUser?: boolean;
+    originalUser?: {
+        id: number;
+        name: string;
+        username: string;
+    } | null;
+    canViewAsUser?: boolean;
 }
 
 export interface BreadcrumbItem {

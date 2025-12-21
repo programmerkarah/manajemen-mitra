@@ -15,6 +15,7 @@ use App\Http\Controllers\SkKpaController;
 use App\Http\Controllers\SpkController;
 use App\Http\Controllers\TwoFactorPromptController;
 use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\ViewAsUserController;
 use App\Http\Controllers\YearSwitchController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -65,6 +66,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Year Switching
     Route::post('switch-year', [YearSwitchController::class, 'switch'])->name('year.switch');
+
+    // View As User (rhmtzikri only)
+    Route::post('view-as-user/set', [ViewAsUserController::class, 'set'])->name('view-as-user.set');
+    Route::post('view-as-user/clear', [ViewAsUserController::class, 'clear'])->name('view-as-user.clear');
+    Route::get('view-as-user/search', [ViewAsUserController::class, 'search'])->name('view-as-user.search');
 
     // Petugas Management (Admin only for modify, Admin+Administrator for view)
     // Petugas Management - IMPORTANT: Specific routes must come before parameter routes

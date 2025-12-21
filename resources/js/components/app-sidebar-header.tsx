@@ -1,5 +1,6 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import RoleSwitcher from '@/components/role-switcher';
+import ViewAsUserSwitcher from '@/components/view-as-user-switcher';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
@@ -14,7 +15,10 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
-            <RoleSwitcher />
+            <div className="flex items-center gap-2">
+                <ViewAsUserSwitcher />
+                <RoleSwitcher />
+            </div>
         </header>
     );
 }

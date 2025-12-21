@@ -18,7 +18,7 @@ import { FormEventHandler, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
     { title: 'Edit Dasar Hukum', href: '#' },
 ]

@@ -40,20 +40,32 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
+        $originalUser = $request->attributes->get('original_user');
+        $viewAsUser = $request->attributes->get('view_as_user');
+
+        // Use viewAsUser if available, otherwise use actual logged-in user
+        $displayUser = $viewAsUser ?? $user;
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $user ? array_merge(
-                    $user->load('roles')->toArray(),
-                    ['active_role' => $user->active_role]
+                'user' => $displayUser ? array_merge(
+                    $displayUser->load('roles')->toArray(),
+                    ['active_role' => $displayUser->active_role]
                 ) : null,
-                'activeRole' => $user ? $user->getActiveRole() : null,
-                'userRoles' => $user ? $user->roles : [],
-                'emailVerified' => $user?->hasVerifiedEmail() ?? false,
-                'twoFactorEnabled' => $user?->hasEnabledTwoFactorAuthentication() ?? false,
+                'activeRole' => $displayUser ? $displayUser->getActiveRole() : null,
+                'userRoles' => $displayUser ? $displayUser->roles : [],
+                'emailVerified' => $displayUser?->hasVerifiedEmail() ?? false,
+                'twoFactorEnabled' => $displayUser?->hasEnabledTwoFactorAuthentication() ?? false,
+                'isViewingAsUser' => $originalUser && $viewAsUser,
+                'originalUser' => $originalUser ? [
+                    'id' => $originalUser->id,
+                    'name' => $originalUser->name,
+                    'username' => $originalUser->username,
+                ] : null,
+                'canViewAsUser' => ($originalUser?->username ?? $user?->username) === 'rhmtzikri',
             ],
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),
