@@ -30,8 +30,9 @@ class Spk extends Model
 
     protected $fillable = [
         'nomor_spk',
-        'sk_kpa_id',
-        'alokasi_mitra_id',
+        'alokasi_petugas_id',
+        'parent_spk_id',
+        'addendum_number',
         'tanggal_spk',
         'tanggal_mulai_kerja',
         'tanggal_selesai_kerja',
@@ -43,11 +44,6 @@ class Spk extends Model
         'status',
         'created_by',
     ];
-
-    public function skKpa(): BelongsTo
-    {
-        return $this->belongsTo(SkKpa::class);
-    }
 
     /**
      * Prepare a date for array / JSON serialization.
@@ -70,5 +66,15 @@ class Spk extends Model
     public function bast(): HasMany
     {
         return $this->hasMany(Bast::class);
+    }
+
+    public function parentSpk(): BelongsTo
+    {
+        return $this->belongsTo(Spk::class, 'parent_spk_id');
+    }
+
+    public function addendums(): HasMany
+    {
+        return $this->hasMany(Spk::class, 'parent_spk_id')->orderBy('addendum_number');
     }
 }

@@ -67,7 +67,7 @@ class PeriodeAlokasi extends Model
             Spk::class,
             AlokasiPetugas::class,
             'periode_alokasi_id', // Foreign key on alokasi_petugas table
-            'alokasi_mitra_id',   // Foreign key on spk table
+            'alokasi_petugas_id',   // Foreign key on spk table
             'id',                 // Local key on periode_alokasi table
             'id'                  // Local key on alokasi_petugas table
         );

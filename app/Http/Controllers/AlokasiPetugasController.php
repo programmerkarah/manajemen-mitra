@@ -158,11 +158,45 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
-            'tanggal_mulai' => 'nullable|date',
-            'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
-            'tanggal_mulai_listing' => 'nullable|date',
-            'tanggal_selesai_listing' => 'nullable|date|after_or_equal:tanggal_mulai_listing',
         ]);
+
+        // Get tahapan from first alokasi item (all should have same tahapan in a batch)
+        $tahapan = $validated['alokasi'][0]['tahapan'] ?? 'both';
+
+        // Conditional validation based on tahapan
+        if ($tahapan === 'listing_only') {
+            $request->validate([
+                'tanggal_mulai_listing' => 'required|date',
+                'tanggal_selesai_listing' => 'required|date|after_or_equal:tanggal_mulai_listing',
+            ], [
+                'tanggal_mulai_listing.required' => 'Tanggal mulai listing wajib diisi.',
+                'tanggal_selesai_listing.required' => 'Tanggal selesai listing wajib diisi.',
+                'tanggal_selesai_listing.after_or_equal' => 'Tanggal selesai listing harus setelah atau sama dengan tanggal mulai listing.',
+            ]);
+            $validated['tanggal_mulai_listing'] = $request->tanggal_mulai_listing;
+            $validated['tanggal_selesai_listing'] = $request->tanggal_selesai_listing;
+        } else {
+            $request->validate([
+                'tanggal_mulai' => 'required|date',
+                'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
+            ], [
+                'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
+                'tanggal_selesai.required' => 'Tanggal selesai wajib diisi.',
+                'tanggal_selesai.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal mulai.',
+            ]);
+            $validated['tanggal_mulai'] = $request->tanggal_mulai;
+            $validated['tanggal_selesai'] = $request->tanggal_selesai;
+
+            // Also validate listing dates if tahapan is 'both'
+            if ($tahapan === 'both') {
+                $request->validate([
+                    'tanggal_mulai_listing' => 'nullable|date',
+                    'tanggal_selesai_listing' => 'nullable|date|after_or_equal:tanggal_mulai_listing',
+                ]);
+                $validated['tanggal_mulai_listing'] = $request->tanggal_mulai_listing;
+                $validated['tanggal_selesai_listing'] = $request->tanggal_selesai_listing;
+            }
+        }
 
         DB::beginTransaction();
         $created = 0;

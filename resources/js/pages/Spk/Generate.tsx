@@ -18,15 +18,19 @@ interface Petugas {
     jenis_petugas: 'organik' | 'non_organik';
 }
 
+interface KegiatanPeran {
+    kegiatan_kode: string;
+    kegiatan_nama: string;
+    peran: string;
+}
+
 interface AlokasiPetugas {
     alokasi_id: number;
     alokasi_hashed_id: string;
     petugas: Petugas;
-    peran: string;
-    target_listing?: number;
-    target_pencacahan?: number;
-    total_honor?: number;
-    total_honor_listing?: number;
+    jumlah_kegiatan: number;
+    kegiatan_list: KegiatanPeran[];
+    total_honor: number;
 }
 
 interface Kegiatan {
@@ -50,6 +54,7 @@ interface GenerateProps {
     periode: PeriodeAlokasi;
     petugas_list: AlokasiPetugas[];
     has_draft_periode: boolean;
+    next_nomor_urut: number;
 }
 
 const bulanLabels: Record<number, string> = {
@@ -58,13 +63,17 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Generate({ periode, petugas_list, has_draft_periode }: GenerateProps) {
+export default function Generate({ periode, petugas_list, has_draft_periode, next_nomor_urut }: GenerateProps) {
     const [formData, setFormData] = useState({
         tanggal_spk: '',
         sampai_tanggal: '',
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
+    const [showFormModal, setShowFormModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
 
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -88,7 +97,8 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
 
     const handlePreview = (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            alert('Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu');
+            setModalMessage('Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu');
+            setShowFormModal(true);
             return;
         }
 
@@ -100,11 +110,14 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
             a.petugas.nama.localeCompare(b.petugas.nama)
         );
         
-        // Find the index (1-based) of this petugas in sorted list
-        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+        // Find the index (0-based) of this petugas in sorted list
+        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+        
+        // Calculate nomor urut: next_nomor_urut + index
+        const noUrut = next_nomor_urut + petugasIndex;
 
-        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
 
         // Create a native form and submit to preview endpoint
         const form = document.createElement('form');
@@ -145,7 +158,8 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
 
     const handlePreviewMain = (alokasi: any) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            alert('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setShowFormModal(true);
             return;
         }
 
@@ -157,11 +171,14 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
             a.petugas.nama.localeCompare(b.petugas.nama)
         );
         
-        // Find the index (1-based) of this petugas in sorted list
-        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+        // Find the index (0-based) of this petugas in sorted list
+        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+        
+        // Calculate nomor urut: next_nomor_urut + index
+        const noUrut = next_nomor_urut + petugasIndex;
 
-        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
 
         // Create a native form and submit to preview-main endpoint
         const form = document.createElement('form');
@@ -202,7 +219,8 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
 
     const handlePreviewLampiran = (alokasi: any) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            alert('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setShowFormModal(true);
             return;
         }
 
@@ -214,11 +232,14 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
             a.petugas.nama.localeCompare(b.petugas.nama)
         );
         
-        // Find the index (1-based) of this petugas in sorted list
-        const noUrut = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id) + 1;
+        // Find the index (0-based) of this petugas in sorted list
+        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+        
+        // Calculate nomor urut: next_nomor_urut + index
+        const noUrut = next_nomor_urut + petugasIndex;
 
-        // Generate nomor SPK: PPIS/13730/{No Urut}/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
+        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
 
         // Create a native form and submit to preview-lampiran endpoint
         const form = document.createElement('form');
@@ -259,12 +280,14 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
 
     const handleGenerateAll = () => {
         if (selectedPetugas.length === 0) {
-            alert('Pilih minimal 1 petugas');
+            setModalMessage('Pilih minimal 1 petugas');
+            setShowFormModal(true);
             return;
         }
 
-        if (!formData.tanggal_spk) {
-            alert('Lengkapi form terlebih dahulu');
+        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setShowFormModal(true);
             return;
         }
 
@@ -283,10 +306,11 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
         const totalPetugas = sortedPetugas.length;
 
         sortedPetugas.forEach((alokasi, index) => {
-            const noUrut = index + 1;
+            // Calculate nomor urut: next_nomor_urut + index
+            const noUrut = next_nomor_urut + index;
             
-            // Format: PPIS/13730/{No Urut}/{tahun}
-            const nomorSpk = `PPIS/13730/${noUrut}/${tahunSpk}`;
+            // Format: PPIS/13730/{No Urut}/K/{tahun}
+            const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
 
             router.post(
                 `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/generate`,
@@ -302,8 +326,8 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                         successCount++;
                         if (successCount === totalPetugas) {
                             setProcessing(false);
-                            alert(`SPK berhasil dibuat untuk ${successCount} petugas`);
-                            router.get('/spk');
+                            setSuccessMessage(`SPK berhasil dibuat untuk ${successCount} petugas`);
+                            setShowSuccessModal(true);
                         }
                     },
                     onError: (errors) => {
@@ -323,6 +347,11 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
             'pengawas_pengolahan': 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
+    };
+
+    const handleCloseSuccessModal = () => {
+        setShowSuccessModal(false);
+        router.get('/spk');
     };
 
     return (
@@ -407,8 +436,8 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                         </div>
 
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Format Nomor SPK: PPIS/13730/[No Urut]/[Tahun]<br />
-                            Contoh: PPIS/13730/1/{formData.tanggal_spk ? new Date(formData.tanggal_spk).getFullYear() : '2025'}
+                            Format Nomor SPK: PPIS/13730/[No Urut]/K/[Tahun]<br />
+                            Contoh: PPIS/13730/1/K/{formData.tanggal_spk ? new Date(formData.tanggal_spk).getFullYear() : '2025'}
                         </p>
                     </div>
                 </ContentCard>
@@ -442,6 +471,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                                             Peran
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            Jumlah Kegiatan
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                             Total Honor
                                         </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
@@ -451,7 +483,6 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                     {petugas_list.map((alokasi) => {
-                                        const totalHonor = (alokasi.total_honor || 0) + (alokasi.total_honor_listing || 0);
                                         return (
                                             <tr key={alokasi.alokasi_hashed_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                                 <td className="px-6 py-4">
@@ -470,11 +501,25 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {getPeranLabel(alokasi.peran)}
+                                                <td className="px-6 py-4">
+                                                    <div className="space-y-1">
+                                                        {alokasi.kegiatan_list.map((kg, idx) => (
+                                                            <div key={idx} className="text-sm">
+                                                                <div className="font-medium text-neutral-900 dark:text-white">
+                                                                    {kg.kegiatan_kode}
+                                                                </div>
+                                                                <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                    {getPeranLabel(kg.peran)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    Rp {totalHonor.toLocaleString('id-ID')}
+                                                    {alokasi.jumlah_kegiatan} kegiatan
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    Rp {alokasi.total_honor.toLocaleString('id-ID')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-sm">
                                                     <div className="flex justify-end gap-2">
@@ -537,6 +582,46 @@ export default function Generate({ periode, petugas_list, has_draft_periode }: G
                     </div>
                 </ContentCard>
             </div>
+
+            {/* Form Validation Modal */}
+            {showFormModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowFormModal(false)}>
+                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900">
+                                <svg className="size-6 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Perhatian</h3>
+                        </div>
+                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">{modalMessage}</p>
+                        <div className="flex justify-end">
+                            <Button onClick={() => setShowFormModal(false)}>Mengerti</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleCloseSuccessModal}>
+                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+                                <svg className="size-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Berhasil</h3>
+                        </div>
+                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">{successMessage}</p>
+                        <div className="flex justify-end">
+                            <Button onClick={handleCloseSuccessModal}>OK</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

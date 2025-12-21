@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Eye, Plus, ChevronLeft, ChevronRight, FileEdit } from 'lucide-react';
 import { useState } from 'react';
 
 interface KegiatanItem {
@@ -23,7 +23,6 @@ interface KegiatanItem {
     nama_kegiatan: string;
     jenis_kegiatan: 'sensus' | 'survei';
     jumlah_petugas_non_organik: number;
-    spk_count: number;
 }
 
 interface MonthlyPeriodeItem {
@@ -34,6 +33,7 @@ interface MonthlyPeriodeItem {
     total_spk: number;
     spk_status: string;
     spk_status_type: 'not_created' | 'created';
+    has_revision: boolean;
     kegiatan_list: KegiatanItem[];
 }
 
@@ -221,7 +221,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                 {kegiatan.nama_kegiatan}
                                                             </div>
                                                             <div className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                {kegiatan.kode_kegiatan} • {kegiatan.jumlah_petugas_non_organik} petugas • {kegiatan.spk_count} SPK
+                                                                {kegiatan.kode_kegiatan} • {kegiatan.jumlah_petugas_non_organik} petugas non-organik
                                                             </div>
                                                         </div>
                                                     ))}
@@ -258,19 +258,37 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* View Petugas per Kegiatan */}
-                                                    {monthData.kegiatan_list.length > 0 && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            asChild
-                                                            className="gap-1"
-                                                        >
-                                                            <Link href={`/alokasi?kegiatan=${monthData.kegiatan_list[0].kegiatan_hashed_id}&bulan=${monthData.bulan}`}>
+                                                    {/* View SPK Details - Show list of generated SPK */}
+                                                    {monthData.total_spk > 0 && (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => router.post('/spk/month', {
+                                                                    bulan: monthData.bulan,
+                                                                    tahun: monthData.tahun
+                                                                })}
+                                                                className="gap-1"
+                                                            >
                                                                 <Eye className="h-3.5 w-3.5" />
-                                                                Lihat Alokasi
-                                                            </Link>
-                                                        </Button>
+                                                                Lihat Detail SPK
+                                                            </Button>
+
+                                                            {/* Addendum SPK - Show if there are revisions */}
+                                                            {canCreateSpk && monthData.has_revision && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="default"
+                                                                    asChild
+                                                                    className="gap-1"
+                                                                >
+                                                                    <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
+                                                                        <FileEdit className="h-3.5 w-3.5" />
+                                                                        Addendum SPK
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>

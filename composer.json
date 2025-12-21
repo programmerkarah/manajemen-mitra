@@ -17,6 +17,8 @@
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
         "maatwebsite/excel": "^3.1",
+        "setasign/fpdi-tcpdf": "*",
+        "tecnickcom/tcpdf": "*",
         "vinkla/hashids": "^13.0"
     },
     "require-dev": {

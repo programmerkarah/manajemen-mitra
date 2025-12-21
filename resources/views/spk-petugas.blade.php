@@ -242,7 +242,7 @@
     </div>
 
     <div class="content">
-        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja Petugas Lapangan Kegiatan {{ $kegiatan->nama_kegiatan }} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
+        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja Petugas Lapangan Kegiatan {{ $kegiatan->nama_kegiatan }} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
     </div>
 
     <!-- Pasal 1 -->
@@ -429,23 +429,19 @@
                 <div class="pasal-item">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        @if($biayaPelatihan)
                         Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
                         <div class="sub-item">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri setelah pelatihan diberikan sanksi sebesar Rp{{ number_format($biayaPelatihan, 0, ',', '.') }} ({{ terbilang($biayaPelatihan) }} rupiah);
+                                mengundurkan diri setelah pelatihan pada kegiatan yang diberikan pelatihan diberikan sanksi sebesar biaya pelatihan tersebut yang dikeluarkan oleh BPS Kota Sawahlunto;
                             </div>
                         </div>
                         <div class="sub-item">
                             <div class="sub-item-letter">b.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, diberikan sanksi tidak diberikan honorarium atas pekerjaan yang telah dilaksanakan.
+                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar Rp{{ number_format($totalHonor, 0, ',', '.') }} ({{ terbilang($totalHonor) }} rupiah).
                             </div>
                         </div>
-                        @else
-                        Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong> berupa <strong>tidak diberikan honorarium</strong> atas pekerjaan yang telah dilaksanakan.
-                        @endif
                     </div>
                 </div>
             </div>

@@ -40,6 +40,8 @@ interface Kegiatan {
     nama_kegiatan: string;
     jenis_kegiatan: 'sensus' | 'survei';
     tahun_anggaran: number;
+    peran: string;
+    total_honor: number;
 }
 
 interface PeriodeAlokasi {
@@ -60,7 +62,7 @@ interface Bast {
 interface ShowProps {
     spk: Spk;
     petugas: Petugas;
-    kegiatan: Kegiatan;
+    kegiatan_list: Kegiatan[];
     periode: PeriodeAlokasi;
     bast: Bast | null;
 }
@@ -76,9 +78,19 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Show({ spk, petugas, kegiatan, periode, bast }: ShowProps) {
+export default function Show({ spk, petugas, kegiatan_list, periode, bast }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+
+    const getPeranLabel = (peran: string) => {
+        const labels: Record<string, string> = {
+            'pcl_ppl': 'Petugas Pencacahan',
+            'pml': 'Pemeriksa Lapangan',
+            'pengolahan': 'Petugas Pengolahan',
+            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+        };
+        return labels[peran] || peran;
+    };
 
     const handleDownload = (filePath: string) => {
         window.open(`/${filePath}`, '_blank');
@@ -170,12 +182,64 @@ export default function Show({ spk, petugas, kegiatan, periode, bast }: ShowProp
                                     <p className="text-neutral-900 dark:text-white font-medium">{spk.created_by}</p>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">{spk.created_at}</p>
                                 </div>
-                                <div className="md:col-span-2">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Kegiatan</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
-                                        {kegiatan.nama_kegiatan} ({kegiatan.kode_kegiatan})
-                                    </p>
-                                </div>
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    {/* Kegiatan List */}
+                    <ContentCard>
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Daftar Kegiatan ({kegiatan_list.length})
+                            </h3>
+
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                                    <thead className="bg-neutral-50 dark:bg-neutral-800">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Kode Kegiatan
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Nama Kegiatan
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Peran
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Honor
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
+                                        {kegiatan_list.map((kegiatan) => (
+                                            <tr key={kegiatan.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                                <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                    {kegiatan.kode_kegiatan}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    {kegiatan.nama_kegiatan}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    {getPeranLabel(kegiatan.peran)}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    Rp {kegiatan.total_honor.toLocaleString('id-ID')}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-neutral-50 dark:bg-neutral-800">
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                                Total Honor:
+                                            </td>
+                                            <td className="px-6 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
+                                                Rp {kegiatan_list.reduce((sum, k) => sum + k.total_honor, 0).toLocaleString('id-ID')}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     </ContentCard>

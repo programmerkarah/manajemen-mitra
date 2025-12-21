@@ -662,8 +662,8 @@ export default function Create({
         const formData = {
             tahun: active_year,
             bulan: bulan,
-            tanggal_mulai: tanggalMulai || undefined,
-            tanggal_selesai: tanggalSelesai || undefined,
+            tanggal_mulai: tahapan !== 'listing_only' ? (tanggalMulai || undefined) : undefined,
+            tanggal_selesai: tahapan !== 'listing_only' ? (tanggalSelesai || undefined) : undefined,
             tanggal_mulai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalMulaiListing || undefined) : undefined,
             tanggal_selesai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalSelesaiListing || undefined) : undefined,
             alokasi: alokasiItems.map((item) => {
@@ -1076,7 +1076,7 @@ export default function Create({
                                 </div>
 
                                 {/* Jadwal Listing - Show only if tahapan includes listing */}
-                                {(tahapan === 'both' || tahapan === 'listing_only') && selectedKegiatan?.has_listing_updating && (
+                                {(tahapan === 'both' ) && selectedKegiatan?.has_listing_updating && (
                                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                                         <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
                                             Jadwal Listing
@@ -1128,38 +1128,50 @@ export default function Create({
                                     </h5>
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label htmlFor="tanggal_mulai">
+                                            <Label htmlFor={tahapan === 'listing_only' ? 'tanggal_mulai_listing' : 'tanggal_mulai'}>
                                                 Tanggal Mulai
                                                 <span className="text-red-500">*</span>
                                             </Label>
                                             <Input
                                                 type="date"
-                                                id="tanggal_mulai"
-                                                value={tanggalMulai}
-                                                onChange={(e) => setTanggalMulai(e.target.value)}
+                                                id={tahapan === 'listing_only' ? 'tanggal_mulai_listing' : 'tanggal_mulai'}
+                                                value={tahapan === 'listing_only' ? tanggalMulaiListing : tanggalMulai}
+                                                onChange={(e) => tahapan === 'listing_only' ? setTanggalMulaiListing(e.target.value) : setTanggalMulai(e.target.value)}
                                                 disabled={isViewMode}
                                                 className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
                                             />
-                                            {errors.tanggal_mulai && (
-                                                <p className="text-sm text-red-500">{errors.tanggal_mulai}</p>
+                                            {tahapan === 'listing_only' ? (
+                                                errors.tanggal_mulai_listing && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai_listing}</p>
+                                                )
+                                            ) : (
+                                                errors.tanggal_mulai && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai}</p>
+                                                )
                                             )}
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="tanggal_selesai">
+                                            <Label htmlFor={tahapan === 'listing_only' ? 'tanggal_selesai_listing' : 'tanggal_selesai'}>
                                                 Tanggal Selesai
                                                 <span className="text-red-500">*</span>
                                             </Label>
                                             <Input
                                                 type="date"
-                                                id="tanggal_selesai"
-                                                value={tanggalSelesai}
-                                                onChange={(e) => setTanggalSelesai(e.target.value)}
-                                                min={tanggalMulai}
+                                                id={tahapan === 'listing_only' ? 'tanggal_selesai_listing' : 'tanggal_selesai'}
+                                                value={tahapan === 'listing_only' ? tanggalSelesaiListing : tanggalSelesai}
+                                                onChange={(e) => tahapan === 'listing_only' ? setTanggalSelesaiListing(e.target.value) : setTanggalSelesai(e.target.value)}
+                                                min={tahapan === 'listing_only' ? tanggalMulaiListing : tanggalMulai}
                                                 disabled={isViewMode}
                                                 className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
                                             />
-                                            {errors.tanggal_selesai && (
-                                                <p className="text-sm text-red-500">{errors.tanggal_selesai}</p>
+                                            {tahapan === 'listing_only' ? (
+                                                errors.tanggal_selesai_listing && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai_listing}</p>
+                                                )
+                                            ) : (
+                                                errors.tanggal_selesai && (
+                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai}</p>
+                                                )
                                             )}
                                         </div>
                                     </div>

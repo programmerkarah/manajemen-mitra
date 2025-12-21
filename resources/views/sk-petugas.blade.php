@@ -29,7 +29,8 @@
 
         @page {
             size: A4;
-            margin: 2cm 2.4cm;
+            margin: 2cm 2.2cm;
+            letter-spacing: -0.07em;
         }
 
         body {
@@ -121,11 +122,21 @@
         .signature {
             margin-top: 40px;
             text-align: right;
+            page-break-before: avoid;
+            page-break-inside: avoid;
         }
 
         .signature-content {
             display: inline-block;
             text-align: center;
+        }
+        
+        .table-with-signature {
+            page-break-inside: avoid;
+        }
+        
+        .keep-with-signature {
+            page-break-after: avoid !important;
         }
 
         .tembusan {
@@ -147,6 +158,7 @@
             border-collapse: collapse;
             margin: 20px 0;
             font-size: 11pt;
+            table-layout: fixed;
         }
 
         table.petugas th,
@@ -154,6 +166,33 @@
             border-left: none;
             border-right: none;
             padding: 8px;
+            page-break-inside: avoid !important;
+        }
+
+        table.petugas thead {
+            display: table-header-group;
+        }
+
+        table.petugas tbody tr {
+            page-break-inside: avoid !important;
+        }
+        
+        table.petugas tbody tr.petugas-group-start {
+            page-break-before: auto;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+        
+        table.petugas tbody tr.petugas-group-middle {
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+        
+        table.petugas tbody tr.petugas-group-end {
+            page-break-before: avoid !important;
+            page-break-after: auto;
+            page-break-inside: avoid !important;
         }
 
         /* First header row - double top border, single bottom */
@@ -193,7 +232,7 @@
             <h3 style="font-family: 'Arial', sans-serif; font-weight: bold; font-style: italic;">BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         </div>
         <span>{{ $kategoriKeputusan }} KEPALA BADAN PUSAT STATISTIK</span>
-        <span>KOTA SAWAHLUNTO</span>
+        <span>KOTA SAWAHLUNTO</span><br>
         <span>NOMOR {{ $nomorSk }} TAHUN {{ $tahunSk }}</span>
     </div>
 
@@ -210,7 +249,7 @@
                     $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
                 }
             @endphp
-            {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
+            {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK 
             KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
             @if($firstSkYear)
                 TAHUN {{ $firstSkYear }}
@@ -219,8 +258,8 @@
             BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
             TAHUN ANGGARAN {{ $periode->tahun }}
         @else
-            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
+            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} <br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
             TAHUN ANGGARAN {{ $periode->tahun }}
         @endif
     </div>
@@ -355,9 +394,9 @@
         <div class="signature-content">
             <div>Ditetapkan di : Sawahlunto</div>
             <div>Pada tanggal : {{ \Carbon\Carbon::parse($tanggalSk)->locale('id')->translatedFormat('d F Y') }}</div>
-            <div style="margin-top: 10px; font-weight: bold;">
-                KEPALA BADAN PUSAT STATISTIK<br>
-                KOTA SAWAHLUNTO,
+            <div style="margin-top: 10px;">
+                KUASA PENGGUNA ANGGARAN<br>
+                BADAN PUSAT STATISTIKKOTA SAWAHLUNTO,
             </div>
             <div style="margin-top: 80px; font-weight: bold; text-decoration: underline;">
                 {{ strtoupper($kepalaBps) }}
@@ -365,7 +404,7 @@
         </div>
     </div>
 
-    <div style="position: absolute; bottom: 0cm; font-size: 10pt;">
+    <div style="position: absolute; bottom: -1.5cm; font-size: 8pt; line-height: 0.8; letter-spacing: 0.05em;" class="tembusan">
         <strong>Tembusan :</strong>
         <ol style="margin: 5px 0; padding-left: 20px;">
             <li>Yth. Kepala BPS Provinsi Sumatera Barat di Padang;</li>
@@ -428,17 +467,41 @@
             </tr>
         </thead>
         <tbody>
-            @php $counter = 1; @endphp
-            @foreach($alokasiList as $alokasi)
+            @php 
+                $counter = 1; 
+                $totalAlokasi = count($alokasiList);
+            @endphp
+            @foreach($alokasiList as $alokasiIndex => $alokasi)
+            @php 
+                $roleCount = count($alokasi->roles);
+                $isLastAlokasi = ($alokasiIndex === $totalAlokasi - 1);
+            @endphp
             @foreach($alokasi->roles as $roleIndex => $role)
-            <tr>
+            @php
+                $groupClass = '';
+                if ($roleCount === 1) {
+                    $groupClass = 'petugas-group-start petugas-group-end';
+                } elseif ($roleIndex === 0) {
+                    $groupClass = 'petugas-group-start';
+                } elseif ($roleIndex === $roleCount - 1) {
+                    $groupClass = 'petugas-group-end';
+                } else {
+                    $groupClass = 'petugas-group-middle';
+                }
+                
+                // Add keep-with-signature class to last row of last petugas
+                if ($isLastAlokasi && $roleIndex === $roleCount - 1) {
+                    $groupClass .= ' keep-with-signature';
+                }
+            @endphp
+            <tr class="{{ $groupClass }}">
                 @if($roleIndex === 0)
-                <td style="text-align: center; vertical-align: top;" rowspan="{{ count($alokasi->roles) }}">{{ $counter }}.</td>
-                <td style="vertical-align: top;" rowspan="{{ count($alokasi->roles) }}">
+                <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">{{ $counter }}.</td>
+                <td style="vertical-align: top;" rowspan="{{ $roleCount }}">
                     {{ $alokasi->nama }}/<br>
                     {{ $alokasi->jabatan }}
                 </td>
-                <td style="text-align: center; vertical-align: top;" rowspan="{{ count($alokasi->roles) }}">
+                <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">
                     @if($alokasi->nip && $alokasi->nip !== '-'&& $alokasi->golongan !=="Non PNS")
                     {{ $alokasi->nip }}/<br>
                     {{ $alokasi->golongan }}
@@ -458,7 +521,7 @@
 
     <div class="signature" style="margin-top: 60px;">
         <div class="signature-content">
-            <div style="font-weight: bold;">
+            <div>
                 KEPALA BADAN PUSAT STATISTIK<br>
                 KOTA SAWAHLUNTO,
             </div>
