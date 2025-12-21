@@ -380,11 +380,20 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                             </td>
                                             <td className="p-3">
                                                 <div className="space-y-1">
-                                                    {petugasData.kegiatan_list.map((keg, kidx) => (
-                                                        <div key={kidx} className="text-xs">
-                                                            {keg.nama_kegiatan} ({keg.peran})
-                                                        </div>
-                                                    ))}
+                                                    {petugasData.kegiatan_list.map((keg, kidx) => {
+                                                        const peranLabel = {
+                                                            'pcl_ppl': 'Petugas Pencacahan',
+                                                            'pml': 'Pengawas',
+                                                            'pengolahan': 'Pengolahan',
+                                                            'pengawas_pengolahan': 'Pengawas Pengolahan'
+                                                        }[keg.peran] || keg.peran;
+                                                        
+                                                        return (
+                                                            <div key={kidx} className="text-xs">
+                                                                {keg.nama_kegiatan} ({peranLabel})
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
                                             <td className="p-3 text-right font-medium">

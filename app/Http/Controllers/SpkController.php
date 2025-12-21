@@ -719,19 +719,27 @@ class SpkController extends Controller
                     return null; // Skip petugas without original SPK
                 }
 
-                // Calculate total honor across all kegiatan (including revisions)
-                $totalHonor = $alokasiGroup->sum(function ($alokasi) {
-                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                });
+                // Calculate total honor only from 'perubahan' status (latest revision)
+                $totalHonor = $alokasiGroup
+                    ->filter(function ($alokasi) {
+                        return $alokasi->periodeAlokasi->status === 'perubahan';
+                    })
+                    ->sum(function ($alokasi) {
+                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                    });
 
-                // Get all kegiatan with their peran
-                $kegiatanList = $alokasiGroup->map(function ($alokasi) {
-                    return [
-                        'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
-                        'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
-                        'peran' => $alokasi->peran,
-                    ];
-                })->values()->all();
+                // Get all kegiatan with their peran (only from 'perubahan' status)
+                $kegiatanList = $alokasiGroup
+                    ->filter(function ($alokasi) {
+                        return $alokasi->periodeAlokasi->status === 'perubahan';
+                    })
+                    ->map(function ($alokasi) {
+                        return [
+                            'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
+                            'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
+                            'peran' => $alokasi->peran,
+                        ];
+                    })->values()->all();
 
                 // Get last addendum number for this petugas
                 $lastAddendum = Spk::where('parent_spk_id', $existingSpk->id)
@@ -1035,7 +1043,8 @@ class SpkController extends Controller
             $pdfContent = $this->generateAddendumPdfContent($data);
 
             // Save to public directory (same as regular SPK)
-            $fileName = 'SPK-ADDENDUM-'.$validated['addendum_number'].'-'.$petugas->nama.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
+            $sanitizedNamaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
+            $fileName = 'SPK-ADDENDUM-'.$validated['addendum_number'].'-'.$sanitizedNamaPetugas.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
             $filePath = "spk-export/{$tahun}/{$bulanFormatted}/{$fileName}";
 
             // Create directory if not exists

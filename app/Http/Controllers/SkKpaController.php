@@ -346,7 +346,8 @@ class SkKpaController extends Controller
 
         // Upload new signed file
         $file = $request->file('signed_file');
-        $filename = 'SK_'.str_replace('/', '-', $skKpa->nomor_sk).'_'.$skKpa->kegiatan->nama_kegiatan.'_'.now()->format('YmdHis').'(signed)'.'.pdf';
+        $sanitizedNamaKegiatan = preg_replace('/[\/\\\:\*\?"<>\|]/', '', $skKpa->kegiatan->nama_kegiatan);
+        $filename = 'SK_'.str_replace('/', '-', $skKpa->nomor_sk).'_'.$sanitizedNamaKegiatan.'_'.now()->format('YmdHis').'(signed)'.'.pdf';
 
         // Ensure sk directory exists
         $skDirectory = public_path('sk');
@@ -665,7 +666,8 @@ class SkKpaController extends Controller
             ->setPaper('a4', 'portrait');
 
         // Create filename
-        $filename = 'SK_'.str_replace('/', '-', $validated['nomor_sk']).'_'.$kegiatan->nama_kegiatan.'_'.now()->format('YmdHis').'.pdf';
+        $sanitizedNamaKegiatan = preg_replace('/[\/\\\:\*\?"<>\|]/', '', $kegiatan->nama_kegiatan);
+        $filename = 'SK_'.str_replace('/', '-', $validated['nomor_sk']).'_'.$sanitizedNamaKegiatan.'_'.now()->format('YmdHis').'.pdf';
 
         // Ensure sk directory exists
         $skDirectory = public_path('sk');

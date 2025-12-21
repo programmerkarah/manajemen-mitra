@@ -129,17 +129,17 @@
 <body>
     @php
         $addendumLabel = match((int)$addendum_number) {
-            1 => 'ADDENDUM',
-            2 => 'ADDENDUM KEDUA',
-            3 => 'ADDENDUM KETIGA',
-            4 => 'ADDENDUM KEEMPAT',
-            5 => 'ADDENDUM KELIMA',
-            default => 'ADDENDUM KE-' . $addendum_number
+            1 => 'Addendum',
+            2 => 'Addendum Kedua',
+            3 => 'Addendum Ketiga',
+            4 => 'Addendum Keempat',
+            5 => 'Addendum Kelima',
+            default => 'Addendum Ke-' . $addendum_number
         };
     @endphp
     <!-- HEADER -->
     <div class="header">
-        <h3 style="text-decoration: underline; margin-bottom: 5px;">{{ $addendumLabel }}</h3>
+        <h3 style="text-decoration: underline; margin-bottom: 5px;">{{ strtoupper($addendumLabel) }}</h3>
         <h3>SURAT PERJANJIAN KERJA</h3>
         <h3>PETUGAS LAPANGAN BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
         <div style="font-weight: bold; text-align: center;">NOMOR: {{ $nomorSpk }}</div>
@@ -148,7 +148,7 @@
     <!-- CONTENT -->
     <div class="content">
         <p style="margin-bottom: 15px;">
-            <strong>{{ $addendumLabel }}</strong> ini merupakan bagian yang tidak terpisahkan dari Surat Perjanjian Kerja Nomor {{ $parent_nomor_spk }}, dibuat dan ditandatangani di Sawahlunto pada hari {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ $tanggalSpk->format('d') }} {{ $tanggalSpk->locale('id')->translatedFormat('F Y') }}.
+            <strong>{{ $addendumLabel }}</strong> ini merupakan bagian yang tidak terpisahkan dari Surat Perjanjian Kerja Nomor {{ $parent_nomor_spk }} yang selanjutnya disebut Perjanjian, dibuat dan ditandatangani di Sawahlunto pada hari {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ terbilang($tanggalSpk->format('d')) }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} tahun {{ terbilang($tanggalSpk->format('Y')) }}.
         </p>
 
         <p style="text-align: center; margin-bottom: 10px;">Oleh dan antara:</p>
@@ -162,57 +162,35 @@
         </p>
         
         <p style="margin-bottom: 10px;">
-            <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> selanjutnya secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengubah dan/atau menambahkan ketentuan dalam perjanjian sebagai berikut:
+            <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> selanjutnya secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengubah dan/atau menambahkan ketentuan dalam Perjanjian sebagai berikut:
         </p>
 
         <div class="pasal-section">
-            <p class="pasal-title"><strong>Pasal 1 - RUANG LINGKUP PEKERJAAN</strong></p>
+            <p class="pasal-title"><strong>Pasal 2</strong></p>
             <p>
-                Berdasarkan Addendum ini, <strong>PIHAK KEDUA</strong> bertugas melaksanakan pekerjaan:
-            </p>
-
-            <div class="kegiatan-list">
-                @foreach ($kegiatan_list as $index => $kegiatan)
-                <div class="kegiatan-item">
-                    <strong>@if(count($kegiatan_list) > 1){{ $index + 1 }}. @endif{{ $kegiatan['nama_kegiatan'] }} {{ $kegiatan['periode_bulan_label'] }} {{ $kegiatan['periode_tahun'] }}</strong><br>
-                    &nbsp;&nbsp;&nbsp;&nbsp;Peran: {{ $kegiatan['peran_label'] }}<br>
-                    @if(!empty($kegiatan['periode_mulai']) && !empty($kegiatan['periode_selesai']))
-                    &nbsp;&nbsp;&nbsp;&nbsp;Periode: {{ \Carbon\Carbon::parse($kegiatan['periode_mulai'])->format('d') }}-{{ \Carbon\Carbon::parse($kegiatan['periode_selesai'])->format('d') }} {{ \Carbon\Carbon::parse($kegiatan['periode_mulai'])->locale('id')->translatedFormat('F Y') }}<br>
-                    @endif
-                    @if(($kegiatan['jumlah_satuan'] ?? 0) > 0)
-                    &nbsp;&nbsp;&nbsp;&nbsp;Volume: {{ $kegiatan['jumlah_satuan'] }} {{ $kegiatan['satuan_kode'] }}<br>
-                    @endif
-                    @if(($kegiatan['jumlah_satuan_listing'] ?? 0) > 0)
-                    &nbsp;&nbsp;&nbsp;&nbsp;Volume Listing: {{ $kegiatan['jumlah_satuan_listing'] }} {{ $kegiatan['satuan_kode'] }}<br>
-                    @endif
-                    @php
-                        $totalHonorKegiatan = ($kegiatan['total_honor'] ?? 0) + ($kegiatan['total_honor_listing'] ?? 0);
-                    @endphp
-                    &nbsp;&nbsp;&nbsp;&nbsp;Total Honor: Rp {{ number_format($totalHonorKegiatan, 0, ',', '.') }}
-                </div>
-                @endforeach
-            </div>
-        </div>
-
-        <div class="pasal-section">
-            <p class="pasal-title"><strong>Pasal 2 - NILAI KONTRAK</strong></p>
-            <p>
-                Total nilai kontrak untuk periode {{ $bulan_label }} {{ $tahun }} adalah sebesar:
-            </p>
-            <p style="font-weight: bold;">
-                Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} Rupiah)
+                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran {{$addendumLabel}}, pedoman Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
             </p>
         </div>
 
         <div class="pasal-section">
-            <p class="pasal-title"><strong>Pasal 3 - JANGKA WAKTU</strong></p>
+            <p class="pasal-title"><strong>Pasal 6</strong></p>
             <p>
-                Jangka waktu pelaksanaan pekerjaan dimulai dari tanggal 1 sampai dengan tanggal {{ $sampaiTanggal->format('d') }} {{ $sampaiTanggal->locale('id')->translatedFormat('F Y') }}.
+                <strong>PIHAK KEDUA</strong> berhak untuk mendapatkan honorarium dari <strong>PIHAK PERTAMA</strong> sebesar <strong>Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} Rupiah)</strong> untuk pekerjaan sebagaimana dimaksud dalam Pasal 2, termasuk biaya pajak, bea meterai, dan jasa pelayanan keuangan.
+            </p>
+        </div>
+
+        <div class="pasal-section">
+            <p class="pasal-title"><strong>Pasal 10</strong></p>
+            <p>
+                Mengubah ketentuan Pasal 10 ayat (1) huruf b. pada Perjanjian menjadi:
+            </p>
+            <p style="margin-left: 30px;">
+                b. mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar <strong>Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} Rupiah)</strong>.
             </p>
         </div>
 
         <p style="margin: 25px 0 15px 0;">
-            Ketentuan-ketentuan lainnya yang tidak diubah dalam Addendum ini tetap berlaku sebagaimana tercantum dalam Perjanjian Kerja Nomor {{ $parent_nomor_spk }}.
+            Ketentuan-ketentuan lainnya yang tidak diubah dalam Addendum ini tetap berlaku sebagaimana tercantum dalam Perjanjian.
         </p>
 
         <p style="margin: 15px 0;">
@@ -229,14 +207,14 @@
                 <br>
                 <p><strong>PIHAK PERTAMA</strong></p>
                 <p style="margin-top: 50px;">
-                    <span class="signature-name">{{ $kepalaBps }}</span>
+                    <span class="signature-name">{{ strtoupper($kepalaBps) }}</span>
                 </p>
             </div>
             <div class="signature-right">
             Sawahlunto, {{ $tanggalSpk->format('d') }} {{ $tanggalSpk->locale('id')->translatedFormat('F Y') }}
                 <p><strong>PIHAK KEDUA</strong></p>
                 <p style="margin-top: 50px;">
-                    <span class="signature-name">{{ $petugas->nama }}</span>
+                    <span class="signature-name">{{ strtoupper($petugas->nama) }}</span>
                 </p>
             </div>
         </div>
