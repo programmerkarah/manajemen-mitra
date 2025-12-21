@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Search, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Pencil, X, ChevronLeft, ChevronRight, Save, Loader2 } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useState } from 'react';
+import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -59,18 +60,6 @@ export default function Index({ users, filters }: UsersIndexProps) {
         );
     };
 
-    const getRoleBadgeColor = (roleName: string) => {
-        const colors: Record<string, string> = {
-            admin: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-            operator: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-            pj: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-            approver:
-                'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-            guest: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400',
-        };
-        return colors[roleName] || colors.guest;
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Manajemen User" />
@@ -86,17 +75,17 @@ export default function Index({ users, filters }: UsersIndexProps) {
                 <ContentCard>
                     <form onSubmit={handleSearch} className="flex gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
                             <Input
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Cari berdasarkan nama, username, atau email..."
-                                className="h-10 pl-10"
+                                className="h-11 text-base pl-10"
                             />
                         </div>
-                        <Button type="submit" className="gap-2">
-                            <Search className="h-4 w-4" />
+                        <Button type="submit" className="gap-2 h-11">
+                            <Search className="h-5 w-5" />
                             Cari
                         </Button>
                         {search && (
@@ -107,9 +96,9 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                     setSearch('');
                                     router.get('/users', {}, { preserveState: true });
                                 }}
-                                className="gap-2"
+                                className="gap-2 h-11"
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-5 w-5" />
                                 Reset
                             </Button>
                         )}
@@ -179,55 +168,29 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
                                                     {user.roles.map((role) => (
-                                                        <span
+                                                        <StatusBadge 
                                                             key={role.id}
-                                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleBadgeColor(role.name)}`}
-                                                        >
-                                                            {role.display_name}
-                                                        </span>
+                                                            status={role.name}
+                                                        />
                                                     ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                {user.is_active ? (
-                                                    <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                                        Aktif
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                                        Nonaktif
-                                                    </span>
-                                                )}
+                                                <StatusBadge status={user.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
                                             <td className="px-6 py-4">
-                                                {user.email_verified_at ? (
-                                                    <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                                        Terverifikasi
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                                                        Belum Verifikasi
-                                                    </span>
-                                                )}
+                                                <StatusBadge status={user.email_verified_at ? 'terverifikasi' : 'belum_verifikasi'} />
                                             </td>
                                             <td className="px-6 py-4">
-                                                {user.two_factor_enabled ? (
-                                                    <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                        Aktif
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                                                        Tidak Aktif
-                                                    </span>
-                                                )}
+                                                <StatusBadge status={user.two_factor_enabled ? '2fa_aktif' : '2fa_nonaktif'} />
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-center gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
                                                         asChild
-                                                        className="gap-2"
+                                                        className="gap-2 h-9"
                                                     >
                                                         <Link href={`/users/${user.id}/edit`}>
                                                             <Pencil className="h-4 w-4" />

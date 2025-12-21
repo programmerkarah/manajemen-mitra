@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Clock, XCircle, AlertTriangle, Send, Edit, FileCheck, Ban, FileText, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, AlertTriangle, Send, Edit, FileCheck, Ban, FileText, RefreshCw, AlertCircle, ShieldCheck, Mail, ShieldX, Crown, Users, UserCog, Eye, ClipboardCheck, Briefcase } from 'lucide-react';
 
 interface StatusBadgeProps {
     status: string;
@@ -153,6 +153,79 @@ export function StatusBadge({ status, variant = 'default', showIcon = true, labe
             textColor: 'text-red-900 dark:text-red-200',
             borderColor: 'border-red-300 dark:border-red-600',
             icon: AlertCircle,
+        },
+        // Email verification statuses
+        terverifikasi: {
+            label: 'Terverifikasi',
+            bgColor: 'bg-green-100 dark:bg-green-900',
+            textColor: 'text-green-900 dark:text-green-200',
+            borderColor: 'border-green-300 dark:border-green-600',
+            icon: Mail,
+        },
+        belum_verifikasi: {
+            label: 'Belum Verifikasi',
+            bgColor: 'bg-amber-100 dark:bg-amber-900',
+            textColor: 'text-amber-900 dark:text-amber-200',
+            borderColor: 'border-amber-300 dark:border-amber-600',
+            icon: Clock,
+        },
+        // 2FA statuses
+        '2fa_aktif': {
+            label: '2FA Aktif',
+            bgColor: 'bg-blue-100 dark:bg-blue-900',
+            textColor: 'text-blue-900 dark:text-blue-200',
+            borderColor: 'border-blue-300 dark:border-blue-600',
+            icon: ShieldCheck,
+        },
+        '2fa_nonaktif': {
+            label: 'Tidak Aktif',
+            bgColor: 'bg-gray-100 dark:bg-gray-800',
+            textColor: 'text-gray-800 dark:text-gray-300',
+            borderColor: 'border-gray-300 dark:border-gray-600',
+            icon: ShieldX,
+        },
+        // User Roles
+        admin: {
+            label: 'Admin',
+            bgColor: 'bg-purple-100 dark:bg-purple-900',
+            textColor: 'text-purple-900 dark:text-purple-200',
+            borderColor: 'border-purple-300 dark:border-purple-600',
+            icon: Crown,
+        },
+        pj: {
+            label: 'Penanggung Jawab',
+            bgColor: 'bg-blue-100 dark:bg-blue-900',
+            textColor: 'text-blue-900 dark:text-blue-200',
+            borderColor: 'border-blue-300 dark:border-blue-600',
+            icon: Users,
+        },
+        operator: {
+            label: 'Operator',
+            bgColor: 'bg-slate-100 dark:bg-slate-800',
+            textColor: 'text-slate-800 dark:text-slate-200',
+            borderColor: 'border-slate-300 dark:border-slate-600',
+            icon: UserCog,
+        },
+        guest: {
+            label: 'Guest',
+            bgColor: 'bg-gray-100 dark:bg-gray-800',
+            textColor: 'text-gray-800 dark:text-gray-300',
+            borderColor: 'border-gray-300 dark:border-gray-600',
+            icon: Eye,
+        },
+        approver: {
+            label: 'Approver',
+            bgColor: 'bg-emerald-100 dark:bg-emerald-900',
+            textColor: 'text-emerald-900 dark:text-emerald-200',
+            borderColor: 'border-emerald-300 dark:border-emerald-600',
+            icon: ClipboardCheck,
+        },
+        ketua_tim: {
+            label: 'Ketua Tim',
+            bgColor: 'bg-indigo-100 dark:bg-indigo-900',
+            textColor: 'text-indigo-900 dark:text-indigo-200',
+            borderColor: 'border-indigo-300 dark:border-indigo-600',
+            icon: Briefcase,
         },
     };
 
