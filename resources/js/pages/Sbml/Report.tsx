@@ -69,7 +69,7 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
     
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Petugas', href: '#' },
+        { title: 'Alokasi', href: '/alokasi' },
         { title: 'Rekap Honor Petugas' , href:'/rekap-honor' },
     ];
 
