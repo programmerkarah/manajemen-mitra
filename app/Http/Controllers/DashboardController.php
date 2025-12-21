@@ -29,7 +29,7 @@ class DashboardController extends Controller
 
         // Get recent activities based on user role
         $recentAlokasi = PeriodeAlokasi::query()
-            ->with(['kegiatan', 'petugas', 'rateHonor.satuan'])
+            ->with(['kegiatan', 'alokasiPetugas.petugas'])
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);
             })
@@ -38,7 +38,25 @@ class DashboardController extends Controller
             })
             ->latest()
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function ($periode) {
+                // Get first petugas from alokasi for display
+                $firstAlokasi = $periode->alokasiPetugas->first();
+
+                return [
+                    'id' => $periode->id,
+                    'status' => $periode->status,
+                    'kegiatan' => [
+                        'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
+                        'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
+                    ],
+                    'petugas' => $firstAlokasi && $firstAlokasi->petugas ? [
+                        'nama' => $firstAlokasi->petugas->nama,
+                    ] : [
+                        'nama' => 'N/A',
+                    ],
+                ];
+            });
 
         // Get kegiatan bulan ini with details
         $kegiatanBulanIni = Kegiatan::query()

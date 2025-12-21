@@ -15,7 +15,7 @@ class CheckActiveRole
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $user = $request->user();
+        $user = effectiveUser($request);
 
         if (! $user) {
             return redirect()->route('login');

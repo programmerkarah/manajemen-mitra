@@ -21,6 +21,8 @@ class StoreKegiatanRequest extends FormRequest
      */
     public function rules(): array
     {
+        $user = effectiveUser($this);
+
         return [
             // kode_kegiatan will be generated automatically
             'nama_kegiatan' => ['required', 'string', 'max:255'],
@@ -32,7 +34,8 @@ class StoreKegiatanRequest extends FormRequest
             'pagu_pencacahan' => ['nullable', 'numeric', 'min:0'],
             'pagu_listing' => ['nullable', 'numeric', 'min:0'],
             'has_listing_updating' => ['nullable', 'boolean'],
-            'ketua_tim_user_id' => ['required', 'exists:users,id'],
+            // Ketua tim optional if user is ketua_tim (will be auto-assigned)
+            'ketua_tim_user_id' => [$user && $user->isKetuaTim() ? 'nullable' : 'required', 'exists:users,id'],
             'rate_honor_id' => ['nullable', 'exists:rate_honor,id'],
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
         ];
