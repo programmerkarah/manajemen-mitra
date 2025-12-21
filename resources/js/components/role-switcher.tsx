@@ -25,7 +25,8 @@ export default function RoleSwitcher() {
             '/switch-role',
             { role_id: roleId },
             {
-                preserveScroll: true,
+                preserveScroll: false,
+                preserveState: false,
                 onFinish: () => setSwitching(false),
             }
         )
