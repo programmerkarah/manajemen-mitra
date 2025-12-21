@@ -79,9 +79,9 @@ interface AlokasiCreateProps {
     selectedKegiatan?: Kegiatan | null;
     active_year: number;
     copiedAlokasi?: any[] | null;
-    sourcePeriode?: { 
-        bulan: string; 
-        tahun: number; 
+    sourcePeriode?: {
+        bulan: string;
+        tahun: number;
         tahapan?: 'both' | 'listing_only' | 'pencacahan_only';
         tanggal_mulai?: string | null;
         tanggal_selesai?: string | null;
@@ -113,7 +113,7 @@ export default function Create({
 }: AlokasiCreateProps) {
     // Debug: Log petugas data
     console.log('🔍 Petugas data in Create:', petugas);
-    
+
     const { auth } = usePage<SharedData>().props;
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
@@ -144,23 +144,30 @@ export default function Create({
             // Edit mode: use source periode bulan
             return parseInt(sourcePeriode.bulan);
         }
-        
+
         // Get used months for the selected kegiatan
         const kegiatanId = preSelectedKegiatan?.id;
-        const usedMonthsList = kegiatanId ? (used_months_info[Number(kegiatanId)] || []) : [];
-        
+        const usedMonthsList = kegiatanId
+            ? used_months_info[Number(kegiatanId)] || []
+            : [];
+
         if (sourcePeriode) {
             // Copy mode: find first available month starting from source month + 1
             const nextMonth = (parseInt(sourcePeriode.bulan) % 12) + 1;
             return getFirstAvailableMonth(usedMonthsList, nextMonth);
         }
-        
+
         // New mode: find first available month starting from month 1
         return getFirstAvailableMonth(usedMonthsList, 1);
     });
-    const [tahapan, setTahapan] = useState<'both' | 'listing_only' | 'pencacahan_only'>(() => {
+    const [tahapan, setTahapan] = useState<
+        'both' | 'listing_only' | 'pencacahan_only'
+    >(() => {
         if (sourcePeriode?.tahapan) {
-            return sourcePeriode.tahapan as 'both' | 'listing_only' | 'pencacahan_only';
+            return sourcePeriode.tahapan as
+                | 'both'
+                | 'listing_only'
+                | 'pencacahan_only';
         }
         return 'both';
     });
@@ -168,12 +175,14 @@ export default function Create({
         preSelectedKegiatan?.jenis_kegiatan || 'survei',
     );
     // Store original values from copied/edited alokasi for restoration
-    const [originalAlokasiValues, setOriginalAlokasiValues] = useState<Array<{
-        jumlah_satuan: string;
-        jumlah_satuan_listing: string;
-        estimasi_honor: number;
-        estimasi_honor_listing: number;
-    }>>([]);
+    const [originalAlokasiValues, setOriginalAlokasiValues] = useState<
+        Array<{
+            jumlah_satuan: string;
+            jumlah_satuan_listing: string;
+            estimasi_honor: number;
+            estimasi_honor_listing: number;
+        }>
+    >([]);
     // Tidak perlu showPengolahan, dropdown peran akan dinamis dari rate_honors
     const [jumlahPetugas, setJumlahPetugas] = useState(
         isEditMode && copiedAlokasi ? copiedAlokasi.length : 1,
@@ -188,10 +197,18 @@ export default function Create({
         },
     ]);
     // Jadwal Kegiatan states
-    const [tanggalMulai, setTanggalMulai] = useState(sourcePeriode?.tanggal_mulai || '');
-    const [tanggalSelesai, setTanggalSelesai] = useState(sourcePeriode?.tanggal_selesai || '');
-    const [tanggalMulaiListing, setTanggalMulaiListing] = useState(sourcePeriode?.tanggal_mulai_listing || '');
-    const [tanggalSelesaiListing, setTanggalSelesaiListing] = useState(sourcePeriode?.tanggal_selesai_listing || '');
+    const [tanggalMulai, setTanggalMulai] = useState(
+        sourcePeriode?.tanggal_mulai || '',
+    );
+    const [tanggalSelesai, setTanggalSelesai] = useState(
+        sourcePeriode?.tanggal_selesai || '',
+    );
+    const [tanggalMulaiListing, setTanggalMulaiListing] = useState(
+        sourcePeriode?.tanggal_mulai_listing || '',
+    );
+    const [tanggalSelesaiListing, setTanggalSelesaiListing] = useState(
+        sourcePeriode?.tanggal_selesai_listing || '',
+    );
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
@@ -247,66 +264,89 @@ export default function Create({
     useEffect(() => {
         if (copiedAlokasi && copiedAlokasi.length > 0) {
             console.log('🔍 copiedAlokasi data:', copiedAlokasi);
-            
+
             // Store original values first for restoration
             const originalValues = copiedAlokasi.map((alokasi) => ({
                 jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+                jumlah_satuan_listing: String(
+                    alokasi.jumlah_satuan_listing || 0,
+                ),
                 estimasi_honor: parseFloat(alokasi.total_honor) || 0,
-                estimasi_honor_listing: parseFloat(alokasi.total_honor_listing) || 0,
+                estimasi_honor_listing:
+                    parseFloat(alokasi.total_honor_listing) || 0,
             }));
             setOriginalAlokasiValues(originalValues);
-            
+
             const initialItems = copiedAlokasi.map((alokasi) => {
                 // Map backend peran format to frontend display format
                 let peranDisplay = '';
                 const peranLower = (alokasi.peran || '').toLowerCase();
-                
-                console.log(`🔍 Mapping peran: "${alokasi.peran}" (lowercase: "${peranLower}")`);
-                
+
+                console.log(
+                    `🔍 Mapping peran: "${alokasi.peran}" (lowercase: "${peranLower}")`,
+                );
+
                 if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
                     peranDisplay = 'PCL';
                 } else if (peranLower === 'pml') {
                     peranDisplay = 'PML';
-                } else if (peranLower === 'pengolahan' || peranLower === 'petugas pengolahan') {
+                } else if (
+                    peranLower === 'pengolahan' ||
+                    peranLower === 'petugas pengolahan'
+                ) {
                     peranDisplay = 'Petugas Pengolahan';
-                } else if (peranLower === 'pengawas_pengolahan' || peranLower === 'pengawas pengolahan') {
+                } else if (
+                    peranLower === 'pengawas_pengolahan' ||
+                    peranLower === 'pengawas pengolahan'
+                ) {
                     peranDisplay = 'Pengawas Pengolahan';
                 } else if (alokasi.peran) {
                     // If peran exists but doesn't match any known format, keep it as is
                     peranDisplay = alokasi.peran;
                 }
-                
+
                 console.log(`✅ Mapped to: "${peranDisplay}"`);
-                
+
                 // Ensure numeric values are properly parsed
                 const estimasiHonor = parseFloat(alokasi.total_honor) || 0;
-                const estimasiHonorListing = parseFloat(alokasi.total_honor_listing) || 0;
-                
+                const estimasiHonorListing =
+                    parseFloat(alokasi.total_honor_listing) || 0;
+
                 return {
                     petugas_id: String(alokasi.petugas_id || ''),
                     peran: peranDisplay,
                     jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                    jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+                    jumlah_satuan_listing: String(
+                        alokasi.jumlah_satuan_listing || 0,
+                    ),
                     estimasi_honor: estimasiHonor,
                     estimasi_honor_listing: estimasiHonorListing,
                     catatan: alokasi.catatan || '',
                 };
             });
-            
+
             console.log('✅ Final initialItems:', initialItems);
             console.log('📝 [1] Setting alokasiItems from copiedAlokasi');
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
-            
+
             // Auto-scroll to budget info if any estimasi honor exists
-            const hasEstimasi = initialItems.some(item => item.estimasi_honor > 0 || (item.estimasi_honor_listing && item.estimasi_honor_listing > 0));
+            const hasEstimasi = initialItems.some(
+                (item) =>
+                    item.estimasi_honor > 0 ||
+                    (item.estimasi_honor_listing &&
+                        item.estimasi_honor_listing > 0),
+            );
             if (hasEstimasi) {
                 // Delay scroll to ensure DOM is rendered
                 setTimeout(() => {
-                    const budgetSection = document.querySelector('[data-budget-info]');
+                    const budgetSection =
+                        document.querySelector('[data-budget-info]');
                     if (budgetSection) {
-                        budgetSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        budgetSection.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                        });
                     }
                 }, 500);
             }
@@ -317,9 +357,9 @@ export default function Create({
     useEffect(() => {
         console.log('🔄 Recalculate useEffect triggered', {
             hasSelectedKegiatan: !!selectedKegiatan,
-            selectedKegiatanId
+            selectedKegiatanId,
         });
-        
+
         if (!selectedKegiatan) return;
 
         // Update jenis kegiatan from selected kegiatan
@@ -329,17 +369,20 @@ export default function Create({
         // Recalculate estimasi for all items using the calculateEstimasi function
         setAlokasiItems((prevItems) => {
             console.log('🔄 Recalculating with prevItems:', prevItems);
-            
+
             // If prevItems is empty or all items have empty petugas_id, don't process
-            if (prevItems.length === 0 || prevItems.every(item => !item.petugas_id)) {
+            if (
+                prevItems.length === 0 ||
+                prevItems.every((item) => !item.petugas_id)
+            ) {
                 console.log('⚠️ Skipping recalculation - no valid items');
                 return prevItems;
             }
-            
+
             const newItems = prevItems.map((item) => {
                 // Preserve all existing fields
                 const updates: Partial<AlokasiItem> = {};
-                
+
                 // Recalculate pencacahan estimasi
                 if (item.petugas_id && item.peran && item.jumlah_satuan) {
                     const newEstimasi = calculateEstimasi(
@@ -349,9 +392,14 @@ export default function Create({
                     );
                     updates.estimasi_honor = newEstimasi;
                 }
-                
+
                 // Recalculate listing estimasi if applicable
-                if (item.petugas_id && item.peran && item.jumlah_satuan_listing && selectedKegiatan.has_listing_updating) {
+                if (
+                    item.petugas_id &&
+                    item.peran &&
+                    item.jumlah_satuan_listing &&
+                    selectedKegiatan.has_listing_updating
+                ) {
                     const newEstimasiListing = calculateEstimasiListing(
                         item.petugas_id,
                         item.peran,
@@ -359,36 +407,43 @@ export default function Create({
                     );
                     updates.estimasi_honor_listing = newEstimasiListing;
                 }
-                
+
                 return { ...item, ...updates };
             });
-            
+
             console.log('✅ Recalculated newItems:', newItems);
-            console.log('📝 [2] Setting alokasiItems from recalculate useEffect');
+            console.log(
+                '📝 [2] Setting alokasiItems from recalculate useEffect',
+            );
             return newItems;
         });
     }, [selectedKegiatanId, selectedKegiatan]);
 
     // Handle tahapan change - clear/restore values based on tahapan
     useEffect(() => {
-        console.log('🔄 Tahapan useEffect triggered', { tahapan, originalAlokasiValuesLength: originalAlokasiValues.length });
-        
+        console.log('🔄 Tahapan useEffect triggered', {
+            tahapan,
+            originalAlokasiValuesLength: originalAlokasiValues.length,
+        });
+
         if (originalAlokasiValues.length === 0) return; // Wait until original values are loaded
-        
+
         console.log('📝 [3] Setting alokasiItems from tahapan useEffect');
         setAlokasiItems((prevItems) => {
             return prevItems.map((item, index) => {
                 const updates: Partial<AlokasiItem> = {};
                 const originalValues = originalAlokasiValues[index];
-                
+
                 if (!originalValues) return item;
-                
+
                 if (tahapan === 'listing_only') {
                     // Clear pencacahan values, restore listing values
                     updates.jumlah_satuan = '0';
                     updates.estimasi_honor = 0;
-                    updates.jumlah_satuan_listing = originalValues.jumlah_satuan_listing || '0';
-                    updates.estimasi_honor_listing = originalValues.estimasi_honor_listing || 0;
+                    updates.jumlah_satuan_listing =
+                        originalValues.jumlah_satuan_listing || '0';
+                    updates.estimasi_honor_listing =
+                        originalValues.estimasi_honor_listing || 0;
                 } else if (tahapan === 'pencacahan_only') {
                     // Clear listing values, restore pencacahan values
                     updates.jumlah_satuan_listing = '0';
@@ -399,10 +454,12 @@ export default function Create({
                     // Both - restore all original values
                     updates.jumlah_satuan = originalValues.jumlah_satuan || '0';
                     updates.estimasi_honor = originalValues.estimasi_honor || 0;
-                    updates.jumlah_satuan_listing = originalValues.jumlah_satuan_listing || '0';
-                    updates.estimasi_honor_listing = originalValues.estimasi_honor_listing || 0;
+                    updates.jumlah_satuan_listing =
+                        originalValues.jumlah_satuan_listing || '0';
+                    updates.estimasi_honor_listing =
+                        originalValues.estimasi_honor_listing || 0;
                 }
-                
+
                 return { ...item, ...updates };
             });
         });
@@ -491,30 +548,39 @@ export default function Create({
                 // Check if we have data in copiedAlokasi for this index
                 if (copiedAlokasi && copiedAlokasi[i]) {
                     const alokasi = copiedAlokasi[i];
-                    
+
                     // Map backend peran format to frontend display format
                     let peranDisplay = '';
                     const peranLower = (alokasi.peran || '').toLowerCase();
-                    
+
                     if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
                         peranDisplay = 'PCL';
                     } else if (peranLower === 'pml') {
                         peranDisplay = 'PML';
-                    } else if (peranLower === 'pengolahan' || peranLower === 'petugas pengolahan') {
+                    } else if (
+                        peranLower === 'pengolahan' ||
+                        peranLower === 'petugas pengolahan'
+                    ) {
                         peranDisplay = 'Petugas Pengolahan';
-                    } else if (peranLower === 'pengawas_pengolahan' || peranLower === 'pengawas pengolahan') {
+                    } else if (
+                        peranLower === 'pengawas_pengolahan' ||
+                        peranLower === 'pengawas pengolahan'
+                    ) {
                         peranDisplay = 'Pengawas Pengolahan';
                     } else if (alokasi.peran) {
                         peranDisplay = alokasi.peran;
                     }
-                    
+
                     currentItems.push({
                         petugas_id: String(alokasi.petugas_id || ''),
                         peran: peranDisplay,
                         jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                        jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+                        jumlah_satuan_listing: String(
+                            alokasi.jumlah_satuan_listing || 0,
+                        ),
                         estimasi_honor: alokasi.total_honor || 0,
-                        estimasi_honor_listing: alokasi.total_honor_listing || 0,
+                        estimasi_honor_listing:
+                            alokasi.total_honor_listing || 0,
                         catatan: alokasi.catatan || '',
                     });
                 } else {
@@ -532,7 +598,9 @@ export default function Create({
             // Remove excess items
             currentItems.splice(newValue);
         }
-        console.log('📝 [4] Setting alokasiItems from handleJumlahPetugasChange');
+        console.log(
+            '📝 [4] Setting alokasiItems from handleJumlahPetugasChange',
+        );
         setAlokasiItems(currentItems);
     };
 
@@ -545,10 +613,12 @@ export default function Create({
     ) => {
         // Guard: Don't update peran with empty value if item already has a peran
         if (field === 'peran' && !value && alokasiItems[index]?.peran) {
-            console.log('⚠️ Prevented empty peran from overwriting existing value');
+            console.log(
+                '⚠️ Prevented empty peran from overwriting existing value',
+            );
             return;
         }
-        
+
         const newItems = [...alokasiItems];
         newItems[index] = { ...newItems[index], [field]: value };
         // Recalculate estimasi honor for pencacahan
@@ -576,7 +646,11 @@ export default function Create({
                 newItems[index].jumlah_satuan_listing || '',
             );
         }
-        console.log('📝 [5] Setting alokasiItems from updateAlokasiItem', { index, field, value });
+        console.log('📝 [5] Setting alokasiItems from updateAlokasiItem', {
+            index,
+            field,
+            value,
+        });
         setAlokasiItems(newItems);
     };
 
@@ -624,31 +698,44 @@ export default function Create({
 
         // Validate all items
         let hasEmpty = alokasiItems.some(
-            (item) => !item.petugas_id || !item.peran
+            (item) => !item.petugas_id || !item.peran,
         );
-        
+
         // Validate based on tahapan selection
         if (selectedKegiatan?.has_listing_updating) {
             if (tahapan === 'both') {
-                hasEmpty = hasEmpty || alokasiItems.some(item => !item.jumlah_satuan || !item.jumlah_satuan_listing);
+                hasEmpty =
+                    hasEmpty ||
+                    alokasiItems.some(
+                        (item) =>
+                            !item.jumlah_satuan || !item.jumlah_satuan_listing,
+                    );
             } else if (tahapan === 'listing_only') {
-                hasEmpty = hasEmpty || alokasiItems.some(item => !item.jumlah_satuan_listing);
+                hasEmpty =
+                    hasEmpty ||
+                    alokasiItems.some((item) => !item.jumlah_satuan_listing);
             } else if (tahapan === 'pencacahan_only') {
-                hasEmpty = hasEmpty || alokasiItems.some(item => !item.jumlah_satuan);
+                hasEmpty =
+                    hasEmpty ||
+                    alokasiItems.some((item) => !item.jumlah_satuan);
             }
         } else {
-            hasEmpty = hasEmpty || alokasiItems.some(item => !item.jumlah_satuan);
+            hasEmpty =
+                hasEmpty || alokasiItems.some((item) => !item.jumlah_satuan);
         }
-        
+
         if (hasEmpty) {
             let errorMsg = 'Lengkapi semua data petugas termasuk peran';
             if (selectedKegiatan?.has_listing_updating) {
                 if (tahapan === 'both') {
-                    errorMsg = 'Lengkapi semua data petugas termasuk peran, jumlah satuan listing dan pencacahan';
+                    errorMsg =
+                        'Lengkapi semua data petugas termasuk peran, jumlah satuan listing dan pencacahan';
                 } else if (tahapan === 'listing_only') {
-                    errorMsg = 'Lengkapi semua data petugas termasuk peran dan jumlah satuan listing';
+                    errorMsg =
+                        'Lengkapi semua data petugas termasuk peran dan jumlah satuan listing';
                 } else if (tahapan === 'pencacahan_only') {
-                    errorMsg = 'Lengkapi semua data petugas termasuk peran dan jumlah satuan pencacahan';
+                    errorMsg =
+                        'Lengkapi semua data petugas termasuk peran dan jumlah satuan pencacahan';
                 }
             }
             setErrors({
@@ -662,10 +749,22 @@ export default function Create({
         const formData = {
             tahun: active_year,
             bulan: bulan,
-            tanggal_mulai: tahapan !== 'listing_only' ? (tanggalMulai || undefined) : undefined,
-            tanggal_selesai: tahapan !== 'listing_only' ? (tanggalSelesai || undefined) : undefined,
-            tanggal_mulai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalMulaiListing || undefined) : undefined,
-            tanggal_selesai_listing: (tahapan === 'both' || tahapan === 'listing_only') ? (tanggalSelesaiListing || undefined) : undefined,
+            tanggal_mulai:
+                tahapan !== 'listing_only'
+                    ? tanggalMulai || undefined
+                    : undefined,
+            tanggal_selesai:
+                tahapan !== 'listing_only'
+                    ? tanggalSelesai || undefined
+                    : undefined,
+            tanggal_mulai_listing:
+                tahapan === 'both' || tahapan === 'listing_only'
+                    ? tanggalMulaiListing || undefined
+                    : undefined,
+            tanggal_selesai_listing:
+                tahapan === 'both' || tahapan === 'listing_only'
+                    ? tanggalSelesaiListing || undefined
+                    : undefined,
             alokasi: alokasiItems.map((item) => {
                 const base = {
                     petugas_id: item.petugas_id,
@@ -674,9 +773,11 @@ export default function Create({
                     tahun: active_year,
                     jenis_kegiatan: jenisKegiatan,
                     catatan: item.catatan || '',
-                    tahapan: selectedKegiatan?.has_listing_updating ? tahapan : 'both', // Always send tahapan
+                    tahapan: selectedKegiatan?.has_listing_updating
+                        ? tahapan
+                        : 'both', // Always send tahapan
                 };
-                
+
                 // Handle based on tahapan
                 if (selectedKegiatan?.has_listing_updating) {
                     if (tahapan === 'both') {
@@ -684,18 +785,23 @@ export default function Create({
                             ...base,
                             jumlah_satuan: Number(item.jumlah_satuan) || 0,
                             estimasi_honor: item.estimasi_honor || 0,
-                            jumlah_satuan_listing: Number(item.jumlah_satuan_listing) || 0,
-                            estimasi_honor_listing: item.estimasi_honor_listing || 0,
+                            jumlah_satuan_listing:
+                                Number(item.jumlah_satuan_listing) || 0,
+                            estimasi_honor_listing:
+                                item.estimasi_honor_listing || 0,
                         };
                     } else if (tahapan === 'listing_only') {
                         return {
                             ...base,
                             jumlah_satuan: 0,
                             estimasi_honor: 0,
-                            jumlah_satuan_listing: Number(item.jumlah_satuan_listing) || 0,
-                            estimasi_honor_listing: item.estimasi_honor_listing || 0,
+                            jumlah_satuan_listing:
+                                Number(item.jumlah_satuan_listing) || 0,
+                            estimasi_honor_listing:
+                                item.estimasi_honor_listing || 0,
                         };
-                    } else { // pencacahan_only
+                    } else {
+                        // pencacahan_only
                         return {
                             ...base,
                             jumlah_satuan: Number(item.jumlah_satuan) || 0,
@@ -705,7 +811,7 @@ export default function Create({
                         };
                     }
                 }
-                
+
                 return {
                     ...base,
                     jumlah_satuan: Number(item.jumlah_satuan) || 0,
@@ -790,20 +896,26 @@ export default function Create({
 
     // Filter months based on kegiatan's tanggal_mulai and tanggal_selesai
     const filteredMonths = useMemo(() => {
-        if (!selectedKegiatan || !selectedKegiatan.tanggal_mulai || !selectedKegiatan.tanggal_selesai) {
+        if (
+            !selectedKegiatan ||
+            !selectedKegiatan.tanggal_mulai ||
+            !selectedKegiatan.tanggal_selesai
+        ) {
             return months;
         }
         const start = new Date(selectedKegiatan.tanggal_mulai);
         const end = new Date(selectedKegiatan.tanggal_selesai);
 
-        
         // Only show months in the correct year and within the kegiatan's date range
         const filtered = months.filter((m) => {
             // The year must be within kegiatan range
-            if (active_year < start.getFullYear() || active_year > end.getFullYear()) {
+            if (
+                active_year < start.getFullYear() ||
+                active_year > end.getFullYear()
+            ) {
                 return false;
             }
-            
+
             // If kegiatan starts and ends in the same year
             if (start.getFullYear() === end.getFullYear()) {
                 return (
@@ -812,21 +924,24 @@ export default function Create({
                     m.value <= end.getMonth() + 1
                 );
             }
-            
+
             // If this is the start year
             if (active_year === start.getFullYear()) {
                 return m.value >= start.getMonth() + 1;
             }
-            
+
             // If this is the end year
             if (active_year === end.getFullYear()) {
                 return m.value <= end.getMonth() + 1;
             }
-            
+
             // If this is a year between start and end, show all months
-            return active_year > start.getFullYear() && active_year < end.getFullYear();
+            return (
+                active_year > start.getFullYear() &&
+                active_year < end.getFullYear()
+            );
         });
-        
+
         return filtered;
     }, [selectedKegiatan, months, active_year]);
 
@@ -839,13 +954,13 @@ export default function Create({
 
         // Find first available month from filteredMonths that's not used
         const availableMonths = filteredMonths.filter(
-            (month) => !usedMonths.includes(month.value)
+            (month) => !usedMonths.includes(month.value),
         );
 
         if (availableMonths.length > 0) {
             const firstAvailableMonth = availableMonths[0].value;
             // Only update if current bulan is not in available months
-            if (!availableMonths.some(m => m.value === bulan)) {
+            if (!availableMonths.some((m) => m.value === bulan)) {
                 setBulan(firstAvailableMonth);
             }
         } else if (filteredMonths.length > 0) {
@@ -1036,10 +1151,14 @@ export default function Create({
                                             <SelectItem
                                                 key={month.value}
                                                 value={month.value.toString()}
-                                                disabled={usedMonths.includes(month.value)}
+                                                disabled={usedMonths.includes(
+                                                    month.value,
+                                                )}
                                             >
                                                 {month.label}{' '}
-                                                {usedMonths.includes(month.value)
+                                                {usedMonths.includes(
+                                                    month.value,
+                                                )
                                                     ? '(Sudah digunakan)'
                                                     : ''}
                                             </SelectItem>
@@ -1047,8 +1166,6 @@ export default function Create({
                                     </SelectContent>
                                 </Select>
                             </div>
-
-                            
 
                             {/* Tahun (from Active Year) */}
                             <div className="space-y-2">
@@ -1071,108 +1188,217 @@ export default function Create({
                                         Jadwal Kegiatan
                                     </h4>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Tentukan tanggal pelaksanaan kegiatan untuk periode ini
+                                        Tentukan tanggal pelaksanaan kegiatan
+                                        untuk periode ini
                                     </p>
                                 </div>
 
                                 {/* Jadwal Listing - Show only if tahapan includes listing */}
-                                {(tahapan === 'both' ) && selectedKegiatan?.has_listing_updating && (
-                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                                        <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
-                                            Jadwal Listing
-                                        </h5>
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="tanggal_mulai_listing">
-                                                    Tanggal Mulai Listing
-                                                    <span className="text-red-500">*</span>
-                                                </Label>
-                                                <Input
-                                                    type="date"
-                                                    id="tanggal_mulai_listing"
-                                                    value={tanggalMulaiListing}
-                                                    onChange={(e) => setTanggalMulaiListing(e.target.value)}
-                                                    disabled={isViewMode}
-                                                    className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
-                                                />
-                                                {errors.tanggal_mulai_listing && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai_listing}</p>
-                                                )}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="tanggal_selesai_listing">
-                                                    Tanggal Selesai Listing
-                                                    <span className="text-red-500">*</span>
-                                                </Label>
-                                                <Input
-                                                    type="date"
-                                                    id="tanggal_selesai_listing"
-                                                    value={tanggalSelesaiListing}
-                                                    onChange={(e) => setTanggalSelesaiListing(e.target.value)}
-                                                    min={tanggalMulaiListing}
-                                                    disabled={isViewMode}
-                                                    className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
-                                                />
-                                                {errors.tanggal_selesai_listing && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai_listing}</p>
-                                                )}
+                                {tahapan === 'both' &&
+                                    selectedKegiatan?.has_listing_updating && (
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                            <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                                Jadwal Listing
+                                            </h5>
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="tanggal_mulai_listing">
+                                                        Tanggal Mulai Listing
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </Label>
+                                                    <Input
+                                                        type="date"
+                                                        id="tanggal_mulai_listing"
+                                                        value={
+                                                            tanggalMulaiListing
+                                                        }
+                                                        onChange={(e) =>
+                                                            setTanggalMulaiListing(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        disabled={isViewMode}
+                                                        className={
+                                                            isViewMode
+                                                                ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                : ''
+                                                        }
+                                                    />
+                                                    {errors.tanggal_mulai_listing && (
+                                                        <p className="text-sm text-red-500">
+                                                            {
+                                                                errors.tanggal_mulai_listing
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="tanggal_selesai_listing">
+                                                        Tanggal Selesai Listing
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </Label>
+                                                    <Input
+                                                        type="date"
+                                                        id="tanggal_selesai_listing"
+                                                        value={
+                                                            tanggalSelesaiListing
+                                                        }
+                                                        onChange={(e) =>
+                                                            setTanggalSelesaiListing(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        min={
+                                                            tanggalMulaiListing
+                                                        }
+                                                        disabled={isViewMode}
+                                                        className={
+                                                            isViewMode
+                                                                ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                : ''
+                                                        }
+                                                    />
+                                                    {errors.tanggal_selesai_listing && (
+                                                        <p className="text-sm text-red-500">
+                                                            {
+                                                                errors.tanggal_selesai_listing
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
                                 {/* Jadwal Pencacahan */}
                                 <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
                                     <h5 className="mb-3 text-sm font-semibold text-green-900 dark:text-green-300">
-                                        Jadwal {tahapan === 'listing_only' ? 'Kegiatan' : 'Pencacahan'}
+                                        Jadwal{' '}
+                                        {tahapan === 'listing_only'
+                                            ? 'Kegiatan'
+                                            : 'Pencacahan'}
                                     </h5>
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label htmlFor={tahapan === 'listing_only' ? 'tanggal_mulai_listing' : 'tanggal_mulai'}>
+                                            <Label
+                                                htmlFor={
+                                                    tahapan === 'listing_only'
+                                                        ? 'tanggal_mulai_listing'
+                                                        : 'tanggal_mulai'
+                                                }
+                                            >
                                                 Tanggal Mulai
-                                                <span className="text-red-500">*</span>
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
                                             </Label>
                                             <Input
                                                 type="date"
-                                                id={tahapan === 'listing_only' ? 'tanggal_mulai_listing' : 'tanggal_mulai'}
-                                                value={tahapan === 'listing_only' ? tanggalMulaiListing : tanggalMulai}
-                                                onChange={(e) => tahapan === 'listing_only' ? setTanggalMulaiListing(e.target.value) : setTanggalMulai(e.target.value)}
+                                                id={
+                                                    tahapan === 'listing_only'
+                                                        ? 'tanggal_mulai_listing'
+                                                        : 'tanggal_mulai'
+                                                }
+                                                value={
+                                                    tahapan === 'listing_only'
+                                                        ? tanggalMulaiListing
+                                                        : tanggalMulai
+                                                }
+                                                onChange={(e) =>
+                                                    tahapan === 'listing_only'
+                                                        ? setTanggalMulaiListing(
+                                                              e.target.value,
+                                                          )
+                                                        : setTanggalMulai(
+                                                              e.target.value,
+                                                          )
+                                                }
                                                 disabled={isViewMode}
-                                                className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                                className={
+                                                    isViewMode
+                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                        : ''
+                                                }
                                             />
-                                            {tahapan === 'listing_only' ? (
-                                                errors.tanggal_mulai_listing && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai_listing}</p>
-                                                )
-                                            ) : (
-                                                errors.tanggal_mulai && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_mulai}</p>
-                                                )
-                                            )}
+                                            {tahapan === 'listing_only'
+                                                ? errors.tanggal_mulai_listing && (
+                                                      <p className="text-sm text-red-500">
+                                                          {
+                                                              errors.tanggal_mulai_listing
+                                                          }
+                                                      </p>
+                                                  )
+                                                : errors.tanggal_mulai && (
+                                                      <p className="text-sm text-red-500">
+                                                          {errors.tanggal_mulai}
+                                                      </p>
+                                                  )}
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor={tahapan === 'listing_only' ? 'tanggal_selesai_listing' : 'tanggal_selesai'}>
+                                            <Label
+                                                htmlFor={
+                                                    tahapan === 'listing_only'
+                                                        ? 'tanggal_selesai_listing'
+                                                        : 'tanggal_selesai'
+                                                }
+                                            >
                                                 Tanggal Selesai
-                                                <span className="text-red-500">*</span>
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
                                             </Label>
                                             <Input
                                                 type="date"
-                                                id={tahapan === 'listing_only' ? 'tanggal_selesai_listing' : 'tanggal_selesai'}
-                                                value={tahapan === 'listing_only' ? tanggalSelesaiListing : tanggalSelesai}
-                                                onChange={(e) => tahapan === 'listing_only' ? setTanggalSelesaiListing(e.target.value) : setTanggalSelesai(e.target.value)}
-                                                min={tahapan === 'listing_only' ? tanggalMulaiListing : tanggalMulai}
+                                                id={
+                                                    tahapan === 'listing_only'
+                                                        ? 'tanggal_selesai_listing'
+                                                        : 'tanggal_selesai'
+                                                }
+                                                value={
+                                                    tahapan === 'listing_only'
+                                                        ? tanggalSelesaiListing
+                                                        : tanggalSelesai
+                                                }
+                                                onChange={(e) =>
+                                                    tahapan === 'listing_only'
+                                                        ? setTanggalSelesaiListing(
+                                                              e.target.value,
+                                                          )
+                                                        : setTanggalSelesai(
+                                                              e.target.value,
+                                                          )
+                                                }
+                                                min={
+                                                    tahapan === 'listing_only'
+                                                        ? tanggalMulaiListing
+                                                        : tanggalMulai
+                                                }
                                                 disabled={isViewMode}
-                                                className={isViewMode ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900' : ''}
+                                                className={
+                                                    isViewMode
+                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                        : ''
+                                                }
                                             />
-                                            {tahapan === 'listing_only' ? (
-                                                errors.tanggal_selesai_listing && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai_listing}</p>
-                                                )
-                                            ) : (
-                                                errors.tanggal_selesai && (
-                                                    <p className="text-sm text-red-500">{errors.tanggal_selesai}</p>
-                                                )
-                                            )}
+                                            {tahapan === 'listing_only'
+                                                ? errors.tanggal_selesai_listing && (
+                                                      <p className="text-sm text-red-500">
+                                                          {
+                                                              errors.tanggal_selesai_listing
+                                                          }
+                                                      </p>
+                                                  )
+                                                : errors.tanggal_selesai && (
+                                                      <p className="text-sm text-red-500">
+                                                          {
+                                                              errors.tanggal_selesai
+                                                          }
+                                                      </p>
+                                                  )}
                                         </div>
                                     </div>
                                 </div>
@@ -1271,38 +1497,114 @@ export default function Create({
                                                     </span>
                                                 </Label>
                                                 <SearchableSelect
-                                                    options={petugas.map(
-                                                        (p) => {
-                                                            const isSelectedInOtherRow =
-                                                                alokasiItems.some(
-                                                                    (
-                                                                        otherItem,
-                                                                        otherIndex,
-                                                                    ) =>
-                                                                        otherIndex !==
-                                                                            index &&
-                                                                        String(
-                                                                            otherItem.petugas_id,
-                                                                        ) ===
-                                                                            String(
-                                                                                p.id,
-                                                                            ),
-                                                                );
-                                                            
-                                                            const jenisPetugasLabel = p.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik';
-                                                            const jabatanLabel = p.jabatan || '-';
-                                                            
-                                                            return {
-                                                                value: String(
-                                                                    p.id,
+                                                    options={(() => {
+                                                        // Group and sort petugas
+                                                        const organik = petugas
+                                                            .filter(
+                                                                (p) =>
+                                                                    p.jenis_petugas ===
+                                                                    'organik',
+                                                            )
+                                                            .sort((a, b) =>
+                                                                a.nama.localeCompare(
+                                                                    b.nama,
                                                                 ),
-                                                                label: `${p.nama} - ${jenisPetugasLabel} - ${jabatanLabel}`,
-                                                                displayLabel: p.nama,
-                                                                disabled:
-                                                                    isSelectedInOtherRow,
-                                                            };
-                                                        },
-                                                    )}
+                                                            );
+                                                        const nonOrganik =
+                                                            petugas
+                                                                .filter(
+                                                                    (p) =>
+                                                                        p.jenis_petugas ===
+                                                                        'non-organik',
+                                                                )
+                                                                .sort((a, b) =>
+                                                                    a.nama.localeCompare(
+                                                                        b.nama,
+                                                                    ),
+                                                                );
+
+                                                        const sortedPetugas = [
+                                                            ...organik,
+                                                            ...nonOrganik,
+                                                        ];
+
+                                                        // Separate selected and unselected
+                                                        const selectedIds =
+                                                            alokasiItems
+                                                                .map((item) =>
+                                                                    String(
+                                                                        item.petugas_id,
+                                                                    ),
+                                                                )
+                                                                .filter(
+                                                                    Boolean,
+                                                                );
+                                                        const selectedPetugas =
+                                                            sortedPetugas.filter(
+                                                                (p) =>
+                                                                    selectedIds.includes(
+                                                                        String(
+                                                                            p.id,
+                                                                        ),
+                                                                    ),
+                                                            );
+                                                        const unselectedPetugas =
+                                                            sortedPetugas.filter(
+                                                                (p) =>
+                                                                    !selectedIds.includes(
+                                                                        String(
+                                                                            p.id,
+                                                                        ),
+                                                                    ),
+                                                            );
+
+                                                        // Combine: selected first, then unselected
+                                                        const finalOrderedPetugas =
+                                                            [
+                                                                ...selectedPetugas,
+                                                                ...unselectedPetugas,
+                                                            ];
+
+                                                        return finalOrderedPetugas.map(
+                                                            (p) => {
+                                                                const isSelectedInOtherRow =
+                                                                    alokasiItems.some(
+                                                                        (
+                                                                            otherItem,
+                                                                            otherIndex,
+                                                                        ) =>
+                                                                            otherIndex !==
+                                                                                index &&
+                                                                            String(
+                                                                                otherItem.petugas_id,
+                                                                            ) ===
+                                                                                String(
+                                                                                    p.id,
+                                                                                ),
+                                                                    );
+
+                                                                const jenisPetugasLabel =
+                                                                    p.jenis_petugas ===
+                                                                    'organik'
+                                                                        ? 'Organik'
+                                                                        : 'Non-Organik';
+                                                                const jabatanLabel =
+                                                                    p.jabatan ||
+                                                                    '-';
+
+                                                                return {
+                                                                    value: String(
+                                                                        p.id,
+                                                                    ),
+                                                                    label: `${p.nama} - ${jenisPetugasLabel} - ${jabatanLabel}`,
+                                                                    displayLabel:
+                                                                        p.nama,
+                                                                    disabled:
+                                                                        isSelectedInOtherRow,
+                                                                };
+                                                            },
+                                                        );
+                                                    })()}
                                                     value={item.petugas_id}
                                                     onValueChange={(value) =>
                                                         updateAlokasiItem(
@@ -1313,7 +1615,10 @@ export default function Create({
                                                     }
                                                     placeholder="Pilih Petugas"
                                                     searchPlaceholder="Cari petugas..."
-                                                    disabled={isRevisiMode || isViewMode}
+                                                    disabled={
+                                                        isRevisiMode ||
+                                                        isViewMode
+                                                    }
                                                 />
                                             </div>
 
@@ -1328,7 +1633,9 @@ export default function Create({
                                                     </span>
                                                 </Label>
                                                 <Select
-                                                    value={item.peran || undefined}
+                                                    value={
+                                                        item.peran || undefined
+                                                    }
                                                     onValueChange={(value) =>
                                                         updateAlokasiItem(
                                                             index,
@@ -1336,7 +1643,10 @@ export default function Create({
                                                             value,
                                                         )
                                                     }
-                                                    disabled={isRevisiMode || isViewMode}
+                                                    disabled={
+                                                        isRevisiMode ||
+                                                        isViewMode
+                                                    }
                                                 >
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Pilih Peran" />
@@ -1353,16 +1663,27 @@ export default function Create({
                                                                             item.petugas_id,
                                                                         ),
                                                                 );
-                                                            
-                                                            console.log(`🔍 Rendering Select for item ${index}:`, {
-                                                                itemPeran: item.peran,
-                                                                petugasId: item.petugas_id,
-                                                                hasSelectedKegiatan: !!selectedKegiatan,
-                                                                hasSelectedPetugas: !!selectedPetugas,
-                                                                kegiatanId: selectedKegiatan?.id,
-                                                                rateHonorsCount: selectedKegiatan?.rate_honors?.length
-                                                            });
-                                                            
+
+                                                            console.log(
+                                                                `🔍 Rendering Select for item ${index}:`,
+                                                                {
+                                                                    itemPeran:
+                                                                        item.peran,
+                                                                    petugasId:
+                                                                        item.petugas_id,
+                                                                    hasSelectedKegiatan:
+                                                                        !!selectedKegiatan,
+                                                                    hasSelectedPetugas:
+                                                                        !!selectedPetugas,
+                                                                    kegiatanId:
+                                                                        selectedKegiatan?.id,
+                                                                    rateHonorsCount:
+                                                                        selectedKegiatan
+                                                                            ?.rate_honors
+                                                                            ?.length,
+                                                                },
+                                                            );
+
                                                             if (
                                                                 !selectedKegiatan ||
                                                                 !selectedPetugas
@@ -1403,22 +1724,42 @@ export default function Create({
                                                                 pengawas_pengolahan:
                                                                     'Pengawas Pengolahan',
                                                             };
-                                                            
-                                                            const options = uniqueJenisPenugasan.map(jp => ({
-                                                                key: jp,
-                                                                value: labelMap[jp] || jp,
-                                                                label: labelMap[jp] || jp
-                                                            }));
-                                                            
-                                                            console.log(`✅ Available options:`, options);
-                                                            
+
+                                                            const options =
+                                                                uniqueJenisPenugasan.map(
+                                                                    (jp) => ({
+                                                                        key: jp,
+                                                                        value:
+                                                                            labelMap[
+                                                                                jp
+                                                                            ] ||
+                                                                            jp,
+                                                                        label:
+                                                                            labelMap[
+                                                                                jp
+                                                                            ] ||
+                                                                            jp,
+                                                                    }),
+                                                                );
+
+                                                            console.log(
+                                                                `✅ Available options:`,
+                                                                options,
+                                                            );
+
                                                             return options.map(
                                                                 (opt) => (
                                                                     <SelectItem
-                                                                        key={opt.key}
-                                                                        value={opt.value}
+                                                                        key={
+                                                                            opt.key
+                                                                        }
+                                                                        value={
+                                                                            opt.value
+                                                                        }
                                                                     >
-                                                                        {opt.label}
+                                                                        {
+                                                                            opt.label
+                                                                        }
                                                                     </SelectItem>
                                                                 ),
                                                             );
@@ -1427,30 +1768,92 @@ export default function Create({
                                                 </Select>
                                             </div>
                                             {/* Dual-phase: Listing fields */}
-                                            {selectedKegiatan?.has_listing_updating && 
-                                             (tahapan === 'both' || tahapan === 'listing_only') && (
+                                            {selectedKegiatan?.has_listing_updating &&
+                                                (tahapan === 'both' ||
+                                                    tahapan ===
+                                                        'listing_only') && (
+                                                    <>
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`satuan_listing_${index}`}
+                                                            >
+                                                                Jumlah Beban
+                                                                Tugas Listing{' '}
+                                                                <span className="text-red-500">
+                                                                    *
+                                                                </span>
+                                                            </Label>
+                                                            <Input
+                                                                type="number"
+                                                                id={`satuan_listing_${index}`}
+                                                                value={
+                                                                    item.jumlah_satuan_listing ||
+                                                                    ''
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateAlokasiItem(
+                                                                        index,
+                                                                        'jumlah_satuan_listing',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                min="1"
+                                                                placeholder="0"
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2 md:col-span-4">
+                                                            <Label
+                                                                htmlFor={`estimasi_listing_${index}`}
+                                                            >
+                                                                Estimasi Honor
+                                                                Listing
+                                                            </Label>
+                                                            <Input
+                                                                type="text"
+                                                                id={`estimasi_listing_${index}`}
+                                                                value={formatCurrency(
+                                                                    item.estimasi_honor_listing ||
+                                                                        0,
+                                                                )}
+                                                                readOnly
+                                                                className="bg-neutral-50 dark:bg-neutral-900"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                            {/* Jumlah Beban Tugas Pencacahan */}
+                                            {(!selectedKegiatan?.has_listing_updating ||
+                                                tahapan === 'both' ||
+                                                tahapan ===
+                                                    'pencacahan_only') && (
                                                 <>
                                                     <div className="space-y-2">
                                                         <Label
-                                                            htmlFor={`satuan_listing_${index}`}
+                                                            htmlFor={`satuan_${index}`}
                                                         >
                                                             Jumlah Beban Tugas
-                                                            Listing{' '}
+                                                            {selectedKegiatan?.has_listing_updating
+                                                                ? ' Pencacahan'
+                                                                : ''}{' '}
                                                             <span className="text-red-500">
                                                                 *
                                                             </span>
                                                         </Label>
                                                         <Input
                                                             type="number"
-                                                            id={`satuan_listing_${index}`}
+                                                            id={`satuan_${index}`}
                                                             value={
-                                                                item.jumlah_satuan_listing ||
-                                                                ''
+                                                                item.jumlah_satuan
                                                             }
                                                             onChange={(e) =>
                                                                 updateAlokasiItem(
                                                                     index,
-                                                                    'jumlah_satuan_listing',
+                                                                    'jumlah_satuan',
                                                                     e.target
                                                                         .value,
                                                                 )
@@ -1462,77 +1865,28 @@ export default function Create({
                                                             }
                                                         />
                                                     </div>
+
+                                                    {/* Estimasi Honor Pencacahan (Read only) */}
                                                     <div className="space-y-2 md:col-span-4">
                                                         <Label
-                                                            htmlFor={`estimasi_listing_${index}`}
+                                                            htmlFor={`estimasi_${index}`}
                                                         >
                                                             Estimasi Honor
-                                                            Listing
+                                                            {selectedKegiatan?.has_listing_updating
+                                                                ? ' Pencacahan'
+                                                                : ''}
                                                         </Label>
                                                         <Input
                                                             type="text"
-                                                            id={`estimasi_listing_${index}`}
+                                                            id={`estimasi_${index}`}
                                                             value={formatCurrency(
-                                                                item.estimasi_honor_listing ||
-                                                                    0,
+                                                                item.estimasi_honor,
                                                             )}
                                                             readOnly
                                                             className="bg-neutral-50 dark:bg-neutral-900"
                                                         />
                                                     </div>
                                                 </>
-                                            )}
-
-                                            {/* Jumlah Beban Tugas Pencacahan */}
-                                            {(!selectedKegiatan?.has_listing_updating || 
-                                              tahapan === 'both' || 
-                                              tahapan === 'pencacahan_only') && (
-                                            <>
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor={`satuan_${index}`}
-                                                >
-                                                    Jumlah Beban Tugas
-                                                    {selectedKegiatan?.has_listing_updating ? ' Pencacahan' : ''}{' '}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <Input
-                                                    type="number"
-                                                    id={`satuan_${index}`}
-                                                    value={item.jumlah_satuan}
-                                                    onChange={(e) =>
-                                                        updateAlokasiItem(
-                                                            index,
-                                                            'jumlah_satuan',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    min="1"
-                                                    placeholder="0"
-                                                    disabled={isViewMode}
-                                                />
-                                            </div>
-
-                                            {/* Estimasi Honor Pencacahan (Read only) */}
-                                            <div className="space-y-2 md:col-span-4">
-                                                <Label
-                                                    htmlFor={`estimasi_${index}`}
-                                                >
-                                                    Estimasi Honor{selectedKegiatan?.has_listing_updating ? ' Pencacahan' : ''}
-                                                </Label>
-                                                <Input
-                                                    type="text"
-                                                    id={`estimasi_${index}`}
-                                                    value={formatCurrency(
-                                                        item.estimasi_honor,
-                                                    )}
-                                                    readOnly
-                                                    className="bg-neutral-50 dark:bg-neutral-900"
-                                                />
-                                            </div>
-                                            </>
                                             )}
 
                                             {/* Catatan */}
@@ -1554,7 +1908,10 @@ export default function Create({
                                                         )
                                                     }
                                                     placeholder="Catatan tambahan (opsional)"
-                                                    disabled={isRevisiMode || isViewMode}
+                                                    disabled={
+                                                        isRevisiMode ||
+                                                        isViewMode
+                                                    }
                                                 />
                                             </div>
                                         </div>
@@ -1568,269 +1925,279 @@ export default function Create({
                 {/* Estimasi Sisa Pagu */}
                 {selectedKegiatanId &&
                     alokasiItems.length > 0 &&
-                    alokasiItems.some(item => item.petugas_id && item.peran) && (
+                    alokasiItems.some(
+                        (item) => item.petugas_id && item.peran,
+                    ) && (
                         <ContentCard data-budget-info>
                             {selectedKegiatan?.has_listing_updating ? (
                                 <div className="space-y-8">
                                     {/* Listing Phase - Show if tahapan is 'both' or 'listing_only' */}
-                                    {(tahapan === 'both' || tahapan === 'listing_only') && (
-                                    <div
-                                        className={`rounded-lg border-2 p-6 ${isSufficientListing ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <div
-                                                className={`flex-shrink-0 rounded-full p-3 ${isSufficientListing ? 'bg-green-500' : 'bg-red-500'}`}
-                                            >
-                                                {isSufficientListing ? (
-                                                    <svg
-                                                        className="h-6 w-6 text-white"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M5 13l4 4L19 7"
-                                                        />
-                                                    </svg>
-                                                ) : (
-                                                    <svg
-                                                        className="h-6 w-6 text-white"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                                        />
-                                                    </svg>
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3
-                                                    className={`text-lg font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-300' : 'text-red-900 dark:text-red-300'}`}
+                                    {(tahapan === 'both' ||
+                                        tahapan === 'listing_only') && (
+                                        <div
+                                            className={`rounded-lg border-2 p-6 ${isSufficientListing ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div
+                                                    className={`flex-shrink-0 rounded-full p-3 ${isSufficientListing ? 'bg-green-500' : 'bg-red-500'}`}
                                                 >
-                                                    {isSufficientListing
-                                                        ? 'Pagu Listing Mencukupi'
-                                                        : 'Pagu Listing Tidak Mencukupi'}
-                                                </h3>
-                                                <p
-                                                    className={`mt-1 text-sm ${isSufficientListing ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}
-                                                >
-                                                    Untuk {jumlahPetugas}{' '}
-                                                    petugas (Listing)
-                                                </p>
-                                                <div className="mt-4 space-y-2.5">
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Pagu Listing:
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                pagu_listing,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Total Terpakai
-                                                            (Periode Lain):
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                current_total_spent_listing,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Estimasi Periode Ini
-                                                            (Listing):
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                totalEstimasiListing,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between border-t pt-2.5 text-base ${isSufficientListing ? 'border-blue-400 dark:border-blue-700' : 'border-red-400 dark:border-red-700'}`}
-                                                    >
-                                                        <span
-                                                            className={`font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-200' : 'text-red-900 dark:text-red-200'}`}
+                                                    {isSufficientListing ? (
+                                                        <svg
+                                                            className="h-6 w-6 text-white"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
                                                         >
-                                                            Estimasi Sisa Pagu
-                                                            Listing:
-                                                        </span>
-                                                        <span
-                                                            className={`text-xl font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg
+                                                            className="h-6 w-6 text-white"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
                                                         >
-                                                            {formatCurrency(
-                                                                sisaPaguListing,
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                                            />
+                                                        </svg>
+                                                    )}
                                                 </div>
-                                                {!isSufficientListing && (
-                                                    <div className="mt-4 rounded-md border border-red-300 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
-                                                        <p className="text-sm font-medium text-red-900 dark:text-red-300">
-                                                            ⚠️ Estimasi total
-                                                            honor listing
-                                                            melebihi pagu
-                                                            listing yang
-                                                            tersisa. Silakan
-                                                            periksa lagi isian
-                                                            atau ubah pagu
-                                                            listing melalui
-                                                            Fitur Revisi di
-                                                            halaman Kegiatan.
-                                                        </p>
+                                                <div className="flex-1">
+                                                    <h3
+                                                        className={`text-lg font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-300' : 'text-red-900 dark:text-red-300'}`}
+                                                    >
+                                                        {isSufficientListing
+                                                            ? 'Pagu Listing Mencukupi'
+                                                            : 'Pagu Listing Tidak Mencukupi'}
+                                                    </h3>
+                                                    <p
+                                                        className={`mt-1 text-sm ${isSufficientListing ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}
+                                                    >
+                                                        Untuk {jumlahPetugas}{' '}
+                                                        petugas (Listing)
+                                                    </p>
+                                                    <div className="mt-4 space-y-2.5">
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Pagu Listing:
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    pagu_listing,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Total Terpakai
+                                                                (Periode Lain):
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    current_total_spent_listing,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Estimasi Periode
+                                                                Ini (Listing):
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    totalEstimasiListing,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between border-t pt-2.5 text-base ${isSufficientListing ? 'border-blue-400 dark:border-blue-700' : 'border-red-400 dark:border-red-700'}`}
+                                                        >
+                                                            <span
+                                                                className={`font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            >
+                                                                Estimasi Sisa
+                                                                Pagu Listing:
+                                                            </span>
+                                                            <span
+                                                                className={`text-xl font-bold ${isSufficientListing ? 'text-blue-900 dark:text-blue-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            >
+                                                                {formatCurrency(
+                                                                    sisaPaguListing,
+                                                                )}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    {!isSufficientListing && (
+                                                        <div className="mt-4 rounded-md border border-red-300 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
+                                                            <p className="text-sm font-medium text-red-900 dark:text-red-300">
+                                                                ⚠️ Estimasi
+                                                                total honor
+                                                                listing melebihi
+                                                                pagu listing
+                                                                yang tersisa.
+                                                                Silakan periksa
+                                                                lagi isian atau
+                                                                ubah pagu
+                                                                listing melalui
+                                                                Fitur Revisi di
+                                                                halaman
+                                                                Kegiatan.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
                                     )}
                                     {/* Pencacahan Phase - Show if tahapan is 'both' or 'pencacahan_only' */}
-                                    {(tahapan === 'both' || tahapan === 'pencacahan_only') && (
-                                    <div
-                                        className={`rounded-lg border-2 p-6 ${isSufficientPencacahan ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <div
-                                                className={`flex-shrink-0 rounded-full p-3 ${isSufficientPencacahan ? 'bg-green-500' : 'bg-red-500'}`}
-                                            >
-                                                {isSufficientPencacahan ? (
-                                                    <svg
-                                                        className="h-6 w-6 text-white"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M5 13l4 4L19 7"
-                                                        />
-                                                    </svg>
-                                                ) : (
-                                                    <svg
-                                                        className="h-6 w-6 text-white"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                                        />
-                                                    </svg>
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3
-                                                    className={`text-lg font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-300' : 'text-red-900 dark:text-red-300'}`}
+                                    {(tahapan === 'both' ||
+                                        tahapan === 'pencacahan_only') && (
+                                        <div
+                                            className={`rounded-lg border-2 p-6 ${isSufficientPencacahan ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div
+                                                    className={`flex-shrink-0 rounded-full p-3 ${isSufficientPencacahan ? 'bg-green-500' : 'bg-red-500'}`}
                                                 >
-                                                    {isSufficientPencacahan
-                                                        ? 'Pagu Pencacahan Mencukupi'
-                                                        : 'Pagu Pencacahan Tidak Mencukupi'}
-                                                </h3>
-                                                <p
-                                                    className={`mt-1 text-sm ${isSufficientPencacahan ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}
-                                                >
-                                                    Untuk {jumlahPetugas}{' '}
-                                                    petugas (Pencacahan)
-                                                </p>
-                                                <div className="mt-4 space-y-2.5">
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Pagu Pencacahan:
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                pagu_pencacahan,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Total Terpakai
-                                                            (Periode Lain):
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                current_total_spent,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
-                                                    >
-                                                        <span className="font-medium">
-                                                            Estimasi Periode Ini
-                                                            (Pencacahan):
-                                                        </span>
-                                                        <span className="font-semibold">
-                                                            {formatCurrency(
-                                                                totalEstimasiPencacahan,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div
-                                                        className={`flex justify-between border-t pt-2.5 text-base ${isSufficientPencacahan ? 'border-green-400 dark:border-green-700' : 'border-red-400 dark:border-red-700'}`}
-                                                    >
-                                                        <span
-                                                            className={`font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}
+                                                    {isSufficientPencacahan ? (
+                                                        <svg
+                                                            className="h-6 w-6 text-white"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
                                                         >
-                                                            Estimasi Sisa Pagu
-                                                            Pencacahan:
-                                                        </span>
-                                                        <span
-                                                            className={`text-xl font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg
+                                                            className="h-6 w-6 text-white"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
                                                         >
-                                                            {formatCurrency(
-                                                                sisaPaguPencacahan,
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                                            />
+                                                        </svg>
+                                                    )}
                                                 </div>
-                                                {!isSufficientPencacahan && (
-                                                    <div className="mt-4 rounded-md border border-red-300 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
-                                                        <p className="text-sm font-medium text-red-900 dark:text-red-300">
-                                                            ⚠️ Estimasi total
-                                                            honor pencacahan
-                                                            melebihi pagu
-                                                            pencacahan yang
-                                                            tersisa. Silakan
-                                                            periksa lagi isian
-                                                            atau ubah pagu
-                                                            pencacahan melalui
-                                                            Fitur Revisi di
-                                                            halaman Kegiatan.
-                                                        </p>
+                                                <div className="flex-1">
+                                                    <h3
+                                                        className={`text-lg font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-300' : 'text-red-900 dark:text-red-300'}`}
+                                                    >
+                                                        {isSufficientPencacahan
+                                                            ? 'Pagu Pencacahan Mencukupi'
+                                                            : 'Pagu Pencacahan Tidak Mencukupi'}
+                                                    </h3>
+                                                    <p
+                                                        className={`mt-1 text-sm ${isSufficientPencacahan ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}
+                                                    >
+                                                        Untuk {jumlahPetugas}{' '}
+                                                        petugas (Pencacahan)
+                                                    </p>
+                                                    <div className="mt-4 space-y-2.5">
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Pagu Pencacahan:
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    pagu_pencacahan,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Total Terpakai
+                                                                (Periode Lain):
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    current_total_spent,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
+                                                        >
+                                                            <span className="font-medium">
+                                                                Estimasi Periode
+                                                                Ini
+                                                                (Pencacahan):
+                                                            </span>
+                                                            <span className="font-semibold">
+                                                                {formatCurrency(
+                                                                    totalEstimasiPencacahan,
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className={`flex justify-between border-t pt-2.5 text-base ${isSufficientPencacahan ? 'border-green-400 dark:border-green-700' : 'border-red-400 dark:border-red-700'}`}
+                                                        >
+                                                            <span
+                                                                className={`font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            >
+                                                                Estimasi Sisa
+                                                                Pagu Pencacahan:
+                                                            </span>
+                                                            <span
+                                                                className={`text-xl font-bold ${isSufficientPencacahan ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'}`}
+                                                            >
+                                                                {formatCurrency(
+                                                                    sisaPaguPencacahan,
+                                                                )}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    {!isSufficientPencacahan && (
+                                                        <div className="mt-4 rounded-md border border-red-300 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
+                                                            <p className="text-sm font-medium text-red-900 dark:text-red-300">
+                                                                ⚠️ Estimasi
+                                                                total honor
+                                                                pencacahan
+                                                                melebihi pagu
+                                                                pencacahan yang
+                                                                tersisa. Silakan
+                                                                periksa lagi
+                                                                isian atau ubah
+                                                                pagu pencacahan
+                                                                melalui Fitur
+                                                                Revisi di
+                                                                halaman
+                                                                Kegiatan.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
                                     )}
                                 </div>
                             ) : (

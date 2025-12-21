@@ -16,7 +16,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
-        $user = $request->user();
+        $user = effectiveUser($request);
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 

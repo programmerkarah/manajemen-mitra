@@ -55,9 +55,10 @@ class AlokasiPetugasController extends Controller
         }
 
         // Filter for Ketua Tim - only their kegiatan
-        if ($request->user()->isKetuaTim()) {
-            $query->whereHas('kegiatan', function ($q) use ($request) {
-                $q->where('ketua_tim_user_id', $request->user()->id);
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim()) {
+            $query->whereHas('kegiatan', function ($q) use ($effectiveUser) {
+                $q->where('ketua_tim_user_id', $effectiveUser->id);
             });
         }
 
@@ -115,8 +116,8 @@ class AlokasiPetugasController extends Controller
 
         // Check if any kegiatan exists
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when($request->user()->isKetuaTim(), function ($query) use ($request) {
-                $query->where('ketua_tim_user_id', $request->user()->id);
+            ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
+                $query->where('ketua_tim_user_id', $effectiveUser->id);
             })
             ->exists();
 
@@ -139,7 +140,8 @@ class AlokasiPetugasController extends Controller
         }
 
         // Ketua Tim can only add alokasi for their own kegiatan
-        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
             abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
         }
         // Validate that kegiatan has rate honors
@@ -464,11 +466,12 @@ class AlokasiPetugasController extends Controller
     public function create(Request $request): Response|RedirectResponse
     {
         $activeYear = ActiveYearService::get();
+        $effectiveUser = effectiveUser($request);
 
         // Check if any kegiatan exists before allowing access
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when($request->user()->isKetuaTim(), function ($query) use ($request) {
-                $query->where('ketua_tim_user_id', $request->user()->id);
+            ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
+                $query->where('ketua_tim_user_id', $effectiveUser->id);
             })
             ->exists();
 
@@ -587,7 +590,8 @@ class AlokasiPetugasController extends Controller
                     $kegiatan = Kegiatan::find($decodedId);
                     if ($kegiatan) {
                         // Ketua Tim can only copy from their own kegiatan
-                        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+                        $effectiveUser = effectiveUser($request);
+                        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
                             // Don't copy data if ketua_tim tries to copy from other's kegiatan
                             $copiedAlokasi = null;
                             $sourcePeriode = null;
@@ -695,7 +699,7 @@ class AlokasiPetugasController extends Controller
         $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
         $data['peran'] = $rateHonor->posisi;
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
-        $data['submitted_by'] = $request->user()->id;
+        $data['submitted_by'] = effectiveUser($request)->id;
 
         AlokasiPetugas::create($data);
 
@@ -824,7 +828,8 @@ class AlokasiPetugasController extends Controller
      */
     public function approve(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
-        if (! $request->user()->hasActiveRole('approver')) {
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser->hasActiveRole('approver')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');
         }
 
@@ -838,7 +843,7 @@ class AlokasiPetugasController extends Controller
 
         $alokasi->update([
             'status' => 'disetujui',
-            'approved_by' => $request->user()->id,
+            'approved_by' => $effectiveUser->id,
             'approved_at' => now(),
             'catatan_approval' => $validated['catatan_approval'] ?? null,
         ]);
@@ -851,7 +856,8 @@ class AlokasiPetugasController extends Controller
      */
     public function reject(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
-        if (! $request->user()->hasActiveRole('approver')) {
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser->hasActiveRole('approver')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menolak alokasi.');
         }
 
@@ -865,7 +871,7 @@ class AlokasiPetugasController extends Controller
 
         $alokasi->update([
             'status' => 'ditolak',
-            'approved_by' => $request->user()->id,
+            'approved_by' => $effectiveUser->id,
             'approved_at' => now(),
             'catatan_approval' => $validated['catatan_approval'],
         ]);
@@ -878,12 +884,13 @@ class AlokasiPetugasController extends Controller
      */
     public function approvePj(Request $request, AlokasiPetugas $alokasi): RedirectResponse
     {
-        if (! $request->user()->hasActiveRole('ketua_tim')) {
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser->hasActiveRole('ketua_tim')) {
             return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');
         }
 
         // Check if user is the Ketua Tim of the kegiatan
-        if ($alokasi->kegiatan->ketua_tim_user_id !== $request->user()->id) {
+        if ($alokasi->kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
             return back()->with('error', 'Anda bukan ketua tim kegiatan ini.');
         }
 
@@ -921,7 +928,7 @@ class AlokasiPetugasController extends Controller
 
         $periode->update([
             'status' => $newStatus,
-            'submitted_by' => $request->user()->id,
+            'submitted_by' => effectiveUser($request)->id,
             'submitted_at' => now(),
         ]);
 
@@ -1210,7 +1217,8 @@ class AlokasiPetugasController extends Controller
         }
 
         // Ketua Tim can only update alokasi for their own kegiatan
-        if ($request->user()->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
             abort(403, 'Anda tidak memiliki akses untuk memperbarui alokasi kegiatan ini.');
         }
 

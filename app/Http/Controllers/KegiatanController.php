@@ -47,8 +47,9 @@ class KegiatanController extends Controller
         }
 
         // Filter by Ketua Tim for ketua_tim role
-        if ($request->user()->isKetuaTim()) {
-            $query->where('ketua_tim_user_id', $request->user()->id);
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim()) {
+            $query->where('ketua_tim_user_id', $effectiveUser->id);
         }
 
         $kegiatans = $query->latest()->paginate(15)->withQueryString();
@@ -117,8 +118,9 @@ class KegiatanController extends Controller
         $data = $request->validated();
 
         // If ketua_tim creates kegiatan, automatically assign themselves as ketua_tim
-        if ($request->user()->isKetuaTim()) {
-            $data['ketua_tim_user_id'] = $request->user()->id;
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim()) {
+            $data['ketua_tim_user_id'] = $effectiveUser->id;
         }
 
         // Generate kode kegiatan otomatis
@@ -172,13 +174,15 @@ class KegiatanController extends Controller
         $kegiatan->alokasi = $alokasi;
         unset($kegiatan->periodeAlokasi);
 
+        $effectiveUser = effectiveUser($request);
+
         return Inertia::render('Kegiatan/Show', [
             'kegiatan' => $kegiatan,
             'can' => [
-                'update' => $request->user()->can('update', $kegiatan),
-                'approve' => $request->user()->can('approve', $kegiatan),
-                'reject' => $request->user()->can('reject', $kegiatan),
-                'delete' => $request->user()->can('delete', $kegiatan),
+                'update' => $effectiveUser->can('update', $kegiatan),
+                'approve' => $effectiveUser->can('approve', $kegiatan),
+                'reject' => $effectiveUser->can('reject', $kegiatan),
+                'delete' => $effectiveUser->can('delete', $kegiatan),
             ],
         ]);
     }
@@ -237,7 +241,8 @@ class KegiatanController extends Controller
         }
 
         // Ketua Tim can validate kegiatan (check before updating)
-        if ($request->user()->isKetuaTim() && $request->filled('validate')) {
+        $effectiveUser = effectiveUser($request);
+        if ($effectiveUser->isKetuaTim() && $request->filled('validate')) {
             $data['status'] = 'divalidasi';
             $data['tanggal_validasi'] = now();
         }
@@ -512,8 +517,9 @@ class KegiatanController extends Controller
     public function submit(Request $request, Kegiatan $kegiatan): RedirectResponse
     {
         // Only the ketua tim or admin/operator can submit
-        if (! in_array($request->user()->active_role, ['admin', 'operator']) &&
-            $kegiatan->ketua_tim_user_id !== $request->user()->id) {
+        $effectiveUser = effectiveUser($request);
+        if (! in_array($effectiveUser->active_role, ['admin', 'operator']) &&
+            $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
             abort(403, 'Anda tidak memiliki akses untuk mengajukan kegiatan ini.');
         }
 

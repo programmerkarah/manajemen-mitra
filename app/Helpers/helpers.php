@@ -61,3 +61,24 @@ if (! function_exists('tahunTerbilang')) {
         return trim(terbilang($tahun));
     }
 }
+
+if (! function_exists('effectiveUser')) {
+    /**
+     * Get the effective user for authorization checks.
+     * Returns the viewed user if viewing as another user, otherwise returns the authenticated user.
+     */
+    function effectiveUser(?Illuminate\Http\Request $request = null): ?\App\Models\User
+    {
+        $request = $request ?? request();
+
+        // Check if we're viewing as another user
+        $viewAsUser = $request->attributes->get('view_as_user');
+
+        if ($viewAsUser) {
+            return $viewAsUser;
+        }
+
+        // Return the authenticated user
+        return $request->user();
+    }
+}
