@@ -1,6 +1,5 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Info, AlertTriangle, X } from 'lucide-react';
 import { type SharedData } from '@/types';
 
@@ -87,34 +86,34 @@ export function FlashMessage() {
 
     return (
         <div className="fixed top-4 right-4 left-4 sm:left-auto z-[9999] w-full sm:max-w-md animate-in slide-in-from-top-4 duration-300">
-            <Alert className={`${className} p-3 sm:p-4`}>
-                <div className="flex items-start gap-2.5 sm:gap-3">
-                    {/* Icon lebih compact */}
+            <div className={`relative rounded-lg shadow-lg p-4 ${className}`}>
+                <div className="flex items-start gap-3">
+                    {/* Icon */}
                     <div className={`shrink-0 ${iconColor}`}>
-                        <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.5} />
+                        <Icon className="h-6 w-6" strokeWidth={2.5} />
                     </div>
                     
-                    {/* Content dengan word wrap yang baik */}
-                    <div className="flex-1 min-w-0">
-                        <AlertTitle className="text-sm sm:text-base font-bold mb-0.5 break-words leading-tight">
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pr-2">
+                        <div className="text-base font-bold mb-1">
                             {message.title}
-                        </AlertTitle>
-                        <AlertDescription className="text-xs sm:text-sm leading-snug break-words whitespace-normal">
+                        </div>
+                        <div className="text-sm">
                             {message.text}
-                        </AlertDescription>
+                        </div>
                     </div>
 
-                    {/* Tombol tutup compact */}
+                    {/* Tombol tutup */}
                     <button
                         onClick={() => setVisible(false)}
-                        className="shrink-0 rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10 transition-colors touch-manipulation"
+                        className="shrink-0 rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         aria-label="Tutup"
                         type="button"
                     >
-                        <X className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                        <X className="h-5 w-5" strokeWidth={2.5} />
                     </button>
                 </div>
-            </Alert>
+            </div>
         </div>
     );
 }

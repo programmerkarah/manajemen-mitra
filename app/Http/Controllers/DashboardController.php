@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bast;
+use App\Models\DasarHukum;
+use App\Models\Dipa;
 use App\Models\Kegiatan;
+use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\Sbml;
 use App\Models\SkKpa;
+use App\Models\Spk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,11 +25,68 @@ class DashboardController extends Controller
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 
+        // Basic stats
         $stats = [
             'total_petugas' => Petugas::where('status', 'aktif')->count(),
             'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count(),
             'alokasi_pending' => PeriodeAlokasi::where('status', 'diajukan')->count(),
             'bast_pending' => Bast::where('status', 'draft')->count(),
+        ];
+
+        // Additional comprehensive stats
+        $additionalStats = [
+            // SBML Stats
+            'sbml' => [
+                'total' => Sbml::count(),
+                'aktif' => Sbml::where('status', 'aktif')->count(),
+                'nonaktif' => Sbml::where('status', 'nonaktif')->count(),
+            ],
+            // DIPA Stats
+            'dipa' => [
+                'total' => Dipa::count(),
+                'aktif' => Dipa::where('is_active', true)->count(),
+                'nonaktif' => Dipa::where('is_active', false)->count(),
+            ],
+            // Penandatangan Stats
+            'penandatangan' => [
+                'total' => Penandatangan::count(),
+                'kepala' => Penandatangan::where('jenis_penandatangan', 'kepala')->count(),
+                'ppk' => Penandatangan::where('jenis_penandatangan', 'ppk')->count(),
+                'aktif' => Penandatangan::where('is_active', true)->count(),
+            ],
+            // Dasar Hukum Stats
+            'dasar_hukum' => [
+                'total' => DasarHukum::count(),
+                'aktif' => DasarHukum::where('status', 'aktif')->count(),
+            ],
+            // SK Stats
+            'sk' => [
+                'total' => SkKpa::count(),
+                'draft' => SkKpa::where('status', 'draft')->count(),
+                'diterbitkan' => SkKpa::where('status', 'diterbitkan')->count(),
+                'dibatalkan' => SkKpa::where('status', 'dibatalkan')->count(),
+            ],
+            // SPK Stats
+            'spk' => [
+                'total' => Spk::count(),
+            ],
+            // Petugas by Type
+            'petugas_detail' => [
+                'organik' => Petugas::where('jenis_petugas', 'organik')->where('status', 'aktif')->count(),
+                'non_organik' => Petugas::where('jenis_petugas', 'non-organik')->where('status', 'aktif')->count(),
+            ],
+            // Kegiatan by Type
+            'kegiatan_detail' => [
+                'sensus' => Kegiatan::where('jenis_kegiatan', 'sensus')->whereIn('status', ['aktif', 'divalidasi'])->count(),
+                'survei' => Kegiatan::where('jenis_kegiatan', 'survei')->whereIn('status', ['aktif', 'divalidasi'])->count(),
+            ],
+            // Alokasi by Status
+            'alokasi_detail' => [
+                'draft' => PeriodeAlokasi::where('status', 'draft')->count(),
+                'diajukan' => PeriodeAlokasi::where('status', 'diajukan')->count(),
+                'disetujui' => PeriodeAlokasi::where('status', 'disetujui')->count(),
+                'ditolak' => PeriodeAlokasi::where('status', 'ditolak')->count(),
+            ],
         ];
 
         // Get recent activities based on user role
@@ -118,6 +180,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'stats' => $stats,
+            'additionalStats' => $additionalStats,
             'recentAlokasi' => $recentAlokasi,
             'kegiatanBulanIni' => $kegiatanBulanIni,
             'currentMonth' => $currentMonth,

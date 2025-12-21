@@ -16,8 +16,16 @@ import {
     CheckCircle,
     XCircle,
     AlertTriangle,
+    Database,
+    FolderOpen,
+    UserCheck,
+    BookOpen,
+    FileSignature,
+    ScrollText,
+    TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -31,6 +39,52 @@ interface DashboardStats {
     total_kegiatan: number;
     alokasi_pending: number;
     bast_pending: number;
+}
+
+interface AdditionalStats {
+    sbml: {
+        total: number;
+        aktif: number;
+        nonaktif: number;
+    };
+    dipa: {
+        total: number;
+        aktif: number;
+        nonaktif: number;
+    };
+    penandatangan: {
+        total: number;
+        kepala: number;
+        ppk: number;
+        aktif: number;
+    };
+    dasar_hukum: {
+        total: number;
+        aktif: number;
+    };
+    sk: {
+        total: number;
+        draft: number;
+        diterbitkan: number;
+        dibatalkan: number;
+    };
+    spk: {
+        total: number;
+    };
+    petugas_detail: {
+        organik: number;
+        non_organik: number;
+    };
+    kegiatan_detail: {
+        sensus: number;
+        survei: number;
+    };
+    alokasi_detail: {
+        draft: number;
+        diajukan: number;
+        disetujui: number;
+        ditolak: number;
+    };
 }
 
 interface KegiatanBulanIni {
@@ -61,6 +115,7 @@ interface KegiatanBulanIni {
 
 interface DashboardProps {
     stats: DashboardStats;
+    additionalStats: AdditionalStats;
     recentAlokasi: any[];
     kegiatanBulanIni: KegiatanBulanIni[];
     currentMonth: number;
@@ -75,6 +130,7 @@ const monthNames = [
 
 export default function Dashboard({
     stats,
+    additionalStats,
     recentAlokasi,
     kegiatanBulanIni,
     currentMonth,
@@ -139,6 +195,245 @@ export default function Dashboard({
                             </div>
                             <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30">
                                 <AlertCircle className="size-6 text-purple-600 dark:text-purple-400" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Comprehensive Statistics */}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {/* SBML Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-indigo-100 p-3 dark:bg-indigo-900/30">
+                                <Database className="size-5 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SBML</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.sbml.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sbml.aktif}</span>
+                                    <StatusBadge status="aktif" showIcon={false} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Nonaktif</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sbml.nonaktif}</span>
+                                    <StatusBadge status="nonaktif" showIcon={false} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* DIPA Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/30">
+                                <FolderOpen className="size-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">DIPA</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.dipa.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dipa.aktif}</span>
+                                    <StatusBadge status="aktif" showIcon={false} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Nonaktif</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dipa.nonaktif}</span>
+                                    <StatusBadge status="nonaktif" showIcon={false} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Penandatangan Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-violet-100 p-3 dark:bg-violet-900/30">
+                                <UserCheck className="size-5 text-violet-600 dark:text-violet-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Penandatangan</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.penandatangan.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Kepala</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.kepala}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">PPK</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.ppk}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Aktif</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.aktif}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Dasar Hukum Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-cyan-100 p-3 dark:bg-cyan-900/30">
+                                <BookOpen className="size-5 text-cyan-600 dark:text-cyan-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Dasar Hukum</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.dasar_hukum.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dasar_hukum.aktif}</span>
+                                    <StatusBadge status="aktif" showIcon={false} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SK Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-rose-100 p-3 dark:bg-rose-900/30">
+                                <FileSignature className="size-5 text-rose-600 dark:text-rose-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SK Petugas</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.sk.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Draft</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.draft}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Diterbitkan</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.diterbitkan}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Dibatalkan</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.dibatalkan}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SPK Stats */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-orange-100 p-3 dark:bg-orange-900/30">
+                                <ScrollText className="size-5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SPK</h3>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.spk.total}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-600 dark:text-neutral-400">Total SPK Diterbitkan</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.spk.total}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Detailed Breakdown */}
+                <div className="grid gap-6 md:grid-cols-3">
+                    {/* Petugas Detail */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-sky-100 p-3 dark:bg-sky-900/30">
+                                <Users className="size-5 text-sky-600 dark:text-sky-400" />
+                            </div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Petugas by Jenis</h3>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Organik</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.petugas_detail.organik}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Non-Organik</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.petugas_detail.non_organik}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Kegiatan Detail */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-teal-100 p-3 dark:bg-teal-900/30">
+                                <Briefcase className="size-5 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Kegiatan by Jenis</h3>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Sensus</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.kegiatan_detail.sensus}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Survei</span>
+                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.kegiatan_detail.survei}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Alokasi Detail */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg bg-fuchsia-100 p-3 dark:bg-fuchsia-900/30">
+                                <TrendingUp className="size-5 text-fuchsia-600 dark:text-fuchsia-400" />
+                            </div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Alokasi by Status</h3>
+                        </div>
+                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Draft</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.draft}</span>
+                                    <StatusBadge status="draft" showIcon={false} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Diajukan</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.diajukan}</span>
+                                    <StatusBadge status="diajukan" showIcon={false} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Disetujui</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.disetujui}</span>
+                                    <StatusBadge status="disetujui" showIcon={false} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Ditolak</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.ditolak}</span>
+                                    <StatusBadge status="ditolak" showIcon={false} />
+                                </div>
                             </div>
                         </div>
                     </div>

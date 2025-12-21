@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nomor_spk')->unique();
             $table->foreignId('sk_kpa_id')->constrained('sk_kpa')->cascadeOnDelete();
-            $table->foreignId('alokasi_petugas_id')->constrained('alokasi_petugas')->cascadeOnDelete();
+            $table->foreignId('alokasi_mitra_id')->constrained('alokasi_mitra')->cascadeOnDelete();
             $table->date('tanggal_spk');
             $table->date('tanggal_mulai_kerja');
             $table->date('tanggal_selesai_kerja');
