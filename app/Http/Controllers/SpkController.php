@@ -34,7 +34,8 @@ class SpkController extends Controller
                 },
             ])
             ->whereHas('kegiatan', function ($q) use ($activeYear) {
-                $q->where('tahun_anggaran', $activeYear);
+                $q->where('tahun_anggaran', $activeYear)
+                    ->where('jenis_kegiatan', 'survei'); // Only survei activities
             })
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
@@ -175,6 +176,9 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereHas('kegiatan', function ($q) {
+                $q->where('jenis_kegiatan', 'survei'); // Only survei activities
+            })
             ->pluck('id');
 
         // Get all SPKs created in this month
@@ -253,6 +257,9 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
+            ->whereHas('kegiatan', function ($q) {
+                $q->where('jenis_kegiatan', 'survei'); // Only survei activities
+            })
             ->pluck('id');
 
         // Get all SPKs in this month
@@ -408,6 +415,9 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereHas('kegiatan', function ($q) {
+                $q->where('jenis_kegiatan', 'survei'); // Only survei activities
+            })
             ->pluck('id');
 
         // Get all SPKs in this month that have files
