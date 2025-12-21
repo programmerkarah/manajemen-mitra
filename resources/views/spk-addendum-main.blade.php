@@ -139,9 +139,11 @@
     @endphp
     <!-- HEADER -->
     <div class="header">
-        <h3 style="text-decoration: underline; margin-bottom: 5px;">{{ strtoupper($addendumLabel) }}</h3>
-        <h3>SURAT PERJANJIAN KERJA</h3>
-        <h3>PETUGAS LAPANGAN BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
+        <h3>{{ strtoupper($addendumLabel) }}</h3>
+        <h3>PERJANJIAN KERJA KEGIATAN SENSUS DAN SURVEI
+BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
+        <h3>BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
+        <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         <div style="font-weight: bold; text-align: center;">NOMOR: {{ $nomorSpk }}</div>
     </div>
     <!-- CONTENT -->
