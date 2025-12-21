@@ -46,13 +46,19 @@ class HandleInertiaRequests extends Middleware
         // Use viewAsUser if available, otherwise use actual logged-in user
         $displayUser = $viewAsUser ?? $user;
 
+        // Force refresh user data from database to get latest roles
+        if ($displayUser) {
+            $displayUser->refresh();
+            $displayUser->load(['roles']);
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $displayUser ? array_merge(
-                    $displayUser->load('roles')->toArray(),
+                    $displayUser->toArray(),
                     ['active_role' => $displayUser->active_role]
                 ) : null,
                 'activeRole' => $displayUser ? $displayUser->getActiveRole() : null,

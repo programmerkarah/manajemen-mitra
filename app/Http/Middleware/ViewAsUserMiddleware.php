@@ -22,6 +22,10 @@ class ViewAsUserMiddleware
                 $viewAsUser = User::with('roles')->find($viewAsUserId);
 
                 if ($viewAsUser) {
+                    // Refresh to get latest data from database
+                    $viewAsUser->refresh();
+                    $viewAsUser->load(['roles']);
+                    
                     // Store both original and viewed user in request attributes
                     $request->attributes->set('original_user', $request->user());
                     $request->attributes->set('view_as_user', $viewAsUser);

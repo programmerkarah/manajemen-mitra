@@ -21,6 +21,10 @@ class CheckActiveRole
             return redirect()->route('login');
         }
 
+        // Refresh user to get latest roles from database
+        $user->refresh();
+        $user->load(['roles']);
+
         // If no roles specified, just ensure user has active role
         if (empty($roles)) {
             if (! $user->getActiveRole()) {
