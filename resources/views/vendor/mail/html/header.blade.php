@@ -5,7 +5,7 @@
             <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
                 <tr>
                     <td align="center" style="padding: 0 0 20px 0;">
-                        <img src="{{ config('app.url') }}/icon.svg" alt="SIMANTIK" width="48" height="48" style="display: block; width: 48px; height: 48px; margin: 0 auto;" />
+                        <img src="{{ config('app.url') }}/icon.png" alt="SIMANTIK" width="48" height="48" style="display: block; width: 48px; height: 48px; margin: 0 auto;" />
                     </td>
                 </tr>
                 <tr>

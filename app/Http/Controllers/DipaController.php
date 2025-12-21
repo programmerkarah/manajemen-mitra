@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\Dipa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,13 +15,14 @@ class DipaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $query = Dipa::query();
 
         // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nomor_dipa', 'like', "%{$search}%")
                     ->orWhere('tahun', 'like', "%{$search}%");
@@ -28,14 +30,14 @@ class DipaController extends Controller
         }
 
         // Filter by status
-        if ($request->filled('status')) {
-            $isActive = $request->status === 'aktif';
+        if (! empty($validated['status'])) {
+            $isActive = $validated['status'] === 'aktif';
             $query->where('is_active', $isActive);
         }
 
         // Filter by tahun
-        if ($request->filled('tahun')) {
-            $query->where('tahun', $request->tahun);
+        if (! empty($validated['tahun'])) {
+            $query->where('tahun', (int) $validated['tahun']);
         }
 
         $dipaList = $query->orderBy('tahun', 'desc')

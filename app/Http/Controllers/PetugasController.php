@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\PetugasTemplateExport;
+use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StorePetugasRequest;
 use App\Http\Requests\UpdatePetugasRequest;
 use App\Imports\PetugasImport;
@@ -19,13 +20,14 @@ class PetugasController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $query = Petugas::query();
 
         // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama', 'like', "%{$search}%")
                     ->orWhere('nik', 'like', "%{$search}%")
@@ -34,18 +36,18 @@ class PetugasController extends Controller
         }
 
         // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
         }
 
         // Filter by tahun bergabung
-        if ($request->filled('tahun')) {
-            $query->where('tahun_bergabung', $request->tahun);
+        if (! empty($validated['tahun'])) {
+            $query->where('tahun_bergabung', (int) $validated['tahun']);
         }
 
         // Filter by jenis petugas
-        if ($request->filled('jenis_petugas')) {
-            $query->where('jenis_petugas', $request->jenis_petugas);
+        if (! empty($validated['jenis_petugas'])) {
+            $query->where('jenis_petugas', $validated['jenis_petugas']);
         }
 
         $petugas = $query->latest()->paginate(15)->withQueryString();

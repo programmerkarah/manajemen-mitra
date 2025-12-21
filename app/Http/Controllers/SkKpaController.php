@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\SkKpa;
@@ -16,8 +17,9 @@ class SkKpaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $activeYear = ActiveYearService::get();
 
         // Get kegiatan that have validated periods (dikirim status)
@@ -35,8 +37,8 @@ class SkKpaController extends Controller
             ->where('tahun_anggaran', $activeYear);
 
         // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('deskripsi', 'like', "%{$search}%");
@@ -44,8 +46,8 @@ class SkKpaController extends Controller
         }
 
         // Filter by jenis kegiatan
-        if ($request->filled('jenis_kegiatan')) {
-            $query->where('jenis_kegiatan', $request->jenis_kegiatan);
+        if (! empty($validated['jenis_kegiatan'])) {
+            $query->where('jenis_kegiatan', $validated['jenis_kegiatan']);
         }
 
         $kegiatan = $query->latest()->paginate(15)->withQueryString();

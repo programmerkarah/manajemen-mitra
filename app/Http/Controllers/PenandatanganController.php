@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\Penandatangan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,13 +14,14 @@ class PenandatanganController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $query = Penandatangan::query();
 
         // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama', 'like', "%{$search}%")
                     ->orWhere('nip', 'like', "%{$search}%")
@@ -28,13 +30,13 @@ class PenandatanganController extends Controller
         }
 
         // Filter by jenis
-        if ($request->filled('jenis')) {
-            $query->where('jenis_penandatangan', $request->jenis);
+        if (! empty($validated['jenis'])) {
+            $query->where('jenis_penandatangan', $validated['jenis']);
         }
 
         // Filter by status
-        if ($request->filled('status')) {
-            $isActive = $request->status === 'aktif';
+        if (! empty($validated['status'])) {
+            $isActive = $validated['status'] === 'aktif';
             $query->where('is_active', $isActive);
         }
 

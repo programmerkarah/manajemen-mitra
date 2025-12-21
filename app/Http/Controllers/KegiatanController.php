@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreKegiatanRequest;
 use App\Http\Requests\UpdateKegiatanRequest;
 use App\Models\Kegiatan;
@@ -23,16 +24,17 @@ class KegiatanController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $activeYear = ActiveYearService::get();
         $query = Kegiatan::query()
             ->with('ketuaTim')
             ->where('tahun_anggaran', $activeYear);
 
         // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
@@ -40,8 +42,8 @@ class KegiatanController extends Controller
         }
 
         // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
         }
 
         // Filter by Ketua Tim for ketua_tim role

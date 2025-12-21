@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
@@ -18,8 +19,9 @@ class SpkController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $activeYear = \App\Services\ActiveYearService::get();
 
         // Get periode alokasi yang sudah validated grouped by month
@@ -38,8 +40,8 @@ class SpkController extends Controller
             ->where('tahun', $activeYear);
 
         // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
@@ -47,8 +49,8 @@ class SpkController extends Controller
         }
 
         // Filter by bulan
-        if ($request->filled('bulan')) {
-            $query->where('bulan', $request->bulan);
+        if (! empty($validated['bulan'])) {
+            $query->where('bulan', (int) $validated['bulan']);
         }
 
         $periodes = $query->latest()->get();
@@ -81,14 +83,14 @@ class SpkController extends Controller
                 ->map(function ($periodesByKegiatan) {
                     // Use the first periode for this kegiatan
                     $firstPeriode = $periodesByKegiatan->first();
-                    
+
                     // Sum all non-organik petugas across all periode statuses for this kegiatan
                     $totalPetugasNonOrganik = $periodesByKegiatan->sum(function ($periode) {
                         return $periode->alokasiPetugas->filter(function ($alokasi) {
                             return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
                         })->count();
                     });
-                    
+
                     return [
                         'periode_id' => $firstPeriode->id,
                         'periode_hashed_id' => $firstPeriode->hashed_id,
@@ -108,7 +110,7 @@ class SpkController extends Controller
             $hasRevision = $monthPeriodes->contains(function ($periode) {
                 return in_array($periode->status, ['direvisi', 'perubahan']);
             });
-            
+
             // Check if any SPK already has addendum
             $hasAddendum = $monthPeriodes->flatMap(function ($periode) {
                 return $periode->spk;
@@ -162,7 +164,7 @@ class SpkController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
-        if (!$bulan || !$tahun) {
+        if (! $bulan || ! $tahun) {
             return redirect()->route('spk.index');
         }
 
@@ -187,7 +189,7 @@ class SpkController extends Controller
             })
             ->orderBy('nomor_spk')
             ->get()
-            ->map(function ($spk) use ($bulan, $tahun, $allPeriodeInMonth) {
+            ->map(function ($spk) use ($allPeriodeInMonth) {
                 $petugas = $spk->alokasiPetugas->petugas;
 
                 // Get all kegiatan for this petugas in this month
@@ -240,7 +242,7 @@ class SpkController extends Controller
         $tahun = $request->input('tahun');
         $spkHashedId = $request->input('spk');
 
-        if (!$bulan || !$tahun) {
+        if (! $bulan || ! $tahun) {
             return redirect()->route('spk.index');
         }
 
@@ -273,9 +275,9 @@ class SpkController extends Controller
             $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
             $spk = $allSpks->firstWhere('id', $spkId);
         }
-        
+
         // If not found or not specified, use first SPK
-        if (!$spk) {
+        if (! $spk) {
             $spk = $allSpks->first();
         }
 
@@ -319,24 +321,24 @@ class SpkController extends Controller
         $originalSpk = $spk->parent_spk_id ? $spk->parentSpk : $spk;
         $allSpkDocuments = Spk::where(function ($q) use ($originalSpk) {
             $q->where('id', $originalSpk->id)
-              ->orWhere('parent_spk_id', $originalSpk->id);
+                ->orWhere('parent_spk_id', $originalSpk->id);
         })
-        ->orderBy('addendum_number', 'asc')
-        ->get()
-        ->map(function ($s) {
-            return [
-                'id' => $s->id,
-                'hashed_id' => $s->hashed_id,
-                'nomor_spk' => $s->nomor_spk,
-                'tanggal_spk' => $s->tanggal_spk,
-                'addendum_number' => $s->addendum_number,
-                'file_path' => $s->file_path,
-                'status' => $s->status,
-                'created_by' => $s->createdBy->name ?? 'System',
-                'created_at' => $s->created_at->format('d M Y H:i'),
-                'updated_at' => $s->updated_at->format('d M Y H:i'),
-            ];
-        });
+            ->orderBy('addendum_number', 'asc')
+            ->get()
+            ->map(function ($s) {
+                return [
+                    'id' => $s->id,
+                    'hashed_id' => $s->hashed_id,
+                    'nomor_spk' => $s->nomor_spk,
+                    'tanggal_spk' => $s->tanggal_spk,
+                    'addendum_number' => $s->addendum_number,
+                    'file_path' => $s->file_path,
+                    'status' => $s->status,
+                    'created_by' => $s->createdBy->name ?? 'System',
+                    'created_at' => $s->created_at->format('d M Y H:i'),
+                    'updated_at' => $s->updated_at->format('d M Y H:i'),
+                ];
+            });
 
         return Inertia::render('Spk/ShowByMonth', [
             'spk' => [
@@ -395,7 +397,7 @@ class SpkController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
-        if (!$bulan || !$tahun) {
+        if (! $bulan || ! $tahun) {
             return redirect()->route('spk.index')->with('error', 'Bulan dan tahun harus diisi');
         }
 
@@ -424,13 +426,13 @@ class SpkController extends Controller
         }
 
         // Create ZIP file
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
-        $zipFileName = "SPK_{$bulanLabel}_{$tahun}_" . time() . '.zip';
-        $zipPath = storage_path('app/temp/' . $zipFileName);
+        $zipFileName = "SPK_{$bulanLabel}_{$tahun}_".time().'.zip';
+        $zipPath = storage_path('app/temp/'.$zipFileName);
 
         // Create temp directory if not exists
-        if (!file_exists(storage_path('app/temp'))) {
+        if (! file_exists(storage_path('app/temp'))) {
             mkdir(storage_path('app/temp'), 0755, true);
         }
 
@@ -460,7 +462,7 @@ class SpkController extends Controller
     {
         $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
 
-        if (!$spkId) {
+        if (! $spkId) {
             abort(404);
         }
 
@@ -479,24 +481,24 @@ class SpkController extends Controller
         $file = $request->file('file');
         $periode = $spk->alokasiPetugas->periodeAlokasi;
         $petugas = $spk->alokasiPetugas->petugas;
-        
+
         // Extract nomor urut
         $nomorParts = explode('/', $spk->nomor_spk);
         $nomorUrut = $nomorParts[2] ?? '0';
-        
+
         $namaKegiatan = preg_replace('/[\/\\\:*?"<>|]/', '', $periode->kegiatan->nama_kegiatan);
         $namaPetugas = preg_replace('/[\/\\\:*?"<>|]/', '', $petugas->nama);
         $bulanLabel = $this->getBulanLabel($periode->bulan);
-        
+
         $fileName = "SPK {$nomorUrut}_{$namaPetugas}_{$namaKegiatan}_{$bulanLabel}_{$periode->tahun}_signed.pdf";
         $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
-        
+
         // Create directory if not exists
         $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
-        if (!file_exists($publicPath)) {
+        if (! file_exists($publicPath)) {
             mkdir($publicPath, 0755, true);
         }
-        
+
         $file->move($publicPath, $fileName);
 
         // Update SPK
@@ -518,7 +520,7 @@ class SpkController extends Controller
             ->orderByRaw('CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(nomor_spk, "/", 3), "/", -1) AS UNSIGNED) DESC')
             ->first();
 
-        if (!$lastSpk) {
+        if (! $lastSpk) {
             return 1;
         }
 
@@ -568,7 +570,7 @@ class SpkController extends Controller
         $petugasList = $allAlokasi->groupBy('petugas_id')
             ->map(function ($alokasiGroup) {
                 $firstAlokasi = $alokasiGroup->first();
-                
+
                 // Calculate total honor across all kegiatan
                 $totalHonor = $alokasiGroup->sum(function ($alokasi) {
                     return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
@@ -636,7 +638,7 @@ class SpkController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
-        if (! $periodeId || !$bulan || !$tahun) {
+        if (! $periodeId || ! $bulan || ! $tahun) {
             abort(404);
         }
 
@@ -665,7 +667,7 @@ class SpkController extends Controller
         $petugasList = $allAlokasi->groupBy('petugas_id')
             ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun) {
                 $firstAlokasi = $alokasiGroup->first();
-                
+
                 // Get existing SPK for this petugas in this month
                 $existingSpk = Spk::whereHas('alokasiPetugas', function ($q) use ($firstAlokasi, $bulanFormatted, $tahun) {
                     $q->where('petugas_id', $firstAlokasi->petugas_id)
@@ -674,10 +676,10 @@ class SpkController extends Controller
                                 ->where('tahun', $tahun);
                         });
                 })
-                ->where('addendum_number', 0) // Get original SPK only
-                ->first();
+                    ->where('addendum_number', 0) // Get original SPK only
+                    ->first();
 
-                if (!$existingSpk) {
+                if (! $existingSpk) {
                     return null; // Skip petugas without original SPK
                 }
 
@@ -699,7 +701,7 @@ class SpkController extends Controller
                 $lastAddendum = Spk::where('parent_spk_id', $existingSpk->id)
                     ->orderBy('addendum_number', 'desc')
                     ->first();
-                
+
                 $nextAddendumNumber = $lastAddendum ? $lastAddendum->addendum_number + 1 : 1;
 
                 return [
@@ -801,15 +803,15 @@ class SpkController extends Controller
         // Build kegiatan list
         $kegiatanList = $allAlokasi->map(function ($alokasi) {
             $periode = $alokasi->periodeAlokasi;
-            
+
             // Get satuan from rate honor
             $rateHonor = $periode->kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
                 return $rate->status_kepegawaian === $alokasi->status_kepegawaian
                     && $rate->jenis_penugasan === $alokasi->peran;
             });
-            
+
             $satuanKode = $rateHonor && $rateHonor->satuan ? $rateHonor->satuan->kode : 'PAKET';
-            
+
             return [
                 'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
                 'kode_coa' => $periode->kegiatan->kode_coa,
@@ -935,15 +937,15 @@ class SpkController extends Controller
             // Build kegiatan list
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
                 $periode = $alokasi->periodeAlokasi;
-                
+
                 // Get satuan from rate honor
                 $rateHonor = $periode->kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
                     return $rate->status_kepegawaian === $alokasi->status_kepegawaian
                         && $rate->jenis_penugasan === $alokasi->peran;
                 });
-                
+
                 $satuanKode = $rateHonor && $rateHonor->satuan ? $rateHonor->satuan->kode : 'PAKET';
-                
+
                 return [
                     'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
                     'kode_coa' => $periode->kegiatan->kode_coa,
@@ -999,13 +1001,13 @@ class SpkController extends Controller
             // Save to public directory (same as regular SPK)
             $fileName = 'SPK-ADDENDUM-'.$validated['addendum_number'].'-'.$petugas->nama.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
             $filePath = "spk-export/{$tahun}/{$bulanFormatted}/{$fileName}";
-            
+
             // Create directory if not exists
             $publicPath = public_path("spk-export/{$tahun}/{$bulanFormatted}");
-            if (!file_exists($publicPath)) {
+            if (! file_exists($publicPath)) {
                 mkdir($publicPath, 0755, true);
             }
-            
+
             // Save PDF to public directory
             file_put_contents(public_path($filePath), $pdfContent);
 
@@ -1525,21 +1527,21 @@ class SpkController extends Controller
             // Extract nomor urut from nomor_spk format: PPIS/13730/4/K/2025 -> get "4"
             $nomorParts = explode('/', $data['nomorSpk']);
             $nomorUrut = $nomorParts[2] ?? '0'; // Index 2 is the sequential number
-            
+
             // Clean filename - remove special characters that are invalid for filenames
             $namaKegiatan = preg_replace('/[\/\\\\:*?"<>|]/', '', $data['kegiatan']->nama_kegiatan);
             $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
             $bulanLabel = $this->getBulanLabel($periode->bulan);
-            
+
             $fileName = "SPK {$nomorUrut}_{$namaPetugas}_{$namaKegiatan}_{$bulanLabel}_{$periode->tahun}.pdf";
             $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
-            
+
             // Create directory if not exists
             $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
-            if (!file_exists($publicPath)) {
+            if (! file_exists($publicPath)) {
                 mkdir($publicPath, 0755, true);
             }
-            
+
             // Save to public directory
             file_put_contents(public_path($filePath), $pdfOutput);
 

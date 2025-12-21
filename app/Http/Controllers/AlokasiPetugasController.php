@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreAlokasiPetugasRequest;
 use App\Http\Requests\UpdateAlokasiPetugasRequest;
 use App\Models\AlokasiPetugas;
@@ -23,8 +24,9 @@ class AlokasiPetugasController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
+        $validated = $request->validated();
         $activeYear = ActiveYearService::get();
         $query = PeriodeAlokasi::query()
             ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating', 'alokasiPetugas'])
@@ -34,8 +36,8 @@ class AlokasiPetugasController extends Controller
             ->where('tahun', $activeYear);
 
         // Search by kegiatan
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
@@ -43,13 +45,13 @@ class AlokasiPetugasController extends Controller
         }
 
         // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
         }
 
         // Filter by bulan
-        if ($request->filled('bulan')) {
-            $query->where('bulan', $request->bulan);
+        if (! empty($validated['bulan'])) {
+            $query->where('bulan', (int) $validated['bulan']);
         }
 
         // Filter for Ketua Tim - only their kegiatan
