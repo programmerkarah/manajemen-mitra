@@ -1756,6 +1756,11 @@ class SpkController extends Controller
         // Get active Kepala BPS
         $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
 
+        // Check if any kegiatan contains 'Ubinan'
+        $hasUbinanKegiatan = collect($data['kegiatan_list'])->contains(function ($kegiatan) {
+            return stripos($kegiatan['nama_kegiatan'], 'Ubinan') !== false;
+        });
+
         $pdfData = [
             'nomorSpk' => $data['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($data['tanggal_spk']),
@@ -1769,6 +1774,7 @@ class SpkController extends Controller
             'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'bulan_label' => $data['periode']['bulan_label'],
             'tahun' => $data['periode']['tahun'],
+            'hasUbinanKegiatan' => $hasUbinanKegiatan,
         ];
 
         // Generate addendum main PDF

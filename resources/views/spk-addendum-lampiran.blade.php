@@ -142,28 +142,42 @@
             @php $totalAllHonor = 0; $rowNumber = 1; @endphp
             @foreach ($kegiatan_list as $kegiatan)
                 @php
-                    // Untuk setiap kegiatan, bisa punya 2 baris: pencacahan dan listing (jika ada)
-                    $uraianTugasPencacahan = $kegiatan['nama_kegiatan'] . ' - ' . $kegiatan['peran_label'];
-                    
+                    // Tentukan label peran sesuai aturan
+                    $periodeType = '';
+                    if (!empty($kegiatan['periode_mulai']) && !empty($kegiatan['periode_selesai'])) {
+                        $periodeType = (str_contains(strtolower($kegiatan['nama_kegiatan']), 'listing')) ? 'listing' : 'lapangan';
+                    }
+
+                    $peranLabelPencacahan = '';
+                    if (strtolower($kegiatan['peran']) === 'pcl_ppl') {
+                        $peranLabelPencacahan = $periodeType === 'listing' ? 'pemutakhiran' : 'pendataan lapangan';
+                    } elseif (strtolower($kegiatan['peran']) === 'pemeriksa') {
+                        $peranLabelPencacahan = $periodeType === 'listing' ? 'pemeriksaan pemutakhiran' : 'pemeriksaan pendataan lapangan';
+                    } else {
+                        $peranLabelPencacahan = strtolower($kegiatan['peran_label']);
+                    }
+
+                    $uraianTugasPencacahan = 'Melaksanakan ' . $peranLabelPencacahan . ' pada ' . $kegiatan['nama_kegiatan'];
+
                     // Gunakan periode dari kegiatan jika ada, fallback ke tanggal SPK
                     if (!empty($kegiatan['periode_mulai']) && !empty($kegiatan['periode_selesai'])) {
                         $jangkaWaktu = \Carbon\Carbon::parse($kegiatan['periode_mulai'])->format('d') . '-' . \Carbon\Carbon::parse($kegiatan['periode_selesai'])->format('d') . ' ' . \Carbon\Carbon::parse($kegiatan['periode_mulai'])->locale('id')->translatedFormat('F Y');
                     } else {
                         $jangkaWaktu = $tanggalSpk->format('d') . '-' . $sampaiTanggal->format('d') . ' ' . $tanggalSpk->locale('id')->translatedFormat('F Y');
                     }
-                    
+
                     $bebanAnggaran = $kegiatan['kode_coa'] ?? '-';
-                    
+
                     // Data Pencacahan
                     $volumePencacahan = $kegiatan['jumlah_satuan'] ?? 0;
                     $totalHonorPencacahan = $kegiatan['total_honor'] ?? 0;
                     $hargaSatuanPencacahan = $volumePencacahan > 0 ? $totalHonorPencacahan / $volumePencacahan : 0;
-                    
+
                     // Data Listing (jika ada)
                     $volumeListing = $kegiatan['jumlah_satuan_listing'] ?? 0;
                     $totalHonorListing = $kegiatan['total_honor_listing'] ?? 0;
                     $hargaSatuanListing = $volumeListing > 0 ? $totalHonorListing / $volumeListing : 0;
-                    
+
                     $totalAllHonor += $totalHonorPencacahan + $totalHonorListing;
                 @endphp
             

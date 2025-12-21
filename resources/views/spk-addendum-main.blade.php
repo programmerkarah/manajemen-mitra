@@ -71,6 +71,38 @@
             margin: 10px 0 10px 30px;
         }
 
+        .parties {
+            margin: 20px 0 20px 30px;
+            page-break-inside: avoid;
+        }
+
+        .party {
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        .party-number {
+            float: left;
+            width: 30px;
+        }
+
+        .party-name {
+            float: left;
+            width: 200px;
+            font-weight: bold;
+        }
+
+        .party-colon {
+            float: left;
+            width: 20px;
+        }
+
+        .party-detail {
+            margin-left: 250px;
+            text-align: justify;
+        }
+
         .pasal-section {
             page-break-inside: avoid;
             margin: 15px 0;
@@ -80,6 +112,60 @@
             text-align: center;
             font-weight: bold;
             page-break-after: avoid;
+            margin-bottom: 10px;
+        }
+
+        .pasal {
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .pasal-header-group {
+            margin-bottom: 15px;
+        }
+
+        .pasal-list {
+            margin-left: 0;
+        }
+
+        .pasal-item {
+            margin-bottom: 10px;
+            display: table;
+            width: 100%;
+        }
+
+        .pasal-item-number {
+            display: table-cell;
+            width: 40px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        .pasal-item-content {
+            display: table-cell;
+            vertical-align: top;
+            text-align: justify;
+            padding-left: 10px;
+        }
+
+        .sub-item {
+            margin-top: 8px;
+            display: table;
+            width: 100%;
+        }
+
+        .sub-item-letter {
+            display: table-cell;
+            width: 30px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        .sub-item-content {
+            display: table-cell;
+            vertical-align: top;
+            text-align: justify;
+            padding-left: 5px;
         }
 
         .signature-section {
@@ -139,37 +225,54 @@
     @endphp
     <!-- HEADER -->
     <div class="header">
-        <h3>{{ strtoupper($addendumLabel) }}</h3>
+        <h3>PERUBAHAN/{{ strtoupper($addendumLabel) }}</h3>
         <h3>PERJANJIAN KERJA KEGIATAN SENSUS DAN SURVEI
-BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         <h3>BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
-        <div style="font-weight: bold; text-align: center;">NOMOR: {{ $nomorSpk }}</div>
+        <h3>NOMOR: {{ $parent_nomor_spk }}</h3>
+        <div style="text-align: center;">NOMOR: {{ $nomorSpk }}</div>
     </div>
     <!-- CONTENT -->
     <div class="content">
         <p style="margin-bottom: 15px;">
-            <strong>{{ $addendumLabel }}</strong> ini merupakan bagian yang tidak terpisahkan dari Surat Perjanjian Kerja Nomor {{ $parent_nomor_spk }} yang selanjutnya disebut Perjanjian, dibuat dan ditandatangani di Sawahlunto pada hari {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ terbilang($tanggalSpk->format('d')) }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} tahun {{ terbilang($tanggalSpk->format('Y')) }}.
+            Pada hari ini, {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ terbilang($tanggalSpk->format('d')) }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} tahun {{ terbilang($tanggalSpk->format('Y'))}}, yang bertanda tangan di bawah ini:
         </p>
 
-        <p style="text-align: center; margin-bottom: 10px;">Oleh dan antara:</p>
+        <div class="parties">
+            <div class="party">
+                <div class="party-number">1.</div>
+                <div class="party-name"><strong>{{ strtoupper($penandatangan) }}</strong></div>
+                <div class="party-colon">:</div>
+                <div class="party-detail">
+                    Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto, berkedudukan di Jalan Bagindo Aziz Chan Kelurahan Aur Mulyo Kecamatan Lembah Segar Kota Sawahlunto, bertindak untuk dan atas nama Badan Pusat Statistik Kota Sawahlunto, selanjutnya disebut sebagai <strong>PIHAK PERTAMA</strong>
+                </div>
+            </div>
+
+            <div class="party">
+                <div class="party-number">2.</div>
+                <div class="party-name"><strong>{{ strtoupper($petugas->nama) }}</strong></div>
+                <div class="party-colon">:</div>
+                <div class="party-detail">
+                    Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA</strong>.
+                </div>
+            </div>
+        </div>
         
         <p style="margin-bottom: 10px;">
-            1. Badan Pusat Statistik Kota Sawahlunto, yang dalam hal ini diwakili oleh <strong>{{ $kepalaBps }}</strong> selaku Pejabat Pembuat Komitmen, yang selanjutnya disebut <strong>PIHAK PERTAMA</strong>.
+            bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, dengan ini menyatakan bahwa <strong>PARA PIHAK</strong> telah sepakat untuk mengikatkan diri dalam Perubahan/{{ $addendumLabel }} Perjanjian Kerja Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, dengan ketentuan-ketentuan sebagai berikut:
         </p>
-        
+
         <p style="margin-bottom: 10px;">
-            2. <strong>{{ $petugas->nama }}</strong>, Petugas Pendataan Lapangan Badan Pusat Statistik Kota Sawahlunto Bulan {{ ($bulan_label) }} {{ $tahun }}, yang selanjutnya disebut <strong>PIHAK KEDUA</strong>.
+            Dasar Perubahan/{{ $addendumLabel }} Perjanjian ini yaitu:<br>
+            Terjadi perubahan realisasi pelaksanaan kegiatan yang dilakukan oleh <strong>PIHAK KEDUA</strong> sebagaimana tercantum dalam lampiran {{$addendumLabel}} yang disebabkan adanya {{ $hasUbinanKegiatan? '':  ' Non Response dari responden'}}{{ $hasUbinanKegiatan ? ', dan/atau terjadi lewat panen pada kegiatan Ubinan Padi/Palawija' : '' }}, dan/atau terjadi perubahan wilayah kerja pada kegiatan survei yang mengakibatkan perubahan beban kerja dan/atau honorarium yang diterima oleh <strong>PIHAK KEDUA</strong>.
         </p>
-        
-        <p style="margin-bottom: 10px;">
-            <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> selanjutnya secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengubah dan/atau menambahkan ketentuan dalam Perjanjian sebagai berikut:
-        </p>
+
 
         <div class="pasal-section">
-            <p class="pasal-title"><strong>Pasal 2</strong></p>
+            <p class="pasal-title"><strong>Pasal I</strong></p>
             <p>
-                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran {{$addendumLabel}}, pedoman Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                Mengubah Pasal 6 dan Pasal 10 ayat (1) huruf b. Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sehingga Pasal 6 dan Pasal 10 ayat (1) seluruhnya berbunyi sebagai berikut:
             </p>
         </div>
 
@@ -180,22 +283,49 @@ BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
             </p>
         </div>
 
+        <div class="pasal">
+            <div class="pasal-header-group">
+                <div class="pasal-title">Pasal 10</div>
+            </div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
+                        <div class="sub-item">
+                            <div class="sub-item-letter">a.</div>
+                            <div class="sub-item-content">
+                                mengundurkan diri setelah pelatihan pada kegiatan yang diberikan pelatihan diberikan sanksi sebesar biaya pelatihan tersebut yang dikeluarkan oleh BPS Kota Sawahlunto;
+                            </div>
+                        </div>
+                        <div class="sub-item">
+                            <div class="sub-item-letter">b.</div>
+                            <div class="sub-item-content">
+                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} rupiah).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="pasal-section">
-            <p class="pasal-title"><strong>Pasal 10</strong></p>
+            <p class="pasal-title"><strong>Pasal II</strong></p>
             <p>
-                Mengubah ketentuan Pasal 10 ayat (1) huruf b. pada Perjanjian menjadi:
-            </p>
-            <p style="margin-left: 30px;">
-                b. mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar <strong>Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} Rupiah)</strong>.
+                Mengubah Lampiran pada Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sebagaimana tercantum dalam Lampiran Perubahan/{{$addendumLabel}} ini sebagai bagian yang tidak terpisahkan dari Addendum ini.
             </p>
         </div>
 
-        <p style="margin: 25px 0 15px 0;">
-            Ketentuan-ketentuan lainnya yang tidak diubah dalam Addendum ini tetap berlaku sebagaimana tercantum dalam Perjanjian.
-        </p>
+
+        <div class="pasal-section">
+            <p class="pasal-title"><strong>Pasal III</strong></p>
+            <p>
+                Ketentuan-ketentuan lainnya yang tidak diubah dalam Perubahan/Addendum atas Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} dinyatakan tetap berlaku.
+            </p>
+        </div>
 
         <p style="margin: 15px 0;">
-            Demikian Addendum ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam keadaan sehat jasmani dan rohani tanpa ada paksaan dari pihak manapun, untuk dipergunakan sebagaimana mestinya.
+            Demikian Perubahan/Addendum atas Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli yang mempunyai kekuatan hukum sama dan masing-masing <strong>PIHAK</strong> mendapat 1 (satu) rangkap.
         </p>
     </div>
 
