@@ -245,7 +245,7 @@ export default function Dashboard({
                                                                         {kegiatan.periode_alokasi.jumlah_petugas} petugas
                                                                     </span>
                                                                     {canEditAlokasi && (
-                                                                        <Link href={`/alokasi-periode/${kegiatan.periode_alokasi.hashed_id}`}>
+                                                                        <Link href={`/alokasi/periode/${kegiatan.hashed_id}/${currentYear}/${String(currentMonth).padStart(2, '0')}`}>
                                                                             <Button size="sm" variant="ghost">
                                                                                 <Eye className="size-3 mr-1" />
                                                                                 Lihat
@@ -260,7 +260,7 @@ export default function Dashboard({
                                                                         Belum ada
                                                                     </span>
                                                                     {canEditAlokasi && (
-                                                                        <Link href={`/alokasi-periode/create?kegiatan_id=${kegiatan.hashed_id}`}>
+                                                                        <Link href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}>
                                                                             <Button size="sm" variant="ghost">
                                                                                 <Plus className="size-3 mr-1" />
                                                                                 Buat
