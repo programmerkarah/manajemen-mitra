@@ -27,7 +27,11 @@ export default function RoleSwitcher() {
             {
                 preserveScroll: false,
                 preserveState: false,
-                onFinish: () => setSwitching(false),
+                onSuccess: () => {
+                    // Force full browser reload to clear all caches
+                    window.location.reload()
+                },
+                onError: () => setSwitching(false),
             }
         )
     }
