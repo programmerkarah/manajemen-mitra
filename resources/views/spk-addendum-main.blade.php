@@ -144,7 +144,6 @@
         <h3>PETUGAS LAPANGAN BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
         <div style="font-weight: bold; text-align: center;">NOMOR: {{ $nomorSpk }}</div>
     </div>
-
     <!-- CONTENT -->
     <div class="content">
         <p style="margin-bottom: 15px;">
@@ -204,19 +203,18 @@
         </p>
         <div class="signature-row">
             <div class="signature-left">
-                <br>
-                <p><strong>PIHAK PERTAMA</strong></p>
-                <p style="margin-top: 50px;">
-                    <span class="signature-name">{{ strtoupper($kepalaBps) }}</span>
-                </p>
-            </div>
-            <div class="signature-right">
-            Sawahlunto, {{ $tanggalSpk->format('d') }} {{ $tanggalSpk->locale('id')->translatedFormat('F Y') }}
                 <p><strong>PIHAK KEDUA</strong></p>
                 <p style="margin-top: 50px;">
                     <span class="signature-name">{{ strtoupper($petugas->nama) }}</span>
                 </p>
             </div>
+            <div class="signature-right">
+                <p><strong>PIHAK PERTAMA</strong></p>
+                <p style="margin-top: 50px;">
+                    <span class="signature-name">{{ strtoupper($kepalaBps) }}</span>
+                </p>
+            </div>
+            
         </div>
         <div style="clear: both;"></div>
     </div>
