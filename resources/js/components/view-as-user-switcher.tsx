@@ -55,6 +55,7 @@ export default function ViewAsUserSwitcher() {
                 onSuccess: () => {
                     setOpen(false);
                     setSearch('');
+                    window.location.reload(); // Tambahkan baris ini
                 },
             }
         );

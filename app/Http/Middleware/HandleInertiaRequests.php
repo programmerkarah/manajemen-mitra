@@ -39,9 +39,16 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+
         $user = $request->user();
-        $originalUser = $request->attributes->get('original_user');
-        $viewAsUser = $request->attributes->get('view_as_user');
+        $viewAsUser = null;
+        $originalUser = null;
+
+        // If session has view_as_user_id, set viewAsUser and originalUser
+        if (session()->has('view_as_user_id')) {
+            $viewAsUser = \App\Models\User::find(session('view_as_user_id'));
+            $originalUser = $user;
+        }
 
         // Use viewAsUser if available, otherwise use actual logged-in user
         $displayUser = $viewAsUser ?? $user;
@@ -61,17 +68,18 @@ class HandleInertiaRequests extends Middleware
                     $displayUser->toArray(),
                     ['active_role' => $displayUser->active_role]
                 ) : null,
-                'activeRole' => $displayUser ? $displayUser->getActiveRole() : null,
-                'userRoles' => $displayUser ? $displayUser->roles : [],
+                // Always share the full Role object for activeRole, never just the name
+                'activeRole' => $displayUser && $displayUser->getActiveRole() ? $displayUser->getActiveRole()->toArray() : null,
+                'userRoles' => $displayUser ? $displayUser->roles->map->toArray()->all() : [],
                 'emailVerified' => $displayUser?->hasVerifiedEmail() ?? false,
                 'twoFactorEnabled' => $displayUser?->hasEnabledTwoFactorAuthentication() ?? false,
-                'isViewingAsUser' => $originalUser && $viewAsUser,
+                'isViewingAsUser' => $originalUser !== null && $viewAsUser !== null,
                 'originalUser' => $originalUser ? [
                     'id' => $originalUser->id,
                     'name' => $originalUser->name,
                     'username' => $originalUser->username,
                 ] : null,
-                'canViewAsUser' => ($originalUser?->username ?? $user?->username) === 'rhmtzikri',
+                'canViewAsUser' => ($user?->username ?? null) === 'rhmtzikri',
             ],
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),

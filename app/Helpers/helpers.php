@@ -71,9 +71,13 @@ if (! function_exists('effectiveUser')) {
     {
         $request = $request ?? request();
 
-        // Check if we're viewing as another user
-        $viewAsUser = $request->attributes->get('view_as_user');
+        // If session has view_as_user_id, always use that user
+        if (session()->has('view_as_user_id')) {
+            return \App\Models\User::find(session('view_as_user_id'));
+        }
 
+        // Fallback to request attribute (for legacy/edge cases)
+        $viewAsUser = $request->attributes->get('view_as_user');
         if ($viewAsUser) {
             return $viewAsUser;
         }

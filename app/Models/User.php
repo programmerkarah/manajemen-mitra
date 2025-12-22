@@ -185,45 +185,32 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $activeRoleId = session('active_role_id');
 
-        if (! $activeRoleId) {
-            // Ambil semua role user
-            $roles = $this->roles()->get();
-            // Jika hanya ada 1 role dan bukan guest, set itu sebagai active
-            $nonGuestRoles = $roles->filter(function ($role) {
-                return $role->name !== 'guest';
-            });
-            if ($nonGuestRoles->count() === 1) {
-                $role = $nonGuestRoles->first();
-                session(['active_role_id' => $role->id]);
+        $roles = $this->roles()->get();
+        $nonGuestRoles = $roles->filter(function ($role) {
+            return $role->name !== 'guest';
+        });
 
-                return $role;
+        if (! $activeRoleId) {
+            // Jika hanya ada 1 role dan bukan guest, return langsung
+            if ($nonGuestRoles->count() === 1) {
+                return $nonGuestRoles->first();
             }
             // Jika hanya ada 1 role (apapun itu)
             if ($roles->count() === 1) {
-                $role = $roles->first();
-                session(['active_role_id' => $role->id]);
-
-                return $role;
+                return $roles->first();
             }
             // Jika ada lebih dari 1 role, pilih yang bukan guest sebagai default
             if ($nonGuestRoles->count() > 0) {
-                $role = $nonGuestRoles->first();
-                session(['active_role_id' => $role->id]);
-
-                return $role;
+                return $nonGuestRoles->first();
             }
             // Fallback ke role pertama jika semua guest
             if ($roles->count() > 0) {
-                $role = $roles->first();
-                session(['active_role_id' => $role->id]);
-
-                return $role;
+                return $roles->first();
             }
-
             return null;
         }
 
-        return $this->roles()->find($activeRoleId);
+        return $roles->find($activeRoleId);
     }
 
     /**
