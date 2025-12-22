@@ -186,12 +186,38 @@ class User extends Authenticatable implements MustVerifyEmail
         $activeRoleId = session('active_role_id');
 
         if (! $activeRoleId) {
-            // Default to first role if not set
-            $firstRole = $this->roles()->first();
-            if ($firstRole) {
-                session(['active_role_id' => $firstRole->id]);
+            // Ambil semua role user
+            $roles = $this->roles()->get();
+            // Jika hanya ada 1 role dan bukan guest, set itu sebagai active
+            $nonGuestRoles = $roles->filter(function ($role) {
+                return $role->name !== 'guest';
+            });
+            if ($nonGuestRoles->count() === 1) {
+                $role = $nonGuestRoles->first();
+                session(['active_role_id' => $role->id]);
 
-                return $firstRole;
+                return $role;
+            }
+            // Jika hanya ada 1 role (apapun itu)
+            if ($roles->count() === 1) {
+                $role = $roles->first();
+                session(['active_role_id' => $role->id]);
+
+                return $role;
+            }
+            // Jika ada lebih dari 1 role, pilih yang bukan guest sebagai default
+            if ($nonGuestRoles->count() > 0) {
+                $role = $nonGuestRoles->first();
+                session(['active_role_id' => $role->id]);
+
+                return $role;
+            }
+            // Fallback ke role pertama jika semua guest
+            if ($roles->count() > 0) {
+                $role = $roles->first();
+                session(['active_role_id' => $role->id]);
+
+                return $role;
             }
 
             return null;

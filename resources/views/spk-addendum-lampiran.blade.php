@@ -103,8 +103,7 @@
     <div class="lampiran-header">
         <div class="lampiran-title">
             Lampiran<br>
-            {{ $addendumLabel }} PERJANJIAN KERJA PETUGAS LAPANGAN BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}<br>
-            NOMOR: {{ $nomorSpk }}
+            PERUBAHAN/{{ $addendumLabel }} PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SURVEI DAN SENSUS BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($bulan_label) }} {{ $tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO NOMOR: {{$parent_nomor_spk}}<br>
         </div>
     </div>
 

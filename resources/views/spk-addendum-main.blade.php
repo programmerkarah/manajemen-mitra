@@ -62,7 +62,9 @@
             text-align: justify;
             margin: 10px 0;
         }
-
+        .dasar {
+            page-break-inside: avoid;
+        }
         .kegiatan-list {
             margin: 20px 0;
         }
@@ -226,12 +228,12 @@
     <!-- HEADER -->
     <div class="header">
         <h3>PERUBAHAN/{{ strtoupper($addendumLabel) }}</h3>
-        <h3>PERJANJIAN KERJA KEGIATAN SENSUS DAN SURVEI
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
-        <h3>BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}</h3>
-        <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
-        <h3>NOMOR: {{ $parent_nomor_spk }}</h3>
-        <div style="text-align: center;">NOMOR: {{ $nomorSpk }}</div>
+        <h3>PERJANJIAN KERJA KEGIATAN SENSUS DAN SURVEI<br>
+            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
+            BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}
+            PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
+            NOMOR: {{ $parent_nomor_spk }}</h3>
+        <div style="text-align: center; margin-top: 10px;">NOMOR: {{ $nomorSpk }}</div>
     </div>
     <!-- CONTENT -->
     <div class="content">
@@ -263,7 +265,7 @@
             bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, dengan ini menyatakan bahwa <strong>PARA PIHAK</strong> telah sepakat untuk mengikatkan diri dalam Perubahan/{{ $addendumLabel }} Perjanjian Kerja Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, dengan ketentuan-ketentuan sebagai berikut:
         </p>
 
-        <p style="margin-bottom: 10px;">
+        <p class="dasar" style="margin-bottom: 10px;">
             Dasar Perubahan/{{ $addendumLabel }} Perjanjian ini yaitu:<br>
             Terjadi perubahan realisasi pelaksanaan kegiatan yang dilakukan oleh <strong>PIHAK KEDUA</strong> sebagaimana tercantum dalam lampiran {{$addendumLabel}} yang disebabkan adanya {{ $hasUbinanKegiatan? '':  ' Non Response dari responden'}}{{ $hasUbinanKegiatan ? ', dan/atau terjadi lewat panen pada kegiatan Ubinan Padi/Palawija' : '' }}, dan/atau terjadi perubahan wilayah kerja pada kegiatan survei yang mengakibatkan perubahan beban kerja dan/atau honorarium yang diterima oleh <strong>PIHAK KEDUA</strong>.
         </p>
