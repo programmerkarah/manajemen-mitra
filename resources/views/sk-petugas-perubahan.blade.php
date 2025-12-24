@@ -386,7 +386,7 @@
 
     <div class="pasal-section">
         <p class="pasal-title"><strong>Pasal I</strong></p>
-        <p>
+        <p style="text-align: justify;">
             Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Perubahan Keputusan ini sebagai bagian yang tidak terpisahkan dari Perubahan ini.
         </p>
     </div>
