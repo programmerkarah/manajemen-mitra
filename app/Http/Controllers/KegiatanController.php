@@ -70,8 +70,9 @@ class KegiatanController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
-        // PJ lainnya list for create form (any active user)
-        $pjLainnyaUsers = User::where('is_active', true)
+        // PJ lainnya list for create form (only ketua_tim users)
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+            ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
@@ -215,8 +216,9 @@ class KegiatanController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
-        // PJ lainnya list for edit form (any active user)
-        $pjLainnyaUsers = User::where('is_active', true)
+        // PJ lainnya list for edit form (only ketua_tim users)
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+            ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
