@@ -33,6 +33,7 @@ class UpdateKegiatanRequest extends FormRequest
             'pagu_listing' => ['nullable', 'numeric', 'min:0'],
             'has_listing_updating' => ['nullable', 'boolean'],
             'ketua_tim_user_id' => ['required', 'exists:users,id'],
+            'pj_lainnya_id' => ['nullable', 'exists:users,id'],
             // rate_honor_id dikelola melalui menu khusus, tidak di form edit
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
         ];

@@ -70,6 +70,11 @@ class KegiatanController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
+        // PJ lainnya list for create form (any active user)
+        $pjLainnyaUsers = User::where('is_active', true)
+            ->select('id', 'name', 'email')
+            ->get();
+
         $rateHonors = RateHonor::with(['satuan', 'satuanListing'])
             ->where('status', 'aktif')
             ->where('tahun_berlaku', now()->year)
@@ -81,6 +86,7 @@ class KegiatanController extends Controller
 
         return Inertia::render('Kegiatan/Create', [
             'ketuaTimUsers' => $ketuaTimUsers,
+            'pjLainnyaUsers' => $pjLainnyaUsers,
             'rateHonors' => $rateHonors,
             'tahunOptions' => $tahunOptions,
         ]);
@@ -138,7 +144,11 @@ class KegiatanController extends Controller
             $data['status'] = 'draft';
         }
 
-        Kegiatan::create($data);
+        // Persist optional pj_lainnya_id if provided
+        $kegiatan = Kegiatan::create($data);
+        if (isset($data['pj_lainnya_id'])) {
+            $kegiatan->update(['pj_lainnya_id' => $data['pj_lainnya_id']]);
+        }
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Data kegiatan baru sudah berhasil disimpan ke sistem.');
@@ -205,6 +215,11 @@ class KegiatanController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
+        // PJ lainnya list for edit form (any active user)
+        $pjLainnyaUsers = User::where('is_active', true)
+            ->select('id', 'name', 'email')
+            ->get();
+
         // Generate tahun options (current year - 2 to current year + 5)
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear - 2, $currentYear + 5);
@@ -212,6 +227,7 @@ class KegiatanController extends Controller
         return Inertia::render('Kegiatan/Edit', [
             'kegiatan' => $kegiatan,
             'ketuaTimUsers' => $ketuaTimUsers,
+            'pjLainnyaUsers' => $pjLainnyaUsers,
             'tahunOptions' => $tahunOptions,
         ]);
     }

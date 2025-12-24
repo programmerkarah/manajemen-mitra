@@ -36,6 +36,7 @@ class StoreKegiatanRequest extends FormRequest
             'has_listing_updating' => ['nullable', 'boolean'],
             // Ketua tim optional if user is ketua_tim (will be auto-assigned)
             'ketua_tim_user_id' => [$user && $user->isKetuaTim() ? 'nullable' : 'required', 'exists:users,id'],
+            'pj_lainnya_id' => ['nullable', 'exists:users,id'],
             'rate_honor_id' => ['nullable', 'exists:rate_honor,id'],
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
         ];
