@@ -1,14 +1,13 @@
+import React, { useState } from 'react';
+import { usePage, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, ArrowLeft, Download, FileText, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Download, Upload, FileText, Archive } from 'lucide-react';
 
 interface Spk {
     id: number;
@@ -51,27 +50,45 @@ interface Petugas {
     alamat: string | null;
 }
 
-interface Kegiatan {
+interface MergedKegiatan {
     id: number;
     hashed_id: string;
     kode_kegiatan: string;
     nama_kegiatan: string;
-    jenis_kegiatan: 'sensus' | 'survei';
+    jenis_kegiatan: string;
     tahun_anggaran: number;
+    petugas_nik: string;
+    status: string;
     peran: string;
     total_honor: number;
+    has_change: boolean;
+    original: {
+        total_honor: number;
+    };
+    latest: {
+        total_honor: number;
+    };
+}
+
+interface Addendum {
+    id: number;
+    hashed_id: string;
+    nomor_spk: string;
+    tanggal_spk: string;
+    nilai_kontrak: number;
+    status: string;
+    file_path: string | null;
 }
 
 interface PeriodeAlokasi {
     id: number;
-    hashed_id: string;
+    nama_periode: string;
     bulan: number;
     tahun: number;
 }
 
 interface Bast {
     id: number;
-    hashed_id: string;
     nomor_bast: string;
     tanggal_bast: string;
     file_path: string | null;
@@ -80,17 +97,30 @@ interface Bast {
 interface PetugasListItem {
     id: number;
     hashed_id: string;
-    nomor_spk: string;
     petugas_nama: string;
     petugas_nik: string;
-    status: string;
+}
+
+interface BreadcrumbItem {
+    title: string;
+    href: string;
+}
+
+interface SharedData {
+    auth: {
+        activeRole?: {
+            name: string;
+        };
+    };
+    [key: string]: any;
 }
 
 interface ShowByMonthProps {
     spk: Spk;
     spk_documents: SpkDocument[];
     petugas: Petugas;
-    kegiatan_list: Kegiatan[];
+    kegiatan_list: MergedKegiatan[];
+    addendums?: Addendum[];
     periode: PeriodeAlokasi;
     bast: Bast | null;
     petugas_list: PetugasListItem[];
@@ -105,7 +135,24 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list, periode, bast, petugas_list, bulan, tahun, bulan_label }: ShowByMonthProps) {
+export default function ShowByMonth({
+    spk,
+    spk_documents,
+    petugas,
+    kegiatan_list,
+    addendums = [],
+    periode,
+    bast,
+    petugas_list,
+    bulan,
+    tahun,
+    bulan_label
+}: ShowByMonthProps) {
+    // The 'spk' prop contains the current SPK being viewed (could be original or addendum)
+    // If it's an original (addendum_number === 0), show it in the main card
+    // If it's an addendum (addendum_number > 0), show current SPK details in addendum card
+    // and we would need to fetch/show the original elsewhere (currently we'll show current SPK as main)
+    const isAddendum = spk.addendum_number > 0;
     const { auth } = usePage<SharedData>().props;
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
 
@@ -122,12 +169,79 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
 
     const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
 
+    // Helper functions (must be inside component for hooks/props access)
+    const getPeranLabel = (peran: string): string => {
+        const labels: Record<string, string> = {
+            'pcl_ppl': 'Petugas Pencacahan',
+            'pml': 'Pemeriksa Lapangan',
+            'pengolahan': 'Petugas Pengolahan',
+            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+        };
+        return labels[peran] || peran;
+    };
+
+    const formatIndonesianDate = (isoDate: string): string => {
+        if (!isoDate) return '-';
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const date = new Date(isoDate);
+        if (isNaN(date.getTime())) return isoDate;
+        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    };
+
+    const formatPeriodeKerja = (tanggalMulai: string, tanggalSelesai: string) => {
+        if (!tanggalMulai || !tanggalSelesai) return '-';
+        const mulai = new Date(tanggalMulai);
+        const selesai = new Date(tanggalSelesai);
+        if (isNaN(mulai.getTime()) || isNaN(selesai.getTime())) return '-';
+        const tanggalMulaiNum = mulai.getDate();
+        const tanggalSelesaiNum = selesai.getDate();
+        const bulanIndex = mulai.getMonth() + 1;
+        const tahunValue = mulai.getFullYear();
+        return `${tanggalMulaiNum} - ${tanggalSelesaiNum} ${bulanLabels[bulanIndex]} ${tahunValue}`;
+    };
+
+    const getDocumentLabel = (addendumNumber: number) => {
+        if (addendumNumber === 0) return 'SPK Asli';
+        if (addendumNumber === 1) return 'SPK Addendum';
+        if (addendumNumber === 2) return 'SPK Addendum Kedua';
+        if (addendumNumber === 3) return 'SPK Addendum Ketiga';
+        return `SPK Addendum Ke-${addendumNumber}`;
+    };
+
     const handleDownload = (filePath: string) => {
         window.open(`/${filePath}`, '_blank');
     };
 
     const handleDownloadAll = () => {
         window.location.href = `/spk/download-all?bulan=${bulan}&tahun=${tahun}`;
+    };
+
+    const handleSelectPetugas = (spkHashedId: string) => {
+        router.post('/spk/month', {
+            bulan: bulan,
+            tahun: tahun,
+            spk: spkHashedId
+        });
+    };
+
+    const handleUploadSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!data.file || !uploadingDocId) return;
+        const doc = spk_documents.find((d: SpkDocument) => d.hashed_id === uploadingDocId);
+        if (!doc) return;
+        post(`/spk/${doc.hashed_id}/upload-signed`, {
+            onSuccess: () => {
+                setUploadingDocId(null);
+                reset();
+            },
+        });
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setData('file', e.target.files[0]);
+        }
     };
 
     const getStatusBadge = (status: string) => {
@@ -143,88 +257,11 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
         }
     };
 
-    const getPeranLabel = (peran: string) => {
-        const labels: Record<string, string> = {
-            'pcl_ppl': 'Petugas Pencacahan',
-            'pml': 'Pemeriksa Lapangan',
-            'pengolahan': 'Petugas Pengolahan',
-            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
-        };
-        return labels[peran] || peran;
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setData('file', e.target.files[0]);
-        }
-    };
-
-    const handleUploadSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!data.file || !uploadingDocId) return;
-
-        const doc = spk_documents.find(d => d.hashed_id === uploadingDocId);
-        if (!doc) return;
-
-        post(`/spk/${doc.hashed_id}/upload-signed`, {
-            onSuccess: () => {
-                setUploadingDocId(null);
-                reset();
-            },
-        });
-    };
-
-    const getDocumentLabel = (addendumNumber: number) => {
-        if (addendumNumber === 0) return 'SPK Asli';
-        if (addendumNumber === 1) return 'SPK Addendum';
-        if (addendumNumber === 2) return 'SPK Addendum Kedua';
-        if (addendumNumber === 3) return 'SPK Addendum Ketiga';
-        return `SPK Addendum Ke-${addendumNumber}`;
-    };
-
-    const formatIndonesianDate = (isoDate: string): string => {
-        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-                        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        const date = new Date(isoDate);
-        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-    };
-
-    const handleSelectPetugas = (spkHashedId: string) => {
-        router.post('/spk/month', {
-            bulan: bulan,
-            tahun: tahun,
-            spk: spkHashedId
-        });
-    };
-
-    const formatPeriodeKerja = (tanggalMulai: string, tanggalSelesai: string) => {
-        const mulai = new Date(tanggalMulai);
-        const selesai = new Date(tanggalSelesai);
-        
-        const tanggalMulaiNum = mulai.getDate();
-        const tanggalSelesaiNum = selesai.getDate();
-        const bulanIndex = mulai.getMonth() + 1;
-        const tahunValue = mulai.getFullYear();
-        
-        return `${tanggalMulaiNum} - ${tanggalSelesaiNum} ${bulanLabels[bulanIndex]} ${tahunValue}`;
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail SPK ${bulan_label} ${tahun} - ${petugas.nama}`} />
-
             <PageHeader
                 title={`Detail SPK ${bulan_label} ${tahun}`}
-                description={`Surat Perjanjian Kerja untuk ${petugas.nama}`}
             >
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/spk">
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Kembali
-                        </Link>
-                    </Button>
-                </div>
             </PageHeader>
 
             <div className="grid gap-6 md:grid-cols-4">
@@ -249,7 +286,16 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                             </Button>
 
                             <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                                {petugas_list.map((item) => (
+                                {Array.from(
+                                    petugas_list.reduce((map, item) => {
+                                        // Gabungkan berdasarkan NIK jika ada, jika tidak pakai ID
+                                        const key = item.petugas_nik ? item.petugas_nik : item.id;
+                                        if (!map.has(key)) {
+                                            map.set(key, item);
+                                        }
+                                        return map;
+                                    }, new Map())
+                                ).map(([key, item]) => (
                                     <button
                                         key={item.id}
                                         onClick={() => handleSelectPetugas(item.hashed_id)}
@@ -262,12 +308,6 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                         <div className="font-medium text-sm text-neutral-900 dark:text-white">
                                             {item.petugas_nama}
                                         </div>
-                                        <div className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
-                                            {item.petugas_nik}
-                                        </div>
-                                        <div className="mt-1">
-                                            {getStatusBadge(item.status)}
-                                        </div>
                                     </button>
                                 ))}
                             </div>
@@ -277,6 +317,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
 
                 {/* Main Content - SPK Details */}
                 <div className="md:col-span-3 space-y-6">
+                    {/* Always show original SPK info */}
                     <ContentCard>
                         <div className="space-y-6">
                             <div className="flex items-start justify-between">
@@ -290,7 +331,6 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                 </div>
                                 {getStatusBadge(spk.status)}
                             </div>
-
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nomor SPK</Label>
@@ -309,7 +349,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
                                     <p className="text-neutral-900 dark:text-white font-medium">
-                                        Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
+                                        Rp {parseFloat(spk.nilai_kontrak?.toString() || '0').toLocaleString('id-ID')}
                                     </p>
                                 </div>
                                 <div>
@@ -329,6 +369,61 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                             </div>
                         </div>
                     </ContentCard>
+
+                    {/* If current SPK is addendum, show its info as a separate card */}
+                    {isAddendum && (
+                        <ContentCard>
+                            <div className="space-y-6">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300">
+                                            Informasi Addendum SPK
+                                        </h3>
+                                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                                            Perubahan/addendum terhadap SPK asli
+                                        </p>
+                                    </div>
+                                    {getStatusBadge(spk.status)}
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">Nomor Addendum</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.nomor_spk}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">Tanggal Addendum</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">{formatIndonesianDate(spk.tanggal_spk)}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">
+                                            {formatPeriodeKerja(spk.tanggal_mulai_kerja, spk.tanggal_selesai_kerja)}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">
+                                            Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.nama_ppk}</p>
+                                        {spk.nip_ppk && (
+                                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                                NIP: {spk.nip_ppk}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
+                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.created_by}</p>
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">{spk.created_at}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentCard>
+                    )}
 
                     {/* Petugas Information */}
                     <ContentCard>
@@ -362,7 +457,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                         </div>
                     </ContentCard>
 
-                    {/* Kegiatan List */}
+                    {/* Kegiatan List - Merged with Change Highlight */}
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
@@ -385,29 +480,45 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Honor
                                             </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Perubahan
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                        {kegiatan_list.map((kegiatan) => (
-                                            <tr key={kegiatan.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
-                                                <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
-                                                    {kegiatan.kode_kegiatan}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {kegiatan.nama_kegiatan}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {getPeranLabel(kegiatan.peran)}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    Rp {kegiatan.total_honor.toLocaleString('id-ID')}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {kegiatan_list.map((kegiatan, idx) => {
+                                            const changed = kegiatan.has_change;
+                                            return (
+                                                <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
+                                                    <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                        {kegiatan.kode_kegiatan}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        {kegiatan.nama_kegiatan}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        {getPeranLabel(kegiatan.peran)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        Rp {kegiatan.total_honor.toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm">
+                                                        {changed ? (
+                                                            <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
+                                                                <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+                                                                Ada perubahan berupa { Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor) < 0 ? "pengurangan" : "peningkatan" } sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-neutral-400">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td colSpan={4} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
                                                 Total Honor:
                                             </td>
                                             <td className="px-6 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
@@ -535,7 +646,7 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
 
             {/* Upload Modal */}
             {uploadingDocId && (() => {
-                const doc = spk_documents.find(d => d.hashed_id === uploadingDocId);
+                const doc = spk_documents.find((d: SpkDocument) => d.hashed_id === uploadingDocId);
                 if (!doc) return null;
                 return (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setUploadingDocId(null)}>
@@ -544,43 +655,43 @@ export default function ShowByMonth({ spk, spk_documents, petugas, kegiatan_list
                                 Upload {getDocumentLabel(doc.addendum_number)}
                             </h3>
                         
-                        <form onSubmit={handleUploadSubmit} className="space-y-4">
-                            <div>
-                                <Label htmlFor="file">Pilih File PDF</Label>
-                                <Input
-                                    id="file"
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={handleFileChange}
-                                    required
-                                />
-                                {errors.file && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.file}</p>
-                                )}
-                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                                    Format: PDF, Maksimal 10MB
-                                </p>
-                            </div>
+                            <form onSubmit={handleUploadSubmit} className="space-y-4">
+                                <div>
+                                    <Label htmlFor="file">Pilih File PDF</Label>
+                                    <Input
+                                        id="file"
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={handleFileChange}
+                                        required
+                                    />
+                                    {errors.file && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.file}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                        Format: PDF, Maksimal 10MB
+                                    </p>
+                                </div>
 
-                            <div className="flex justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        setUploadingDocId(null);
-                                        reset();
-                                    }}
-                                >
-                                    Batal
-                                </Button>
-                                <Button type="submit" disabled={processing || !data.file}>
-                                    {processing ? 'Mengunggah...' : 'Upload'}
-                                </Button>
-                            </div>
-                        </form>
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setUploadingDocId(null);
+                                            reset();
+                                        }}
+                                    >
+                                        Batal
+                                    </Button>
+                                    <Button type="submit" disabled={processing || !data.file}>
+                                        {processing ? 'Mengunggah...' : 'Upload'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            );
+                );
             })()}
         </AppLayout>
     );

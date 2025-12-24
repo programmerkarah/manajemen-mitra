@@ -63,10 +63,10 @@ class AlokasiPetugasPolicy
         // Ketua Tim bisa update alokasi yang dia miliki (ketua_tim_user_id) atau pj_lainnya_id dan masih draft
         if ($user->active_role === 'ketua_tim') {
             $kegiatan = $alokasiPetugas->kegiatan;
-            return (
+
+            return
                 ($kegiatan->ketua_tim_user_id === $user->id || $kegiatan->pj_lainnya_id === $user->id)
-                && $alokasiPetugas->status === 'draft'
-            );
+                && $alokasiPetugas->status === 'draft';
         }
 
         return false;

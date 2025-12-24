@@ -678,10 +678,11 @@ export default function Create({
         : 0;
 
     // Calculate sisa pagu for each phase
-    const sisaPaguPencacahan =
-        pagu_pencacahan - current_total_spent - totalEstimasiPencacahan;
-    const sisaPaguListing =
-        pagu_listing - current_total_spent_listing - totalEstimasiListing;
+    // Total terpakai = total honor periode lain + estimasi periode ini
+    const totalTerpakaiPencacahan = current_total_spent + totalEstimasiPencacahan;
+    const totalTerpakaiListing = current_total_spent_listing + totalEstimasiListing;
+    const sisaPaguPencacahan = pagu_pencacahan - totalTerpakaiPencacahan;
+    const sisaPaguListing = pagu_listing - totalTerpakaiListing;
     const isSufficientPencacahan = sisaPaguPencacahan >= 0;
     const isSufficientListing = sisaPaguListing >= 0;
 
@@ -2013,12 +2014,11 @@ export default function Create({
                                                             className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
                                                         >
                                                             <span className="font-medium">
-                                                                Total Terpakai
-                                                                (Periode Lain):
+                                                                Total Terpakai (Semua Periode):
                                                             </span>
                                                             <span className="font-semibold">
                                                                 {formatCurrency(
-                                                                    current_total_spent_listing,
+                                                                    totalTerpakaiListing,
                                                                 )}
                                                             </span>
                                                         </div>
@@ -2146,12 +2146,11 @@ export default function Create({
                                                             className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
                                                         >
                                                             <span className="font-medium">
-                                                                Total Terpakai
-                                                                (Periode Lain):
+                                                                Total Terpakai (Semua Periode):
                                                             </span>
                                                             <span className="font-semibold">
                                                                 {formatCurrency(
-                                                                    current_total_spent,
+                                                                    totalTerpakaiPencacahan,
                                                                 )}
                                                             </span>
                                                         </div>

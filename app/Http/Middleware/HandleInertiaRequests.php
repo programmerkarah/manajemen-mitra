@@ -39,7 +39,6 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
-
         $user = $request->user();
         $viewAsUser = null;
         $originalUser = null;

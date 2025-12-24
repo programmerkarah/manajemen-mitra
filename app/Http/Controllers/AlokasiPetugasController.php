@@ -59,7 +59,7 @@ class AlokasiPetugasController extends Controller
         if ($effectiveUser->isKetuaTim()) {
             $query->whereHas('kegiatan', function ($q) use ($effectiveUser) {
                 $q->where('ketua_tim_user_id', $effectiveUser->id)
-                ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                    ->orWhere('pj_lainnya_id', $effectiveUser->id);
             });
         }
 
@@ -76,19 +76,23 @@ class AlokasiPetugasController extends Controller
 
         // Transform the result to include necessary data
         $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan) {
-            // Calculate total honor (pencacahan + listing)
+            // Hitung ulang total honor dan pagu untuk memastikan data selalu aktual
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
             $estimasiHonor = $totalHonorPencacahan + $totalHonorListing;
 
-            // Calculate combined sisa pagu
-            $sisaPaguPencacahan = $periode->sisa_pagu ?? 0;
-            $sisaPaguListing = $periode->sisa_pagu_listing ?? 0;
+            // Ambil pagu dari kegiatan
+            $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
+            $paguListing = $periode->kegiatan->pagu_listing ?? 0;
+
+            // Sisa pagu = pagu - total honor terpakai
+            $sisaPaguPencacahan = $paguPencacahan - $totalHonorPencacahan;
+            $sisaPaguListing = $paguListing - $totalHonorListing;
             $sisaPagu = $sisaPaguPencacahan + $sisaPaguListing;
 
-            $paguAnggaran = $periode->kegiatan->pagu_pencacahan ?? 0;
+            // Pagu terpakai = total honor (pencacahan + listing)
+            $paguTerpakai = $estimasiHonor;
 
-            // Check if this is the latest period for this kegiatan
             $isLatestPeriode = $periode->status === 'dikirim' &&
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
                 $periode->bulan == $latestMonthsByKegiatan[$periode->kegiatan_id];
@@ -103,7 +107,9 @@ class AlokasiPetugasController extends Controller
                 'total_honor' => $estimasiHonor,
                 'estimasi_honor' => $estimasiHonor,
                 'sisa_pagu' => $sisaPagu,
-                'pagu_pencacahan' => $paguAnggaran,
+                'pagu_pencacahan' => $paguPencacahan,
+                'pagu_listing' => $paguListing,
+                'pagu_terpakai' => $paguTerpakai,
                 'latest_created_at' => $periode->created_at,
                 'is_latest_periode' => $isLatestPeriode,
                 'kegiatan' => [
@@ -119,7 +125,7 @@ class AlokasiPetugasController extends Controller
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
             ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
                 $query->where('ketua_tim_user_id', $effectiveUser->id)
-                ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                    ->orWhere('pj_lainnya_id', $effectiveUser->id);
             })
             ->exists();
 
@@ -143,7 +149,7 @@ class AlokasiPetugasController extends Controller
 
         // Ketua Tim dapat menambah alokasi jika dia adalah ketua_tim_user_id atau pj_lainnya_id
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && !($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
+        if ($effectiveUser->isKetuaTim() && ! ($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
             abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
         }
         // Validate that kegiatan has rate honors
@@ -471,47 +477,69 @@ class AlokasiPetugasController extends Controller
         $effectiveUser = effectiveUser($request);
 
         // Check if any kegiatan exists before allowing access
-        $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when(
-                $effectiveUser->isKetuaTim() || Kegiatan::where('pj_lainnya_id', $effectiveUser->id)->exists(),
-                function ($query) use ($effectiveUser) {
-                    $query->where(function ($q) use ($effectiveUser) {
-                        $q->where('ketua_tim_user_id', $effectiveUser->id)
-                          ->orWhere('pj_lainnya_id', $effectiveUser->id);
-                    });
-                }
-            )
-            ->exists();
+        if ($effectiveUser->isKetuaTim()) {
+            $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
+                ->where(function ($q) use ($effectiveUser) {
+                    $q->where('ketua_tim_user_id', $effectiveUser->id)
+                        ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                })
+                ->exists();
+        } else {
+            $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])->exists();
+        }
 
         if (! $hasKegiatans) {
             return redirect()->route('alokasi.index')
                 ->with('error', 'Tidak ada kegiatan yang tersedia untuk membuat periode alokasi.');
         }
 
-        $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->where(function ($query) use ($effectiveUser) {
-                $query->where('ketua_tim_user_id', $effectiveUser->id)
-                      ->orWhere('pj_lainnya_id', $effectiveUser->id);
-            })
-            ->with([
-                'rateHonors' => function ($query) use ($activeYear) {
-                    $query->where('status', 'aktif')
-                        ->where('tahun_berlaku', $activeYear)
-                        ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
-                        ->with([
-                            'satuan:id,kode,nama',
-                            'satuanListing:id,kode,nama',
-                        ]);
-                },
-            ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->filter(function ($kegiatan) {
-                // Only show kegiatan that has at least one rate honor
-                return $kegiatan->rateHonors->isNotEmpty();
-            })
-            ->values();
+        if ($effectiveUser->isKetuaTim()) {
+            $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
+                ->where(function ($q) use ($effectiveUser) {
+                    $q->where('ketua_tim_user_id', $effectiveUser->id)
+                        ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                })
+                ->with([
+                    'rateHonors' => function ($query) use ($activeYear) {
+                        $query->where('status', 'aktif')
+                            ->where('tahun_berlaku', $activeYear)
+                            ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
+                            ->with([
+                                'satuan:id,kode,nama',
+                                'satuanListing:id,kode,nama',
+                            ]);
+                    },
+                ])
+                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->filter(function ($kegiatan) {
+                    // Only show kegiatan that has at least one rate honor
+                    return $kegiatan->rateHonors->isNotEmpty();
+                })
+                ->values();
+        } else {
+            $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
+                ->with([
+                    'rateHonors' => function ($query) use ($activeYear) {
+                        $query->where('status', 'aktif')
+                            ->where('tahun_berlaku', $activeYear)
+                            ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
+                            ->with([
+                                'satuan:id,kode,nama',
+                                'satuanListing:id,kode,nama',
+                            ]);
+                    },
+                ])
+                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->filter(function ($kegiatan) {
+                    // Only show kegiatan that has at least one rate honor
+                    return $kegiatan->rateHonors->isNotEmpty();
+                })
+                ->values();
+        }
 
         // Pastikan field rate_listing dan satuan_listing_id selalu ada di setiap rateHonors
         foreach ($kegiatans as $kegiatan) {

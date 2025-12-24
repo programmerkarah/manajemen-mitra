@@ -295,6 +295,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-addendum', [SpkController::class, 'previewAddendum'])->name('spk.preview-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate-addendum', [SpkController::class, 'generateAddendum'])->name('spk.generate-addendum');
+        Route::post('spk/periode/{periodeHashedId}/generate-all', [SpkController::class, 'generateAllSpk'])->name('spk.generate-all');
         Route::post('spk', [SpkController::class, 'store'])->name('spk.store');
         Route::get('spk/{spk}/edit', [SpkController::class, 'edit'])->name('spk.edit');
         Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');

@@ -356,6 +356,15 @@
     <div style="text-align: center; font-weight: bold; margin: 20px 0;">
         MEMUTUSKAN :
     </div>
+    <table class="dictum">
+        <tr>
+            <td>KESATU</td>
+            <td>:</td>
+            <td>
+                Menambahkan nama Petugas yang dirubah dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} sebagai Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}.
+            </td>
+        </tr>
+    </table>
 
     <table class="dictum">
         <tr>
@@ -398,9 +407,10 @@
         @endphp
         @endif
         <tr>
-            <td>PERTAMA</td>
+            <td>KEDUA</td>
             <td>:</td>
             <td>
+                Bahwa Petugas Survei {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }} setelah perubahan secara lengkap sebagaimana tercantum dalam Lampiran Keputusan ini.
                 Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
             </td>
         </tr>
@@ -408,7 +418,7 @@
 
     <table class="dictum">
         <tr>
-            <td>KEDUA</td>
+            <td>KETIGA</td>
             <td>:</td>
             <td>
                 Keputusan ini mulai berlaku pada tanggal ditetapkan, dengan ketentuan apabila dikemudian hari terdapat

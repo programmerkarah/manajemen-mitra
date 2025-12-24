@@ -59,10 +59,52 @@ interface Bast {
     file_path: string | null;
 }
 
+interface Addendum {
+    id: number;
+    hashed_id: string;
+    nomor_spk: string;
+    tanggal_spk: string;
+    tanggal_mulai_kerja: string;
+    tanggal_selesai_kerja: string;
+    nilai_kontrak: number;
+    status: string;
+    file_path: string | null;
+    addendum_number: number;
+    created_by: string;
+    created_at: string;
+}
+
+interface MergedKegiatan {
+    id: number;
+    hashed_id: string;
+    kode_kegiatan: string;
+    nama_kegiatan: string;
+    jenis_kegiatan: string;
+    tahun_anggaran: number;
+    peran: string;
+    total_honor: number;
+    original: {
+        jumlah_satuan: number;
+        jumlah_satuan_listing: number;
+        total_honor: number;
+        total_honor_listing: number;
+        peran: string;
+    };
+    latest: {
+        jumlah_satuan: number;
+        jumlah_satuan_listing: number;
+        total_honor: number;
+        total_honor_listing: number;
+        peran: string;
+    };
+    has_change: boolean;
+}
+
 interface ShowProps {
     spk: Spk;
     petugas: Petugas;
-    kegiatan_list: Kegiatan[];
+    kegiatan_list: MergedKegiatan[];
+    addendums: Addendum[];
     periode: PeriodeAlokasi;
     bast: Bast | null;
 }
@@ -78,7 +120,7 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Show({ spk, petugas, kegiatan_list, periode, bast }: ShowProps) {
+export default function Show({ spk, petugas, kegiatan_list, addendums, periode, bast }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
 
@@ -186,7 +228,53 @@ export default function Show({ spk, petugas, kegiatan_list, periode, bast }: Sho
                         </div>
                     </ContentCard>
 
-                    {/* Kegiatan List */}
+                    {/* Addendums Section */}
+                    {addendums && addendums.length > 0 && (
+                        <ContentCard>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300">
+                                    Addendum SPK
+                                </h3>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-blue-200 dark:divide-blue-700">
+                                        <thead className="bg-blue-50 dark:bg-blue-900">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">No.</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Nomor Addendum</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Tanggal</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Nilai Kontrak</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Status</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">File</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-blue-200 dark:divide-blue-700 bg-white dark:bg-blue-950">
+                                            {addendums.map((add, idx) => (
+                                                <tr key={add.id} className="hover:bg-blue-50 dark:hover:bg-blue-900">
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{idx + 1}</td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{add.nomor_spk}</td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{add.tanggal_spk}</td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">Rp {add.nilai_kontrak.toLocaleString('id-ID')}</td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{getStatusBadge(add.status)}</td>
+                                                    <td className="px-4 py-2 text-sm">
+                                                        {add.file_path ? (
+                                                            <Button variant="outline" size="sm" onClick={() => handleDownload(add.file_path!)}>
+                                                                <Download className="mr-1 h-4 w-4" />
+                                                                Download
+                                                            </Button>
+                                                        ) : (
+                                                            <span className="text-xs text-blue-400">Belum ada file</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </ContentCard>
+                    )}
+
+                    {/* Kegiatan List - Merged with Change Highlight */}
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
@@ -209,29 +297,45 @@ export default function Show({ spk, petugas, kegiatan_list, periode, bast }: Sho
                                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Honor
                                             </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                                Perubahan
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                        {kegiatan_list.map((kegiatan) => (
-                                            <tr key={kegiatan.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
-                                                <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
-                                                    {kegiatan.kode_kegiatan}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {kegiatan.nama_kegiatan}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {getPeranLabel(kegiatan.peran)}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    Rp {kegiatan.total_honor.toLocaleString('id-ID')}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {kegiatan_list.map((kegiatan, idx) => {
+                                            const changed = kegiatan.has_change;
+                                            return (
+                                                <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
+                                                    <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                        {kegiatan.kode_kegiatan}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        {kegiatan.nama_kegiatan}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        {getPeranLabel(kegiatan.peran)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                        Rp {kegiatan.total_honor.toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm">
+                                                        {changed ? (
+                                                            <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
+                                                                <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+                                                                Ada perubahan
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-neutral-400">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td colSpan={4} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
                                                 Total Honor:
                                             </td>
                                             <td className="px-6 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
@@ -243,7 +347,6 @@ export default function Show({ spk, petugas, kegiatan_list, periode, bast }: Sho
                             </div>
                         </div>
                     </ContentCard>
-
                     {/* Petugas Information */}
                     <ContentCard>
                         <div className="space-y-4">

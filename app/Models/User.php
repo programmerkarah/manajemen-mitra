@@ -207,6 +207,7 @@ class User extends Authenticatable implements MustVerifyEmail
             if ($roles->count() > 0) {
                 return $roles->first();
             }
+
             return null;
         }
 

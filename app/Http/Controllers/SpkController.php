@@ -11,7 +11,6 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -320,17 +319,63 @@ class SpkController extends Controller
             ->with(['periodeAlokasi.kegiatan'])
             ->get();
 
-        // Build kegiatan list with roles
-        $kegiatanList = $allAlokasi->map(function ($alokasi) {
+        // Group by kegiatan only (not peran) - consolidate all peran under one row per kegiatan
+        $grouped = $allAlokasi->groupBy(function ($alokasi) {
+            return $alokasi->periodeAlokasi->kegiatan->id;
+        });
+
+        $kegiatanList = $grouped->map(function ($alokasiGroup) {
+            // Find the original (non-perubahan) and latest (perubahan if exists) for the entire kegiatan
+            $original = $alokasiGroup->first(function ($a) {
+                return in_array($a->periodeAlokasi->status, ['dikirim', 'disetujui', 'direvisi']);
+            }) ?? $alokasiGroup->first();
+            $latest = $alokasiGroup->sortByDesc(function ($a) {
+                return $a->periodeAlokasi->id;
+            })->first();
+
+            // Calculate total honor for original periode (only from that specific periode)
+            $originalTotalHonor = $alokasiGroup->filter(function ($a) {
+                return in_array($a->periodeAlokasi->status, ['dikirim', 'disetujui', 'direvisi']);
+            })->sum(function ($a) {
+                return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+            });
+
+            if ($originalTotalHonor === 0) {
+                // Fallback: use the first allocation's honor
+                $originalTotalHonor = ($original->total_honor ?? 0) + ($original->total_honor_listing ?? 0);
+            }
+
+            // Calculate total honor for latest periode only (sum all allocations from the latest periode for this kegiatan)
+            $latestPeriodeId = $latest->periodeAlokasi->id;
+            $latestTotalHonor = $alokasiGroup->filter(function ($a) use ($latestPeriodeId) {
+                return $a->periodeAlokasi->id === $latestPeriodeId;
+            })->sum(function ($a) {
+                return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+            });
+
+            // Get all peran for this kegiatan
+            $peranList = $alokasiGroup->pluck('peran')->unique()->implode(', ');
+
+            $hasChange = $latestTotalHonor != $originalTotalHonor;
+
             return [
-                'id' => $alokasi->periodeAlokasi->kegiatan->id,
-                'hashed_id' => $alokasi->periodeAlokasi->kegiatan->hashed_id,
-                'kode_kegiatan' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
-                'nama_kegiatan' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
-                'jenis_kegiatan' => $alokasi->periodeAlokasi->kegiatan->jenis_kegiatan,
-                'tahun_anggaran' => $alokasi->periodeAlokasi->kegiatan->tahun_anggaran,
-                'peran' => $alokasi->peran,
-                'total_honor' => ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0),
+                'id' => $latest->periodeAlokasi->kegiatan->id,
+                'hashed_id' => $latest->periodeAlokasi->kegiatan->hashed_id,
+                'kode_kegiatan' => $latest->periodeAlokasi->kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $latest->periodeAlokasi->kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $latest->periodeAlokasi->kegiatan->jenis_kegiatan,
+                'tahun_anggaran' => $latest->periodeAlokasi->kegiatan->tahun_anggaran,
+                'peran' => $peranList,
+                'total_honor' => $latestTotalHonor,
+                'original' => [
+                    'total_honor' => $originalTotalHonor,
+                    'peran' => $peranList,
+                ],
+                'latest' => [
+                    'total_honor' => $latestTotalHonor,
+                    'peran' => $peranList,
+                ],
+                'has_change' => $hasChange,
             ];
         })->values()->all();
 
@@ -744,10 +789,10 @@ class SpkController extends Controller
                         ->orderByDesc('id')
                         ->first();
 
-                    $selisih_jumlah_satuan = (int)($alokasiPerubahan->jumlah_satuan ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan ?? 0);
-                    $selisih_jumlah_satuan_listing = (int)($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
-                    $selisih_total_honor = (float)($alokasiPerubahan->total_honor ?? 0) - (float)($alokasiSebelumnya->total_honor ?? 0);
-                    $selisih_total_honor_listing = (float)($alokasiPerubahan->total_honor_listing ?? 0) - (float)($alokasiSebelumnya->total_honor_listing ?? 0);
+                    $selisih_jumlah_satuan = (int) ($alokasiPerubahan->jumlah_satuan ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan ?? 0);
+                    $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
+                    $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
+                    $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
 
                     \Log::info('DEBUG ADDENDUM', [
                         'petugas_id' => $firstAlokasi->petugas_id,
@@ -842,6 +887,7 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
 
         \Log::info('DEBUG PETUGAS LIST FINAL', ['count' => $petugasList->count(), 'ids' => $petugasList->pluck('petugas.id')]);
+
         return Inertia::render('Spk/Addendum', [
             'periode' => [
                 'id' => $periode->id,
@@ -1083,7 +1129,7 @@ class SpkController extends Controller
             if (str_contains($baseNomorUrut, '/ADD-')) {
                 $baseNomorUrut = explode('/ADD-', $baseNomorUrut)[0];
             }
-            $nomorSpkParts[2] = $baseNomorUrut . '/ADD-' . $validated['addendum_number'];
+            $nomorSpkParts[2] = $baseNomorUrut.'/ADD-'.$validated['addendum_number'];
             $nomorSpk = implode('/', $nomorSpkParts);
 
             $data = [
@@ -1153,6 +1199,7 @@ class SpkController extends Controller
                     'message' => 'Addendum SPK berhasil di-generate',
                 ]);
             }
+
             return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1171,7 +1218,6 @@ class SpkController extends Controller
     public function show(string $spkHashedId): Response
     {
         $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
-
         if (! $spkId) {
             abort(404);
         }
@@ -1183,16 +1229,36 @@ class SpkController extends Controller
                 $q->latest();
             },
             'createdBy',
+            'addendums.alokasiPetugas.periodeAlokasi.kegiatan',
+            'addendums.createdBy',
         ])->findOrFail($spkId);
 
         $periode = $spk->alokasiPetugas->periodeAlokasi;
         $petugas = $spk->alokasiPetugas->petugas;
         $bast = $spk->bast->first();
 
-        // Get all alokasi for this petugas in the same month (all kegiatan)
+        // Get all addendums (ordered)
+        $addendums = $spk->addendums->sortBy('addendum_number')->values()->map(function ($addendum) {
+            return [
+                'id' => $addendum->id,
+                'hashed_id' => $addendum->hashed_id,
+                'nomor_spk' => $addendum->nomor_spk,
+                'tanggal_spk' => $addendum->tanggal_spk,
+                'tanggal_mulai_kerja' => $addendum->tanggal_mulai_kerja,
+                'tanggal_selesai_kerja' => $addendum->tanggal_selesai_kerja,
+                'nilai_kontrak' => $addendum->nilai_kontrak,
+                'status' => $addendum->status,
+                'file_path' => $addendum->file_path,
+                'addendum_number' => $addendum->addendum_number,
+                'created_by' => $addendum->createdBy->name ?? 'System',
+                'created_at' => $addendum->created_at->format('d M Y H:i'),
+            ];
+        });
+
+        // Get all alokasi for this petugas in the same month (all kegiatan, all statuses)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'disetujui','direvisi','perubahan'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->pluck('id');
 
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
@@ -1200,17 +1266,60 @@ class SpkController extends Controller
             ->with(['periodeAlokasi.kegiatan'])
             ->get();
 
-        // Build kegiatan list with roles
-        $kegiatanList = $allAlokasi->map(function ($alokasi) {
+        // Group by kegiatan only (not peran) - consolidate all peran under one row per kegiatan
+        $grouped = $allAlokasi->groupBy(function ($alokasi) {
+            return $alokasi->periodeAlokasi->kegiatan->id;
+        });
+
+        $mergedKegiatanList = $grouped->map(function ($alokasiGroup) {
+            // Find the original (non-perubahan) and latest (perubahan if exists) for the entire kegiatan
+            $original = $alokasiGroup->first(function ($a) {
+                return in_array($a->periodeAlokasi->status, ['dikirim', 'disetujui', 'direvisi']);
+            }) ?? $alokasiGroup->first();
+            $latest = $alokasiGroup->sortByDesc(function ($a) {
+                return $a->periodeAlokasi->id;
+            })->first();
+
+            // Calculate total honor across all peran for this kegiatan
+            $originalTotalHonor = $alokasiGroup->filter(function ($a) {
+                return in_array($a->periodeAlokasi->status, ['dikirim', 'disetujui', 'direvisi']);
+            })->sum(function ($a) {
+                return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+            });
+
+            if ($originalTotalHonor === 0) {
+                $originalTotalHonor = $alokasiGroup->sum(function ($a) {
+                    return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+                });
+            }
+
+            $latestTotalHonor = $alokasiGroup->sum(function ($a) {
+                return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+            });
+
+            // Get all peran for this kegiatan
+            $peranList = $alokasiGroup->pluck('peran')->unique()->implode(', ');
+
+            $hasChange = $latestTotalHonor != $originalTotalHonor;
+
             return [
-                'id' => $alokasi->periodeAlokasi->kegiatan->id,
-                'hashed_id' => $alokasi->periodeAlokasi->kegiatan->hashed_id,
-                'kode_kegiatan' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
-                'nama_kegiatan' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
-                'jenis_kegiatan' => $alokasi->periodeAlokasi->kegiatan->jenis_kegiatan,
-                'tahun_anggaran' => $alokasi->periodeAlokasi->kegiatan->tahun_anggaran,
-                'peran' => $alokasi->peran,
-                'total_honor' => ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0),
+                'id' => $latest->periodeAlokasi->kegiatan->id,
+                'hashed_id' => $latest->periodeAlokasi->kegiatan->hashed_id,
+                'kode_kegiatan' => $latest->periodeAlokasi->kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $latest->periodeAlokasi->kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $latest->periodeAlokasi->kegiatan->jenis_kegiatan,
+                'tahun_anggaran' => $latest->periodeAlokasi->kegiatan->tahun_anggaran,
+                'peran' => $peranList,
+                'total_honor' => $latestTotalHonor,
+                'original' => [
+                    'total_honor' => $originalTotalHonor,
+                    'peran' => $peranList,
+                ],
+                'latest' => [
+                    'total_honor' => $latestTotalHonor,
+                    'peran' => $peranList,
+                ],
+                'has_change' => $hasChange,
             ];
         })->values()->all();
 
@@ -1238,7 +1347,8 @@ class SpkController extends Controller
                 'jenis_petugas' => $petugas->jenis_petugas,
                 'alamat' => $petugas->alamat,
             ],
-            'kegiatan_list' => $kegiatanList,
+            'kegiatan_list' => $mergedKegiatanList,
+            'addendums' => $addendums,
             'periode' => [
                 'id' => $periode->id,
                 'hashed_id' => $periode->hashed_id,
@@ -1537,12 +1647,17 @@ class SpkController extends Controller
         }
 
         $validated = $request->validate([
-            'nomor_spk' => ['required', 'string', 'max:255', 'unique:spk,nomor_spk'],
             'tanggal_spk' => ['required', 'date'],
             'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Generate nomor_spk using next available urut for this year
+        $tahun = $periode->tahun;
+        $nextNomorUrut = $this->getNextNomorUrut($tahun);
+        // Format: PPIS/13730/{urut}/K/{tahun}
+        $nomorSpk = "PPIS/13730/{$nextNomorUrut}/K/{$tahun}";
 
         // Get all alokasi for this petugas in the same month
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
@@ -1581,7 +1696,7 @@ class SpkController extends Controller
             'alokasi' => $allAlokasi->first(),
             'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
-            'nomorSpk' => $validated['nomor_spk'],
+            'nomorSpk' => $nomorSpk,
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
@@ -1661,7 +1776,7 @@ class SpkController extends Controller
 
             // Save to database
             $spk = Spk::create([
-                'nomor_spk' => $validated['nomor_spk'],
+                'nomor_spk' => $nomorSpk,
                 'alokasi_petugas_id' => $allAlokasi->first()->id,
                 'tanggal_spk' => $validated['tanggal_spk'],
                 'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
@@ -1897,5 +2012,196 @@ class SpkController extends Controller
         @unlink($mergedPath);
 
         return $pdfOutput;
+    }
+        /**
+     * Bulk generate SPK for all non-organik petugas in a periode
+     */
+    public function generateAllSpk(Request $request, string $periodeHashedId)
+    {
+        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        if (! $periodeId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'tanggal_spk' => ['required', 'date'],
+            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
+        ]);
+
+        $periode = PeriodeAlokasi::with(['kegiatan'])->findOrFail($periodeId);
+
+        // Get all periode alokasi in the same month and year
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->pluck('id');
+
+        // Get all unique non-organik petugas from all alokasi in this month
+        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->get()
+            ->filter(function ($alokasi) {
+                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+            });
+
+        // Group by petugas_id and aggregate their data
+        $petugasList = $allAlokasi->groupBy('petugas_id')->sortKeys();
+
+        // Sort by petugas name for consistent nomor urut
+        $sortedPetugas = $petugasList->sortBy(function ($group) {
+            return $group->first()->petugas->nama;
+        });
+
+        $tahun = $periode->tahun;
+        $nextNomorUrut = $this->getNextNomorUrut($tahun);
+
+        $results = [];
+        $index = 0;
+        foreach ($sortedPetugas as $petugasId => $alokasiGroup) {
+            $petugas = $alokasiGroup->first()->petugas;
+            $petugasHashedId = $petugas->hashed_id;
+            $noUrut = $nextNomorUrut + $index;
+            $nomorSpk = "PPIS/13730/{$noUrut}/K/{$tahun}";
+
+            // Call the same logic as generateSpk, but inline to avoid HTTP call
+            $allAlokasiPetugas = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+                ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                    $q->where('bulan', $periode->bulan)
+                        ->where('tahun', $periode->tahun);
+                })
+                ->where('petugas_id', $petugasId)
+                ->get();
+
+            if ($allAlokasiPetugas->isEmpty()) {
+                $results[] = [
+                    'petugas_id' => $petugasId,
+                    'status' => 'failed',
+                    'message' => 'Tidak ada alokasi untuk petugas ini',
+                ];
+                $index++;
+                continue;
+            }
+
+            $penandatangan = \App\Models\Penandatangan::active()->ppk()->first();
+            if (! $penandatangan) {
+                $results[] = [
+                    'petugas_id' => $petugasId,
+                    'status' => 'failed',
+                    'message' => 'Penandatangan (PPK) tidak ditemukan',
+                ];
+                $index++;
+                continue;
+            }
+
+            $totalHonor = 0;
+            $uraianTugas = [];
+            $bebanAnggaran = '';
+            foreach ($allAlokasiPetugas as $alokasi) {
+                $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+                $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+                $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+                if (empty($bebanAnggaran)) {
+                    $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+                }
+            }
+
+            $data = [
+                'periode' => $periode,
+                'alokasi' => $allAlokasiPetugas->first(),
+                'petugas' => $petugas,
+                'kegiatan' => $periode->kegiatan,
+                'nomorSpk' => $nomorSpk,
+                'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
+                'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+                'tanggalPerpanjangan' => null,
+                'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                'peranLabel' => $this->getPeranLabel($allAlokasiPetugas->first()->peran),
+                'totalHonor' => $totalHonor,
+                'uraianTugas' => $uraianTugas,
+                'bebanAnggaran' => $bebanAnggaran,
+            ];
+
+            // Use the same PDF/database logic as generateSpk
+            \DB::beginTransaction();
+            try {
+                $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
+                    ->setPaper('a4', 'portrait');
+                $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+                    ->setPaper('a4', 'landscape');
+                $tempPath = storage_path('app/temp');
+                if (! file_exists($tempPath)) {
+                    mkdir($tempPath, 0777, true);
+                }
+                $timestamp = time().'_'.uniqid();
+                $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
+                $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
+                $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+                file_put_contents($mainPath, $pdfMain->output());
+                file_put_contents($lampiranPath, $pdfLampiran->output());
+                $merged = \App\Services\PdfMergerService::mergePdfFiles(
+                    [$mainPath, $lampiranPath],
+                    $mergedPath
+                );
+                $pdfOutput = null;
+                if ($merged && file_exists($mergedPath)) {
+                    $pdfOutput = file_get_contents($mergedPath);
+                } else {
+                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
+                        ->setPaper('a4', 'portrait');
+                    $pdfOutput = $pdf->output();
+                }
+                @unlink($mainPath);
+                @unlink($lampiranPath);
+                @unlink($mergedPath);
+                $nomorParts = explode('/', $data['nomorSpk']);
+                $nomorUrut = $nomorParts[2] ?? '0';
+                $namaKegiatan = preg_replace('/[\/\\:*?"<>|]/', '', $data['kegiatan']->nama_kegiatan);
+                $namaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
+                $bulanLabel = $this->getBulanLabel($periode->bulan);
+                $fileName = "SPK {$nomorUrut}_{$namaPetugas}_{$namaKegiatan}_{$bulanLabel}_{$periode->tahun}.pdf";
+                $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
+                $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
+                if (! file_exists($publicPath)) {
+                    mkdir($publicPath, 0755, true);
+                }
+                file_put_contents(public_path($filePath), $pdfOutput);
+                $spk = Spk::create([
+                    'nomor_spk' => $nomorSpk,
+                    'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
+                    'tanggal_spk' => $validated['tanggal_spk'],
+                    'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
+                    'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                    'nilai_kontrak' => $totalHonor,
+                    'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                    'nip_ppk' => $penandatangan->nip ?? null,
+                    'file_path' => $filePath,
+                    'status' => 'draft',
+                    'created_by' => auth()->id(),
+                ]);
+                \DB::commit();
+                $results[] = [
+                    'petugas_id' => $petugasId,
+                    'status' => 'success',
+                    'spk_id' => $spk->id,
+                ];
+            } catch (\Exception $e) {
+                \DB::rollBack();
+                $results[] = [
+                    'petugas_id' => $petugasId,
+                    'status' => 'failed',
+                    'message' => $e->getMessage(),
+                ];
+            }
+            $index++;
+        }
+
+        $successCount = collect($results)->where('status', 'success')->count();
+        $failedCount = collect($results)->where('status', 'failed')->count();
+        $message = "SPK berhasil dibuat untuk {$successCount} petugas.";
+        if ($failedCount > 0) {
+            $message .= " {$failedCount} gagal.";
+        }
+        return redirect()->route('spk.index')->with('success', $message);
     }
 }

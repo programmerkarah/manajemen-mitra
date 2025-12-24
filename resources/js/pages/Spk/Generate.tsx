@@ -293,50 +293,31 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
         setProcessing(true);
 
-        // Get year from tanggal_spk
-        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-
-        // Sort petugas by name (alphabetically) to ensure consistent numbering
-        const sortedPetugas = [...petugas_list]
-            .filter(a => selectedPetugas.includes(a.petugas.hashed_id))
-            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama));
-
-        // Generate SPK for selected petugas
-        let successCount = 0;
-        const totalPetugas = sortedPetugas.length;
-
-        sortedPetugas.forEach((alokasi, index) => {
-            // Calculate nomor urut: next_nomor_urut + index
-            const noUrut = next_nomor_urut + index;
-            
-            // Format: PPIS/13730/{No Urut}/K/{tahun}
-            const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
-
-            router.post(
-                `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/generate`,
-                {
-                    nomor_spk: nomorSpk,
-                    tanggal_spk: formData.tanggal_spk,
-                    sampai_tanggal: formData.sampai_tanggal,
+        // POST to new bulk endpoint
+        router.post(
+            `/spk/periode/${periode.hashed_id}/generate-all`,
+            {
+                tanggal_spk: formData.tanggal_spk,
+                sampai_tanggal: formData.sampai_tanggal,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    setProcessing(false);
+                    // page.props will not have the response, so use event.detail if available
+                    // But inertiajs router.post with JSON response will set event.detail.response
+                    // So, use a fetch fallback if needed
+                    setSuccessMessage('SPK berhasil dibuat untuk semua petugas non-organik.');
+                    setShowSuccessModal(true);
                 },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        successCount++;
-                        if (successCount === totalPetugas) {
-                            setProcessing(false);
-                            setSuccessMessage(`SPK berhasil dibuat untuk ${successCount} petugas`);
-                            setShowSuccessModal(true);
-                        }
-                    },
-                    onError: (errors) => {
-                        console.error('Error generating SPK:', errors);
-                        setProcessing(false);
-                    },
-                }
-            );
-        });
+                onError: (errors) => {
+                    setProcessing(false);
+                    setModalMessage('Terjadi error saat generate SPK.');
+                    setShowFormModal(true);
+                },
+            }
+        );
     };
 
     const getPeranLabel = (peran: string) => {

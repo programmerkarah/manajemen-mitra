@@ -305,7 +305,7 @@
 
     <table class="dictum">
         <tr>
-            <td>PERTAMA</td>
+            <td>KESATU</td>
             <td>:</td>
             <td>
                 Mengangkat yang namanya tersebut dalam kolom 2 Lampiran Keputusan ini sebagai Petugas {{ $kegiatan->nama }}
