@@ -491,19 +491,13 @@
         @php
         $revisionText = '';
         if ($revisionNumber == 1) {
-        $revisionText = 'PERUBAHAN ATAS';
+        $revisionText = 'PERUBAHAN';
         } else {
         $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
-        $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+        $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . '';
         }
         @endphp
-        {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
-        KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
-        @if($firstSkYear)
-        TAHUN {{ $firstSkYear }}
-        @endif
-        <br>
-        TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+        {{ $revisionText }} PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
         BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
         TAHUN ANGGARAN {{ $periode->tahun }}
         @else
