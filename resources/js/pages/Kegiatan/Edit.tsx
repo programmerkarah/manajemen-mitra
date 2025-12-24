@@ -274,7 +274,7 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaU
                             {/* PJ Lainnya - Optional */}
                             <div className="space-y-2">
                                 <Label htmlFor="pj_lainnya_id" className="text-base font-semibold">
-                                    PJ Lainnya (opsional)
+                                    Ketua Tim Lainnya (opsional)
                                 </Label>
                                 <select
                                     id="pj_lainnya_id"
@@ -282,7 +282,7 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaU
                                     onChange={(e) => setData('pj_lainnya_id', e.target.value)}
                                     className="mt-1 block w-full h-11 text-base rounded-lg border-2 border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
                                 >
-                                    <option value="">Pilih PJ lainnya (opsional)</option>
+                                    <option value="">Pilih Ketua Tim Lainnya (opsional)</option>
                                     {pjLainnyaUsers.map((user) => (
                                         <option key={user.id} value={user.id}>
                                             {user.name} ({user.email})

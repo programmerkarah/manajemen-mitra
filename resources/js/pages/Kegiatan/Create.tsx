@@ -271,7 +271,7 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
                                     htmlFor="pj_lainnya_id"
                                     className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                 >
-                                    PJ Lainnya (opsional)
+                                    Ketua Tim Lainnya (opsional)
                                 </label>
                                 <select
                                     id="pj_lainnya_id"
@@ -279,7 +279,7 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
                                     onChange={(e) => setData('pj_lainnya_id', e.target.value)}
                                     className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                 >
-                                    <option value="">Pilih PJ lainnya (opsional)</option>
+                                    <option value="">Pilih Ketua Tim Lainnya (opsional)</option>
                                     {pjLainnyaUsers.map((user: User) => (
                                         <option key={user.id} value={user.id}>
                                             {user.name} - {user.email}
