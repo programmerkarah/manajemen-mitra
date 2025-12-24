@@ -32,7 +32,18 @@ class AlokasiPetugasPolicy
             return false;
         }
 
-        return in_array($user->active_role, ['admin', 'operator', 'ketua_tim']);
+        // Admin dan operator tetap bisa
+        if (in_array($user->active_role, ['admin', 'operator'])) {
+            return true;
+        }
+
+        // Ketua tim bisa create jika dia adalah ketua_tim_user_id atau pj_lainnya_id pada kegiatan
+        if ($user->active_role === 'ketua_tim') {
+            // Perlu akses ke model Kegiatan, jadi pengecekan lebih baik di controller
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -49,9 +60,13 @@ class AlokasiPetugasPolicy
             return $alokasiPetugas->status === 'draft';
         }
 
-        // Ketua Tim hanya bisa update alokasi yang dia buat dan masih draft
+        // Ketua Tim bisa update alokasi yang dia miliki (ketua_tim_user_id) atau pj_lainnya_id dan masih draft
         if ($user->active_role === 'ketua_tim') {
-            return $alokasiPetugas->kegiatan->ketua_tim_user_id === $user->id && $alokasiPetugas->status === 'draft';
+            $kegiatan = $alokasiPetugas->kegiatan;
+            return (
+                ($kegiatan->ketua_tim_user_id === $user->id || $kegiatan->pj_lainnya_id === $user->id)
+                && $alokasiPetugas->status === 'draft'
+            );
         }
 
         return false;

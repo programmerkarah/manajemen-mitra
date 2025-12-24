@@ -32,7 +32,7 @@ class AlokasiPetugasController extends Controller
             ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating', 'alokasiPetugas'])
             ->withCount('alokasiPetugas as jumlah_petugas')
             ->where('status', '!=', 'dihapus') // Exclude deleted periods
-            ->where('status', '!=', 'direvisi') // Exclude old revisions
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']) // Show all relevant statuses
             ->where('tahun', $activeYear);
 
         // Search by kegiatan
@@ -58,7 +58,8 @@ class AlokasiPetugasController extends Controller
         $effectiveUser = effectiveUser($request);
         if ($effectiveUser->isKetuaTim()) {
             $query->whereHas('kegiatan', function ($q) use ($effectiveUser) {
-                $q->where('ketua_tim_user_id', $effectiveUser->id);
+                $q->where('ketua_tim_user_id', $effectiveUser->id)
+                ->orWhere('pj_lainnya_id', $effectiveUser->id);
             });
         }
 
@@ -117,7 +118,8 @@ class AlokasiPetugasController extends Controller
         // Check if any kegiatan exists
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
             ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
-                $query->where('ketua_tim_user_id', $effectiveUser->id);
+                $query->where('ketua_tim_user_id', $effectiveUser->id)
+                ->orWhere('pj_lainnya_id', $effectiveUser->id);
             })
             ->exists();
 
@@ -139,9 +141,9 @@ class AlokasiPetugasController extends Controller
             return back()->with('error', 'Alokasi petugas hanya bisa ditambahkan untuk kegiatan yang sudah divalidasi.');
         }
 
-        // Ketua Tim can only add alokasi for their own kegiatan
+        // Ketua Tim dapat menambah alokasi jika dia adalah ketua_tim_user_id atau pj_lainnya_id
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
+        if ($effectiveUser->isKetuaTim() && !($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
             abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
         }
         // Validate that kegiatan has rate honors
@@ -470,9 +472,15 @@ class AlokasiPetugasController extends Controller
 
         // Check if any kegiatan exists before allowing access
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
-                $query->where('ketua_tim_user_id', $effectiveUser->id);
-            })
+            ->when(
+                $effectiveUser->isKetuaTim() || Kegiatan::where('pj_lainnya_id', $effectiveUser->id)->exists(),
+                function ($query) use ($effectiveUser) {
+                    $query->where(function ($q) use ($effectiveUser) {
+                        $q->where('ketua_tim_user_id', $effectiveUser->id)
+                          ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                    });
+                }
+            )
             ->exists();
 
         if (! $hasKegiatans) {
@@ -481,6 +489,15 @@ class AlokasiPetugasController extends Controller
         }
 
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
+            ->when(
+                $effectiveUser->isKetuaTim() || Kegiatan::where('pj_lainnya_id', $effectiveUser->id)->exists(),
+                function ($query) use ($effectiveUser) {
+                    $query->where(function ($q) use ($effectiveUser) {
+                        $q->where('ketua_tim_user_id', $effectiveUser->id)
+                          ->orWhere('pj_lainnya_id', $effectiveUser->id);
+                    });
+                }
+            )
             ->with([
                 'rateHonors' => function ($query) use ($activeYear) {
                     $query->where('status', 'aktif')

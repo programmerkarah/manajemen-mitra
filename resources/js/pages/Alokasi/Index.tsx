@@ -216,7 +216,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                 title="Alokasi Petugas"
                 description="Kelola alokasi petugas untuk setiap kegiatan"
             >
-                {!isPJ && hasKegiatans && (
+                {(!isPJ && hasKegiatans) && (
                     <Button size="sm" asChild className="gap-2">
                         <Link href="/alokasi/create">
                             <Plus className="h-4 w-4" />

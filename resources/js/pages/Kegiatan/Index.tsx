@@ -48,7 +48,10 @@ interface KegiatanIndexProps {
 
 export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const { auth } = usePage<SharedData>().props;
+    // isPJ: true if user is pj (pj_lainnya), false otherwise
     const isPJ = auth.activeRole?.name === 'pj';
+    // isKetuaTimLainnya: true if user is pj_lainnya (ketua tim lainnya)
+    const isKetuaTimLainnya = auth.user.active_role === 'pj';
     
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
@@ -195,7 +198,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     title="Kegiatan"
                     description="Kelola kegiatan dan anggaran"
                 >
-                    {!isPJ && (
+                    {(!isPJ || isKetuaTimLainnya) && (
                         <Button size="sm" asChild className="gap-2">
                             <Link href="/kegiatan/create">
                                 <Plus className="h-4 w-4" />
@@ -315,7 +318,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                 {kegiatan.tahun_anggaran}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
-                                                {formatCurrency(kegiatan.pagu_anggaran)}
+                                                {formatCurrency(kegiatan.pagu_pencacahan)}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.ketua_tim.name}
