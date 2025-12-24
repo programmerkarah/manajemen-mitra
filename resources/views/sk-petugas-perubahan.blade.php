@@ -385,6 +385,18 @@
     </table>
 
     <div class="pasal-section">
+        @if($revisionNumber > 0)
+        @php
+        $revisionText = '';
+        if ($revisionNumber == 1) {
+        $revisionText = 'PERUBAHAN ATAS';
+        } else {
+        $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+        $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+        }
+        $revisionTextDisplay = ucfirst(strtolower($revisionText)) ;
+        @endphp
+        @endif
         <p class="pasal-title"><strong>Pasal I</strong></p>
         <p style="text-align: justify;">
             Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang Perubahan Atas Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
@@ -400,7 +412,7 @@
         $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
         $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
         }
-        $revisionTextDisplay = ucfirst(strtolower($revisionText))  ;
+        $revisionTextDisplay = ucfirst(strtolower($revisionText)) ;
         @endphp
         @endif
         <p class="pasal-title"><strong>Pasal III</strong></p>
