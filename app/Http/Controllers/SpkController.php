@@ -700,6 +700,7 @@ class SpkController extends Controller
             });
 
         // Group by petugas_id and aggregate their data
+
         $petugasList = $allAlokasi->groupBy('petugas_id')
             ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun) {
                 $firstAlokasi = $alokasiGroup->first();
@@ -719,32 +720,34 @@ class SpkController extends Controller
                     return null; // Skip petugas without original SPK
                 }
 
-                // Ambil alokasi 'perubahan' (revisi terbaru)
-                $alokasiPerubahan = $alokasiGroup->first(function ($alokasi) {
+                // Ambil semua alokasi 'perubahan' (bisa lebih dari satu kegiatan)
+                $alokasiPerubahanList = $alokasiGroup->filter(function ($alokasi) {
                     return $alokasi->periodeAlokasi->status === 'perubahan';
                 });
-                if (! $alokasiPerubahan) {
+                if ($alokasiPerubahanList->isEmpty()) {
                     return null;
                 }
 
-                // Ambil alokasi periode sebelumnya (status 'disetujui' atau 'dikirim')
-                $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                        $q->where('bulan', $bulanFormatted)
-                            ->where('tahun', $tahun)
-                            ->whereIn('status', ['disetujui', 'dikirim', 'direvisi']);
-                    })
-                    ->orderByDesc('id')
-                    ->first();
-
-                // Bandingkan perubahan: jumlah_satuan, total_honor, peran, jumlah_satuan_listing, total_honor_listing
                 $isBerubah = false;
-                if ($alokasiSebelumnya) {
+                foreach ($alokasiPerubahanList as $alokasiPerubahan) {
+                    // Cari alokasi sebelumnya untuk kegiatan yang sama
+                    $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
+                        ->where('periode_alokasi_id', '!=', $alokasiPerubahan->periode_alokasi_id)
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                            $q->where('bulan', $bulanFormatted)
+                                ->where('tahun', $tahun)
+                                ->whereIn('status', ['disetujui', 'dikirim', 'direvisi']);
+                        })
+                        ->where('peran', $alokasiPerubahan->peran)
+                        ->where('jumlah_satuan', '!=', null)
+                        ->orderByDesc('id')
+                        ->first();
+
                     $selisih_jumlah_satuan = (int)($alokasiPerubahan->jumlah_satuan ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan ?? 0);
                     $selisih_jumlah_satuan_listing = (int)($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
                     $selisih_total_honor = (float)($alokasiPerubahan->total_honor ?? 0) - (float)($alokasiSebelumnya->total_honor ?? 0);
                     $selisih_total_honor_listing = (float)($alokasiPerubahan->total_honor_listing ?? 0) - (float)($alokasiSebelumnya->total_honor_listing ?? 0);
-                
+
                     \Log::info('DEBUG ADDENDUM', [
                         'petugas_id' => $firstAlokasi->petugas_id,
                         'periode_perubahan' => $alokasiPerubahan->periode_alokasi_id,
@@ -765,16 +768,16 @@ class SpkController extends Controller
                         'selisih_total_honor_listing' => $selisih_total_honor_listing,
                     ]);
 
-                    $isBerubah = (
+                    if (
                         $selisih_jumlah_satuan !== 0 ||
                         $selisih_jumlah_satuan_listing !== 0 ||
                         abs($selisih_total_honor) > 0.01 ||
                         abs($selisih_total_honor_listing) > 0.01 ||
-                        $alokasiPerubahan->peran !== $alokasiSebelumnya->peran
-                    );
-                } else {
-                    // Jika tidak ada alokasi sebelumnya, anggap tidak berubah (tidak perlu addendum)
-                    $isBerubah = false;
+                        $alokasiPerubahan->peran !== ($alokasiSebelumnya->peran ?? null)
+                    ) {
+                        $isBerubah = true;
+                        break;
+                    }
                 }
 
                 if (! $isBerubah) {
