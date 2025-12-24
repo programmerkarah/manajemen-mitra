@@ -403,19 +403,19 @@
             <td>
                 Mengubah Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, dengan 
                 @if(count($deletedPetugas) > 0)
-                menghapus nama 
+                memberhentikan  
                 @foreach($deletedPetugas as $index => $nama)
-                    {{ $nama }}@if($index < count($deletedPetugas) - 1), @else;@endif
+                    {{ $nama, }}@if($index < count($deletedPetugas) - 1), @else, dan @endif
                 @endforeach
                 @endif
                 @if(count($addedPetugas) > 0)
-                , menambahkan nama  
+                mengangkat  
                 @foreach($addedPetugas as $index => $nama)
-                    {{ $nama }}@if($index < count($addedPetugas) - 1), @else;@endif
+                    {{ $nama }}@if($index < count($addedPetugas) - 1), @else, @endif
                 @endforeach
                 @endif
                 @if(count($allCurrentPetugas) > 0)
-                . Sehingga daftar nama dalam lampiran setelah perubahan adalah  
+                sehingga daftar nama dalam lampiran setelah perubahan adalah  
                 @foreach($allCurrentPetugas as $index => $nama)
                     @if($index > 0 && $index == count($allCurrentPetugas) - 1)
                         dan {{ $nama }}.

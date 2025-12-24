@@ -458,6 +458,39 @@ class SkKpaController extends Controller
 
         $periode = $periodeQuery->firstOrFail();
 
+        // Get previous SK petugas list for comparison (if this is a revision)
+        $deletedPetugas = [];
+        $addedPetugas = [];
+        $allCurrentPetugas = [];
+        
+        if ($revisionNumber > 0 && $existingSk) {
+            // Get the previous periode (not the current one)
+            $previousPeriode = $kegiatan->periodeAlokasi()
+                ->with(['alokasiPetugas' => function ($query) {
+                    $query->with('petugas');
+                }])
+                ->whereIn('status', ['dikirim', 'disetujui'])
+                ->where('id', '!=', $periode->id) // Exclude current periode
+                ->orderBy('created_at', 'desc')
+                ->first();
+                
+            if ($previousPeriode) {
+                $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
+                $currentPetugasList = $periode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
+                
+                // Find deleted petugas (in previous but not in current)
+                $deletedPetugasIds = array_diff(array_keys($previousPetugasList), array_keys($currentPetugasList));
+                $deletedPetugas = array_values(array_intersect_key($previousPetugasList, array_flip($deletedPetugasIds)));
+                
+                // Find added petugas (in current but not in previous)
+                $addedPetugasIds = array_diff(array_keys($currentPetugasList), array_keys($previousPetugasList));
+                $addedPetugas = array_values(array_intersect_key($currentPetugasList, array_flip($addedPetugasIds)));
+                
+                // All current petugas names for final list
+                $allCurrentPetugas = array_values($currentPetugasList);
+            }
+        }
+
         // Parse alokasi petugas with rates
         $alokasiList = $periode->alokasiPetugas->map(function ($alokasi) use ($kegiatan) {
             // Make sure petugas relationship is loaded
@@ -523,6 +556,9 @@ class SkKpaController extends Controller
             'revisionSkYear' => $latestSk ? $latestSk->tahun : null,
             'firstSkNumber' => $firstSkNumber,
             'firstSkYear' => $firstSkYear,
+            'deletedPetugas' => $deletedPetugas,
+            'addedPetugas' => $addedPetugas,
+            'allCurrentPetugas' => $allCurrentPetugas,
         ];
 
         // Choose template: use perubahan template when there are previous SKs (revisionNumber > 0)
@@ -814,72 +850,48 @@ class SkKpaController extends Controller
     {
         $activeYear = ActiveYearService::get();
 
-        // Get all approved/submitted periods for this kegiatan, ordered by month
+        // Get all approved/submitted periods for this kegiatan
         $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
             ->where('tahun', $activeYear)
             ->whereIn('status', ['dikirim', 'disetujui'])
             ->orderBy('bulan')
             ->get();
 
-        // If no SK exists yet, check all periods for changes
+        // If no SK exists yet, check if there are any periods (need at least one for first SK)
         if (! $latestSk) {
-            // Need at least 2 periods to compare
-            if ($periods->count() < 2) {
-                return false;
-            }
-
-            // Compare consecutive periods
-            for ($i = 1; $i < $periods->count(); $i++) {
-                $previousPeriod = $periods[$i - 1];
-                $currentPeriod = $periods[$i];
-
-                $previousPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $previousPeriod->id)
-                    ->pluck('petugas_id')
-                    ->sort()
-                    ->values()
-                    ->toArray();
-
-                $currentPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $currentPeriod->id)
-                    ->pluck('petugas_id')
-                    ->sort()
-                    ->values()
-                    ->toArray();
-
-                if ($previousPersonnel !== $currentPersonnel) {
-                    return true;
-                }
-            }
-
-            return false;
+            return $periods->count() > 0;
         }
 
-        // If SK exists, get personnel from the SK's month (periode that was covered by latest SK)
-        $skPeriod = $periods->firstWhere('bulan', $latestSk->bulan);
-
-        if (! $skPeriod) {
-            return false;
-        }
-
-        $skPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $skPeriod->id)
-            ->pluck('petugas_id')
-            ->sort()
-            ->values()
-            ->toArray();
-
-        // Check if any period AFTER the SK has different personnel
-        $periodsAfterSk = $periods->filter(function ($period) use ($latestSk) {
+        // If SK exists, check if there are NEW periods after the SK's bulan
+        // Since SK is created for the latest periode at that time, any periode with bulan > SK bulan means new periode
+        $newPeriodsAfterSk = $periods->filter(function ($period) use ($latestSk) {
             return $period->bulan > $latestSk->bulan;
         });
 
-        foreach ($periodsAfterSk as $period) {
-            $currentPersonnel = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $period->id)
-                ->pluck('petugas_id')
-                ->sort()
-                ->values()
-                ->toArray();
+        if ($newPeriodsAfterSk->count() > 0) {
+            return true;
+        }
 
-            // If personnel is different from SK's personnel, there's a change
-            if ($skPersonnel !== $currentPersonnel) {
+        // Also check if any periode with same or earlier bulan was created/updated AFTER SK creation
+        // This handles cases where someone adds a new periode for an earlier month after SK was created
+        $skCreatedAt = $latestSk->created_at;
+        
+        foreach ($periods as $period) {
+            // Check if this periode was created after SK was created
+            // Use Carbon's gt() method which properly handles timezone comparisons
+            if ($period->created_at->gt($skCreatedAt) || $period->updated_at->gt($skCreatedAt)) {
+                return true;
+            }
+
+            // Also check if any alokasi in this periode was created/updated after SK
+            $hasChangedAlokasi = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $period->id)
+                ->where(function ($query) use ($skCreatedAt) {
+                    $query->where('created_at', '>', $skCreatedAt)
+                        ->orWhere('updated_at', '>', $skCreatedAt);
+                })
+                ->exists();
+
+            if ($hasChangedAlokasi) {
                 return true;
             }
         }
