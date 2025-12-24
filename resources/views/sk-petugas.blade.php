@@ -248,10 +248,10 @@
     <!-- Halaman Pertama: SK -->
     <div class="header" style="margin-bottom: 15px;">
         <div style="text-align: center; margin-bottom: 0px;">
-            <img src="{{ public_path('favicon.svg') }}" alt="Logo BPS" style="width: 140px; height: auto; margin: -5px 0;">
+            <img src="{{ public_path('favicon.svg') }}" alt="Logo BPS" style="width: 140px; height: auto; margin: -15px 0;">
             <h3 style="font-family: 'Arial', sans-serif; font-weight: bold; font-style: italic;">BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         </div>
-        <span>{{ $kategoriKeputusan }} KEPALA BADAN PUSAT STATISTIK</span>
+        <span style="margin-top: 15px;">{{ $kategoriKeputusan }} KEPALA BADAN PUSAT STATISTIK</span>
         <span>KOTA SAWAHLUNTO</span><br>
         <span>NOMOR {{ $nomorSk }} TAHUN {{ $tahunSk }}</span>
     </div>
