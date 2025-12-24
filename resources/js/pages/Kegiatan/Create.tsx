@@ -30,8 +30,10 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
     
     // Format currency untuk display
-    const formatCurrency = (value: string): string => {
-        const number = value.replace(/\D/g, '')
+    const formatCurrency = (value: string | number | null): string => {
+        if (value === null || value === undefined) return ''
+        const str = String(value)
+        const number = str.replace(/\D/g, '')
         return number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     }
 

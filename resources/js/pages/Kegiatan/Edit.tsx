@@ -40,8 +40,10 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaU
     }
 
     // Format currency untuk display
-    const formatCurrency = (value: string): string => {
-        const number = value.replace(/\D/g, '')
+    const formatCurrency = (value: string | number | null): string => {
+        if (value === null || value === undefined) return ''
+        const str = String(value)
+        const number = str.replace(/\D/g, '')
         return number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     }
 
