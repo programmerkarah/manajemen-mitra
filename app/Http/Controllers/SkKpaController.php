@@ -514,9 +514,6 @@ class SkKpaController extends Controller
         ];
 
         // Choose template: use perubahan template when there are previous SKs (revisionNumber > 0)
-        \Console::classinfo('Revision Number: '.$revisionNumber);
-        \Console::classinfo('Latest SK Number: '.($latestSk ? $latestSk->nomor_sk : 'N/A'));
-        \Console::classinfo('First SK Number: '.($firstSkNumber ?? 'N/A'));
         $view = ($revisionNumber > 0 && $latestSk->nomor_sk !== $firstSkNumber) ? 'sk-petugas-perubahan' : 'sk-petugas';
 
         // Generate and stream PDF directly (tidak save)
