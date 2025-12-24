@@ -854,6 +854,7 @@ class SkKpaController extends Controller
         $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
             ->where('tahun', $activeYear)
             ->whereIn('status', ['dikirim', 'disetujui'])
+            ->with('alokasiPetugas')
             ->orderBy('bulan')
             ->get();
 
@@ -862,40 +863,53 @@ class SkKpaController extends Controller
             return $periods->count() > 0;
         }
 
-        // If SK exists, check if there are NEW periods after the SK's bulan
-        // Since SK is created for the latest periode at that time, any periode with bulan > SK bulan means new periode
-        $newPeriodsAfterSk = $periods->filter(function ($period) use ($latestSk) {
-            return $period->bulan > $latestSk->bulan;
-        });
+        // Get periods that exist AFTER the latest SK bulan
+        $periodsAfterSk = $periods->filter(fn($p) => $p->bulan > $latestSk->bulan);
+        
+        if ($periodsAfterSk->isEmpty()) {
+            return false;
+        }
 
-        if ($newPeriodsAfterSk->count() > 0) {
+        // Find the latest periode that was used when the SK was created
+        // This should be the periode with bulan <= latestSk->bulan (the last one before or at SK creation)
+        $lastPeriodeBeforeSk = $periods
+            ->filter(fn($p) => $p->bulan <= $latestSk->bulan)
+            ->sortByDesc('bulan')
+            ->first();
+
+        if (! $lastPeriodeBeforeSk) {
+            // If we can't find reference periode, any new periode means changes
             return true;
         }
 
-        // Also check if any periode with same or earlier bulan was created/updated AFTER SK creation
-        // This handles cases where someone adds a new periode for an earlier month after SK was created
-        $skCreatedAt = $latestSk->created_at;
+        // Get personnel from the last periode before/at SK creation
+        $referencePersonnel = $lastPeriodeBeforeSk->alokasiPetugas
+            ->pluck('petugas_id')
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Check each periode after SK to see if personnel changed
+        // We compare each with the PREVIOUS periode to detect changes
+        $previousPersonnel = $referencePersonnel;
         
-        foreach ($periods as $period) {
-            // Check if this periode was created after SK was created
-            // Use Carbon's gt() method which properly handles timezone comparisons
-            if ($period->created_at->gt($skCreatedAt) || $period->updated_at->gt($skCreatedAt)) {
+        foreach ($periodsAfterSk as $period) {
+            $currentPersonnel = $period->alokasiPetugas
+                ->pluck('petugas_id')
+                ->sort()
+                ->values()
+                ->toArray();
+            
+            // If current periode has different personnel than previous, there's a change
+            if ($currentPersonnel !== $previousPersonnel) {
                 return true;
             }
-
-            // Also check if any alokasi in this periode was created/updated after SK
-            $hasChangedAlokasi = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $period->id)
-                ->where(function ($query) use ($skCreatedAt) {
-                    $query->where('created_at', '>', $skCreatedAt)
-                        ->orWhere('updated_at', '>', $skCreatedAt);
-                })
-                ->exists();
-
-            if ($hasChangedAlokasi) {
-                return true;
-            }
+            
+            // Update previous for next iteration
+            $previousPersonnel = $currentPersonnel;
         }
 
+        // No changes found - all periods after SK have same personnel
         return false;
     }
 }
