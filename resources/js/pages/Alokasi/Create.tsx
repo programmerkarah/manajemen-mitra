@@ -24,6 +24,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface Kegiatan {
+    pj_lainnya_id: number;
     id: string;
     hashed_id: string;
     kode_kegiatan: string;
@@ -215,10 +216,20 @@ export default function Create({
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
         if (auth.activeRole?.name === 'ketua_tim') {
-            return kegiatans.filter(
-                (k) => k.ketua_tim_user_id === auth.user.id,
-            );
+            const filtered = kegiatans.filter((k) => {
+                const ketuaMatch = Number(k.ketua_tim_user_id) === Number(auth.user.id);
+                // If pj_lainnya_id is null/undefined, treat as 0 (never match user.id)
+                const pjLainnyaId = typeof k.pj_lainnya_id === 'undefined' || k.pj_lainnya_id === null ? 0 : Number(k.pj_lainnya_id);
+                const pjLainnyaMatch = pjLainnyaId === Number(auth.user.id);
+                console.log('[DEBUG] k:', k, 'ketuaMatch:', ketuaMatch, 'pjLainnyaId:', pjLainnyaId, 'pjLainnyaMatch:', pjLainnyaMatch, 'auth.user.id:', auth.user.id);
+                return ketuaMatch || pjLainnyaMatch;
+            });
+            console.log('[DEBUG] filteredKegiatans:', filtered);
+            console.log('[DEBUG] all kegiatans:', kegiatans);
+            console.log('[DEBUG] auth.user.id:', auth.user.id, 'activeRole:', auth.activeRole);
+            return filtered;
         }
+        console.log('[DEBUG] all kegiatans (no filter):', kegiatans);
         return kegiatans;
     }, [kegiatans, auth.activeRole, auth.user.id]);
 

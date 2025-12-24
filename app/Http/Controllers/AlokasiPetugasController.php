@@ -489,15 +489,10 @@ class AlokasiPetugasController extends Controller
         }
 
         $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when(
-                $effectiveUser->isKetuaTim() || Kegiatan::where('pj_lainnya_id', $effectiveUser->id)->exists(),
-                function ($query) use ($effectiveUser) {
-                    $query->where(function ($q) use ($effectiveUser) {
-                        $q->where('ketua_tim_user_id', $effectiveUser->id)
-                          ->orWhere('pj_lainnya_id', $effectiveUser->id);
-                    });
-                }
-            )
+            ->where(function ($query) use ($effectiveUser) {
+                $query->where('ketua_tim_user_id', $effectiveUser->id)
+                      ->orWhere('pj_lainnya_id', $effectiveUser->id);
+            })
             ->with([
                 'rateHonors' => function ($query) use ($activeYear) {
                     $query->where('status', 'aktif')
@@ -509,7 +504,7 @@ class AlokasiPetugasController extends Controller
                         ]);
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
             ->orderBy('created_at', 'desc')
             ->get()
             ->filter(function ($kegiatan) {

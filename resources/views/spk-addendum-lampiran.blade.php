@@ -102,8 +102,26 @@
     @endphp
     <div class="lampiran-header">
         <div class="lampiran-title">
+            @php
+                    $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
+                    $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
+                    $judulSpk = '';
+                    if ($jenisKegiatan === 'sensus') {
+                        if ($peran === 'pcl' || $peran === 'ppl') {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } elseif (str_contains($peran, 'olah')) {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } else {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        }
+                    } else {
+                        $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN SURVEI';
+                    }
+                @endphp
             Lampiran<br>
-            PERUBAHAN/{{ $addendumLabel }} PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SURVEI DAN SENSUS BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($bulan_label) }} {{ $tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO NOMOR: {{$parent_nomor_spk}}<br>
+               PERUBAHAN/{{ $addendumLabel }} {{ $judulSpk }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($bulan_label) }} {{ $tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO NOMOR: {{$parent_nomor_spk}}<br>
         </div>
     </div>
 

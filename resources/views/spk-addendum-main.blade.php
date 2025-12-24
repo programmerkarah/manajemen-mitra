@@ -216,6 +216,25 @@
 </head>
 <body>
     @php
+                    $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
+                    $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
+                    $judulSpk = '';
+                    if ($jenisKegiatan === 'sensus') {
+                        if ($peran === 'pcl' || $peran === 'ppl') {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } elseif (str_contains($peran, 'olah')) {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        } else {
+                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        }
+                    } else {
+                        $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SURVEI';
+                    }
+            $judulSpkText = strtolower($judulSpk);
+                @endphp
+    @php
         $addendumLabel = match((int)$addendum_number) {
             1 => 'Addendum',
             2 => 'Addendum Kedua',
@@ -228,7 +247,7 @@
     <!-- HEADER -->
     <div class="header">
         <h3>PERUBAHAN/{{ strtoupper($addendumLabel) }}</h3>
-        <h3>PERJANJIAN KERJA KEGIATAN SENSUS DAN SURVEI<br>
+        <h3>PERJANJIAN KERJA {{ $judulSpk }}<br>
             BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
             BULAN {{ strtoupper($bulan_label) }} {{ $tahun }}
             PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
@@ -262,7 +281,7 @@
         </div>
         
         <p style="margin-bottom: 10px;">
-            bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, dengan ini menyatakan bahwa <strong>PARA PIHAK</strong> telah sepakat untuk mengikatkan diri dalam Perubahan/{{ $addendumLabel }} Perjanjian Kerja Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, dengan ketentuan-ketentuan sebagai berikut:
+            bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, dengan ini menyatakan bahwa <strong>PARA PIHAK</strong> telah sepakat untuk mengikatkan diri dalam Perubahan/{{ $addendumLabel }} Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, dengan ketentuan-ketentuan sebagai berikut:
         </p>
 
         <p class="dasar" style="margin-bottom: 10px;">
@@ -274,7 +293,7 @@
         <div class="pasal-section">
             <p class="pasal-title"><strong>Pasal I</strong></p>
             <p>
-                Mengubah Pasal 6 dan Pasal 10 ayat (1) huruf b. Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sehingga Pasal 6 dan Pasal 10 ayat (1) seluruhnya berbunyi sebagai berikut:
+                Mengubah Pasal 6 dan Pasal 10 ayat (1) huruf b. Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sehingga Pasal 6 dan Pasal 10 ayat (1) seluruhnya berbunyi sebagai berikut:
             </p>
         </div>
 
@@ -314,7 +333,7 @@
         <div class="pasal-section">
             <p class="pasal-title"><strong>Pasal II</strong></p>
             <p>
-                Mengubah Lampiran pada Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sebagaimana tercantum dalam Lampiran Perubahan/{{$addendumLabel}} ini sebagai bagian yang tidak terpisahkan dari Addendum ini.
+                Mengubah Lampiran pada Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }}, sebagaimana tercantum dalam Lampiran Perubahan/{{$addendumLabel}} ini sebagai bagian yang tidak terpisahkan dari Addendum ini.
             </p>
         </div>
 
@@ -322,12 +341,12 @@
         <div class="pasal-section">
             <p class="pasal-title"><strong>Pasal III</strong></p>
             <p>
-                Ketentuan-ketentuan lainnya yang tidak diubah dalam Perubahan/Addendum atas Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} dinyatakan tetap berlaku.
+                Ketentuan-ketentuan lainnya yang tidak diubah dalam Perubahan/Addendum atas Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} dinyatakan tetap berlaku.
             </p>
         </div>
 
         <p style="margin: 15px 0;">
-            Demikian Perubahan/Addendum atas Perjanjian Kerja Petugas Lapangan Kegiatan Sensus dan Survei Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli yang mempunyai kekuatan hukum sama dan masing-masing <strong>PIHAK</strong> mendapat 1 (satu) rangkap.
+            Demikian Perubahan/Addendum atas Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli yang mempunyai kekuatan hukum sama dan masing-masing <strong>PIHAK</strong> mendapat 1 (satu) rangkap.
         </p>
     </div>
 
