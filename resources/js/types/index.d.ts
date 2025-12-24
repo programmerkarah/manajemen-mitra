@@ -84,6 +84,7 @@ export interface Kegiatan {
     has_listing_updating: boolean;
     pagu_listing: number | null;
     ketua_tim_user_id: number;
+    pj_lainnya_id?: number | null;
     rate_honor_id: string | null;
     rate_honor_status: 'pending' | 'approved' | 'rejected' | null;
     rate_honor_approved_by: number | null;

@@ -25,9 +25,10 @@ interface KegiatanEditProps {
     kegiatan: Kegiatan
     ketuaTimUsers: User[]
     tahunOptions: number[]
+    pjLainnyaUsers: User[]
 }
 
-export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: KegiatanEditProps) {
+export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaUsers }: KegiatanEditProps) {
     const { auth } = usePage<SharedData>().props
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim'
 
@@ -66,6 +67,7 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
         pagu_listing: nominalToString(kegiatan.pagu_listing),
         has_listing_updating: kegiatan.has_listing_updating || false,
         ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
+        pj_lainnya_id: kegiatan.pj_lainnya_id ? kegiatan.pj_lainnya_id.toString() : '',
         tanggal_mulai: formatDateForInput(kegiatan.tanggal_mulai),
         tanggal_selesai: formatDateForInput(kegiatan.tanggal_selesai),
     })
@@ -73,12 +75,9 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         // Kirim pagu_pencacahan dan pagu_listing sebagai number jika ada
-        const payload = {
-            ...data,
-            pagu_pencacahan: data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null,
-            pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
-        }
-        put(`/kegiatan/${kegiatan.hashed_id}`, { data: payload })
+        setData('pagu_pencacahan', data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null as any)
+        setData('pagu_listing', data.pagu_listing ? Number(data.pagu_listing) : null as any)
+        put(`/kegiatan/${kegiatan.hashed_id}`)
     }
 
     return (
@@ -271,6 +270,27 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions }: Kegiatan
                                     <InputError message={errors.ketua_tim_user_id} className="mt-2" />
                                 </div>
                             )}
+
+                            {/* PJ Lainnya - Optional */}
+                            <div className="space-y-2">
+                                <Label htmlFor="pj_lainnya_id" className="text-base font-semibold">
+                                    PJ Lainnya (opsional)
+                                </Label>
+                                <select
+                                    id="pj_lainnya_id"
+                                    value={data.pj_lainnya_id}
+                                    onChange={(e) => setData('pj_lainnya_id', e.target.value)}
+                                    className="mt-1 block w-full h-11 text-base rounded-lg border-2 border-neutral-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
+                                >
+                                    <option value="">Pilih PJ lainnya (opsional)</option>
+                                    {pjLainnyaUsers.map((user) => (
+                                        <option key={user.id} value={user.id}>
+                                            {user.name} ({user.email})
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.pj_lainnya_id} className="mt-2" />
+                            </div>
 
                             {/* Grid untuk tanggal */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
