@@ -337,6 +337,11 @@ class KegiatanController extends Controller
         }
 
         // Update kegiatan with all validated data
+        // Normalize pj_lainnya_id: empty string => null
+        if (array_key_exists('pj_lainnya_id', $data) && ($data['pj_lainnya_id'] === '' || $data['pj_lainnya_id'] === null)) {
+            $data['pj_lainnya_id'] = null;
+        }
+
         $kegiatan->update($data);
 
         // If pagu changed, recalculate all periode sisa_pagu

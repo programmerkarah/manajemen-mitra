@@ -29,6 +29,7 @@ class Kegiatan extends Model
             'pagu_pencacahan' => 'decimal:2',
             'has_listing_updating' => 'boolean',
             'pagu_listing' => 'decimal:2',
+            'pj_lainnya_id' => 'integer',
         ];
     }
 
@@ -53,7 +54,13 @@ class Kegiatan extends Model
         'catatan',
         'has_listing_updating',
         'pagu_listing',
+        'pj_lainnya_id',
     ];
+
+    public function pjLainnya(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pj_lainnya_id');
+    }
 
     public function ketuaTim(): BelongsTo
     {

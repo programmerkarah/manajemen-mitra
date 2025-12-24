@@ -415,7 +415,7 @@
         $revisionTextDisplay = ucfirst(strtolower($revisionText)) ;
         @endphp
         @endif
-        <p class="pasal-title"><strong>Pasal III</strong></p>
+        <p class="pasal-title"><strong>Pasal II</strong></p>
         <p style="text-align: justify;">
             Ketentuan-ketentuan lainnya yang tidak diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Atas Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
         </p>
