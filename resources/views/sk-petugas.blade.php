@@ -150,11 +150,11 @@
             display: inline-block;
             text-align: center;
         }
-        
+
         .table-with-signature {
             page-break-inside: avoid;
         }
-        
+
         .keep-with-signature {
             page-break-after: avoid !important;
         }
@@ -196,19 +196,19 @@
         table.petugas tbody tr {
             page-break-inside: avoid !important;
         }
-        
+
         table.petugas tbody tr.petugas-group-start {
             page-break-before: auto;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
         }
-        
+
         table.petugas tbody tr.petugas-group-middle {
             page-break-before: avoid !important;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
         }
-        
+
         table.petugas tbody tr.petugas-group-end {
             page-break-before: avoid !important;
             page-break-after: auto;
@@ -259,20 +259,9 @@
     <div class="title">TENTANG</div>
 
     <div class="title">
-        @if($revisionNumber > 0)
-            KEPUTUSAN KEPALA BADAN PUSAT STATISTIK 
-            KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
-            @if($firstSkYear)
-                TAHUN {{ $firstSkYear }}
-            @endif
-            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
-            TAHUN ANGGARAN {{ $periode->tahun }}
-        @else
-            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} <br>
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
-            TAHUN ANGGARAN {{ $periode->tahun }}
-        @endif
+        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} <br>
+        BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
+        TAHUN ANGGARAN {{ $periode->tahun }}
     </div>
 
     <div style="margin-top: 30px; text-align: center; ">
@@ -308,14 +297,8 @@
             <td>Menetapkan</td>
             <td>:</td>
             <td>
-                @if($revisionNumber > 0)
-                    KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO 
-                    NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} 
-                    BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
-                @else
-                    {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TENTANG
-                    PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
-                @endif
+                {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TENTANG
+                PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
             </td>
         </tr>
     </table>
@@ -361,16 +344,16 @@
             <td>
                 Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}
                 @if($revisionNumber > 1)
-                    sebagaimana telah diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $revisionSkNumber }} Tahun {{ $revisionSkYear }} tentang 
-                    @php
-                        if ($revisionNumber == 2) {
-                            echo 'Perubahan Atas';
-                        } else {
-                            $numberWords = ['', '', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh', 'Kedelapan', 'Kesembilan', 'Kesepuluh'];
-                            echo 'Perubahan ' . ($numberWords[$revisionNumber - 1] ?? ($revisionNumber - 1)) . ' Atas';
-                        }
-                    @endphp
-                    Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}
+                sebagaimana telah diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $revisionSkNumber }} Tahun {{ $revisionSkYear }} tentang
+                @php
+                if ($revisionNumber == 2) {
+                echo 'Perubahan Atas';
+                } else {
+                $numberWords = ['', '', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh', 'Kedelapan', 'Kesembilan', 'Kesepuluh'];
+                echo 'Perubahan ' . ($numberWords[$revisionNumber - 1] ?? ($revisionNumber - 1)) . ' Atas';
+                }
+                @endphp
+                Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}
                 @endif
                 dinyatakan <strong>tidak berlaku</strong> dan <strong>diganti</strong> dengan Lampiran sebagaimana tercantum dalam Keputusan ini.
             </td>
@@ -424,21 +407,9 @@
     </div>
 
     <div class="title">
-        @if($revisionNumber > 0)
-            KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
-            KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
-            @if($firstSkYear)
-                TAHUN {{ $firstSkYear }}
-            @endif
-            <br>
-            TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
-            TAHUN ANGGARAN {{ $periode->tahun }}
-        @else
-            PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
-            BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
-            TAHUN ANGGARAN {{ $periode->tahun }}
-        @endif
+        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+        BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+        TAHUN ANGGARAN {{ $periode->tahun }}
     </div>
 
     <table class="petugas">
@@ -459,32 +430,32 @@
             </tr>
         </thead>
         <tbody>
-            @php 
-                $counter = 1; 
-                $totalAlokasi = count($alokasiList);
+            @php
+            $counter = 1;
+            $totalAlokasi = count($alokasiList);
             @endphp
             @foreach($alokasiList as $alokasiIndex => $alokasi)
-            @php 
-                $roleCount = count($alokasi->roles);
-                $isLastAlokasi = ($alokasiIndex === $totalAlokasi - 1);
+            @php
+            $roleCount = count($alokasi->roles);
+            $isLastAlokasi = ($alokasiIndex === $totalAlokasi - 1);
             @endphp
             @foreach($alokasi->roles as $roleIndex => $role)
             @php
-                $groupClass = '';
-                if ($roleCount === 1) {
-                    $groupClass = 'petugas-group-start petugas-group-end';
-                } elseif ($roleIndex === 0) {
-                    $groupClass = 'petugas-group-start';
-                } elseif ($roleIndex === $roleCount - 1) {
-                    $groupClass = 'petugas-group-end';
-                } else {
-                    $groupClass = 'petugas-group-middle';
-                }
-                
-                // Add keep-with-signature class to last row of last petugas
-                if ($isLastAlokasi && $roleIndex === $roleCount - 1) {
-                    $groupClass .= ' keep-with-signature';
-                }
+            $groupClass = '';
+            if ($roleCount === 1) {
+            $groupClass = 'petugas-group-start petugas-group-end';
+            } elseif ($roleIndex === 0) {
+            $groupClass = 'petugas-group-start';
+            } elseif ($roleIndex === $roleCount - 1) {
+            $groupClass = 'petugas-group-end';
+            } else {
+            $groupClass = 'petugas-group-middle';
+            }
+
+            // Add keep-with-signature class to last row of last petugas
+            if ($isLastAlokasi && $roleIndex === $roleCount - 1) {
+            $groupClass .= ' keep-with-signature';
+            }
             @endphp
             <tr class="{{ $groupClass }}">
                 @if($roleIndex === 0)
