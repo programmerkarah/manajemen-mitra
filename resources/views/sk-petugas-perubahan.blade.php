@@ -400,11 +400,11 @@
         $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
         $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
         }
-        $revisionTextDisplay = ucfirst(strtolower($revisionText));
+        $revisionTextDisplay = ucfirst(strtolower$revisionText);
         @endphp
         @endif
         <p class="pasal-title"><strong>Pasal III</strong></p>
-        <p class="pasal-item-content" style="text-align: justify;">
+        <p style="text-align: justify;">
             Ketentuan-ketentuan lainnya yang tidak diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Atas Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
         </p>
     </div>
