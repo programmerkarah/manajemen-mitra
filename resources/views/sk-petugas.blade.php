@@ -310,7 +310,6 @@
             <td>
                 @if($revisionNumber > 0)
                     KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO 
-                    TENTANG {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO 
                     NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} 
                     BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
                 @else
@@ -426,16 +425,7 @@
 
     <div class="title">
         @if($revisionNumber > 0)
-            @php
-                $revisionText = '';
-                if ($revisionNumber == 1) {
-                    $revisionText = 'PERUBAHAN ATAS';
-                } else {
-                    $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
-                    $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
-                }
-            @endphp
-            {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
+            KEPUTUSAN KEPALA BADAN PUSAT STATISTIK<br>
             KOTA SAWAHLUNTO NOMOR {{ $firstSkNumber }}
             @if($firstSkYear)
                 TAHUN {{ $firstSkYear }}
