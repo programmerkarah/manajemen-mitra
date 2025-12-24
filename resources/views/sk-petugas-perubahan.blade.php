@@ -387,9 +387,14 @@
     <div class="pasal-section">
         <p class="pasal-title"><strong>Pasal I</strong></p>
         <p style="text-align: justify;">
-            Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Perubahan Keputusan ini sebagai bagian yang tidak terpisahkan dari Perubahan ini.
+            Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Perubahan Atas Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
         </p>
     </div>
+    <div class="pasal-section">
+        <p class="pasal-title"><strong>Pasal III</strong></p>
+        <p>
+            Ketentuan-ketentuan lainnya yang tidak diubah dalam Perubahan Atas Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
+        </p>
     </div>
     <div class="signature">
         <div class="signature-content">
