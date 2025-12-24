@@ -719,6 +719,47 @@ class SpkController extends Controller
                     return null; // Skip petugas without original SPK
                 }
 
+                // Ambil alokasi 'perubahan' (revisi terbaru)
+                $alokasiPerubahan = $alokasiGroup->first(function ($alokasi) {
+                    return $alokasi->periodeAlokasi->status === 'perubahan';
+                });
+                if (! $alokasiPerubahan) {
+                    return null;
+                }
+
+                // Ambil alokasi periode sebelumnya (status 'disetujui' atau 'dikirim')
+                $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
+                    ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                        $q->where('bulan', $bulanFormatted)
+                            ->where('tahun', $tahun)
+                            ->whereIn('status', ['disetujui', 'dikirim', 'direvisi']);
+                    })
+                    ->orderByDesc('id')
+                    ->first();
+
+                // Bandingkan perubahan: jumlah_satuan, total_honor, peran, jumlah_satuan_listing, total_honor_listing
+                $isBerubah = false;
+                if ($alokasiSebelumnya) {
+                    $selisih_jumlah_satuan = (int)($alokasiPerubahan->jumlah_satuan ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan ?? 0);
+                    $selisih_jumlah_satuan_listing = (int)($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
+                    $selisih_total_honor = (float)($alokasiPerubahan->total_honor ?? 0) - (float)($alokasiSebelumnya->total_honor ?? 0);
+                    $selisih_total_honor_listing = (float)($alokasiPerubahan->total_honor_listing ?? 0) - (float)($alokasiSebelumnya->total_honor_listing ?? 0);
+                    $isBerubah = (
+                        $selisih_jumlah_satuan !== 0 ||
+                        $selisih_jumlah_satuan_listing !== 0 ||
+                        abs($selisih_total_honor) > 0.01 ||
+                        abs($selisih_total_honor_listing) > 0.01 ||
+                        $alokasiPerubahan->peran !== $alokasiSebelumnya->peran
+                    );
+                } else {
+                    // Jika tidak ada alokasi sebelumnya, anggap tidak berubah (tidak perlu addendum)
+                    $isBerubah = false;
+                }
+
+                if (! $isBerubah) {
+                    return null;
+                }
+
                 // Calculate total honor only from 'perubahan' status (latest revision)
                 $totalHonor = $alokasiGroup
                     ->filter(function ($alokasi) {
