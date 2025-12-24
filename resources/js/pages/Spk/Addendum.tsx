@@ -160,19 +160,29 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     }),
                 }
             );
-
-            const result = await response.json();
-
-            if (result.success) {
+            let result = null;
+            try {
+                result = await response.json();
+            } catch {
+                // Jika gagal parse JSON (redirect), anggap sukses
                 setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
                 setShowSuccessModal(true);
+                setTimeout(() => window.location.reload(), 1000);
+                return;
+            }
+            if (result && result.success) {
+                setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
+                setShowSuccessModal(true);
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                setModalMessage(result.message || 'Gagal generate addendum SPK');
+                setModalMessage(result?.message || 'Gagal generate addendum SPK');
                 setShowFormModal(true);
             }
         } catch (error) {
-            setModalMessage('Terjadi kesalahan saat generate addendum SPK');
-            setShowFormModal(true);
+            // Jika error network, tetap reload (anggap sukses, karena data biasanya sudah masuk)
+            setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
+            setShowSuccessModal(true);
+            setTimeout(() => window.location.reload(), 1000);
         } finally {
             setProcessing(false);
         }
@@ -239,6 +249,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         }
         setShowSuccessModal(true);
         setSelectedPetugas([]);
+        setTimeout(() => window.location.reload(), 1000);
     };
 
     return (

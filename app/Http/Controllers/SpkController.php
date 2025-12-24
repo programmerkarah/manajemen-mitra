@@ -11,6 +11,7 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -175,7 +176,7 @@ class SpkController extends Controller
         // Get all periodes in this month
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->whereHas('kegiatan', function ($q) {
                 $q->where('jenis_kegiatan', 'survei'); // Only survei activities
             })
@@ -274,10 +275,10 @@ class SpkController extends Controller
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all periodes in this month
+        // Get all periodes in this month (include 'direvisi' and 'perubahan')
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->whereHas('kegiatan', function ($q) {
                 $q->where('jenis_kegiatan', 'survei'); // Only survei activities
             })
@@ -840,6 +841,7 @@ class SpkController extends Controller
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
 
+        \Log::info('DEBUG PETUGAS LIST FINAL', ['count' => $petugasList->count(), 'ids' => $petugasList->pluck('petugas.id')]);
         return Inertia::render('Spk/Addendum', [
             'periode' => [
                 'id' => $periode->id,
@@ -855,7 +857,7 @@ class SpkController extends Controller
                     'tahun_anggaran' => $periode->kegiatan->tahun_anggaran,
                 ],
             ],
-            'petugas_list' => $petugasList,
+            'petugas_list' => $petugasList->values()->all(),
         ]);
     }
 
@@ -1074,9 +1076,14 @@ class SpkController extends Controller
                 ];
             })->values()->all();
 
-            // Format nomor SPK with addendum suffix
+            // Format nomor SPK addendum: nomor urut parent + /ADD-x
             $nomorSpkParts = explode('/', $parentSpk->nomor_spk);
-            $nomorSpkParts[2] = $nomorSpkParts[2].'/ADD-'.$validated['addendum_number'];
+            // Pastikan tidak double /ADD-x jika parent sudah addendum
+            $baseNomorUrut = $nomorSpkParts[2];
+            if (str_contains($baseNomorUrut, '/ADD-')) {
+                $baseNomorUrut = explode('/ADD-', $baseNomorUrut)[0];
+            }
+            $nomorSpkParts[2] = $baseNomorUrut . '/ADD-' . $validated['addendum_number'];
             $nomorSpk = implode('/', $nomorSpkParts);
 
             $data = [
@@ -1140,6 +1147,12 @@ class SpkController extends Controller
 
             DB::commit();
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Addendum SPK berhasil di-generate',
+                ]);
+            }
             return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1179,7 +1192,7 @@ class SpkController extends Controller
         // Get all alokasi for this petugas in the same month (all kegiatan)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'disetujui','direvisi','perubahan'])
             ->pluck('id');
 
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
