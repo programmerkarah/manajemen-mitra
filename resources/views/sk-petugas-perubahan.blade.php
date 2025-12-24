@@ -391,9 +391,20 @@
         </p>
     </div>
     <div class="pasal-section">
+        @if($revisionNumber > 0)
+        @php
+        $revisionText = '';
+        if ($revisionNumber == 1) {
+        $revisionText = 'PERUBAHAN ATAS';
+        } else {
+        $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+        $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+        }
+        $revisionTextDisplay = ucfirst($revisionText);
+        @endphp
         <p class="pasal-title"><strong>Pasal III</strong></p>
         <p>
-            Ketentuan-ketentuan lainnya yang tidak diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang Perubahan Atas Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
+            Ketentuan-ketentuan lainnya yang tidak diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Atas Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
         </p>
     </div>
     <div class="signature">
