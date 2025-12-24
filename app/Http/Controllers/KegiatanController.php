@@ -49,7 +49,7 @@ class KegiatanController extends Controller
         // Filter by Ketua Tim for ketua_tim role
         $effectiveUser = effectiveUser($request);
         if ($effectiveUser->isKetuaTim()) {
-            $query->where('ketua_tim_user_id', $effectiveUser->id);
+            $query->where('ketua_tim_user_id', $effectiveUser->id)->orWhere('pj_lainnya_id', $effectiveUser->id);
         }
 
         $kegiatans = $query->latest()->paginate(15)->withQueryString();
