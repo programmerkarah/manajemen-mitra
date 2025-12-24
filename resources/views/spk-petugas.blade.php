@@ -217,19 +217,20 @@
             $judulSpk = '';
             if ($jenisKegiatan === 'sensus') {
                 if ($peran === 'pcl' || $peran === 'ppl') {
-                    $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                    $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 } elseif (str_contains($peran, 'olah')) {
-                    $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 } else {
-                    $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 }
             } else {
-                $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SENSUS DAN SURVEI';
+                $judulSpk = 'PETUGAS LAPANGAN KEGIATAN SURVEI';
             }
             $judulSpkText = strtolower($judulSpk);
         @endphp
+        <h3>PERJANJIAN KERJA</h3>
         <h3>{{ $judulSpk }}</h3>
         <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }}</h3>
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>

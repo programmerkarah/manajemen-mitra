@@ -221,16 +221,16 @@
                     $judulSpk = '';
                     if ($jenisKegiatan === 'sensus') {
                         if ($peran === 'pcl' || $peran === 'ppl') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                            $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                         } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                            $judulSpk = 'PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                         } elseif (str_contains($peran, 'olah')) {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                            $judulSpk = 'PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                         } else {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                            $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                         }
                     } else {
-                        $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SURVEI';
+                        $judulSpk = 'PETUGAS LAPANGAN KEGIATAN SURVEI';
                     }
             $judulSpkText = strtolower($judulSpk);
                 @endphp
