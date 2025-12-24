@@ -417,7 +417,7 @@
             </td>
         </tr>
     </table>
-
+<!-- 
     <div class="pasal-section">
         @if($revisionNumber > 0)
         @php
@@ -453,7 +453,7 @@
         <p style="text-align: justify;">
             Ketentuan-ketentuan lainnya yang tidak diubah dalam Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} dinyatakan tetap berlaku.
         </p>
-    </div>
+    </div> -->
     <div class="signature">
         <div class="signature-content">
             <div>Ditetapkan di : Sawahlunto</div>
