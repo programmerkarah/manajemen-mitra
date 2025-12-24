@@ -34,6 +34,9 @@
         }
 
         body {
+            /* Reset default browser margins which can add unexpected gaps in print/pdf */
+            margin: 0;
+            padding: 0;
             font-family: 'Bookman Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
             font-size: 12pt;
             line-height: 1.5;
@@ -41,12 +44,29 @@
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            /* reduce default bottom gap to avoid extra spacing in export */
+            margin: 0 0 6px 0;
+            padding: 0;
         }
 
         .header h3 {
-            margin: 5px 0;
+            margin: 0;
             font-weight: bold;
+            line-height: 1;
+        }
+
+        /* Make images block-level to remove the inline baseline gap below images in printed output */
+        .header img {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Ensure header spans appear as block lines with no extra margins */
+        .header span {
+            display: block;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
         }
 
         .title {
