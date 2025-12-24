@@ -356,15 +356,7 @@
     <div style="text-align: center; font-weight: bold; margin: 20px 0;">
         MEMUTUSKAN :
     </div>
-    <table class="dictum">
-        <tr>
-            <td>KESATU</td>
-            <td>:</td>
-            <td>
-                Menambahkan nama Petugas yang dirubah dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} sebagai Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}.
-            </td>
-        </tr>
-    </table>
+    
 
     <table class="dictum">
         <tr>
@@ -392,9 +384,7 @@
             </td>
         </tr>
     </table>
-
-    <table class="dictum">
-        @if($revisionNumber > 0)
+    @if($revisionNumber > 0)
         @php
         $revisionText = '';
         if ($revisionNumber == 1) {
@@ -406,12 +396,47 @@
         $revisionTextDisplay = ucwords(strtolower($revisionText)) ;
         @endphp
         @endif
+    <table class="dictum">
+        <tr>
+            <td>KESATU</td>
+            <td>:</td>
+            <td>
+                Mengubah Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, dengan 
+                @if(count($deletedPetugas) > 0)
+                menghapus nama 
+                @foreach($deletedPetugas as $index => $nama)
+                    {{ $nama }}@if($index < count($deletedPetugas) - 1), @else;@endif
+                @endforeach
+                @endif
+                @if(count($addedPetugas) > 0)
+                , menambahkan nama  
+                @foreach($addedPetugas as $index => $nama)
+                    {{ $nama }}@if($index < count($addedPetugas) - 1), @else;@endif
+                @endforeach
+                @endif
+                @if(count($allCurrentPetugas) > 0)
+                . Sehingga daftar nama dalam lampiran setelah perubahan adalah  
+                @foreach($allCurrentPetugas as $index => $nama)
+                    @if($index > 0 && $index == count($allCurrentPetugas) - 1)
+                        dan {{ $nama }}.
+                    @elseif($index == count($allCurrentPetugas) - 1)
+                        {{ $nama }}.
+                    @else
+                        {{ $nama }}, 
+                    @endif
+                @endforeach
+                @endif
+            </td>
+        </tr>
+    </table>
+    
+
+    <table class="dictum">
         <tr>
             <td>KEDUA</td>
             <td>:</td>
             <td>
                 Bahwa Petugas Survei {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }} setelah perubahan secara lengkap sebagaimana tercantum dalam Lampiran Keputusan ini.
-                Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
             </td>
         </tr>
     </table>

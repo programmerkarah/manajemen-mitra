@@ -397,8 +397,20 @@ class SkKpaController extends Controller
 
         // Get dasar hukum
         $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
-            ->orderBy('tahun', 'asc')
             ->get()
+            ->sortBy(function ($item) {
+                // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
+                $categoryOrder = [
+                    'undang_undang' => 1,
+                    'peraturan_pemerintah' => 2,
+                    'peraturan_presiden' => 3,
+                    'peraturan_menteri_badan' => 4,
+                    'keputusan_menteri_kepala_badan' => 5,
+                ];
+                // Sort by category order first, then by year (oldest to newest)
+                return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
+            })
+            ->values()
             ->map(function ($item) {
                 $kategoriLabel = match ($item->kategori) {
                     'undang_undang' => 'Undang-Undang',
@@ -550,8 +562,20 @@ class SkKpaController extends Controller
 
         // Get dasar hukum
         $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
-            ->orderBy('tahun', 'asc')
             ->get()
+            ->sortBy(function ($item) {
+                // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
+                $categoryOrder = [
+                    'undang_undang' => 1,
+                    'peraturan_pemerintah' => 2,
+                    'peraturan_presiden' => 3,
+                    'peraturan_menteri_badan' => 4,
+                    'keputusan_menteri_kepala_badan' => 5,
+                ];
+                // Sort by category order first, then by year (oldest to newest)
+                return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
+            })
+            ->values()
             ->map(function ($item) {
                 $kategoriLabel = match ($item->kategori) {
                     'undang_undang' => 'Undang-Undang',
@@ -598,6 +622,39 @@ class SkKpaController extends Controller
             ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
 
         $periode = $periodeQuery->firstOrFail();
+
+        // Get previous SK petugas list for comparison (if this is a revision)
+        $deletedPetugas = [];
+        $addedPetugas = [];
+        $allCurrentPetugas = [];
+        
+        if ($revisionNumber > 0 && $existingSk) {
+            // Get the previous periode (not the current one)
+            $previousPeriode = $kegiatan->periodeAlokasi()
+                ->with(['alokasiPetugas' => function ($query) {
+                    $query->with('petugas');
+                }])
+                ->whereIn('status', ['dikirim', 'disetujui'])
+                ->where('id', '!=', $periode->id) // Exclude current periode
+                ->orderBy('created_at', 'desc')
+                ->first();
+                
+            if ($previousPeriode) {
+                $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
+                $currentPetugasList = $periode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
+                
+                // Find deleted petugas (in previous but not in current)
+                $deletedPetugasIds = array_diff(array_keys($previousPetugasList), array_keys($currentPetugasList));
+                $deletedPetugas = array_values(array_intersect_key($previousPetugasList, array_flip($deletedPetugasIds)));
+                
+                // Find added petugas (in current but not in previous)
+                $addedPetugasIds = array_diff(array_keys($currentPetugasList), array_keys($previousPetugasList));
+                $addedPetugas = array_values(array_intersect_key($currentPetugasList, array_flip($addedPetugasIds)));
+                
+                // All current petugas names for final list
+                $allCurrentPetugas = array_values($currentPetugasList);
+            }
+        }
 
         // Parse alokasi petugas with rates
         $alokasiList = $periode->alokasiPetugas->map(function ($alokasi) use ($kegiatan) {
@@ -664,6 +721,9 @@ class SkKpaController extends Controller
             'revisionSkYear' => $latestSk ? $latestSk->tahun : null,
             'firstSkNumber' => $firstSkNumber,
             'firstSkYear' => $firstSkYear,
+            'deletedPetugas' => $deletedPetugas,
+            'addedPetugas' => $addedPetugas,
+            'allCurrentPetugas' => $allCurrentPetugas,
         ];
 
         // Choose template: use perubahan template when there are previous SKs (revisionNumber > 0)
