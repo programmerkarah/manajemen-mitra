@@ -49,9 +49,9 @@ class AlokasiPetugasController extends Controller
             $query->where('status', $validated['status']);
         }
 
-        // Filter by bulan
+        // Filter by bulan (gunakan string dengan leading zero agar cocok dengan frontend)
         if (! empty($validated['bulan'])) {
-            $query->where('bulan', (int) $validated['bulan']);
+            $query->where('bulan', str_pad($validated['bulan'], 2, '0', STR_PAD_LEFT));
         }
 
         // Filter for Ketua Tim - only their kegiatan

@@ -24,7 +24,7 @@ class FilterRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:255'],
             'tahun' => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'bulan' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'bulan' => ['nullable', 'string', 'regex:/^(0?[1-9]|1[0-2])$/'],
             'status' => ['nullable', 'string', 'max:50'],
             'jenis' => ['nullable', 'string', 'max:50'],
             'jenis_kegiatan' => ['nullable', 'string', 'max:50'],
