@@ -63,7 +63,11 @@ class AlokasiPetugasController extends Controller
             });
         }
 
-        $alokasi = $query->latest('created_at')->paginate(15)->withQueryString();
+        // Order by tahun and bulan descending (newest first)
+        $alokasi = $query->orderByDesc('tahun')
+            ->orderByDesc('bulan')
+            ->paginate(15)
+            ->withQueryString();
 
         // Get latest month for each kegiatan (for revisi button logic)
         // Only show revisi for 'dikirim' or 'perubahan' status
