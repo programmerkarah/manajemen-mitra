@@ -400,7 +400,7 @@
         $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
         $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
         }
-        $revisionTextDisplay = ucfirst(strtolower$revisionText);
+        $revisionTextDisplay = ucfirst(strtolower($revisionText))  ;
         @endphp
         @endif
         <p class="pasal-title"><strong>Pasal III</strong></p>
