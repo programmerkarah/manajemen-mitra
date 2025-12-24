@@ -744,6 +744,27 @@ class SpkController extends Controller
                     $selisih_jumlah_satuan_listing = (int)($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int)($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
                     $selisih_total_honor = (float)($alokasiPerubahan->total_honor ?? 0) - (float)($alokasiSebelumnya->total_honor ?? 0);
                     $selisih_total_honor_listing = (float)($alokasiPerubahan->total_honor_listing ?? 0) - (float)($alokasiSebelumnya->total_honor_listing ?? 0);
+                
+                    \Log::info('DEBUG ADDENDUM', [
+                        'petugas_id' => $firstAlokasi->petugas_id,
+                        'periode_perubahan' => $alokasiPerubahan->periode_alokasi_id,
+                        'periode_sebelumnya' => $alokasiSebelumnya->periode_alokasi_id ?? null,
+                        'jumlah_satuan_perubahan' => $alokasiPerubahan->jumlah_satuan,
+                        'jumlah_satuan_sebelumnya' => $alokasiSebelumnya->jumlah_satuan ?? null,
+                        'jumlah_satuan_listing_perubahan' => $alokasiPerubahan->jumlah_satuan_listing,
+                        'jumlah_satuan_listing_sebelumnya' => $alokasiSebelumnya->jumlah_satuan_listing ?? null,
+                        'total_honor_perubahan' => $alokasiPerubahan->total_honor,
+                        'total_honor_sebelumnya' => $alokasiSebelumnya->total_honor ?? null,
+                        'total_honor_listing_perubahan' => $alokasiPerubahan->total_honor_listing,
+                        'total_honor_listing_sebelumnya' => $alokasiSebelumnya->total_honor_listing ?? null,
+                        'peran_perubahan' => $alokasiPerubahan->peran,
+                        'peran_sebelumnya' => $alokasiSebelumnya->peran ?? null,
+                        'selisih_jumlah_satuan' => $selisih_jumlah_satuan,
+                        'selisih_jumlah_satuan_listing' => $selisih_jumlah_satuan_listing,
+                        'selisih_total_honor' => $selisih_total_honor,
+                        'selisih_total_honor_listing' => $selisih_total_honor_listing,
+                    ]);
+
                     $isBerubah = (
                         $selisih_jumlah_satuan !== 0 ||
                         $selisih_jumlah_satuan_listing !== 0 ||
