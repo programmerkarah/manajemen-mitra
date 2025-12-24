@@ -346,7 +346,7 @@
         </div>
 
         <p style="margin: 15px 0;">
-            Demikian Perubahan/Addendum atas Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli yang mempunyai kekuatan hukum sama dan masing-masing <strong>PIHAK</strong> mendapat 1 (satu) rangkap.
+            Demikian Perubahan/Addendum atas Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{ $bulan_label }} Tahun {{ $tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $parent_nomor_spk }} ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup yang mempunyai kekuatan hukum sama dan masing-masing <strong>PIHAK</strong> mendapat 1 (satu) rangkap.
         </p>
     </div>
 
