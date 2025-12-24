@@ -50,7 +50,8 @@ class KegiatanPolicy
 
         // Ketua Tim hanya bisa update kegiatan yang dia pegang dan masih draft
         if ($user->active_role === 'ketua_tim') {
-            return $kegiatan->ketua_tim_user_id === $user->id;
+            return $kegiatan->ketua_tim_user_id === $user->id && in_array($kegiatan->status, ['draft', 'divalidasi']) ||
+                   $kegiatan->pj_lainnya_id === $user->id && in_array($kegiatan->status, ['draft', 'divalidasi']);
         }
 
         return false;
