@@ -23,6 +23,7 @@ interface User {
 }
 
 interface Kegiatan {
+    pj_lainnya: any;
     id: number;
     hashed_id: string;
     kode_kegiatan: string;
@@ -161,7 +162,8 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         
         return auth.user.active_role === 'admin' || 
                auth.user.active_role === 'operator' || 
-               (auth.user.active_role === 'ketua_tim' && kegiatan.ketua_tim.id === auth.user.id && kegiatan.status === 'draft');
+               (auth.user.active_role === 'ketua_tim' && kegiatan.ketua_tim.id === auth.user.id && kegiatan.status === 'draft' || kegiatan.status === 'divalidasi') ||
+               (auth.user.active_role === 'pj' && kegiatan.pj_lainnya?.id === auth.user.id && kegiatan.status === 'draft' || kegiatan.status === 'divalidasi'); 
     }
 
     const canSubmit = (kegiatan: Kegiatan) => {
