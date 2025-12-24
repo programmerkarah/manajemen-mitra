@@ -384,6 +384,40 @@
         </tr>
     </table>
 
+    <table class="dictum">
+        @if($revisionNumber > 0)
+        @php
+        $revisionText = '';
+        if ($revisionNumber == 1) {
+        $revisionText = 'PERUBAHAN ATAS';
+        } else {
+        $numberWords = ['', '', 'KEDUA', 'KETIGA', 'KEEMPAT', 'KELIMA', 'KEENAM', 'KETUJUH', 'KEDELAPAN', 'KESEMBILAN', 'KESEPULUH'];
+        $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . ' ATAS';
+        }
+        $revisionTextDisplay = ucwords(strtolower($revisionText)) ;
+        @endphp
+        @endif
+        <tr>
+            <td>PERTAMA</td>
+            <td>:</td>
+            <td>
+                Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
+            </td>
+        </tr>
+    </table>
+
+    <table class="dictum">
+        <tr>
+            <td>KEDUA</td>
+            <td>:</td>
+            <td>
+                Keputusan ini mulai berlaku pada tanggal ditetapkan, dengan ketentuan apabila dikemudian hari terdapat
+                kekeliruan akan diadakan perbaikan sebagaimana mestinya.
+                <br>Petikan Keputusan ini disampaikan kepada yang bersangkutan untuk dipergunakan sebagaimana mestinya.
+            </td>
+        </tr>
+    </table>
+
     <div class="pasal-section">
         @if($revisionNumber > 0)
         @php
