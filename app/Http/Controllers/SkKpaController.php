@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Auth;
 
 class SkKpaController extends Controller
 {
@@ -363,7 +364,7 @@ class SkKpaController extends Controller
             'signed_file_path' => $filePath,
             'is_signed' => true,
             'signed_at' => now(),
-            'signed_by' => auth()->id(),
+            'signed_by' => Auth::id(),
         ]);
 
         return redirect()->route('sk-kpa.show', ['skKpa' => $skKpa->hashed_id])
@@ -512,8 +513,11 @@ class SkKpaController extends Controller
             'firstSkYear' => $firstSkYear,
         ];
 
+        // Choose template: use perubahan template when there are previous SKs (revisionNumber > 0)
+        $view = ($revisionNumber > 0) ? 'sk-petugas-perubahan' : 'sk-petugas';
+
         // Generate and stream PDF directly (tidak save)
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sk-petugas', $data)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait');
 
         return $pdf->stream('Preview_SK_'.$kegiatan->nama_kegiatan.'.pdf');
@@ -661,8 +665,11 @@ class SkKpaController extends Controller
             'firstSkYear' => $firstSkYear,
         ];
 
+        // Choose template: use perubahan template when there are previous SKs (revisionNumber > 0)
+        $view = ($revisionNumber > 0) ? 'sk-petugas-perubahan' : 'sk-petugas';
+
         // Generate PDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sk-petugas', $data)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait');
 
         // Create filename
@@ -692,7 +699,7 @@ class SkKpaController extends Controller
                 'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
                 'file_path' => $filePath,
                 'status' => 'diterbitkan',
-                'created_by' => auth()->id(),
+                'created_by' => Auth::id(),
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             // Delete the generated PDF file
