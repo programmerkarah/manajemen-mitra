@@ -519,8 +519,9 @@ class SkKpaController extends Controller
         // Generate and stream PDF directly (tidak save)
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait');
+        $sanitizedNamaKegiatan = preg_replace('/[\/\\\:\*\?"<>\|]/', '', $kegiatan->nama_kegiatan);
 
-        return $pdf->stream('Preview_SK_'.$kegiatan->nama_kegiatan.'.pdf');
+        return $pdf->stream('Preview_SK_'.$sanitizedNamaKegiatan.'.pdf');
     }
 
     /**
