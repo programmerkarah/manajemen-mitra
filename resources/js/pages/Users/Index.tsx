@@ -111,28 +111,28 @@ export default function Index({ users, filters }: UsersIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Nama
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Username
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Email
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Role
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Email
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         2FA
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
@@ -156,16 +156,16 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                             key={user.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                                                {user.name}
+                                            <td className="px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                                <div className="max-w-xs truncate" title={user.name}>{user.name}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {user.username}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
-                                                {user.email}
+                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                                <div className="max-w-xs truncate" title={user.email}>{user.email}</div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="flex flex-wrap gap-1">
                                                     {user.roles.map((role) => (
                                                         <StatusBadge 
@@ -175,16 +175,16 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge status={user.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge status={user.email_verified_at ? 'terverifikasi' : 'belum_verifikasi'} />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge status={user.two_factor_enabled ? '2fa_aktif' : '2fa_nonaktif'} />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="flex justify-center gap-2">
                                                     <Button
                                                         variant="outline"

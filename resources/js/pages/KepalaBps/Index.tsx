@@ -152,14 +152,14 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Nama</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">NIP</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Jabatan</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Periode Mulai</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Periode Selesai</th>
-                                    <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="px-3 py-3 text-left text-sm font-medium">Nama</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">NIP</th>
+                                    <th className="px-3 py-3 text-left text-sm font-medium">Jabatan</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Mulai</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Selesai</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
                                     {!isPJ && (
-                                        <th className="px-4 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
                                     )}
                                 </tr>
                             </thead>
@@ -176,16 +176,16 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                 ) : (
                                     kepalaBpsList.data.map((kepalaBps) => (
                                         <tr key={kepalaBps.id} className="hover:bg-muted/50">
-                                            <td className="px-4 py-3 text-sm font-medium">
-                                                {kepalaBps.nama}
+                                            <td className="px-3 py-3 text-sm font-medium">
+                                                <div className="max-w-xs truncate" title={kepalaBps.nama}>{kepalaBps.nama}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {kepalaBps.nip || '-'}
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
-                                                {kepalaBps.jabatan}
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="max-w-xs truncate" title={kepalaBps.jabatan}>{kepalaBps.jabatan}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {formatDate(kepalaBps.periode_mulai)}
                                             </td>
                                             <td className="px-4 py-3 text-sm">

@@ -119,6 +119,12 @@ class SpkController extends Controller
                 return $spk->addendum_number > 0;
             });
 
+            // Check for new kegiatan/petugas after SPK was generated
+            $hasNewKegiatanAfterSpk = $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
+
+            // Check for new revisions after addendum was generated
+            $hasNewRevisionAfterAddendum = $this->hasNewRevisionAfterAddendum($tahun, $bulan, $monthPeriodes);
+
             return [
                 'tahun' => (int) $tahun,
                 'bulan' => (int) $bulan,
@@ -129,6 +135,8 @@ class SpkController extends Controller
                 'spk_status_type' => $spkStatusType,
                 'has_revision' => $hasRevision,
                 'has_addendum' => $hasAddendum,
+                'has_new_kegiatan_after_spk' => $hasNewKegiatanAfterSpk,
+                'has_new_revision_after_addendum' => $hasNewRevisionAfterAddendum,
                 'kegiatan_list' => $kegiatanList,
             ];
         })->sortByDesc(function ($item) {
@@ -614,6 +622,22 @@ class SpkController extends Controller
     }
 
     /**
+     * Extract nomor urut from SPK number (e.g., "PPIS/13730/4A/K/2025" -> 4)
+     */
+    private function extractNomorUrut(string $nomorSpk): int
+    {
+        $parts = explode('/', $nomorSpk);
+        if (! isset($parts[2])) {
+            return 0;
+        }
+
+        // Remove suffix letters (e.g., "4A" -> "4")
+        $nomorWithSuffix = $parts[2];
+
+        return (int) preg_replace('/[^0-9]/', '', $nomorWithSuffix);
+    }
+
+    /**
      * Show the form to generate SPKs for a periode
      */
     public function create(string $periodeHashedId): Response
@@ -690,6 +714,56 @@ class SpkController extends Controller
         // Get next nomor urut for this year
         $nextNomorUrut = $this->getNextNomorUrut($periode->tahun);
 
+        // Check if there are existing SPKs in this month (for regenerate mode)
+        $existingSpk = Spk::where('addendum_number', 0)
+            ->whereYear('tanggal_spk', $periode->tahun)
+            ->whereMonth('tanggal_spk', $periode->bulan)
+            ->first();
+
+        // If existing SPK found, use its dates and set readonly mode
+        $isRegenerate = $existingSpk !== null;
+        $defaultTanggalSpk = $isRegenerate ? $existingSpk->tanggal_spk->format('Y-m-d') : null;
+        $defaultSampaiTanggal = $isRegenerate ? $existingSpk->tanggal_selesai_kerja->format('Y-m-d') : null;
+
+        // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)
+        $existingSpkMap = [];
+        $lastNomorUrutInMonth = 0;
+        $usesSuffixForNewPetugas = false;
+
+        if ($isRegenerate) {
+            $petugasIds = $petugasList->pluck('petugas.id')->unique();
+            $existingSpks = Spk::whereIn('petugas_id', $petugasIds)
+                ->where('addendum_number', 0)
+                ->whereYear('tanggal_spk', $periode->tahun)
+                ->whereMonth('tanggal_spk', $periode->bulan)
+                ->get();
+
+            foreach ($existingSpks as $spk) {
+                $existingSpkMap[$spk->petugas_id] = [
+                    'nomor_spk' => $spk->nomor_spk,
+                    'nomor_urut' => $spk->nomor_urut_base,
+                ];
+
+                // Track the last nomor urut in this month
+                if ($spk->nomor_urut_base > $lastNomorUrutInMonth) {
+                    $lastNomorUrutInMonth = $spk->nomor_urut_base;
+                }
+            }
+
+            // Check if next sequential number is already used in OTHER months
+            $nextSequentialNumber = $lastNomorUrutInMonth + 1;
+            $nextNumberUsedElsewhere = Spk::where('nomor_urut_base', $nextSequentialNumber)
+                ->where('addendum_number', 0)
+                ->whereYear('tanggal_spk', $periode->tahun)
+                ->where(function ($q) use ($periode) {
+                    $q->whereMonth('tanggal_spk', '!=', $periode->bulan);
+                })
+                ->exists();
+
+            // If next number is used elsewhere, use suffix mode (3A, 3B, etc)
+            $usesSuffixForNewPetugas = $nextNumberUsedElsewhere;
+        }
+
         return Inertia::render('Spk/Generate', [
             'periode' => [
                 'id' => $periode->id,
@@ -708,6 +782,12 @@ class SpkController extends Controller
             'petugas_list' => $petugasList,
             'has_draft_periode' => $hasDraftPeriode,
             'next_nomor_urut' => $nextNomorUrut,
+            'is_regenerate' => $isRegenerate,
+            'default_tanggal_spk' => $defaultTanggalSpk,
+            'default_sampai_tanggal' => $defaultSampaiTanggal,
+            'existing_spk_map' => $existingSpkMap,
+            'last_nomor_urut_in_month' => $lastNomorUrutInMonth,
+            'uses_suffix_for_new_petugas' => $usesSuffixForNewPetugas,
         ]);
     }
 
@@ -2054,15 +2134,74 @@ class SpkController extends Controller
         });
 
         $tahun = $periode->tahun;
-        $nextNomorUrut = $this->getNextNomorUrut($tahun);
+        $bulan = $periode->bulan;
 
+        // Get all existing SPKs for this month (one SPK per petugas)
+        // Now we can query directly by petugas_id since SPK table has it
+        $allPeriodeIds = PeriodeAlokasi::where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->pluck('id');
+
+        // Get unique petugas_ids that have alokasi in this month
+        $petugasIdsInMonth = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeIds)
+            ->pluck('petugas_id')
+            ->unique();
+
+        // Get existing SPKs for these petugas by checking tanggal_spk (the official date)
+        $existingSpks = Spk::whereIn('petugas_id', $petugasIdsInMonth)
+            ->where('addendum_number', 0)
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', $bulan)
+            ->with('petugas')
+            ->get()
+            ->keyBy('petugas_id');
+
+        // Check if this is a regenerate (existing SPKs present) or first time generate
+        $isRegenerate = $existingSpks->isNotEmpty();
+
+        // Determine the last nomor_urut_base from existing SPKs in this month
+        $lastNomorUrutBase = null;
+        if ($isRegenerate) {
+            // Get the highest nomor_urut_base from existing SPKs in THIS MONTH only
+            foreach ($existingSpks as $spk) {
+                $baseNumber = $spk->nomor_urut_base ?? $this->extractNomorUrut($spk->nomor_spk);
+                if ($lastNomorUrutBase === null || $baseNumber > $lastNomorUrutBase) {
+                    $lastNomorUrutBase = $baseNumber;
+                }
+            }
+        }
+
+        // For first time generation, get next sequential nomor
+        $nextNomorUrut = $this->getNextNomorUrut($tahun);
+        $nomorUrutCounter = 0;
+
+        $nextSuffix = 'A';
         $results = [];
-        $index = 0;
+
         foreach ($sortedPetugas as $petugasId => $alokasiGroup) {
             $petugas = $alokasiGroup->first()->petugas;
             $petugasHashedId = $petugas->hashed_id;
-            $noUrut = $nextNomorUrut + $index;
-            $nomorSpk = "PPIS/13730/{$noUrut}/K/{$tahun}";
+
+            // Check if this petugas already has an SPK
+            $existingSpk = $existingSpks->get($petugasId);
+
+            if ($existingSpk) {
+                // Use existing nomor for updates
+                $nomorSpk = $existingSpk->nomor_spk;
+                $noUrut = $existingSpk->nomor_urut_base ?? $this->extractNomorUrut($nomorSpk);
+            } else {
+                // New petugas
+                if ($isRegenerate) {
+                    // Regenerate mode: assign suffix number based on last existing SPK
+                    $noUrut = $lastNomorUrutBase;
+                    $nomorSpk = "PPIS/13730/{$noUrut}{$nextSuffix}/K/{$tahun}";
+                } else {
+                    // First time generation: use sequential numbering
+                    $noUrut = $nextNomorUrut + $nomorUrutCounter;
+                    $nomorSpk = "PPIS/13730/{$noUrut}/K/{$tahun}";
+                    $nomorUrutCounter++;
+                }
+            }
 
             // Call the same logic as generateSpk, but inline to avoid HTTP call
             $allAlokasiPetugas = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
@@ -2079,7 +2218,6 @@ class SpkController extends Controller
                     'status' => 'failed',
                     'message' => 'Tidak ada alokasi untuk petugas ini',
                 ];
-                $index++;
 
                 continue;
             }
@@ -2091,7 +2229,6 @@ class SpkController extends Controller
                     'status' => 'failed',
                     'message' => 'Penandatangan (PPK) tidak ditemukan',
                 ];
-                $index++;
 
                 continue;
             }
@@ -2159,9 +2296,12 @@ class SpkController extends Controller
                 @unlink($mergedPath);
                 $nomorParts = explode('/', $data['nomorSpk']);
                 $nomorUrut = $nomorParts[2] ?? '0';
-                $namaKegiatan = preg_replace('/[\/\\:*?"<>|]/', '', $data['kegiatan']->nama_kegiatan);
-                $namaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
+
+                // Check if SPK already exists for this petugas (use existing SPK from map)
+                $existingSpkRecord = $existingSpk;
                 $bulanLabel = $this->getBulanLabel($periode->bulan);
+                $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
+                $namaKegiatan = preg_replace('/[\/\\\\:*?"<>|]/', '', $data['kegiatan']->nama_kegiatan);
                 $fileName = "SPK {$nomorUrut}_{$namaPetugas}_{$namaKegiatan}_{$bulanLabel}_{$periode->tahun}.pdf";
                 $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
                 $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
@@ -2169,25 +2309,57 @@ class SpkController extends Controller
                     mkdir($publicPath, 0755, true);
                 }
                 file_put_contents(public_path($filePath), $pdfOutput);
-                $spk = Spk::create([
-                    'nomor_spk' => $nomorSpk,
-                    'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
-                    'tanggal_spk' => $validated['tanggal_spk'],
-                    'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
-                    'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
-                    'nilai_kontrak' => $totalHonor,
-                    'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
-                    'nip_ppk' => $penandatangan->nip ?? null,
-                    'file_path' => $filePath,
-                    'status' => 'draft',
-                    'created_by' => auth()->id(),
-                ]);
-                \DB::commit();
-                $results[] = [
-                    'petugas_id' => $petugasId,
-                    'status' => 'success',
-                    'spk_id' => $spk->id,
-                ];
+
+                if ($existingSpkRecord) {
+                    // Update existing SPK with new data
+                    $existingSpkRecord->update([
+                        'nomor_urut_base' => $noUrut, // Populate base number if NULL
+                        'tanggal_spk' => $validated['tanggal_spk'],
+                        'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
+                        'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                        'nilai_kontrak' => $totalHonor,
+                        'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                        'nip_ppk' => $penandatangan->nip ?? null,
+                        'file_path' => $filePath,
+                    ]);
+
+                    \DB::commit();
+                    $results[] = [
+                        'petugas_id' => $petugasId,
+                        'status' => 'updated',
+                        'spk_id' => $existingSpkRecord->id,
+                    ];
+                } else {
+                    // Create new SPK
+                    $spk = Spk::create([
+                        'nomor_spk' => $nomorSpk,
+                        'nomor_urut_suffix' => ($isRegenerate && ! $existingSpk) ? $nextSuffix : null,
+                        'nomor_urut_base' => $noUrut,
+                        'petugas_id' => $petugasId,
+                        'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
+                        'tanggal_spk' => $validated['tanggal_spk'],
+                        'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
+                        'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                        'nilai_kontrak' => $totalHonor,
+                        'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                        'nip_ppk' => $penandatangan->nip ?? null,
+                        'file_path' => $filePath,
+                        'status' => 'draft',
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    \DB::commit();
+                    $results[] = [
+                        'petugas_id' => $petugasId,
+                        'status' => 'created',
+                        'spk_id' => $spk->id,
+                    ];
+
+                    // Increment suffix for next new petugas (only in regenerate mode)
+                    if ($isRegenerate && ! $existingSpk) {
+                        $nextSuffix++;
+                    }
+                }
             } catch (\Exception $e) {
                 \DB::rollBack();
                 $results[] = [
@@ -2196,16 +2368,129 @@ class SpkController extends Controller
                     'message' => $e->getMessage(),
                 ];
             }
-            $index++;
         }
 
-        $successCount = collect($results)->where('status', 'success')->count();
+        $successCount = collect($results)->where('status', 'created')->count();
+        $updatedCount = collect($results)->where('status', 'updated')->count();
         $failedCount = collect($results)->where('status', 'failed')->count();
-        $message = "SPK berhasil dibuat untuk {$successCount} petugas.";
+
+        $message = "SPK berhasil dibuat: {$successCount} baru, {$updatedCount} diperbarui.";
         if ($failedCount > 0) {
             $message .= " {$failedCount} gagal.";
         }
 
         return redirect()->route('spk.index')->with('success', $message);
+    }
+
+    /**
+     * Check if there are new kegiatan/petugas added after SPK was generated
+     */
+    private function hasNewKegiatanAfterSpk(int $tahun, int $bulan, $monthPeriodes): bool
+    {
+        // Get the latest SPK creation timestamp for non-addendum SPKs in this month
+        $latestSpkCreatedAt = null;
+        foreach ($monthPeriodes as $periode) {
+            $latestSpk = $periode->spk()
+                ->where('addendum_number', 0)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestSpk && (! $latestSpkCreatedAt || $latestSpk->created_at > $latestSpkCreatedAt)) {
+                $latestSpkCreatedAt = $latestSpk->created_at;
+            }
+        }
+
+        // If no SPK exists, return false (should use normal "Generate SPK" button)
+        if (! $latestSpkCreatedAt) {
+            return false;
+        }
+
+        // Check if there are any alokasi petugas (non-organik) that don't have SPK yet
+        // OR were updated/created after the latest SPK generation
+        $hasNewKegiatan = false;
+        foreach ($monthPeriodes as $periode) {
+            // Only check dikirim or perubahan status
+            if (! in_array($periode->status, ['dikirim', 'perubahan'])) {
+                continue;
+            }
+
+            // Get non-organik petugas from this periode
+            $nonOrganikAlokasi = $periode->alokasiPetugas()
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->get();
+
+            foreach ($nonOrganikAlokasi as $alokasi) {
+                // Check if this alokasi has SPK
+                $hasSpk = Spk::where('alokasi_petugas_id', $alokasi->id)
+                    ->where('addendum_number', 0)
+                    ->exists();
+
+                // If no SPK or periode was updated after latest SPK
+                if (! $hasSpk || $periode->updated_at > $latestSpkCreatedAt) {
+                    $hasNewKegiatan = true;
+                    break 2;
+                }
+            }
+        }
+
+        return $hasNewKegiatan;
+    }
+
+    /**
+     * Check if there are new revisions after addendum was generated
+     */
+    private function hasNewRevisionAfterAddendum(int $tahun, int $bulan, $monthPeriodes): bool
+    {
+        // Get the latest Addendum (SPK with addendum_number > 0) creation timestamp in this month
+        $latestAddendumCreatedAt = null;
+        foreach ($monthPeriodes as $periode) {
+            $latestAddendum = $periode->spk()
+                ->where('addendum_number', '>', 0)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestAddendum && (! $latestAddendumCreatedAt || $latestAddendum->created_at > $latestAddendumCreatedAt)) {
+                $latestAddendumCreatedAt = $latestAddendum->created_at;
+            }
+        }
+
+        // If no Addendum exists, return false (should use normal "Addendum SPK" button)
+        if (! $latestAddendumCreatedAt) {
+            return false;
+        }
+
+        // Check if there are any revision periodes (status: perubahan or direvisi)
+        // that were updated after the latest addendum generation
+        $hasNewRevision = false;
+        foreach ($monthPeriodes as $periode) {
+            // Only check perubahan or direvisi status
+            if (! in_array($periode->status, ['perubahan', 'direvisi'])) {
+                continue;
+            }
+
+            // Get non-organik petugas from this revision periode
+            $nonOrganikAlokasi = $periode->alokasiPetugas()
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->get();
+
+            foreach ($nonOrganikAlokasi as $alokasi) {
+                // Check if this revision alokasi has addendum
+                $hasAddendum = Spk::where('alokasi_petugas_id', $alokasi->id)
+                    ->where('addendum_number', '>', 0)
+                    ->exists();
+
+                // If no addendum or periode was updated after latest addendum
+                if (! $hasAddendum || $periode->updated_at > $latestAddendumCreatedAt) {
+                    $hasNewRevision = true;
+                    break 2;
+                }
+            }
+        }
+
+        return $hasNewRevision;
     }
 }

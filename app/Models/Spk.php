@@ -30,6 +30,9 @@ class Spk extends Model
 
     protected $fillable = [
         'nomor_spk',
+        'nomor_urut_base',
+        'nomor_urut_suffix',
+        'petugas_id',
         'alokasi_petugas_id',
         'parent_spk_id',
         'addendum_number',
@@ -56,6 +59,11 @@ class Spk extends Model
     public function alokasiPetugas(): BelongsTo
     {
         return $this->belongsTo(AlokasiPetugas::class);
+    }
+
+    public function petugas(): BelongsTo
+    {
+        return $this->belongsTo(Petugas::class);
     }
 
     public function createdBy(): BelongsTo

@@ -615,13 +615,43 @@ class AlokasiPetugasController extends Controller
                 'current_total_spent_listing' => $totalSpentListing,
             ];
 
-            // Calculate used months for this kegiatan
-            $usedMonthsInfo[$kegiatan->id] = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            // Calculate used months/periods for this kegiatan
+            // For kegiatan with listing, track which tahapan is used for each month
+            $periodeList = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $activeYear)
                 ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
-                ->pluck('bulan')
-                ->map(fn ($b) => (int) $b)
-                ->toArray();
+                ->select('bulan', 'tahapan')
+                ->get();
+
+            if ($kegiatan->has_listing_updating) {
+                // For listing kegiatan, track tahapan per month
+                $usedPeriodsMap = [];
+                foreach ($periodeList as $periode) {
+                    $bulan = (int) $periode->bulan;
+                    if (! isset($usedPeriodsMap[$bulan])) {
+                        $usedPeriodsMap[$bulan] = [];
+                    }
+                    // Add tahapan to this month
+                    if ($periode->tahapan === 'both') {
+                        $usedPeriodsMap[$bulan][] = 'listing';
+                        $usedPeriodsMap[$bulan][] = 'pencacahan';
+                    } elseif ($periode->tahapan === 'listing_only') {
+                        $usedPeriodsMap[$bulan][] = 'listing';
+                    } elseif ($periode->tahapan === 'pencacahan_only') {
+                        $usedPeriodsMap[$bulan][] = 'pencacahan';
+                    }
+                }
+                $usedMonthsInfo[$kegiatan->id] = [
+                    'has_listing' => true,
+                    'periods' => $usedPeriodsMap,
+                ];
+            } else {
+                // For non-listing kegiatan, just list of used months
+                $usedMonthsInfo[$kegiatan->id] = [
+                    'has_listing' => false,
+                    'months' => $periodeList->pluck('bulan')->map(fn ($b) => (int) $b)->toArray(),
+                ];
+            }
         }
 
         $petugas = Petugas::where('status', 'aktif')

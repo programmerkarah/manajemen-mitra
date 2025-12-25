@@ -36,6 +36,8 @@ interface MonthlyPeriodeItem {
     spk_status_type: 'not_created' | 'created';
     has_revision: boolean;
     has_addendum: boolean;
+    has_new_kegiatan_after_spk: boolean; // Kegiatan baru setelah SPK di-generate
+    has_new_revision_after_addendum: boolean; // Revisi baru setelah addendum di-generate
     kegiatan_list: KegiatanItem[];
 }
 
@@ -254,6 +256,21 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
+                                                    {/* Re-generate SPK - Show if SPK exists but there are new kegiatan added after */}
+                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_new_kegiatan_after_spk && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            asChild
+                                                            className="gap-1 bg-orange-600 hover:bg-orange-700"
+                                                        >
+                                                            <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}>
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                Re-generate SPK
+                                                            </Link>
+                                                        </Button>
+                                                    )}
+
                                                     {/* View SPK Details - Always show if SPK exists */}
                                                     {monthData.total_spk > 0 && (
                                                         <Button
@@ -281,6 +298,21 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                             <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
                                                                 <FileEdit className="h-3.5 w-3.5" />
                                                                 Addendum SPK
+                                                            </Link>
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Re-generate Addendum - Show if addendum exists but there are new revisions after */}
+                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_addendum && monthData.has_new_revision_after_addendum && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            asChild
+                                                            className="gap-1 bg-purple-600 hover:bg-purple-700"
+                                                        >
+                                                            <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
+                                                                <FileEdit className="h-3.5 w-3.5" />
+                                                                Re-generate Addendum
                                                             </Link>
                                                         </Button>
                                                     )}

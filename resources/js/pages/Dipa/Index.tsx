@@ -167,12 +167,12 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Nomor DIPA</th>
-                                    <th className="px-4 py-3 text-center text-sm font-medium">Tahun</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Tanggal DIPA</th>
-                                    <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Nomor DIPA</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Tahun</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Tanggal DIPA</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
                                     {!isPJ && (
-                                        <th className="px-4 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
                                     )}
                                 </tr>
                             </thead>
@@ -189,20 +189,20 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                 ) : (
                                     dipaList.data.map((dipa) => (
                                         <tr key={dipa.id} className="hover:bg-muted/50">
-                                            <td className="px-4 py-3 text-sm font-medium">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-medium">
                                                 {dipa.nomor_dipa}
                                             </td>
-                                            <td className="px-4 py-3 text-center text-sm font-semibold">
+                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-semibold">
                                                 {dipa.tahun}
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {formatDate(dipa.tanggal_dipa)}
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-3 py-3 text-center">
                                                 <StatusBadge status={dipa.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
                                             {!isPJ && (
-                                                <td className="px-4 py-3">
+                                                <td className="px-3 py-3">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <Button
                                                             variant="outline"

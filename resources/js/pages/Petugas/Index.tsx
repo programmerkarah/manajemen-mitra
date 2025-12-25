@@ -169,25 +169,25 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                             <table className="w-full">
                                 <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Nama
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         NIK/NIP
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Email
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Telepon
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Pendidikan
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -198,25 +198,25 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         key={Petugas.id}
                                         className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
                                     >
-                                        <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                                            {Petugas.nama}
+                                        <td className="px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            <div className="max-w-xs truncate" title={Petugas.nama}>{Petugas.nama}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                        <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                             {Petugas.nik_masked}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
-                                            {Petugas.email}
+                                        <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <div className="max-w-xs truncate" title={Petugas.email}>{Petugas.email}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                        <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                             {Petugas.telepon}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                        <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                             {Petugas.pendidikan}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-3 py-3">
                                             <StatusBadge status={Petugas.status} />
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-3 py-3">
                                             <div className="flex items-center justify-center gap-2">
                                                 <Button
                                                     variant="ghost"

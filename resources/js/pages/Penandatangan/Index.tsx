@@ -167,15 +167,15 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Nama</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">NIP</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Jenis</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Jabatan</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Periode Mulai</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium">Periode Selesai</th>
-                                    <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="px-3 py-3 text-left text-sm font-medium">Nama</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">NIP</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Jenis</th>
+                                    <th className="px-3 py-3 text-left text-sm font-medium">Jabatan</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Mulai</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Selesai</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
                                     {!isPJ && (
-                                        <th className="px-4 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
                                     )}
                                 </tr>
                             </thead>
@@ -192,31 +192,31 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                                 ) : (
                                     PenandatanganList.data.map((Penandatangan) => (
                                         <tr key={Penandatangan.id} className="hover:bg-muted/50">
-                                            <td className="px-4 py-3 text-sm font-medium">
-                                                {Penandatangan.nama}
+                                            <td className="px-3 py-3 text-sm font-medium">
+                                                <div className="max-w-xs truncate" title={Penandatangan.nama}>{Penandatangan.nama}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {Penandatangan.nip || '-'}
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 <Badge variant={Penandatangan.jenis_penandatangan === 'kepala' ? 'default' : 'secondary'}>
                                                     {Penandatangan.jenis_penandatangan === 'kepala' ? 'Kepala (SK)' : 'PPK (SPK/BAST)'}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
-                                                {Penandatangan.jabatan}
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="max-w-xs truncate" title={Penandatangan.jabatan}>{Penandatangan.jabatan}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {formatDate(Penandatangan.periode_mulai)}
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
                                                 {formatDate(Penandatangan.periode_selesai)}
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-3 py-3 text-center">
                                                 <StatusBadge status={Penandatangan.is_active ? 'aktif' : 'nonaktif'} />
                                             </td>
                                             {!isPJ && (
-                                                <td className="px-4 py-3">
+                                                <td className="px-3 py-3">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <Button
                                                             variant="outline"

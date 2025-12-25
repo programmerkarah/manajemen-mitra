@@ -55,6 +55,12 @@ interface GenerateProps {
     petugas_list: AlokasiPetugas[];
     has_draft_periode: boolean;
     next_nomor_urut: number;
+    is_regenerate: boolean;
+    default_tanggal_spk: string | null;
+    default_sampai_tanggal: string | null;
+    existing_spk_map: Record<number, { nomor_spk: string; nomor_urut: number }>;
+    last_nomor_urut_in_month: number;
+    uses_suffix_for_new_petugas: boolean;
 }
 
 const bulanLabels: Record<number, string> = {
@@ -63,10 +69,10 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Generate({ periode, petugas_list, has_draft_periode, next_nomor_urut }: GenerateProps) {
+export default function Generate({ periode, petugas_list, has_draft_periode, next_nomor_urut, is_regenerate, default_tanggal_spk, default_sampai_tanggal, existing_spk_map, last_nomor_urut_in_month, uses_suffix_for_new_petugas }: GenerateProps) {
     const [formData, setFormData] = useState({
-        tanggal_spk: '',
-        sampai_tanggal: '',
+        tanggal_spk: default_tanggal_spk || '',
+        sampai_tanggal: default_sampai_tanggal || '',
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
@@ -105,19 +111,43 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         // Get year from tanggal_spk
         const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
 
-        // Sort all petugas by name to get correct urutan
-        const sortedPetugas = [...petugas_list].sort((a, b) => 
-            a.petugas.nama.localeCompare(b.petugas.nama)
-        );
+        // Check if this petugas already has an existing SPK
+        const existingSpk = existing_spk_map[alokasi.petugas.id];
+        let nomorSpk: string;
         
-        // Find the index (0-based) of this petugas in sorted list
-        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
-        
-        // Calculate nomor urut: next_nomor_urut + index
-        const noUrut = next_nomor_urut + petugasIndex;
-
-        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        if (existingSpk) {
+            // Use existing SPK number from database
+            nomorSpk = existingSpk.nomor_spk;
+        } else if (is_regenerate) {
+            // New petugas in regenerate mode
+            // Need to calculate position among new petugas only
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            // Filter only new petugas (those without existing SPK)
+            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
+            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
+            
+            if (uses_suffix_for_new_petugas) {
+                // Use suffix mode: 3A, 3B, 3C...
+                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
+                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+            } else {
+                // Use sequential mode: 4, 5, 6...
+                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
+                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            }
+        } else {
+            // First time generation - use sequential numbering
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+            const noUrut = next_nomor_urut + petugasIndex;
+            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        }
 
         // Create a native form and submit to preview endpoint
         const form = document.createElement('form');
@@ -166,19 +196,41 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         // Get year from tanggal_spk
         const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
         
-        // Sort all petugas by name to get correct urutan
-        const sortedPetugas = [...petugas_list].sort((a, b) => 
-            a.petugas.nama.localeCompare(b.petugas.nama)
-        );
+        // Check if this petugas already has an existing SPK
+        const existingSpk = existing_spk_map[alokasi.petugas.id];
+        let nomorSpk: string;
         
-        // Find the index (0-based) of this petugas in sorted list
-        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
-        
-        // Calculate nomor urut: next_nomor_urut + index
-        const noUrut = next_nomor_urut + petugasIndex;
-
-        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        if (existingSpk) {
+            // Use existing SPK number from database
+            nomorSpk = existingSpk.nomor_spk;
+        } else if (is_regenerate) {
+            // New petugas in regenerate mode
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
+            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
+            
+            if (uses_suffix_for_new_petugas) {
+                // Use suffix mode: 3A, 3B, 3C...
+                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
+                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+            } else {
+                // Use sequential mode: 4, 5, 6...
+                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
+                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            }
+        } else {
+            // First time generation - use sequential numbering
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+            const noUrut = next_nomor_urut + petugasIndex;
+            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        }
 
         // Create a native form and submit to preview-main endpoint
         const form = document.createElement('form');
@@ -227,19 +279,41 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         // Get year from tanggal_spk
         const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
         
-        // Sort all petugas by name to get correct urutan
-        const sortedPetugas = [...petugas_list].sort((a, b) => 
-            a.petugas.nama.localeCompare(b.petugas.nama)
-        );
+        // Check if this petugas already has an existing SPK
+        const existingSpk = existing_spk_map[alokasi.petugas.id];
+        let nomorSpk: string;
         
-        // Find the index (0-based) of this petugas in sorted list
-        const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
-        
-        // Calculate nomor urut: next_nomor_urut + index
-        const noUrut = next_nomor_urut + petugasIndex;
-
-        // Generate nomor SPK: PPIS/13730/{No Urut}/K/{tahun}
-        const nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        if (existingSpk) {
+            // Use existing SPK number from database
+            nomorSpk = existingSpk.nomor_spk;
+        } else if (is_regenerate) {
+            // New petugas in regenerate mode
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
+            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
+            
+            if (uses_suffix_for_new_petugas) {
+                // Use suffix mode: 3A, 3B, 3C...
+                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
+                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+            } else {
+                // Use sequential mode: 4, 5, 6...
+                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
+                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            }
+        } else {
+            // First time generation - use sequential numbering
+            const sortedPetugas = [...petugas_list].sort((a, b) => 
+                a.petugas.nama.localeCompare(b.petugas.nama)
+            );
+            
+            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+            const noUrut = next_nomor_urut + petugasIndex;
+            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+        }
 
         // Create a native form and submit to preview-lampiran endpoint
         const form = document.createElement('form');
@@ -389,6 +463,14 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                             Informasi SPK
                         </h3>
 
+                        {is_regenerate && (
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">
+                                    <strong>Mode Regenerate:</strong> Tanggal SPK dan Sampai Tanggal menggunakan data yang sudah ada di database dan tidak dapat diubah.
+                                </p>
+                            </div>
+                        )}
+
                         <div className="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label htmlFor="tanggal_spk">Tanggal SPK</Label>
@@ -397,6 +479,7 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                     type="date"
                                     value={formData.tanggal_spk}
                                     onChange={(e) => setFormData({ ...formData, tanggal_spk: e.target.value })}
+                                    disabled={is_regenerate}
                                     required
                                 />
                             </div>
@@ -408,6 +491,7 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                     type="date"
                                     value={formData.sampai_tanggal}
                                     onChange={(e) => setFormData({ ...formData, sampai_tanggal: e.target.value })}
+                                    disabled={is_regenerate}
                                     required
                                 />
                                 <p className="mt-1 text-xs text-neutral-500">

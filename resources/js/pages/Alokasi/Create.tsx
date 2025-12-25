@@ -93,7 +93,11 @@ interface AlokasiCreateProps {
         number,
         { pagu_pencacahan: number; current_total_spent: number }
     >;
-    used_months_info: Record<number, number[]>;
+    used_months_info: Record<number, {
+        has_listing: boolean;
+        periods?: Record<number, string[]>; // For listing kegiatan: {1: ['listing', 'pencacahan'], 2: ['listing']}
+        months?: number[]; // For non-listing kegiatan: [1, 2, 3]
+    }>;
     isEditMode?: boolean;
     isRevisiMode?: boolean;
     isViewMode?: boolean;
@@ -123,9 +127,16 @@ export default function Create({
 
     // Helper function to find first available month
     const getFirstAvailableMonth = (
-        usedMonthsList: number[],
+        usedInfo: { has_listing: boolean; periods?: Record<number, string[]>; months?: number[] } | undefined,
         startMonth: number = 1,
     ): number => {
+        // Extract used months array from new structure
+        const usedMonthsList = usedInfo 
+            ? (usedInfo.has_listing 
+                ? Object.keys(usedInfo.periods || {}).map(Number)
+                : usedInfo.months || [])
+            : [];
+        
         for (let month = startMonth; month <= 12; month++) {
             if (!usedMonthsList.includes(month)) {
                 return month;
@@ -147,20 +158,20 @@ export default function Create({
             return parseInt(sourcePeriode.bulan);
         }
 
-        // Get used months for the selected kegiatan
+        // Get used months info for the selected kegiatan
         const kegiatanId = preSelectedKegiatan?.id;
-        const usedMonthsList = kegiatanId
-            ? used_months_info[Number(kegiatanId)] || []
-            : [];
+        const usedInfo = kegiatanId
+            ? used_months_info[Number(kegiatanId)]
+            : undefined;
 
         if (sourcePeriode) {
             // Copy mode: find first available month starting from source month + 1
             const nextMonth = (parseInt(sourcePeriode.bulan) % 12) + 1;
-            return getFirstAvailableMonth(usedMonthsList, nextMonth);
+            return getFirstAvailableMonth(usedInfo, nextMonth);
         }
 
         // New mode: find first available month starting from month 1
-        return getFirstAvailableMonth(usedMonthsList, 1);
+        return getFirstAvailableMonth(usedInfo, 1);
     });
     const [tahapan, setTahapan] = useState<
         'both' | 'listing_only' | 'pencacahan_only'
@@ -230,8 +241,11 @@ export default function Create({
 
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
+        let filtered = kegiatans;
+        
+        // First, filter by role permission
         if (auth.activeRole?.name === 'ketua_tim') {
-            const filtered = kegiatans.filter((k) => {
+            filtered = kegiatans.filter((k) => {
                 const ketuaMatch = Number(k.ketua_tim_user_id) === Number(auth.user.id);
                 // If pj_lainnya_id is null/undefined, treat as 0 (never match user.id)
                 const pjLainnyaId = typeof k.pj_lainnya_id === 'undefined' || k.pj_lainnya_id === null ? 0 : Number(k.pj_lainnya_id);
@@ -242,11 +256,109 @@ export default function Create({
             console.log('[DEBUG] filteredKegiatans:', filtered);
             console.log('[DEBUG] all kegiatans:', kegiatans);
             console.log('[DEBUG] auth.user.id:', auth.user.id, 'activeRole:', auth.activeRole);
-            return filtered;
         }
-        console.log('[DEBUG] all kegiatans (no filter):', kegiatans);
-        return kegiatans;
-    }, [kegiatans, auth.activeRole, auth.user.id]);
+        
+        // Second, filter out kegiatan where ALL months are already used
+        // Only apply this filter when NOT in edit mode
+        if (!isEditMode && !isViewMode) {
+            filtered = filtered.filter((k) => {
+                const usedInfo = used_months_info[Number(k.id)];
+                
+                // If no used info, kegiatan is available
+                if (!usedInfo) return true;
+                
+                // If kegiatan has listing (has_listing_updating = true), it can have up to 24 periods (12 * 2 tahapan)
+                // If no listing, max 12 periods (1 per month)
+                const maxPeriods = k.has_listing_updating ? 24 : 12;
+                
+                if (usedInfo.has_listing) {
+                    // For listing kegiatan: count total used tahapan slots
+                    // usedInfo.periods is object: {1: ['listing', 'pencacahan'], 2: ['listing']}
+                    const totalUsed = Object.values(usedInfo.periods || {}).flat().length;
+                    return totalUsed < maxPeriods;
+                } else {
+                    // For non-listing kegiatan: simple month array
+                    // usedInfo.months is array: [1, 2, 3]
+                    return (usedInfo.months || []).length < 12;
+                }
+            });
+        }
+        
+        // Third, filter out kegiatan where there are no available months within date range
+        // Only apply this filter when NOT in edit mode
+        if (!isEditMode && !isViewMode) {
+            filtered = filtered.filter((k) => {
+                // Check if kegiatan has valid date range
+                if (!k.tanggal_mulai || !k.tanggal_selesai) {
+                    return true; // Keep kegiatan if no date range specified
+                }
+                
+                const start = new Date(k.tanggal_mulai);
+                const end = new Date(k.tanggal_selesai);
+                
+                // Get months within kegiatan's date range for active_year
+                const availableMonthsInRange: number[] = [];
+                
+                for (let m = 1; m <= 12; m++) {
+                    // Check if month is within kegiatan's date range
+                    if (active_year < start.getFullYear() || active_year > end.getFullYear()) {
+                        continue;
+                    }
+                    
+                    if (start.getFullYear() === end.getFullYear()) {
+                        if (active_year === start.getFullYear() && 
+                            m >= start.getMonth() + 1 && 
+                            m <= end.getMonth() + 1) {
+                            availableMonthsInRange.push(m);
+                        }
+                    } else if (active_year === start.getFullYear()) {
+                        if (m >= start.getMonth() + 1) {
+                            availableMonthsInRange.push(m);
+                        }
+                    } else if (active_year === end.getFullYear()) {
+                        if (m <= end.getMonth() + 1) {
+                            availableMonthsInRange.push(m);
+                        }
+                    } else if (active_year > start.getFullYear() && active_year < end.getFullYear()) {
+                        availableMonthsInRange.push(m);
+                    }
+                }
+                
+                // If no months in range, hide kegiatan
+                if (availableMonthsInRange.length === 0) {
+                    return false;
+                }
+                
+                // Check if any months are actually available (not all used)
+                const usedInfo = used_months_info[Number(k.id)];
+                if (!usedInfo) {
+                    return true; // If no used info, all months in range are available
+                }
+                
+                // For non-listing kegiatan: check if all months in range are used
+                if (!k.has_listing_updating) {
+                    const usedMonths = usedInfo.months || [];
+                    const hasAvailableMonth = availableMonthsInRange.some(m => !usedMonths.includes(m));
+                    return hasAvailableMonth;
+                }
+                
+                // For listing kegiatan: check if any month has at least one available tahapan slot
+                if (usedInfo.has_listing && usedInfo.periods) {
+                    const hasAvailableSlot = availableMonthsInRange.some(m => {
+                        const usedTahapan = usedInfo.periods?.[m] || [];
+                        // At least one tahapan slot must be available
+                        return usedTahapan.length < 2; // Less than 2 means not both tahapan are used
+                    });
+                    return hasAvailableSlot;
+                }
+                
+                return true;
+            });
+        }
+        
+        console.log('[DEBUG] final filtered kegiatans (after available months check):', filtered);
+        return filtered;
+    }, [kegiatans, auth.activeRole, auth.user.id, used_months_info, isEditMode, isViewMode, active_year]);
 
     const selectedKegiatan = filteredKegiatans.find(
         (k) => String(k.id) === String(selectedKegiatanId),
@@ -281,10 +393,20 @@ export default function Create({
             : 0;
 
     // Get used months for selected kegiatan
-    const usedMonths =
-        selectedKegiatan && selectedKegiatanId
-            ? used_months_info[Number(selectedKegiatan.id)] || []
-            : [];
+    const usedMonths = useMemo(() => {
+        if (!selectedKegiatan || !selectedKegiatanId) return [];
+        
+        const usedInfo = used_months_info[Number(selectedKegiatan.id)];
+        if (!usedInfo) return [];
+        
+        if (usedInfo.has_listing) {
+            // For listing kegiatan: extract unique months from periods object
+            return Object.keys(usedInfo.periods || {}).map(Number);
+        } else {
+            // For non-listing kegiatan: use months array directly
+            return usedInfo.months || [];
+        }
+    }, [selectedKegiatan, selectedKegiatanId, used_months_info]);
 
     // Initialize with copied data if available
     useEffect(() => {
@@ -972,17 +1094,44 @@ export default function Create({
         return filtered;
     }, [selectedKegiatan, months, active_year]);
 
-    // Set default bulan to first available month in filteredMonths
+    // Filter months by tahapan availability for listing kegiatan
+    const availableMonthsForTahapan = useMemo(() => {
+        if (!selectedKegiatan || !selectedKegiatan.has_listing_updating) {
+            // For non-listing kegiatan: filter out fully used months
+            return filteredMonths.filter((month) => !usedMonths.includes(month.value));
+        }
+        
+        // For listing kegiatan: filter based on selected tahapan
+        const usedInfo = used_months_info[Number(selectedKegiatan.id)];
+        if (!usedInfo || !usedInfo.has_listing) {
+            return filteredMonths.filter((month) => !usedMonths.includes(month.value));
+        }
+        
+        return filteredMonths.filter((month) => {
+            const usedTahapan = usedInfo.periods?.[month.value] || [];
+            
+            if (tahapan === 'both') {
+                // Need both slots available
+                return !usedTahapan.includes('listing') && !usedTahapan.includes('pencacahan');
+            } else if (tahapan === 'listing_only') {
+                return !usedTahapan.includes('listing');
+            } else if (tahapan === 'pencacahan_only') {
+                return !usedTahapan.includes('pencacahan');
+            }
+            
+            return true;
+        });
+    }, [selectedKegiatan, filteredMonths, usedMonths, tahapan, used_months_info]);
+
+    // Set default bulan to first available month in availableMonthsForTahapan
     useEffect(() => {
         // Skip if in edit mode or if there's a source periode
         if (isEditMode || sourcePeriode) {
             return;
         }
 
-        // Find first available month from filteredMonths that's not used
-        const availableMonths = filteredMonths.filter(
-            (month) => !usedMonths.includes(month.value),
-        );
+        // Find first available month from availableMonthsForTahapan
+        const availableMonths = availableMonthsForTahapan;
 
         if (availableMonths.length > 0) {
             const firstAvailableMonth = availableMonths[0].value;
@@ -1197,20 +1346,12 @@ export default function Create({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {filteredMonths.map((month) => (
+                                        {availableMonthsForTahapan.map((month) => (
                                             <SelectItem
                                                 key={month.value}
                                                 value={month.value.toString()}
-                                                disabled={usedMonths.includes(
-                                                    month.value,
-                                                )}
                                             >
-                                                {month.label}{' '}
-                                                {usedMonths.includes(
-                                                    month.value,
-                                                )
-                                                    ? '(Sudah digunakan)'
-                                                    : ''}
+                                                {month.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1329,7 +1470,7 @@ export default function Create({
                                     <h5 className="mb-3 text-sm font-semibold text-green-900 dark:text-green-300">
                                         Jadwal{' '}
                                         {tahapan === 'listing_only'
-                                            ? 'Kegiatan'
+                                            ? 'Listing'
                                             : 'Pencacahan'}
                                     </h5>
                                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

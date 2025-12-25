@@ -266,25 +266,25 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Nama Kegiatan
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Pagu Anggaran
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
@@ -308,25 +308,29 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             key={kegiatan.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                                 {kegiatan.kode_kegiatan}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
-                                                {kegiatan.nama_kegiatan}
+                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                                <div className="max-w-md">
+                                                    {kegiatan.nama_kegiatan}
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.tahun_anggaran}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {formatCurrency(kegiatan.pagu_pencacahan)}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-400">
-                                                {kegiatan.ketua_tim.name}
+                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                                <div className="max-w-xs truncate" title={kegiatan.ketua_tim.name}>
+                                                    {kegiatan.ketua_tim.name}
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge status={kegiatan.status} />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="flex items-center justify-center gap-2">
                                                     {!isPJ && canSubmit(kegiatan) && (
                                                         <Button

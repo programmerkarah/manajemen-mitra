@@ -147,17 +147,17 @@ export default function Index({ dasarHukum, filters }: Props) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Dasar Hukum
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
                                     {!isPJ && (
-                                        <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                        <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                             Aksi
                                         </th>
                                     )}
@@ -209,26 +209,26 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                 key={item.id}
                                                 className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/50"
                                             >
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-3">
                                                     <div className="space-y-1">
                                                         <div className="font-medium text-neutral-900 dark:text-white">
-                                                            {formatNamaLengkap()}
+                                                            <div className="max-w-2xl">{formatNamaLengkap()}</div>
                                                         </div>
                                                         <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                            tentang {item.tentang}
+                                                            <div className="max-w-2xl">tentang {item.tentang}</div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="whitespace-nowrap px-6 py-4 text-center">
+                                                <td className="whitespace-nowrap px-3 py-3 text-center">
                                                     <div className="text-sm text-neutral-900 dark:text-white">
                                                         {item.tahun}
                                                     </div>
                                                 </td>
-                                                <td className="whitespace-nowrap px-6 py-4 text-center">
+                                                <td className="whitespace-nowrap px-3 py-3 text-center">
                                                     <StatusBadge status={item.status} />
                                                 </td>
                                                 {!isPJ && (
-                                                    <td className="whitespace-nowrap px-6 py-4">
+                                                    <td className="whitespace-nowrap px-3 py-3">
                                                         <div className="flex items-center justify-center gap-2">
                                                             <Link
                                                                 href={`/dasar-hukum/${item.id}/edit`}
