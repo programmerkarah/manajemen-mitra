@@ -9,17 +9,37 @@ const csrfToken =
     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
     '';
 
-// Detect broadcaster type (reverb for local, pusher for production)
-const broadcaster = import.meta.env.VITE_REVERB_APP_KEY ? 'reverb' : 'pusher';
+// Detect broadcaster type - prioritize Pusher if key exists
+const usePusher = !!import.meta.env.VITE_PUSHER_APP_KEY;
+const broadcaster = usePusher ? 'pusher' : 'reverb';
 
 console.log('🔌 Initializing Echo with broadcaster:', broadcaster);
-console.log('🔑 Pusher Key:', import.meta.env.VITE_PUSHER_APP_KEY);
-console.log('🌍 Pusher Cluster:', import.meta.env.VITE_PUSHER_APP_CLUSTER);
+
+if (usePusher) {
+    console.log('🔑 Pusher Key:', import.meta.env.VITE_PUSHER_APP_KEY);
+    console.log('🌍 Pusher Cluster:', import.meta.env.VITE_PUSHER_APP_CLUSTER);
+} else {
+    console.log('🔑 Reverb Key:', import.meta.env.VITE_REVERB_APP_KEY);
+    console.log('🌍 Reverb Host:', import.meta.env.VITE_REVERB_HOST);
+}
 
 // Initialize Laravel Echo with dynamic configuration
 const echo = new Echo(
-    broadcaster === 'reverb'
+    usePusher
         ? {
+              // Pusher configuration (for production/Hostinger)
+              broadcaster: 'pusher',
+              key: import.meta.env.VITE_PUSHER_APP_KEY || '',
+              cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || 'ap1',
+              forceTLS: true,
+              authEndpoint: '/broadcasting/auth',
+              auth: {
+                  headers: {
+                      'X-CSRF-TOKEN': csrfToken,
+                  },
+              },
+          }
+        : {
               // Reverb configuration (for local development)
               broadcaster: 'reverb',
               key: import.meta.env.VITE_REVERB_APP_KEY,
@@ -34,24 +54,11 @@ const echo = new Echo(
                       'X-CSRF-TOKEN': csrfToken,
                   },
               },
-          }
-        : {
-              // Pusher configuration (for production/Hostinger)
-              broadcaster: 'pusher',
-              key: import.meta.env.VITE_PUSHER_APP_KEY || '',
-              cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || 'ap1',
-              forceTLS: true,
-              authEndpoint: '/broadcasting/auth',
-              auth: {
-                  headers: {
-                      'X-CSRF-TOKEN': csrfToken,
-                  },
-              },
           },
 );
 
 // Debug: Log Pusher connection status
-if (broadcaster === 'pusher' && echo.connector?.pusher) {
+if (usePusher && echo.connector?.pusher) {
     echo.connector.pusher.connection.bind('state_change', (states: any) => {
         console.log('📡 Pusher state change:', states.previous, '→', states.current);
     });
