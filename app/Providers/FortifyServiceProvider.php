@@ -154,10 +154,7 @@ class FortifyServiceProvider extends ServiceProvider
                 {
                     $user = $request->user();
 
-                    // Save trusted device if checkbox was checked
-                    $rememberDevice = $request->boolean('remember_device', false);
-
-                    if ($rememberDevice && $user) {
+                    if ($user) {
                         // SINGLE DEVICE LOGIN: Invalidate ALL other sessions for this user
                         // This ensures user can only be logged in on ONE device at a time
                         $currentSessionId = $request->session()->getId();
@@ -168,6 +165,7 @@ class FortifyServiceProvider extends ServiceProvider
                             ->where('id', '!=', $currentSessionId)
                             ->delete();
 
+                        // ALWAYS save trusted device (no checkbox required)
                         // Expire all other trusted devices
                         TrustedDevice::where('user_id', $user->id)
                             ->where(function ($query) use ($request) {
@@ -230,15 +228,6 @@ class FortifyServiceProvider extends ServiceProvider
                                 'strict'
                             );
                         }
-                    } else {
-                        // If user doesn't want to remember device, still invalidate other sessions
-                        // This enforces single device login even for non-remembered devices
-                        $currentSessionId = $request->session()->getId();
-
-                        \DB::table('sessions')
-                            ->where('user_id', $user->id)
-                            ->where('id', '!=', $currentSessionId)
-                            ->delete();
                     }
 
                     return redirect()->intended(config('fortify.home'));

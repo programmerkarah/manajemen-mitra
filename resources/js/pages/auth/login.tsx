@@ -1,7 +1,6 @@
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -11,7 +10,6 @@ import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
 import { LogIn } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { useState } from 'react';
 
 interface LoginProps {
     status?: string;
@@ -24,8 +22,6 @@ export default function Login({
     canResetPassword,
     canRegister,
 }: LoginProps) {
-    const [rememberMe, setRememberMe] = useState(false);
-
     return (
         <>
             <Head title="Masuk" />
@@ -122,19 +118,6 @@ export default function Login({
                                                     className="h-11"
                                                 />
                                                 <InputError message={errors.password} />
-                                            </div>
-
-                                            <div className="flex items-center space-x-3">
-                                                <Checkbox
-                                                    id="remember"
-                                                    tabIndex={3}
-                                                    checked={rememberMe}
-                                                    onCheckedChange={(checked) => setRememberMe(checked === true)}
-                                                />
-                                                <input type="hidden" name="remember" value={rememberMe ? '1' : '0'} />
-                                                <Label htmlFor="remember" className="text-sm text-neutral-700 dark:text-neutral-300">
-                                                    Ingat saya
-                                                </Label>
                                             </div>
 
                                             <Button
