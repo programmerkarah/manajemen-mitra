@@ -44,7 +44,7 @@ class HttpCacheService
         $response->header('Cache-Control', 'no-cache, no-store, must-revalidate, private');
         $response->header('Pragma', 'no-cache');
         $response->header('Expires', '0');
-        
+
         return $response;
     }
 

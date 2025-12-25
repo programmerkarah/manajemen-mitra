@@ -407,6 +407,7 @@ class SkKpaController extends Controller
                     'peraturan_menteri_badan' => 4,
                     'keputusan_menteri_kepala_badan' => 5,
                 ];
+
                 // Sort by category order first, then by year (oldest to newest)
                 return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
             })
@@ -462,7 +463,7 @@ class SkKpaController extends Controller
         $deletedPetugas = [];
         $addedPetugas = [];
         $allCurrentPetugas = [];
-        
+
         if ($revisionNumber > 0 && $existingSk) {
             // Get the previous periode (not the current one)
             $previousPeriode = $kegiatan->periodeAlokasi()
@@ -473,19 +474,19 @@ class SkKpaController extends Controller
                 ->where('id', '!=', $periode->id) // Exclude current periode
                 ->orderBy('created_at', 'desc')
                 ->first();
-                
+
             if ($previousPeriode) {
                 $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
                 $currentPetugasList = $periode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
-                
+
                 // Find deleted petugas (in previous but not in current)
                 $deletedPetugasIds = array_diff(array_keys($previousPetugasList), array_keys($currentPetugasList));
                 $deletedPetugas = array_values(array_intersect_key($previousPetugasList, array_flip($deletedPetugasIds)));
-                
+
                 // Find added petugas (in current but not in previous)
                 $addedPetugasIds = array_diff(array_keys($currentPetugasList), array_keys($previousPetugasList));
                 $addedPetugas = array_values(array_intersect_key($currentPetugasList, array_flip($addedPetugasIds)));
-                
+
                 // All current petugas names for final list
                 $allCurrentPetugas = array_values($currentPetugasList);
             }
@@ -608,6 +609,7 @@ class SkKpaController extends Controller
                     'peraturan_menteri_badan' => 4,
                     'keputusan_menteri_kepala_badan' => 5,
                 ];
+
                 // Sort by category order first, then by year (oldest to newest)
                 return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
             })
@@ -663,7 +665,7 @@ class SkKpaController extends Controller
         $deletedPetugas = [];
         $addedPetugas = [];
         $allCurrentPetugas = [];
-        
+
         if ($revisionNumber > 0 && $existingSk) {
             // Get the previous periode (not the current one)
             $previousPeriode = $kegiatan->periodeAlokasi()
@@ -674,19 +676,19 @@ class SkKpaController extends Controller
                 ->where('id', '!=', $periode->id) // Exclude current periode
                 ->orderBy('created_at', 'desc')
                 ->first();
-                
+
             if ($previousPeriode) {
                 $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
                 $currentPetugasList = $periode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
-                
+
                 // Find deleted petugas (in previous but not in current)
                 $deletedPetugasIds = array_diff(array_keys($previousPetugasList), array_keys($currentPetugasList));
                 $deletedPetugas = array_values(array_intersect_key($previousPetugasList, array_flip($deletedPetugasIds)));
-                
+
                 // Find added petugas (in current but not in previous)
                 $addedPetugasIds = array_diff(array_keys($currentPetugasList), array_keys($previousPetugasList));
                 $addedPetugas = array_values(array_intersect_key($currentPetugasList, array_flip($addedPetugasIds)));
-                
+
                 // All current petugas names for final list
                 $allCurrentPetugas = array_values($currentPetugasList);
             }
@@ -864,8 +866,8 @@ class SkKpaController extends Controller
         }
 
         // Get periods that exist AFTER the latest SK bulan
-        $periodsAfterSk = $periods->filter(fn($p) => $p->bulan > $latestSk->bulan);
-        
+        $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
+
         if ($periodsAfterSk->isEmpty()) {
             return false;
         }
@@ -873,7 +875,7 @@ class SkKpaController extends Controller
         // Find the latest periode that was used when the SK was created
         // This should be the periode with bulan <= latestSk->bulan (the last one before or at SK creation)
         $lastPeriodeBeforeSk = $periods
-            ->filter(fn($p) => $p->bulan <= $latestSk->bulan)
+            ->filter(fn ($p) => $p->bulan <= $latestSk->bulan)
             ->sortByDesc('bulan')
             ->first();
 
@@ -892,19 +894,19 @@ class SkKpaController extends Controller
         // Check each periode after SK to see if personnel changed
         // We compare each with the PREVIOUS periode to detect changes
         $previousPersonnel = $referencePersonnel;
-        
+
         foreach ($periodsAfterSk as $period) {
             $currentPersonnel = $period->alokasiPetugas
                 ->pluck('petugas_id')
                 ->sort()
                 ->values()
                 ->toArray();
-            
+
             // If current periode has different personnel than previous, there's a change
             if ($currentPersonnel !== $previousPersonnel) {
                 return true;
             }
-            
+
             // Update previous for next iteration
             $previousPersonnel = $currentPersonnel;
         }

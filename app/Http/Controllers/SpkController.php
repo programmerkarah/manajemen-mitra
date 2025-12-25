@@ -2013,7 +2013,8 @@ class SpkController extends Controller
 
         return $pdfOutput;
     }
-        /**
+
+    /**
      * Bulk generate SPK for all non-organik petugas in a periode
      */
     public function generateAllSpk(Request $request, string $periodeHashedId)
@@ -2079,6 +2080,7 @@ class SpkController extends Controller
                     'message' => 'Tidak ada alokasi untuk petugas ini',
                 ];
                 $index++;
+
                 continue;
             }
 
@@ -2090,6 +2092,7 @@ class SpkController extends Controller
                     'message' => 'Penandatangan (PPK) tidak ditemukan',
                 ];
                 $index++;
+
                 continue;
             }
 
@@ -2202,6 +2205,7 @@ class SpkController extends Controller
         if ($failedCount > 0) {
             $message .= " {$failedCount} gagal.";
         }
+
         return redirect()->route('spk.index')->with('success', $message);
     }
 }

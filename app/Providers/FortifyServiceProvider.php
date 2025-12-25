@@ -7,6 +7,8 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Models\TrustedDevice;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -36,6 +38,7 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->configureTwoFactorChallenge();
         $this->configureTwoFactorLoginResponse();
+        $this->configureRegularLoginResponse();
     }
 
     /**
@@ -149,14 +152,23 @@ class FortifyServiceProvider extends ServiceProvider
             {
                 public function toResponse($request)
                 {
+                    $user = $request->user();
+
                     // Save trusted device if checkbox was checked
                     $rememberDevice = $request->boolean('remember_device', false);
 
-                    if ($rememberDevice && $request->user()) {
-                        $user = $request->user();
+                    if ($rememberDevice && $user) {
+                        // SINGLE DEVICE LOGIN: Invalidate ALL other sessions for this user
+                        // This ensures user can only be logged in on ONE device at a time
+                        $currentSessionId = $request->session()->getId();
 
-                        // Expire all existing trusted devices that have different fingerprint
-                        // This ensures only ONE device (the current one) is trusted
+                        // Delete all other sessions except current one
+                        \DB::table('sessions')
+                            ->where('user_id', $user->id)
+                            ->where('id', '!=', $currentSessionId)
+                            ->delete();
+
+                        // Expire all other trusted devices
                         TrustedDevice::where('user_id', $user->id)
                             ->where(function ($query) use ($request) {
                                 $query->where('user_agent', '!=', $request->userAgent())
@@ -218,6 +230,15 @@ class FortifyServiceProvider extends ServiceProvider
                                 'strict'
                             );
                         }
+                    } else {
+                        // If user doesn't want to remember device, still invalidate other sessions
+                        // This enforces single device login even for non-remembered devices
+                        $currentSessionId = $request->session()->getId();
+
+                        \DB::table('sessions')
+                            ->where('user_id', $user->id)
+                            ->where('id', '!=', $currentSessionId)
+                            ->delete();
                     }
 
                     return redirect()->intended(config('fortify.home'));
@@ -249,5 +270,36 @@ class FortifyServiceProvider extends ServiceProvider
                 }
             };
         });
+    }
+
+    /**
+     * Configure regular login response (for users WITHOUT 2FA enabled).
+     * This ensures single device login even for non-2FA users.
+     */
+    private function configureRegularLoginResponse(): void
+    {
+        // Use Laravel's Login event to handle post-authentication for regular logins
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Auth\Events\Login::class,
+            function ($event) {
+                $user = $event->user;
+                $request = request();
+
+                // Only handle if user doesn't have 2FA enabled
+                // (2FA users are handled by TwoFactorLoginResponse)
+                if ($user && ! $user->two_factor_secret) {
+                    // SINGLE DEVICE LOGIN: Invalidate ALL other sessions
+                    $currentSessionId = $request->session()->getId();
+
+                    DB::table('sessions')
+                        ->where('user_id', $user->id)
+                        ->where('id', '!=', $currentSessionId)
+                        ->delete();
+
+                    // Also expire all old trusted devices
+                    TrustedDevice::where('user_id', $user->id)->delete();
+                }
+            }
+        );
     }
 }

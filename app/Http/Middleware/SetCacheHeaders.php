@@ -28,7 +28,7 @@ class SetCacheHeaders
 
         // Cache configuration based on route
         $cacheTime = $this->getCacheTime($request);
-        
+
         if ($cacheTime > 0) {
             $response->header('Cache-Control', "public, max-age={$cacheTime}");
             $response->header('Pragma', 'cache');
@@ -48,7 +48,7 @@ class SetCacheHeaders
     private function getCacheTime(Request $request): int
     {
         $routeName = $request->route()?->getName() ?? '';
-        
+
         // SPK pages - cache for 5 minutes (300 seconds) as data changes frequently
         if (str_contains($routeName, 'spk')) {
             return 300; // 5 minutes
