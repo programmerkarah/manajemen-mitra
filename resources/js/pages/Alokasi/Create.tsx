@@ -15,7 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Save, X, Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -116,6 +116,7 @@ export default function Create({
     console.log('🔍 Petugas data in Create:', petugas);
 
     const { auth, errors: backendErrors } = usePage<SharedData>().props;
+    const errorAlertRef = useRef<HTMLDivElement>(null);
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
     );
@@ -215,6 +216,17 @@ export default function Create({
     
     // Combine local errors with backend errors
     const allErrors = { ...backendErrors, ...errors };
+
+    // Auto-scroll to error alert when errors occur
+    useEffect(() => {
+        if (allErrors.sbml_constraint || allErrors.budget || allErrors.error) {
+            errorAlertRef.current?.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            errorAlertRef.current?.focus();
+        }
+    }, [allErrors.sbml_constraint, allErrors.budget, allErrors.error]);
 
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
@@ -1045,7 +1057,11 @@ export default function Create({
 
             {/* Display SBML and Budget Errors */}
             {(allErrors.sbml_constraint || allErrors.budget || allErrors.error) && (
-                <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950">
+                <div 
+                    ref={errorAlertRef} 
+                    tabIndex={-1}
+                    className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
                             <X className="h-5 w-5 text-red-600 dark:text-red-400" />
