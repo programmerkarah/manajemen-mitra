@@ -1040,6 +1040,25 @@ export default function Create({
                 </div>
             )}
 
+            {/* Display SBML and Budget Errors */}
+            {(errors.sbml_constraint || errors.budget || errors.error) && (
+                <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                            <X className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-base font-bold text-red-800 dark:text-red-300">
+                                Validasi Gagal
+                            </h3>
+                            <div className="mt-2 text-sm text-red-700 dark:text-red-400 whitespace-pre-line">
+                                {errors.sbml_constraint || errors.budget || errors.error}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Step 1: Periode Kegiatan */}
                 <ContentCard>

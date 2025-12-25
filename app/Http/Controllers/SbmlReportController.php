@@ -72,6 +72,7 @@ class SbmlReportController extends Controller
                         ->where('jenis_penugasan', $peran)
                         ->where('status', 'aktif')
                         ->first();
+
                     return $sbml ? $sbml->honor_max : null;
                 })->filter();
 
