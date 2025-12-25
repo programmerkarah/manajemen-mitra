@@ -115,7 +115,7 @@ export default function Create({
     // Debug: Log petugas data
     console.log('🔍 Petugas data in Create:', petugas);
 
-    const { auth } = usePage<SharedData>().props;
+    const { auth, errors: backendErrors } = usePage<SharedData>().props;
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
     );
@@ -213,8 +213,8 @@ export default function Create({
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
     
-    // Get errors from Inertia (for validation errors from backend)
-    const { errors: inertiaErrors } = usePage<SharedData>().props;
+    // Combine local errors with backend errors
+    const allErrors = { ...backendErrors, ...errors };
 
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
@@ -1044,7 +1044,7 @@ export default function Create({
             )}
 
             {/* Display SBML and Budget Errors */}
-            {(inertiaErrors.sbml_constraint || inertiaErrors.budget || inertiaErrors.error || errors.sbml_constraint || errors.budget || errors.error) && (
+            {(allErrors.sbml_constraint || allErrors.budget || allErrors.error) && (
                 <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950">
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
@@ -1055,7 +1055,7 @@ export default function Create({
                                 Validasi Gagal
                             </h3>
                             <div className="mt-2 text-sm text-red-700 dark:text-red-400 whitespace-pre-line">
-                                {inertiaErrors.sbml_constraint || inertiaErrors.budget || inertiaErrors.error || errors.sbml_constraint || errors.budget || errors.error}
+                                {allErrors.sbml_constraint || allErrors.budget || allErrors.error}
                             </div>
                         </div>
                     </div>
@@ -1096,9 +1096,9 @@ export default function Create({
                                     searchPlaceholder="Cari kegiatan..."
                                     disabled={isEditMode || isViewMode}
                                 />
-                                {errors.kegiatan_id && (
+                                {allErrors.kegiatan_id && (
                                     <p className="text-sm text-red-500">
-                                        {errors.kegiatan_id}
+                                        {allErrors.kegiatan_id}
                                     </p>
                                 )}
                             </div>
@@ -1260,10 +1260,10 @@ export default function Create({
                                                                 : ''
                                                         }
                                                     />
-                                                    {errors.tanggal_mulai_listing && (
+                                                    {allErrors.tanggal_mulai_listing && (
                                                         <p className="text-sm text-red-500">
                                                             {
-                                                                errors.tanggal_mulai_listing
+                                                                allErrors.tanggal_mulai_listing
                                                             }
                                                         </p>
                                                     )}
@@ -1296,10 +1296,10 @@ export default function Create({
                                                                 : ''
                                                         }
                                                     />
-                                                    {errors.tanggal_selesai_listing && (
+                                                    {allErrors.tanggal_selesai_listing && (
                                                         <p className="text-sm text-red-500">
                                                             {
-                                                                errors.tanggal_selesai_listing
+                                                                allErrors.tanggal_selesai_listing
                                                             }
                                                         </p>
                                                     )}
@@ -1359,16 +1359,16 @@ export default function Create({
                                                 }
                                             />
                                             {tahapan === 'listing_only'
-                                                ? errors.tanggal_mulai_listing && (
+                                                ? allErrors.tanggal_mulai_listing && (
                                                       <p className="text-sm text-red-500">
                                                           {
-                                                              errors.tanggal_mulai_listing
+                                                              allErrors.tanggal_mulai_listing
                                                           }
                                                       </p>
                                                   )
-                                                : errors.tanggal_mulai && (
+                                                : allErrors.tanggal_mulai && (
                                                       <p className="text-sm text-red-500">
-                                                          {errors.tanggal_mulai}
+                                                          {allErrors.tanggal_mulai}
                                                       </p>
                                                   )}
                                         </div>
@@ -1419,17 +1419,17 @@ export default function Create({
                                                 }
                                             />
                                             {tahapan === 'listing_only'
-                                                ? errors.tanggal_selesai_listing && (
+                                                ? allErrors.tanggal_selesai_listing && (
                                                       <p className="text-sm text-red-500">
                                                           {
-                                                              errors.tanggal_selesai_listing
+                                                              allErrors.tanggal_selesai_listing
                                                           }
                                                       </p>
                                                   )
-                                                : errors.tanggal_selesai && (
+                                                : allErrors.tanggal_selesai && (
                                                       <p className="text-sm text-red-500">
                                                           {
-                                                              errors.tanggal_selesai
+                                                              allErrors.tanggal_selesai
                                                           }
                                                       </p>
                                                   )}
@@ -1500,10 +1500,10 @@ export default function Create({
                                 </p>
                             </div>
 
-                            {errors.alokasi && (
+                            {allErrors.alokasi && (
                                 <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
                                     <p className="text-sm text-red-600 dark:text-red-400">
-                                        {errors.alokasi}
+                                        {allErrors.alokasi}
                                     </p>
                                 </div>
                             )}
