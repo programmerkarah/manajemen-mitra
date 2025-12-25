@@ -351,147 +351,154 @@ class AlokasiPetugasController extends Controller
             $created++;
         }
 
-        // Create PeriodeAlokasi and AlokasiPetugas
-        foreach ($periodeGroups as $periodeData) {
-            // Calculate new periode's total honor
-            $newPeriodeTotalHonor = collect($periodeData['alokasi'])->sum('total_honor');
-            $newPeriodeTotalHonorListing = collect($periodeData['alokasi'])->sum('total_honor_listing');
-
-            // Check budget constraint before creating periode
-            $kegiatan->load('periodeAlokasi.alokasiPetugas');
-            $paguAnggaran = $kegiatan->pagu_pencacahan ?? 0;
-            $paguListing = $kegiatan->has_listing_updating ? ($kegiatan->pagu_listing ?? 0) : 0;
-
-            // Calculate total spent across all active periods
-            $totalSpent = $kegiatan->periodeAlokasi
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
-                ->sum(function ($p) {
-                    return $p->alokasiPetugas->sum('total_honor');
-                });
-
-            $totalSpentListing = $kegiatan->periodeAlokasi
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
-                ->sum(function ($p) {
-                    return $p->alokasiPetugas->sum('total_honor_listing');
-                });
-
-            $sisaPagu = $paguAnggaran - $totalSpent;
-            $sisaPaguListing = $paguListing - $totalSpentListing;
-            // Validate that sisa pagu is sufficient for new periode
-            if ($newPeriodeTotalHonor > $sisaPagu || $newPeriodeTotalHonorListing > $sisaPaguListing) {
-                DB::rollBack();
-
-                return back()->withErrors([
-                    'budget' => 'Anggaran tidak mencukupi untuk menambahkan periode ini. '.
-                        'Sisa pagu: '.number_format($sisaPagu, 0, ',', '.').', '.
-                        'Estimasi honor periode baru: '.number_format($newPeriodeTotalHonor, 0, ',', '.'),
-                    ' Sisa pagu listing: '.number_format($sisaPaguListing, 0, ',', '.').', '.
-                    'Estimasi honor listing periode baru: '.number_format($newPeriodeTotalHonorListing, 0, ',', '.'),
-                ]);
-            }
-
-            // Calculate sisa_pagu based on previous periods (sequential by month)
-            $previousPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                ->where(function ($query) use ($periodeData) {
-                    $query->where('tahun', '<', $periodeData['tahun'])
-                        ->orWhere(function ($q) use ($periodeData) {
-                            $q->where('tahun', $periodeData['tahun'])
-                                ->where('bulan', '<', $periodeData['bulan']);
-                        });
-                })
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
-                ->orderByDesc('tahun')
-                ->orderByDesc('bulan')
-                ->first();
-
-            $previousPeriodeListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                ->where(function ($query) use ($periodeData) {
-                    $query->where('tahun', '<', $periodeData['tahun'])
-                        ->orWhere(function ($q) use ($periodeData) {
-                            $q->where('tahun', $periodeData['tahun'])
-                                ->where('bulan', '<', $periodeData['bulan']);
-                        });
-                })
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
-                ->orderByDesc('tahun')
-                ->orderByDesc('bulan')
-                ->first();
-
-            // Calculate sisa_pagu for this new periode
-            $sisaPaguPeriode = $previousPeriode
-                ? $previousPeriode->sisa_pagu - $newPeriodeTotalHonor
-                : $paguAnggaran - $newPeriodeTotalHonor;
-
-            $sisaPaguPeriodeListing = $previousPeriodeListing
-                ? $previousPeriodeListing->sisa_pagu_listing - $newPeriodeTotalHonorListing
-                : $paguListing - $newPeriodeTotalHonorListing;
-
-            // Check for existing periode (including dihapus status)
-            $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                ->where('bulan', $periodeData['bulan'])
-                ->where('tahun', $periodeData['tahun'])
-                ->first();
-
-            if ($periode && $periode->status === 'dihapus') {
-                // Reuse periode that was marked as deleted
-                $periode->update([
-                    'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
-                    'tahapan' => $periodeData['tahapan'] ?? 'both',
-                    'status' => 'draft',
-                    'sisa_pagu' => $sisaPaguPeriode,
-                    'sisa_pagu_listing' => $sisaPaguPeriodeListing,
-                    'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
-                    'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
-                    'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
-                    'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
-                ]);
-            } elseif (! $periode) {
-                // Create new periode
-                $periode = PeriodeAlokasi::create([
-                    'kegiatan_id' => $kegiatan->id,
-                    'bulan' => $periodeData['bulan'],
-                    'tahun' => $periodeData['tahun'],
-                    'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
-                    'tahapan' => $periodeData['tahapan'] ?? 'both',
-                    'status' => 'draft',
-                    'sisa_pagu' => $sisaPaguPeriode,
-                    'sisa_pagu_listing' => $sisaPaguPeriodeListing,
-                    'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
-                    'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
-                    'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
-                    'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
-                ]);
-            }
-
-            // Create AlokasiPetugas for this periode
-            foreach ($periodeData['alokasi'] as $alokasiItem) {
-                AlokasiPetugas::create([
-                    'periode_alokasi_id' => $periode->id,
-                    'petugas_id' => $alokasiItem['petugas_id'],
-                    'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
-                    'jumlah_satuan_listing' => $alokasiItem['jumlah_satuan_listing'],
-                    'total_honor' => $alokasiItem['total_honor'],
-                    'total_honor_listing' => $alokasiItem['total_honor_listing'],
-                    'peran' => $alokasiItem['peran'],
-                    'status_kepegawaian' => $alokasiItem['status_kepegawaian'],
-                    'catatan' => $alokasiItem['catatan'],
-                ]);
-            }
-        }
-
-        DB::commit();
-
+        // If there are any validation errors, rollback and return errors
         if (count($errors) > 0) {
+            DB::rollBack();
             $errorMessage = implode("\n", $errors);
-            if ($created > 0) {
-                return back()->withErrors(['sbml_constraint' => $errorMessage])
-                    ->with('warning', "{$created} alokasi berhasil ditambahkan.");
-            }
+
             return back()->withErrors(['sbml_constraint' => $errorMessage]);
         }
 
-        return redirect()->route('alokasi.index')
-            ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
+        // Create PeriodeAlokasi and AlokasiPetugas with proper error handling
+        try {
+            foreach ($periodeGroups as $periodeData) {
+                // Calculate new periode's total honor
+                $newPeriodeTotalHonor = collect($periodeData['alokasi'])->sum('total_honor');
+                $newPeriodeTotalHonorListing = collect($periodeData['alokasi'])->sum('total_honor_listing');
+
+                // Check budget constraint before creating periode
+                $kegiatan->load('periodeAlokasi.alokasiPetugas');
+                $paguAnggaran = $kegiatan->pagu_pencacahan ?? 0;
+                $paguListing = $kegiatan->has_listing_updating ? ($kegiatan->pagu_listing ?? 0) : 0;
+
+                // Calculate total spent across all active periods
+                $totalSpent = $kegiatan->periodeAlokasi
+                    ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                    ->sum(function ($p) {
+                        return $p->alokasiPetugas->sum('total_honor');
+                    });
+
+                $totalSpentListing = $kegiatan->periodeAlokasi
+                    ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                    ->sum(function ($p) {
+                        return $p->alokasiPetugas->sum('total_honor_listing');
+                    });
+
+                $sisaPagu = $paguAnggaran - $totalSpent;
+                $sisaPaguListing = $paguListing - $totalSpentListing;
+                // Validate that sisa pagu is sufficient for new periode
+                if ($newPeriodeTotalHonor > $sisaPagu || $newPeriodeTotalHonorListing > $sisaPaguListing) {
+                    DB::rollBack();
+
+                    return back()->withErrors([
+                        'budget' => 'Anggaran tidak mencukupi untuk menambahkan periode ini. '.
+                            'Sisa pagu: '.number_format($sisaPagu, 0, ',', '.').', '.
+                            'Estimasi honor periode baru: '.number_format($newPeriodeTotalHonor, 0, ',', '.'),
+                        ' Sisa pagu listing: '.number_format($sisaPaguListing, 0, ',', '.').', '.
+                        'Estimasi honor listing periode baru: '.number_format($newPeriodeTotalHonorListing, 0, ',', '.'),
+                    ]);
+                }
+
+                // Calculate sisa_pagu based on previous periods (sequential by month)
+                $previousPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                    ->where(function ($query) use ($periodeData) {
+                        $query->where('tahun', '<', $periodeData['tahun'])
+                            ->orWhere(function ($q) use ($periodeData) {
+                                $q->where('tahun', $periodeData['tahun'])
+                                    ->where('bulan', '<', $periodeData['bulan']);
+                            });
+                    })
+                    ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                    ->orderByDesc('tahun')
+                    ->orderByDesc('bulan')
+                    ->first();
+
+                $previousPeriodeListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                    ->where(function ($query) use ($periodeData) {
+                        $query->where('tahun', '<', $periodeData['tahun'])
+                            ->orWhere(function ($q) use ($periodeData) {
+                                $q->where('tahun', $periodeData['tahun'])
+                                    ->where('bulan', '<', $periodeData['bulan']);
+                            });
+                    })
+                    ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                    ->orderByDesc('tahun')
+                    ->orderByDesc('bulan')
+                    ->first();
+
+                // Calculate sisa_pagu for this new periode
+                $sisaPaguPeriode = $previousPeriode
+                    ? $previousPeriode->sisa_pagu - $newPeriodeTotalHonor
+                    : $paguAnggaran - $newPeriodeTotalHonor;
+
+                $sisaPaguPeriodeListing = $previousPeriodeListing
+                    ? $previousPeriodeListing->sisa_pagu_listing - $newPeriodeTotalHonorListing
+                    : $paguListing - $newPeriodeTotalHonorListing;
+
+                // Check for existing periode (including dihapus status)
+                $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                    ->where('bulan', $periodeData['bulan'])
+                    ->where('tahun', $periodeData['tahun'])
+                    ->first();
+
+                if ($periode && $periode->status === 'dihapus') {
+                    // Reuse periode that was marked as deleted
+                    $periode->update([
+                        'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                        'tahapan' => $periodeData['tahapan'] ?? 'both',
+                        'status' => 'draft',
+                        'sisa_pagu' => $sisaPaguPeriode,
+                        'sisa_pagu_listing' => $sisaPaguPeriodeListing,
+                        'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
+                        'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+                        'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
+                        'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
+                    ]);
+                } elseif (! $periode) {
+                    // Create new periode
+                    $periode = PeriodeAlokasi::create([
+                        'kegiatan_id' => $kegiatan->id,
+                        'bulan' => $periodeData['bulan'],
+                        'tahun' => $periodeData['tahun'],
+                        'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
+                        'tahapan' => $periodeData['tahapan'] ?? 'both',
+                        'status' => 'draft',
+                        'sisa_pagu' => $sisaPaguPeriode,
+                        'sisa_pagu_listing' => $sisaPaguPeriodeListing,
+                        'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
+                        'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+                        'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
+                        'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
+                    ]);
+                }
+
+                // Create AlokasiPetugas for this periode
+                foreach ($periodeData['alokasi'] as $alokasiItem) {
+                    AlokasiPetugas::create([
+                        'periode_alokasi_id' => $periode->id,
+                        'petugas_id' => $alokasiItem['petugas_id'],
+                        'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
+                        'jumlah_satuan_listing' => $alokasiItem['jumlah_satuan_listing'],
+                        'total_honor' => $alokasiItem['total_honor'],
+                        'total_honor_listing' => $alokasiItem['total_honor_listing'],
+                        'peran' => $alokasiItem['peran'],
+                        'status_kepegawaian' => $alokasiItem['status_kepegawaian'],
+                        'catatan' => $alokasiItem['catatan'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('alokasi.index')
+                ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->withErrors([
+                'error' => 'Terjadi kesalahan saat menyimpan alokasi: '.$e->getMessage(),
+            ])->withInput();
+        }
     }
 
     /**
@@ -1803,7 +1810,7 @@ class AlokasiPetugasController extends Controller
                 'status_kepegawaian' => $newStatusKepegawaian ?? $statusKepegawaian,
             ]);
         }
-        
+
         // Jika petugas belum pernah dialokasikan (penugasan perdana), gunakan kombinasi dari penugasan baru
         if ($alokasiKombinasi->isEmpty() && $newPeran && $newJenisKegiatan && $newStatusKepegawaian) {
             $alokasiKombinasi->push([
@@ -1823,6 +1830,7 @@ class AlokasiPetugasController extends Controller
                 ->where('jenis_penugasan', $kombinasi['jenis_penugasan'])
                 ->where('status', 'aktif')
                 ->first();
+
             return $sbml ? $sbml->honor_max : null;
         })->filter();
 
