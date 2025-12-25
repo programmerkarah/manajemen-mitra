@@ -1,5 +1,5 @@
-import { usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { usePage, router } from '@inertiajs/react';
+import { useEffect, useState, useRef } from 'react';
 import { AlertCircle, CheckCircle2, Info, AlertTriangle, X } from 'lucide-react';
 import { type SharedData } from '@/types';
 
@@ -11,36 +11,47 @@ export function FlashMessage() {
         text: string;
         title: string;
     } | null>(null);
+    const previousFlashRef = useRef<string>('');
 
     useEffect(() => {
-        if (flash.success) {
-            setMessage({ 
-                type: 'success', 
-                text: flash.success,
-                title: 'Berhasil!'
-            });
-            setVisible(true);
-        } else if (flash.error) {
-            setMessage({ 
-                type: 'error', 
-                text: flash.error,
-                title: 'Perhatian!'
-            });
-            setVisible(true);
-        } else if (flash.warning) {
-            setMessage({ 
-                type: 'warning', 
-                text: flash.warning,
-                title: 'Peringatan!'
-            });
-            setVisible(true);
-        } else if (flash.info) {
-            setMessage({ 
-                type: 'info', 
-                text: flash.info,
-                title: 'Informasi'
-            });
-            setVisible(true);
+        // Create a unique key from the current flash message
+        const currentFlashKey = JSON.stringify(flash);
+        
+        // Only show if flash message is different from the previous one
+        if (currentFlashKey !== previousFlashRef.current && currentFlashKey !== '{}') {
+            if (flash.success) {
+                setMessage({ 
+                    type: 'success', 
+                    text: flash.success,
+                    title: 'Berhasil!'
+                });
+                setVisible(true);
+                previousFlashRef.current = currentFlashKey;
+            } else if (flash.error) {
+                setMessage({ 
+                    type: 'error', 
+                    text: flash.error,
+                    title: 'Perhatian!'
+                });
+                setVisible(true);
+                previousFlashRef.current = currentFlashKey;
+            } else if (flash.warning) {
+                setMessage({ 
+                    type: 'warning', 
+                    text: flash.warning,
+                    title: 'Peringatan!'
+                });
+                setVisible(true);
+                previousFlashRef.current = currentFlashKey;
+            } else if (flash.info) {
+                setMessage({ 
+                    type: 'info', 
+                    text: flash.info,
+                    title: 'Informasi'
+                });
+                setVisible(true);
+                previousFlashRef.current = currentFlashKey;
+            }
         }
     }, [flash]);
 

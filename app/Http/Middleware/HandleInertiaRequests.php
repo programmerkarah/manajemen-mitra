@@ -85,10 +85,10 @@ class HandleInertiaRequests extends Middleware
             'hasAvailableYears' => ActiveYearService::hasAvailableYears(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'warning' => fn () => $request->session()->get('warning'),
-                'info' => fn () => $request->session()->get('info'),
+                'success' => $request->session()->pull('success'),
+                'error' => $request->session()->pull('error'),
+                'warning' => $request->session()->pull('warning'),
+                'info' => $request->session()->pull('info'),
             ],
         ];
     }
