@@ -237,7 +237,7 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
                                 </h3>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-blue-200 dark:divide-blue-700">
-                                        <thead className="bg-blue-50 dark:bg-blue-900">
+                                        <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                             <tr>
                                                 <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">No.</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Nomor Addendum</th>
@@ -247,7 +247,7 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
                                                 <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">File</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-blue-200 dark:divide-blue-700 bg-white dark:bg-blue-950">
+                                        <tbody className="divide-y divide-white/10 dark:divide-neutral-700/20 bg-white/30 dark:bg-neutral-800/30 backdrop-blur-sm">
                                             {addendums.map((add, idx) => (
                                                 <tr key={add.id} className="hover:bg-blue-50 dark:hover:bg-blue-900">
                                                     <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{idx + 1}</td>

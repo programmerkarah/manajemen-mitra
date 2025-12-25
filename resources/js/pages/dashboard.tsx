@@ -154,18 +154,18 @@ export default function Dashboard({
 
                 {/* Stats Cards */}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col justify-between">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Petugas Aktif</p>
                                 <p className="mt-2 text-3xl font-bold text-neutral-900 dark:text-white">{stats.total_petugas}</p>
                             </div>
-                            <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
+                            <div className="rounded-lg bg-blue-100 p-3 dark:bg-neutral-700/50">
                                 <Users className="size-6 text-blue-600 dark:text-blue-400" />
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col justify-between">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Kegiatan Berjalan</p>
@@ -176,7 +176,7 @@ export default function Dashboard({
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col justify-between">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Menunggu Approval</p>
@@ -187,7 +187,7 @@ export default function Dashboard({
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col justify-between">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">BAST Pending</p>
@@ -203,7 +203,7 @@ export default function Dashboard({
                 {/* Comprehensive Statistics */}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {/* SBML Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-indigo-100 p-3 dark:bg-indigo-900/30">
                                 <Database className="size-5 text-indigo-600 dark:text-indigo-400" />
@@ -232,7 +232,7 @@ export default function Dashboard({
                     </div>
 
                     {/* DIPA Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/30">
                                 <FolderOpen className="size-5 text-emerald-600 dark:text-emerald-400" />
@@ -261,7 +261,7 @@ export default function Dashboard({
                     </div>
 
                     {/* Penandatangan Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-violet-100 p-3 dark:bg-violet-900/30">
                                 <UserCheck className="size-5 text-violet-600 dark:text-violet-400" />
@@ -288,7 +288,7 @@ export default function Dashboard({
                     </div>
 
                     {/* Dasar Hukum Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-cyan-100 p-3 dark:bg-cyan-900/30">
                                 <BookOpen className="size-5 text-cyan-600 dark:text-cyan-400" />
@@ -310,7 +310,7 @@ export default function Dashboard({
                     </div>
 
                     {/* SK Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-rose-100 p-3 dark:bg-rose-900/30">
                                 <FileSignature className="size-5 text-rose-600 dark:text-rose-400" />
@@ -337,7 +337,7 @@ export default function Dashboard({
                     </div>
 
                     {/* SPK Stats */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-orange-100 p-3 dark:bg-orange-900/30">
                                 <ScrollText className="size-5 text-orange-600 dark:text-orange-400" />
@@ -359,7 +359,7 @@ export default function Dashboard({
                 {/* Detailed Breakdown */}
                 <div className="grid gap-6 md:grid-cols-3">
                     {/* Petugas Detail */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-sky-100 p-3 dark:bg-sky-900/30">
                                 <Users className="size-5 text-sky-600 dark:text-sky-400" />
@@ -379,7 +379,7 @@ export default function Dashboard({
                     </div>
 
                     {/* Kegiatan Detail */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-teal-100 p-3 dark:bg-teal-900/30">
                                 <Briefcase className="size-5 text-teal-600 dark:text-teal-400" />
@@ -399,7 +399,7 @@ export default function Dashboard({
                     </div>
 
                     {/* Alokasi Detail */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="rounded-lg bg-fuchsia-100 p-3 dark:bg-fuchsia-900/30">
                                 <TrendingUp className="size-5 text-fuchsia-600 dark:text-fuchsia-400" />
@@ -672,4 +672,6 @@ export default function Dashboard({
         </AppLayout>
     );
 }
+
+
 

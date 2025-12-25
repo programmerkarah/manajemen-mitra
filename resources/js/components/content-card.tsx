@@ -17,7 +17,7 @@ export function ContentCard({ children, className, padding = 'md' }: ContentCard
     return (
         <div
             className={cn(
-                'rounded-xl border border-neutral-200/70 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900',
+                'rounded-2xl border border-white/20 bg-white/40 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/40',
                 paddingClasses[padding],
                 className
             )}

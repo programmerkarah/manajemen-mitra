@@ -157,7 +157,7 @@ export default function Create({ tahun_options }: CreateProps) {
                                     id="tahun_anggaran"
                                     value={tahun}
                                     onChange={(e) => setTahun(parseInt(e.target.value))}
-                                    className="mt-1 block h-11 w-full rounded-md border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                    className="mt-1 block h-11 w-full rounded-lg border border-neutral-300 bg-white/50 backdrop-blur-md dark:bg-neutral-800/60 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-white px-3 py-2"
                                 >
                                     {tahun_options.map((year) => (
                                         <option key={year} value={year}>
@@ -175,40 +175,41 @@ export default function Create({ tahun_options }: CreateProps) {
                                 <Label className="mb-3 block text-base font-semibold">
                                     Batas Honor Maksimal <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-gray-900">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                <div className="overflow-x-auto">
+                                    <div className="overflow-hidden rounded-2xl">
+                                        <table className="min-w-full divide-y divide-white/20 dark:divide-neutral-700/30">
+                                            <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     No
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Jenis Kegiatan
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Status Kepegawaian
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Jenis Penugasan
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Honor Maksimal (Rp)
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                                            {entries.map((entry, index) => (
-                                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                            <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
+                                                {entries.map((entry, index) => (
+                                                    <tr key={index} className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {index + 1}
                                                     </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getJenisKegiatanLabel(entry.jenis_kegiatan)}
                                                     </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getStatusKepegawaianLabel(entry.status_kepegawaian)}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getJenisPenugasanLabel(entry.jenis_penugasan)}
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -224,6 +225,7 @@ export default function Create({ tahun_options }: CreateProps) {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                                 {errors.entries && (
                                     <p className="mt-2 text-sm text-red-600">{errors.entries}</p>

@@ -299,33 +299,34 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             {/* Table */}
             <ContentCard padding="none">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-neutral-200/70 dark:divide-neutral-800">
-                        <thead className="bg-neutral-50 dark:bg-neutral-900">
+                    <div className="overflow-hidden rounded-2xl">
+                        <table className="min-w-full divide-y divide-white/20 dark:divide-neutral-700/30">
+                        <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Kegiatan
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Bulan
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Estimasi Honor
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Sisa Pagu
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Jumlah Petugas
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Status
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Aksi
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-200/70 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
+                        <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
                             {alokasi.data.length === 0 ? (
                                 <tr>
                                     <td
@@ -339,7 +340,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                 alokasi.data.map((periode, index) => (
                                     <tr
                                         key={`${periode.kegiatan_id}-${periode.bulan}-${periode.tahun}-${index}`}
-                                        className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                        className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
                                     >
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <div>
@@ -367,7 +368,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                             </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <span className="inline-flex items-center gap-2 rounded-full border-2 border-blue-300 bg-blue-100 px-4 py-2 text-base font-semibold text-blue-900 dark:border-blue-600 dark:bg-blue-900 dark:text-blue-200 shadow-sm">
+                                            <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-md px-4 py-2 text-base font-semibold text-blue-900 dark:text-blue-200 shadow-lg">
                                                 <Users className="h-5 w-5 shrink-0" strokeWidth={2.5} />
                                                 {periode.jumlah_petugas} petugas
                                             </span>
@@ -467,11 +468,12 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         </tbody>
                     </table>
                 </div>
+                </div>
 
                 {/* Pagination */}
                 {alokasi.links && (
-                    <div className="flex items-center justify-between border-t border-neutral-200/70 px-6 py-4 dark:border-neutral-800">
-                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                    <div className="flex items-center justify-between border-t border-white/20 px-6 py-4 dark:border-neutral-700/30">
+                        <div className="text-sm text-neutral-700 dark:text-neutral-300">
                             Showing {alokasi.data.length} of {alokasi.total} results
                         </div>
                         <div className="flex gap-1">
@@ -507,7 +509,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-xl">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-neutral-700/50">
                                 <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             </div>
                             <span>Kirim Alokasi Periode</span>
@@ -518,29 +520,29 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                     </DialogHeader>
                     {selectedPeriode && (
                         <div className="space-y-4">
-                            <div className="space-y-3 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                            <div className="space-y-3 border-y border-white/20 py-4 dark:border-neutral-700/30">
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 dark:bg-neutral-800">
-                                        <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400">📋</span>
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-white/50 dark:bg-neutral-800/60 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">📋</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Kegiatan</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 dark:bg-neutral-800">
-                                        <span className="text-sm font-semibold text-neutral-600 dark:text-neutral-400">📅</span>
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-white/50 dark:bg-neutral-800/60 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">📅</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Periode</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
                                             {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                            <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl p-3 shadow-lg">
                                 <div className="flex gap-2">
                                     <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
                                     <div className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
@@ -586,30 +588,30 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         </DialogDescription>
                     </DialogHeader>
                     {selectedPeriode && (
-                        <div className="space-y-4 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                        <div className="space-y-4 border-y border-white/20 py-4 dark:border-neutral-700/30">
                             <div className="space-y-3">
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-red-50 dark:bg-red-900/20">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-red-500/30 via-red-400/20 to-red-300/10 backdrop-blur-sm">
                                         <span className="text-sm font-semibold text-red-600 dark:text-red-400">📋</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Kegiatan</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-red-50 dark:bg-red-900/20">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-red-500/30 via-red-400/20 to-red-300/10 backdrop-blur-sm">
                                         <span className="text-sm font-semibold text-red-600 dark:text-red-400">📅</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Periode</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
                                             {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="rounded-lg border-2 border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                            <div className="rounded-lg border border-red-400/30 bg-gradient-to-br from-red-500/20 via-red-400/10 to-red-300/10 backdrop-blur-xl p-3 shadow-lg">
                                 <div className="flex gap-2">
                                     <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
                                     <p className="text-sm text-red-800 dark:text-red-200">
@@ -651,29 +653,29 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                     </DialogHeader>
                     {selectedPeriode && (
                         <div className="space-y-4">
-                            <div className="space-y-3 border-y border-neutral-200 py-4 dark:border-neutral-800">
+                            <div className="space-y-3 border-y border-white/20 py-4 dark:border-neutral-700/30">
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-50 dark:bg-orange-900/20">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-orange-500/30 via-orange-400/20 to-orange-300/10 backdrop-blur-sm">
                                         <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">📋</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Kegiatan</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Kegiatan</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">{selectedPeriode.namaKegiatan}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-50 dark:bg-orange-900/20">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-orange-500/30 via-orange-400/20 to-orange-300/10 backdrop-blur-sm">
                                         <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">📅</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Periode</p>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-400">Periode</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
                                             {getBulanLabel(selectedPeriode.bulan)} {selectedPeriode.tahun}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="rounded-lg border-2 border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-900/20">
+                            <div className="rounded-lg border border-orange-400/30 bg-gradient-to-br from-orange-500/20 via-orange-400/10 to-orange-300/10 backdrop-blur-xl p-3 shadow-lg">
                                 <div className="flex gap-2">
                                     <AlertCircle className="h-5 w-5 flex-shrink-0 text-orange-600 dark:text-orange-400" />
                                     <div className="space-y-1 text-sm text-orange-800 dark:text-orange-200">

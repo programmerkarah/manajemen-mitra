@@ -265,12 +265,12 @@ export default function Edit({ alokasi, kegiatans, petugas, rateHonors }: Alokas
 
                             {/* Estimasi Total */}
                             {estimatedTotal > 0 && (
-                                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 p-4 shadow-lg">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                        <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
                                             Estimasi Honor:
                                         </span>
-                                        <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
+                                        <span className="text-lg font-bold text-blue-900 dark:text-blue-300">
                                             {formatCurrency(estimatedTotal)}
                                         </span>
                                     </div>

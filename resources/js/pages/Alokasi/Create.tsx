@@ -1028,9 +1028,9 @@ export default function Create({
 
             {/* Source Period Info - Only show for copy mode, not edit mode */}
             {sourcePeriode && !isEditMode && !isViewMode && (
-                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-amber-300/10 p-4 shadow-xl backdrop-blur-xl dark:border-amber-500/20 dark:from-amber-600/10 dark:via-amber-500/5 dark:to-amber-400/10">
                     <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/20 backdrop-blur-sm dark:bg-amber-400/20">
                             <Copy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                         </div>
                         <div className="flex-1">
@@ -1060,10 +1060,10 @@ export default function Create({
                 <div 
                     ref={errorAlertRef} 
                     tabIndex={-1}
-                    className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-4 shadow-2xl backdrop-blur-xl dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10 focus:outline-none focus:ring-2 focus:ring-red-400/50 focus:ring-offset-2"
                 >
                     <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20 backdrop-blur-sm dark:bg-red-400/20">
                             <X className="h-5 w-5 text-red-600 dark:text-red-400" />
                         </div>
                         <div className="flex-1">
@@ -1246,7 +1246,7 @@ export default function Create({
                                 {/* Jadwal Listing - Show only if tahapan includes listing */}
                                 {tahapan === 'both' &&
                                     selectedKegiatan?.has_listing_updating && (
-                                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                        <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 p-4 shadow-lg">
                                             <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
                                                 Jadwal Listing
                                             </h5>
@@ -1517,7 +1517,7 @@ export default function Create({
                             </div>
 
                             {allErrors.alokasi && (
-                                <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                                <div className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-3 backdrop-blur-xl dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10">
                                     <p className="text-sm text-red-600 dark:text-red-400">
                                         {allErrors.alokasi}
                                     </p>
@@ -1528,7 +1528,7 @@ export default function Create({
                                 {alokasiItems.map((item, index) => (
                                     <div
                                         key={index}
-                                        className="rounded-lg border border-neutral-200/70 p-4 dark:border-neutral-800"
+                                        className="rounded-2xl border border-neutral-300/30 bg-white/30 p-4 backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/30"
                                     >
                                         <div className="mb-3 flex items-center justify-between">
                                             <h4 className="font-medium text-neutral-900 dark:text-white">
@@ -1985,7 +1985,11 @@ export default function Create({
                                     {(tahapan === 'both' ||
                                         tahapan === 'listing_only') && (
                                         <div
-                                            className={`rounded-lg border-2 p-6 ${isSufficientListing ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
+                                            className={`rounded-2xl border p-6 shadow-xl backdrop-blur-xl ${
+                                                isSufficientListing 
+                                                    ? 'border-blue-400/30 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-blue-300/10 dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10' 
+                                                    : 'border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10'
+                                            }`}
                                         >
                                             <div className="flex items-start gap-4">
                                                 <div
@@ -2117,7 +2121,11 @@ export default function Create({
                                     {(tahapan === 'both' ||
                                         tahapan === 'pencacahan_only') && (
                                         <div
-                                            className={`rounded-lg border-2 p-6 ${isSufficientPencacahan ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}
+                                            className={`rounded-2xl border p-6 shadow-xl backdrop-blur-xl ${
+                                                isSufficientPencacahan
+                                                    ? 'border-green-400/30 bg-gradient-to-br from-green-500/10 via-green-400/5 to-green-300/10 dark:border-green-500/20 dark:from-green-600/10 dark:via-green-500/5 dark:to-green-400/10'
+                                                    : 'border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10'
+                                            }`}
                                         >
                                             <div className="flex items-start gap-4">
                                                 <div
@@ -2407,3 +2415,4 @@ export default function Create({
         </AppLayout>
     );
 }
+

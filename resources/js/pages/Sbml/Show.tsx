@@ -168,7 +168,7 @@ export default function Show({ tahun, sbmlEntries, status, keterangan }: ShowPro
 
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-neutral-200/70 dark:divide-neutral-800">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
+                            <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         No
@@ -187,14 +187,14 @@ export default function Show({ tahun, sbmlEntries, status, keterangan }: ShowPro
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-neutral-200/70 bg-white dark:divide-neutral-800 dark:bg-gray-800">
+                            <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
                                 {sbmlEntries.map((entry, index) => (
                                     <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                             {index + 1}
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4">
-                                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                 {getJenisKegiatanLabel(entry.jenis_kegiatan)}
                                             </span>
                                         </td>

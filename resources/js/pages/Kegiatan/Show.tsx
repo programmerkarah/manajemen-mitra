@@ -68,7 +68,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
         diajukan:
             'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
         divalidasi:
-            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+            'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300',
         aktif: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         selesai:
             'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
@@ -80,7 +80,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
         diajukan:
             'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
         disetujui_pj:
-            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+            'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300',
         disetujui:
             'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         ditolak: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
@@ -443,7 +443,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-900">
+                                <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             No
@@ -459,7 +459,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                                <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
                                     {periodeAlokasi.map((periode, index) => (
                                         <tr
                                             key={`${periode.tahun}-${periode.bulan}`}

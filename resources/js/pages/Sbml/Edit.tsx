@@ -139,9 +139,9 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
                                     type="text"
                                     value={tahun}
                                     disabled
-                                    className="bg-gray-100 dark:bg-gray-900"
+                                    className="bg-neutral-100 dark:bg-neutral-800/60"
                                 />
-                                <p className="mt-1 text-sm text-gray-500">
+                                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                                     Tahun anggaran tidak dapat diubah
                                 </p>
                             </div>
@@ -151,40 +151,41 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
                                 <Label className="mb-3 block">
                                     Batas Honor Maksimal <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-gray-900">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                <div className="overflow-x-auto">
+                                    <div className="overflow-hidden rounded-2xl">
+                                        <table className="min-w-full divide-y divide-white/20 dark:divide-neutral-700/30">
+                                            <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     No
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Jenis Kegiatan
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Status Kepegawaian
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Jenis Penugasan
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                     Honor Maksimal (Rp)
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                                        <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
                                             {formEntries.map((entry, index) => (
-                                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                <tr key={index} className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {index + 1}
                                                     </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getJenisKegiatanLabel(entry.jenis_kegiatan)}
                                                     </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getStatusKepegawaianLabel(entry.status_kepegawaian)}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                                    <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getJenisPenugasanLabel(entry.jenis_penugasan)}
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -200,6 +201,7 @@ export default function Edit({ entries, tahun, status: initialStatus, keterangan
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                                 {errors.entries && (
                                     <p className="mt-2 text-sm text-red-600">{errors.entries}</p>

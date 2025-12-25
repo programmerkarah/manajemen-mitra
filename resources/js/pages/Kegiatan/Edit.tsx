@@ -111,7 +111,7 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaU
                                     id="kode_kegiatan"
                                     value={data.kode_kegiatan}
                                     disabled
-                                    className="bg-gray-100 dark:bg-gray-900 h-11 text-base"
+                                    className="bg-neutral-100 dark:bg-neutral-800/60 h-11 text-base"
                                 />
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                     🔒 Kode kegiatan tidak dapat diubah

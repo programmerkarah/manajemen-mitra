@@ -362,7 +362,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                 </div>
 
                 {/* Info Alert */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 p-4 shadow-lg">
                     <div className="flex items-start space-x-3">
                         <svg
                             className="mt-0.5 size-5 flex-shrink-0 text-blue-600 dark:text-blue-400"

@@ -13,9 +13,7 @@ export function AppContent({
     if (variant === 'sidebar') {
         return (
             <SidebarInset {...props}>
-                <div className="flex h-full flex-1 flex-col">
-                    {children}
-                </div>
+                {children}
             </SidebarInset>
         );
     }

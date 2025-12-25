@@ -278,7 +278,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                 <span className="font-medium">Total Petugas:</span> {petugas_list.length} petugas
                             </div>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
+                        <div className="border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 rounded-md p-4 shadow-lg">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <strong>Catatan:</strong> Anda akan membuat addendum SPK untuk petugas yang sudah memiliki SPK di bulan ini. 
                                 Addendum akan mereferensikan SPK asli dan menyimpan perubahan sebagai dokumen baru.
@@ -385,7 +385,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                                 {petugasData.existing_spk_nomor}
                                             </td>
                                             <td className="p-3">
-                                                <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-200">
+                                                <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-neutral-700/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                                                     Addendum ke-{petugasData.next_addendum_number}
                                                 </span>
                                             </td>

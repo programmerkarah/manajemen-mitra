@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -144,15 +145,16 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 />
                             </div>
                         </div>
-                        <select
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            className="h-10 rounded-lg border border-neutral-300 px-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        >
-                            <option value="">Semua Status</option>
-                            <option value="aktif">Aktif</option>
-                            <option value="nonaktif">Nonaktif</option>
-                        </select>
+                        <Select value={status} onValueChange={(value) => setStatus(value)}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="aktif">Aktif</SelectItem>
+                                <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                            </SelectContent>
+                        </Select>
                         <Button type="submit" className="gap-2">
                             <Search className="h-4 w-4" />
                             Filter
@@ -163,37 +165,38 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                 {/* Table */}
                 <ContentCard padding="none">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
+                        <div className="overflow-hidden rounded-2xl">
+                            <table className="w-full">
+                                <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Nama
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         NIK/NIP
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Email
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Telepon
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Pendidikan
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-6 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                            <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
                                 {petugas.data.map((Petugas) => (
                                     <tr
                                         key={Petugas.id}
-                                        className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                        className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
                                     >
                                         <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                             {Petugas.nama}
@@ -243,6 +246,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </div>
 
                     {/* Pagination */}

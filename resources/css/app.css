@@ -140,4 +140,49 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Ensure backdrop-blur works in dark mode */
+    .dark {
+        color-scheme: dark;
+    }
+
+    /* Improve glass effect visibility in dark mode */
+    @supports (backdrop-filter: blur(0)) or (-webkit-backdrop-filter: blur(0)) {
+        .backdrop-blur-xl,
+        .backdrop-blur-2xl,
+        .backdrop-blur-md {
+            -webkit-backdrop-filter: blur(var(--blur));
+            backdrop-filter: blur(var(--blur));
+        }
+    }
+
+    /* Custom Scrollbar Styling */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-neutral-300/50 dark:bg-neutral-600/50 rounded-full;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-neutral-400/70 dark:bg-neutral-500/70;
+    }
+
+    /* Firefox scrollbar */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(212 212 212 / 0.5) transparent;
+    }
+
+    .dark * {
+        scrollbar-color: rgb(82 82 82 / 0.5) transparent;
+    }
 }

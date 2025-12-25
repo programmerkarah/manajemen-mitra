@@ -77,7 +77,7 @@ export function SearchableSelect({
                 onClick={() => !disabled && setOpen(!open)}
                 disabled={disabled}
                 className={cn(
-                    'flex h-10 w-full items-center justify-between rounded-lg border border-neutral-200/70 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700',
+                    'flex h-10 w-full items-center justify-between rounded-lg border border-neutral-200/70 bg-white/50 dark:bg-neutral-800/60 backdrop-blur-md px-3 py-2 text-sm shadow-sm transition-colors hover:border-neutral-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:hover:border-neutral-700',
                     className
                 )}
             >
@@ -89,7 +89,7 @@ export function SearchableSelect({
 
             {/* Dropdown */}
             {open && (
-                <div className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-950">
+                <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/20 dark:border-neutral-700/30 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-xl shadow-2xl">
                     {/* Search Input */}
                     <div className="flex items-center border-b border-neutral-200 px-3 dark:border-neutral-800">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />

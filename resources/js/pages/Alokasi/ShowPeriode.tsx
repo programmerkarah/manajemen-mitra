@@ -87,7 +87,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
     'draft': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-    'dikirim': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    'dikirim': 'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300',
     'perubahan': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
 }
 
@@ -270,7 +270,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3" rowSpan={2}>
-                                                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                         {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
                                                     </span>
                                                 </td>
@@ -307,7 +307,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                             {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
                                                         </span>
                                                     </td>

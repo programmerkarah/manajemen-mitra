@@ -161,7 +161,7 @@ export default function Show({ petugas }: ShowProps) {
                             <span
                                 className={`rounded-full px-2 py-1 text-xs font-medium ${
                                     petugas.jenis_petugas === 'organik'
-                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300'
                                         : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                                 }`}
                             >

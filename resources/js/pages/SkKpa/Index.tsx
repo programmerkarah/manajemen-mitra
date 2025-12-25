@@ -108,7 +108,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
             case 'created':
                 return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
             case 'revision':
-                return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+                return 'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300';
             default:
                 return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
         }
