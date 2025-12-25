@@ -44,6 +44,9 @@ class Spk extends Model
         'nama_ppk',
         'nip_ppk',
         'file_path',
+        'signed_file_path',
+        'previous_file_path',
+        'regeneration_count',
         'status',
         'created_by',
     ];

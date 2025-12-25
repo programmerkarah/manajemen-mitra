@@ -15,7 +15,7 @@ return new class extends Migration
             // Add petugas_id column
             $table->bigInteger('petugas_id')->unsigned()->nullable()->after('nomor_spk');
             $table->foreign('petugas_id')->references('id')->on('petugas')->onDelete('cascade');
-            
+
             // Add index for better performance
             $table->index(['petugas_id', 'addendum_number']);
         });

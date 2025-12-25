@@ -373,6 +373,7 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
             {
                 tanggal_spk: formData.tanggal_spk,
                 sampai_tanggal: formData.sampai_tanggal,
+                petugas_ids: selectedPetugas, // Send selected petugas
             },
             {
                 preserveState: true,
@@ -557,13 +558,20 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div>
-                                                        <div className="font-medium text-neutral-900 dark:text-white">
-                                                            {alokasi.petugas.nama}
+                                                    <div className="flex items-center gap-2">
+                                                        <div>
+                                                            <div className="font-medium text-neutral-900 dark:text-white">
+                                                                {alokasi.petugas.nama}
+                                                            </div>
+                                                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                                                {alokasi.petugas.nik}
+                                                            </div>
                                                         </div>
-                                                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                            {alokasi.petugas.nik}
-                                                        </div>
+                                                        {is_regenerate && !existing_spk_map[alokasi.petugas.id] && (
+                                                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+                                                                Baru
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">

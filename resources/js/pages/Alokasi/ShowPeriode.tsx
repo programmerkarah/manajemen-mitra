@@ -137,7 +137,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                         Ringkasan Periode
                     </h3>
 
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         {/* Kegiatan */}
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
@@ -145,7 +145,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                 <span>Kegiatan</span>
                             </div>
                             <div>
-                                <div className="font-semibold text-neutral-900 dark:text-white">
+                                <div className="break-words font-semibold text-neutral-900 dark:text-white">
                                     {periode.kegiatan.nama_kegiatan}
                                 </div>
                                 <div className="text-sm text-neutral-500 dark:text-neutral-400">
@@ -238,21 +238,21 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                         Daftar Alokasi Petugas
                     </h3>
 
-                    <div className="overflow-x-auto">
+                    <div className="w-full">
                         <table className="w-full text-left text-sm">
                             <thead className="bg-neutral-100 dark:bg-neutral-900">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">No</th>
-                                    <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Nama Petugas</th>
-                                    <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Jenis</th>
-                                    <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Peran</th>
+                                    <th className="whitespace-nowrap px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">No</th>
+                                    <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">Nama Petugas</th>
+                                    <th className="whitespace-nowrap px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">Jenis</th>
+                                    <th className="whitespace-nowrap px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">Peran</th>
                                     {periode.kegiatan.has_listing_updating && (
-                                        <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Tahapan</th>
+                                        <th className="whitespace-nowrap px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">Tahapan</th>
                                     )}
-                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Beban Tugas</th>
-                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Harga Satuan</th>
-                                    <th className="px-4 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Estimasi Honor</th>
-                                    <th className="px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Catatan</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Beban Tugas</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Harga Satuan</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">Estimasi Honor</th>
+                                    <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">Catatan</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
@@ -261,36 +261,36 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         {/* Listing Row - only if has_listing_updating and has listing data */}
                                         {periode.kegiatan.has_listing_updating && (alokasi.jumlah_satuan_listing ?? 0) > 0 && (
                                             <tr key={`${alokasi.id}-listing`} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-                                                <td className="px-4 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
+                                                <td className="whitespace-nowrap px-3 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
                                                     {index + 1}
                                                 </td>
-                                                <td className="px-4 py-3" rowSpan={2}>
-                                                    <div className="font-medium text-neutral-900 dark:text-white">
+                                                <td className="px-3 py-3" rowSpan={2}>
+                                                    <div className="break-words font-medium text-neutral-900 dark:text-white">
                                                         {alokasi.petugas.nama}
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3" rowSpan={2}>
+                                                <td className="whitespace-nowrap px-3 py-3" rowSpan={2}>
                                                     <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                         {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
+                                                <td className="whitespace-nowrap px-3 py-3 text-neutral-900 dark:text-white" rowSpan={2}>
                                                     {peranLabels[alokasi.peran] || alokasi.peran}
                                                 </td>
-                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                                                <td className="whitespace-nowrap px-3 py-3 text-neutral-600 dark:text-neutral-400">
                                                     Listing
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                <td className="whitespace-nowrap px-3 py-3 text-right text-neutral-900 dark:text-white">
                                                     {alokasi.jumlah_satuan_listing}
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                                <td className="whitespace-nowrap px-3 py-3 text-right text-neutral-900 dark:text-white">
                                                     {formatCurrency(alokasi.rate_listing || 0)}
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-green-600 dark:text-green-400">
                                                     {formatCurrency(alokasi.total_honor_listing || 0)}
                                                 </td>
-                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400" rowSpan={2}>
-                                                    {alokasi.catatan || '-'}
+                                                <td className="px-3 py-3 text-neutral-600 dark:text-neutral-400" rowSpan={2}>
+                                                    <div className="break-words">{alokasi.catatan || '-'}</div>
                                                 </td>
                                             </tr>
                                         )}
@@ -298,41 +298,41 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         <tr key={`${alokasi.id}-pencacahan`} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
                                             {!periode.kegiatan.has_listing_updating || (alokasi.jumlah_satuan_listing ?? 0) === 0 ? (
                                                 <>
-                                                    <td className="px-4 py-3 text-neutral-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-3 py-3 text-neutral-900 dark:text-white">
                                                         {index + 1}
                                                     </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="font-medium text-neutral-900 dark:text-white">
+                                                    <td className="px-3 py-3">
+                                                        <div className="break-words font-medium text-neutral-900 dark:text-white">
                                                             {alokasi.petugas.nama}
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="whitespace-nowrap px-3 py-3">
                                                         <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                             {alokasi.petugas.jenis_petugas === 'organik' ? 'Organik' : 'Mitra'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-neutral-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-3 py-3 text-neutral-900 dark:text-white">
                                                         {peranLabels[alokasi.peran] || alokasi.peran}
                                                     </td>
                                                 </>
                                             ) : null}
                                             {periode.kegiatan.has_listing_updating && (
-                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
+                                                <td className="whitespace-nowrap px-3 py-3 text-neutral-600 dark:text-neutral-400">
                                                     Pencacahan
                                                 </td>
                                             )}
-                                            <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                            <td className="whitespace-nowrap px-3 py-3 text-right text-neutral-900 dark:text-white">
                                                 {alokasi.jumlah_satuan}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-neutral-900 dark:text-white">
+                                            <td className="whitespace-nowrap px-3 py-3 text-right text-neutral-900 dark:text-white">
                                                 {formatCurrency(alokasi.rate_pencacahan || 0)}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-green-600 dark:text-green-400">
                                                 {formatCurrency(alokasi.total_honor)}
                                             </td>
                                             {!periode.kegiatan.has_listing_updating || (alokasi.jumlah_satuan_listing ?? 0) === 0 ? (
-                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400">
-                                                    {alokasi.catatan || '-'}
+                                                <td className="px-3 py-3 text-neutral-600 dark:text-neutral-400">
+                                                    <div className="break-words">{alokasi.catatan || '-'}</div>
                                                 </td>
                                             ) : null}
                                         </tr>
@@ -343,19 +343,19 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                 {periode.kegiatan.has_listing_updating && (
                                     <>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                                            <td colSpan={7} className="px-4 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+                                            <td colSpan={7} className="whitespace-nowrap px-3 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
                                                 Total Listing:
                                             </td>
-                                            <td className="px-4 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
+                                            <td className="whitespace-nowrap px-3 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
                                                 {formatCurrency(periode.total_estimasi_listing || 0)}
                                             </td>
                                             <td></td>
                                         </tr>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                                            <td colSpan={7} className="px-4 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
+                                            <td colSpan={7} className="whitespace-nowrap px-3 py-2 text-right text-sm font-semibold text-neutral-600 dark:text-neutral-400">
                                                 Total Pencacahan:
                                             </td>
-                                            <td className="px-4 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
+                                            <td className="whitespace-nowrap px-3 py-2 text-right text-lg font-bold text-blue-600 dark:text-blue-400">
                                                 {formatCurrency(periode.total_estimasi_pencacahan || 0)}
                                             </td>
                                             <td></td>
@@ -363,10 +363,10 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     </>
                                 )}
                                 <tr>
-                                    <td colSpan={periode.kegiatan.has_listing_updating ? 7 : 6} className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-white">
+                                    <td colSpan={periode.kegiatan.has_listing_updating ? 7 : 6} className="whitespace-nowrap px-3 py-3 text-right font-semibold text-neutral-900 dark:text-white">
                                         Total Keseluruhan:
                                     </td>
-                                    <td className="px-4 py-3 text-right text-xl font-bold text-green-600 dark:text-green-400">
+                                    <td className="whitespace-nowrap px-3 py-3 text-right text-xl font-bold text-green-600 dark:text-green-400">
                                         {formatCurrency(periode.total_estimasi)}
                                     </td>
                                     <td></td>
@@ -427,7 +427,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                             </div>
                                         </div>
 
-                                        <div className="overflow-x-auto">
+                                        <div className="w-full">
                                             <table className="w-full text-sm">
                                                 <thead className="bg-neutral-200 dark:bg-neutral-800">
                                                     <tr>

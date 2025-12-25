@@ -28,7 +28,9 @@ class AlokasiPetugasController extends Controller
     {
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
-        $query = PeriodeAlokasi::query()
+
+        // Build base query
+        $baseQuery = PeriodeAlokasi::query()
             ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating', 'alokasiPetugas'])
             ->withCount('alokasiPetugas as jumlah_petugas')
             ->where('status', '!=', 'dihapus') // Exclude deleted periods
@@ -38,7 +40,7 @@ class AlokasiPetugasController extends Controller
         // Search by kegiatan
         if (! empty($validated['search'])) {
             $search = $validated['search'];
-            $query->whereHas('kegiatan', function ($q) use ($search) {
+            $baseQuery->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
             });
@@ -46,28 +48,72 @@ class AlokasiPetugasController extends Controller
 
         // Filter by status
         if (! empty($validated['status'])) {
-            $query->where('status', $validated['status']);
+            $baseQuery->where('status', $validated['status']);
         }
 
         // Filter by bulan (gunakan string dengan leading zero agar cocok dengan frontend)
         if (! empty($validated['bulan'])) {
-            $query->where('bulan', str_pad($validated['bulan'], 2, '0', STR_PAD_LEFT));
+            $baseQuery->where('bulan', str_pad($validated['bulan'], 2, '0', STR_PAD_LEFT));
         }
 
         // Filter for Ketua Tim - only their kegiatan
         $effectiveUser = effectiveUser($request);
         if ($effectiveUser->isKetuaTim()) {
-            $query->whereHas('kegiatan', function ($q) use ($effectiveUser) {
+            $baseQuery->whereHas('kegiatan', function ($q) use ($effectiveUser) {
                 $q->where('ketua_tim_user_id', $effectiveUser->id)
                     ->orWhere('pj_lainnya_id', $effectiveUser->id);
             });
         }
 
-        // Order by tahun and bulan descending (newest first)
-        $alokasi = $query->orderByDesc('tahun')
+        // Get all results first to handle deduplication
+        $allPeriodes = $baseQuery
+            ->orderByDesc('tahun')
             ->orderByDesc('bulan')
-            ->paginate(15)
-            ->withQueryString();
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Deduplicate: If there are both 'direvisi' and 'perubahan' for same kegiatan+bulan,
+        // keep only 'perubahan' (the latest change)
+        $deduplicatedPeriodes = $allPeriodes->groupBy(function ($periode) {
+            return $periode->kegiatan_id.'_'.$periode->bulan.'_'.$periode->tahun;
+        })->map(function ($group) {
+            // If group has 'perubahan', use that (it's the latest)
+            $perubahan = $group->firstWhere('status', 'perubahan');
+            if ($perubahan) {
+                return $perubahan;
+            }
+
+            // Otherwise, return the first item (most recent by created_at)
+            return $group->first();
+        })->values();
+
+        // Manual pagination
+        $perPage = 15;
+        $currentPage = $request->input('page', 1);
+        $total = $deduplicatedPeriodes->count();
+        $lastPage = (int) ceil($total / $perPage);
+        $offset = ($currentPage - 1) * $perPage;
+
+        $paginatedItems = $deduplicatedPeriodes->slice($offset, $perPage)->values();
+
+        // Create pagination links
+        $links = [];
+        $links[] = ['url' => $currentPage > 1 ? url()->current().'?'.http_build_query(array_merge($validated, ['page' => $currentPage - 1])) : null, 'label' => '&laquo; Previous', 'active' => false];
+
+        for ($i = 1; $i <= $lastPage; $i++) {
+            $links[] = ['url' => url()->current().'?'.http_build_query(array_merge($validated, ['page' => $i])), 'label' => (string) $i, 'active' => $i === $currentPage];
+        }
+
+        $links[] = ['url' => $currentPage < $lastPage ? url()->current().'?'.http_build_query(array_merge($validated, ['page' => $currentPage + 1])) : null, 'label' => 'Next &raquo;', 'active' => false];
+
+        // Create paginated collection manually
+        $alokasi = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $total,
+            $perPage,
+            $currentPage,
+            ['path' => url()->current(), 'query' => $validated]
+        );
 
         // Get latest month for each kegiatan (for revisi button logic)
         // Only show revisi for 'dikirim' or 'perubahan' status

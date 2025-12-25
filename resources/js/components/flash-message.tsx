@@ -12,8 +12,16 @@ export function FlashMessage() {
         title: string;
     } | null>(null);
     const previousFlashRef = useRef<string>('');
+    const previousUrlRef = useRef<string>('');
 
     useEffect(() => {
+        // Reset tracking when URL changes (navigation)
+        const currentUrl = window.location.href;
+        if (currentUrl !== previousUrlRef.current) {
+            previousFlashRef.current = '';
+            previousUrlRef.current = currentUrl;
+        }
+
         // Create a unique key from the current flash message
         const currentFlashKey = JSON.stringify(flash);
         

@@ -38,6 +38,7 @@ interface MonthlyPeriodeItem {
     has_addendum: boolean;
     has_new_kegiatan_after_spk: boolean; // Kegiatan baru setelah SPK di-generate
     has_new_revision_after_addendum: boolean; // Revisi baru setelah addendum di-generate
+    has_been_regenerated: boolean; // SPK sudah pernah di-regenerate
     kegiatan_list: KegiatanItem[];
 }
 
@@ -242,8 +243,12 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {/* Generate SPK for all kegiatan in this month - Only if none exist yet */}
-                                                    {canCreateSpk && monthData.total_spk === 0 && monthData.kegiatan_list.length > 0 && (
+                                                    {/* Generate SPK - Show if:
+                                                        1. No SPK exists at all (total_spk === 0), OR
+                                                        2. Some petugas don't have SPK yet (total_spk < total_petugas_non_organik)
+                                                        This will show form with ONLY petugas who don't have SPK
+                                                    */}
+                                                    {canCreateSpk && (monthData.total_spk === 0 || monthData.total_spk < monthData.total_petugas_non_organik) && monthData.kegiatan_list.length > 0 && (
                                                         <Button
                                                             size="sm"
                                                             asChild
@@ -256,8 +261,13 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* Re-generate SPK - Show if SPK exists but there are new kegiatan added after */}
-                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_new_kegiatan_after_spk && (
+                                                    {/* Re-generate SPK - Show if:
+                                                        1. All petugas have SPK (total_spk >= total_petugas_non_organik)
+                                                        2. AND there are new kegiatan added after SPK was generated
+                                                        3. AND has NOT been regenerated before
+                                                        This will show form with ONLY petugas who have allocation changes
+                                                    */}
+                                                    {canCreateSpk && monthData.total_spk >= monthData.total_petugas_non_organik && monthData.has_new_kegiatan_after_spk && !monthData.has_been_regenerated && (
                                                         <Button
                                                             size="sm"
                                                             variant="default"

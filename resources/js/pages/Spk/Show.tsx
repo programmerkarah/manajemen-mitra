@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Pencil } from 'lucide-react';
+import { Head, Link, usePage, router } from '@inertiajs/react';
+import { ArrowLeft, Download, FileText, Pencil, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 interface Spk {
     id: number;
@@ -20,6 +21,8 @@ interface Spk {
     nip_ppk: string | null;
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
+    signed_file_path: string | null;
+    previous_file_path: string | null;
     created_by: string;
     created_at: string;
 }
@@ -123,6 +126,7 @@ const bulanLabels: Record<number, string> = {
 export default function Show({ spk, petugas, kegiatan_list, addendums, periode, bast }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+    const [isUploading, setIsUploading] = useState(false);
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
@@ -136,6 +140,22 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
 
     const handleDownload = (filePath: string) => {
         window.open(`/${filePath}`, '_blank');
+    };
+
+    const handleUploadSigned = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        
+        router.post(
+            `/spk/${spk.hashed_id}/upload-signed`,
+            { file },
+            {
+                onFinish: () => setIsUploading(false),
+                onError: () => setIsUploading(false),
+            }
+        );
     };
 
     const getStatusBadge = (status: string) => {
@@ -418,25 +438,94 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Dokumen
+                                Dokumen SPK
                             </h3>
 
                             <div className="space-y-3">
+                                {/* SPK Terbaru (Regenerated) */}
                                 {spk.file_path && (
-                                    <Button
-                                        variant="default"
-                                        onClick={() => handleDownload(spk.file_path!)}
-                                        className="w-full"
-                                    >
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download SPK
-                                    </Button>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-neutral-600 dark:text-neutral-400">
+                                            SPK Terbaru {spk.signed_file_path && '(Belum Ditandatangani)'}
+                                        </Label>
+                                        <Button
+                                            variant="default"
+                                            onClick={() => handleDownload(spk.file_path!)}
+                                            className="w-full"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download SPK Terbaru
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {/* SPK Signed (if available) */}
+                                {spk.signed_file_path && (
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-neutral-600 dark:text-neutral-400">
+                                            SPK Bertandatangan
+                                        </Label>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => handleDownload(spk.signed_file_path!)}
+                                            className="w-full"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download SPK Signed
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {/* Previous Signed SPK (if available after regenerate) */}
+                                {spk.previous_file_path && (
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-neutral-600 dark:text-neutral-400">
+                                            SPK Signed Sebelumnya
+                                        </Label>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => handleDownload(spk.previous_file_path!)}
+                                            className="w-full"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download SPK Lama
+                                        </Button>
+                                    </div>
                                 )}
 
                                 {!spk.file_path && (
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center py-4">
                                         File SPK belum tersedia
                                     </p>
+                                )}
+
+                                {/* Upload Signed SPK */}
+                                {canEdit && spk.file_path && (
+                                    <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
+                                        <Label className="text-xs text-neutral-600 dark:text-neutral-400 block mb-2">
+                                            Upload SPK yang Sudah Ditandatangani
+                                        </Label>
+                                        <label htmlFor="upload-signed" className="cursor-pointer">
+                                            <Button
+                                                variant="secondary"
+                                                className="w-full"
+                                                disabled={isUploading}
+                                                asChild
+                                            >
+                                                <span>
+                                                    <Upload className="mr-2 h-4 w-4" />
+                                                    {isUploading ? 'Mengupload...' : 'Upload SPK Signed'}
+                                                </span>
+                                            </Button>
+                                        </label>
+                                        <input
+                                            id="upload-signed"
+                                            type="file"
+                                            accept="application/pdf"
+                                            onChange={handleUploadSigned}
+                                            className="hidden"
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>

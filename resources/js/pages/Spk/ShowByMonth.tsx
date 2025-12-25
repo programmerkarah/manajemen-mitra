@@ -464,23 +464,23 @@ export default function ShowByMonth({
                                 Daftar Kegiatan ({kegiatan_list.length})
                             </h3>
 
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                            <div className="w-full">
+                                <table className="w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                     <thead className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Kode Kegiatan
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Nama Kegiatan
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Peran
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Honor
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                                 Perubahan
                                             </th>
                                         </tr>
@@ -490,23 +490,23 @@ export default function ShowByMonth({
                                             const changed = kegiatan.has_change;
                                             return (
                                                 <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
-                                                    <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-neutral-900 dark:text-white">
                                                         {kegiatan.kode_kegiatan}
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                        {kegiatan.nama_kegiatan}
+                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                                                        <div className="break-words">{kegiatan.nama_kegiatan}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-900 dark:text-white">
                                                         {getPeranLabel(kegiatan.peran)}
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                                    <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-900 dark:text-white">
                                                         Rp {kegiatan.total_honor.toLocaleString('id-ID')}
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm">
+                                                    <td className="px-3 py-3 text-sm">
                                                         {changed ? (
-                                                            <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
-                                                                <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
-                                                                Ada perubahan berupa { Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor) < 0 ? "pengurangan" : "peningkatan" } sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}
+                                                            <span className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
+                                                                <svg className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+                                                                <span className="break-words">Ada perubahan berupa { Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor) < 0 ? "pengurangan" : "peningkatan" } sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}</span>
                                                             </span>
                                                         ) : (
                                                             <span className="text-xs text-neutral-400">-</span>
@@ -518,10 +518,10 @@ export default function ShowByMonth({
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
                                                 Total Honor:
                                             </td>
-                                            <td className="px-6 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
                                                 Rp {kegiatan_list.reduce((sum, k) => sum + k.total_honor, 0).toLocaleString('id-ID')}
                                             </td>
                                         </tr>

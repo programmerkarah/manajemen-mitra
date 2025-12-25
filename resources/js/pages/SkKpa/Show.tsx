@@ -146,9 +146,11 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                 </div>
             </PageHeader>
 
+            <div className="w-full" style={{ maxWidth: '84vw' }}>
+            <div className="max-w-full overflow-hidden">
             <div className="grid gap-6 md:grid-cols-3">
                 {/* Main Content - SK Details */}
-                <div className="md:col-span-2 space-y-6">
+                <div className="md:col-span-2 space-y-6 min-w-0">
                     <ContentCard>
                         <div className="space-y-6">
                             <div className="flex items-start justify-between">
@@ -163,7 +165,7 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                                 {getStatusBadge(skKpa.status)}
                             </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-4">
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nomor SK</Label>
                                     <p className="text-neutral-900 dark:text-white font-medium">{skKpa.nomor_sk}</p>
@@ -182,39 +184,39 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nama KPA</Label>
                                     <p className="text-neutral-900 dark:text-white font-medium">{skKpa.nama_kpa}</p>
                                 </div>
-                                <div className="md:col-span-2">
+                                <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Perihal</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{skKpa.perihal}</p>
+                                    <p className="break-words text-neutral-900 dark:text-white font-medium">{skKpa.perihal}</p>
                                 </div>
-                                <div className="md:col-span-2">
+                                <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">Kegiatan</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
+                                    <p className="break-words text-neutral-900 dark:text-white font-medium">
                                         {kegiatan.nama_kegiatan} ({kegiatan.kode_kegiatan})
                                     </p>
                                 </div>
                             </div>
 
-                            <div>
+                            <div className="space-y-2">
                                 <Label className="text-neutral-600 dark:text-neutral-400">Dasar Hukum</Label>
                                 <ul className="mt-2 space-y-2">
                                     {skKpa.dasar_hukum.map((dh, index) => (
-                                        <li key={index} className="flex gap-2 text-sm text-neutral-900 dark:text-white">
+                                        <li key={index} className="grid gap-2 text-sm text-neutral-900 dark:text-white" style={{ gridTemplateColumns: 'auto 1fr' }}>
                                             <span className="text-neutral-600 dark:text-neutral-400">{index + 1}.</span>
-                                            <span>{dh}</span>
+                                            <span style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{dh}</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
 
                             <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
-                                <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    <User className="h-4 w-4" />
-                                    <span>Dibuat oleh {skKpa.created_by} pada {skKpa.created_at}</span>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                    <User className="h-4 w-4 flex-shrink-0" />
+                                    <span className="break-words">Dibuat oleh {skKpa.created_by} pada {skKpa.created_at}</span>
                                 </div>
                                 {skKpa.is_signed && (
-                                    <div className="flex items-center gap-2 mt-2 text-sm text-green-600 dark:text-green-400">
-                                        <Check className="h-4 w-4" />
-                                        <span>Ditandatangani oleh {skKpa.signed_by} pada {skKpa.signed_at}</span>
+                                    <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-green-600 dark:text-green-400">
+                                        <Check className="h-4 w-4 flex-shrink-0" />
+                                        <span className="break-words">Ditandatangani oleh {skKpa.signed_by} pada {skKpa.signed_at}</span>
                                     </div>
                                 )}
                             </div>
@@ -305,7 +307,7 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                 </div>
 
                 {/* Sidebar - History */}
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-0">
                     <ContentCard>
                         <div className="space-y-4">
                             <div>
@@ -372,6 +374,8 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                         </div>
                     </ContentCard>
                 </div>
+            </div>
+            </div>
             </div>
         </AppLayout>
     )
