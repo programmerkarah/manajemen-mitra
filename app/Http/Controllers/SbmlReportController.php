@@ -61,14 +61,23 @@ class SbmlReportController extends Controller
                 })->unique();
 
                 // Get SBML records for the jenis penugasan
-                $sbmlRecords = Sbml::where('tahun_anggaran', $tahun)
-                    ->where('status_kepegawaian', $statusKepegawaian)
-                    ->whereIn('jenis_penugasan', $jenisPenugasanSbml)
-                    ->where('status', 'aktif')
-                    ->get();
+                // Ambil honor_max SBML hanya untuk penugasan yang sudah diberikan ke petugas
+                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian) {
+                    $jenisPenugasan = match ($peran) {
+                        'pcl_ppl' => 'pcl_ppl',
+                        'pml' => 'pml',
+                        'pengolahan', 'pengawas_pengolahan' => 'pengolahan',
+                        default => $peran,
+                    };
+                    $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
+                        ->where('status_kepegawaian', $statusKepegawaian)
+                        ->where('jenis_penugasan', $jenisPenugasan)
+                        ->where('status', 'aktif')
+                        ->first();
+                    return $sbml ? $sbml->honor_max : null;
+                })->filter();
 
-                // Ambil honor_max terendah dari SBML yang cocok
-                $minAllowed = $sbmlRecords->isNotEmpty() ? $sbmlRecords->min('honor_max') : 0;
+                $minAllowed = $honorMaxList->isNotEmpty() ? $honorMaxList->min() : 0;
                 $exceeds = $minAllowed > 0 && $totalHonor > $minAllowed;
 
                 // Group by kegiatan for details

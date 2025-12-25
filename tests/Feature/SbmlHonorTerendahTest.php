@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
-use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Sbml;

@@ -1775,31 +1775,28 @@ class AlokasiPetugasController extends Controller
             $jenisPenugasanList = $jenisPenugasanList->unique();
         }
 
-        // Map peran to jenis_penugasan in SBML
-        $jenisPenugasanSbml = $jenisPenugasanList->map(function ($peran) {
-            return match ($peran) {
+        // Map peran ke jenis_penugasan dan ambil honor_max SBML untuk tiap penugasan yang sudah diberikan
+        $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+        $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian) {
+            $jenisPenugasan = match ($peran) {
                 'pcl_ppl' => 'pcl_ppl',
                 'pml' => 'pml',
                 'pengolahan', 'pengawas_pengolahan' => 'pengolahan',
                 default => $peran,
             };
-        })->unique();
+            $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
+                ->where('status_kepegawaian', $statusKepegawaian)
+                ->where('jenis_penugasan', $jenisPenugasan)
+                ->where('status', 'aktif')
+                ->first();
+            return $sbml ? $sbml->honor_max : null;
+        })->filter();
 
-        $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
-
-        // Get SBML records for the jenis penugasan
-        $sbmlRecords = Sbml::where('tahun_anggaran', $tahun)
-            ->where('status_kepegawaian', $statusKepegawaian)
-            ->whereIn('jenis_penugasan', $jenisPenugasanSbml)
-            ->where('status', 'aktif')
-            ->get();
-
-        if ($sbmlRecords->isEmpty()) {
-            return 'SBML untuk petugas ini belum tersedia. Silakan hubungi admin untuk mengatur SBML terlebih dahulu.';
+        if ($honorMaxList->isEmpty()) {
+            return 'SBML untuk penugasan yang diberikan ke petugas ini belum tersedia. Silakan hubungi admin untuk mengatur SBML terlebih dahulu.';
         }
 
-        // Ambil honor_max terendah dari SBML yang cocok
-        $minAllowed = $sbmlRecords->min('honor_max');
+        $minAllowed = $honorMaxList->min();
 
         if ($totalHonorInMonth > $minAllowed) {
             return sprintf(
