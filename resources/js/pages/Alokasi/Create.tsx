@@ -212,6 +212,9 @@ export default function Create({
     );
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
+    
+    // Get errors from Inertia (for validation errors from backend)
+    const { errors: inertiaErrors } = usePage<SharedData>().props;
 
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
@@ -1041,7 +1044,7 @@ export default function Create({
             )}
 
             {/* Display SBML and Budget Errors */}
-            {(errors.sbml_constraint || errors.budget || errors.error) && (
+            {(inertiaErrors.sbml_constraint || inertiaErrors.budget || inertiaErrors.error || errors.sbml_constraint || errors.budget || errors.error) && (
                 <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-lg dark:border-red-600 dark:bg-red-950">
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
@@ -1052,7 +1055,7 @@ export default function Create({
                                 Validasi Gagal
                             </h3>
                             <div className="mt-2 text-sm text-red-700 dark:text-red-400 whitespace-pre-line">
-                                {errors.sbml_constraint || errors.budget || errors.error}
+                                {inertiaErrors.sbml_constraint || inertiaErrors.budget || inertiaErrors.error || errors.sbml_constraint || errors.budget || errors.error}
                             </div>
                         </div>
                     </div>
