@@ -55,7 +55,8 @@ class SbmlReportController extends Controller
                     return match ($peran) {
                         'pcl_ppl' => 'pcl_ppl',
                         'pml' => 'pml',
-                        'pengolahan', 'pengawas_pengolahan' => 'pengolahan',
+                        'pengolahan' => 'pengolahan',
+                        'pengawas_pengolahan' => 'pengawas_pengolahan',
                         default => $peran,
                     };
                 })->unique();
