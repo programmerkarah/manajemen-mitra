@@ -79,8 +79,8 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan) {
-            // Hitung ulang total honor dan pagu untuk memastikan data selalu aktual
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $activeYear) {
+            // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
             $estimasiHonor = $totalHonorPencacahan + $totalHonorListing;
@@ -89,12 +89,28 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Sisa pagu = pagu - total honor terpakai
-            $sisaPaguPencacahan = $paguPencacahan - $totalHonorPencacahan;
-            $sisaPaguListing = $paguListing - $totalHonorListing;
+            // Hitung TOTAL honor yang sudah terpakai dari SEMUA periode sampai periode ini
+            // (periode yang lebih lama atau sama dengan periode saat ini)
+            $totalHonorTerpakaiPencacahan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($periode, $activeYear) {
+                $q->where('kegiatan_id', $periode->kegiatan_id)
+                    ->where('tahun', $activeYear)
+                    ->where('bulan', '<=', $periode->bulan)
+                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']);
+            })->sum('total_honor');
+
+            $totalHonorTerpakaiListing = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($periode, $activeYear) {
+                $q->where('kegiatan_id', $periode->kegiatan_id)
+                    ->where('tahun', $activeYear)
+                    ->where('bulan', '<=', $periode->bulan)
+                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']);
+            })->sum('total_honor_listing');
+
+            // Sisa pagu = pagu total - total honor terpakai (akumulasi semua periode)
+            $sisaPaguPencacahan = $paguPencacahan - $totalHonorTerpakaiPencacahan;
+            $sisaPaguListing = $paguListing - $totalHonorTerpakaiListing;
             $sisaPagu = $sisaPaguPencacahan + $sisaPaguListing;
 
-            // Pagu terpakai = total honor (pencacahan + listing)
+            // Pagu terpakai = total honor untuk periode ini saja
             $paguTerpakai = $estimasiHonor;
 
             $isLatestPeriode = $periode->status === 'dikirim' &&
