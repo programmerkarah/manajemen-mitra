@@ -10,32 +10,37 @@ import echo from '../lib/echo';
 export function useSessionInvalidation(userId: number | null | undefined) {
     useEffect(() => {
         if (!userId) {
+            console.log('useSessionInvalidation: No userId provided');
             return;
         }
+
+        console.log('useSessionInvalidation: Setting up listener for user', userId);
 
         // Subscribe to private channel for this user
         const channel = echo.private(`session.${userId}`);
 
+        console.log('useSessionInvalidation: Subscribed to channel', `session.${userId}`);
+
         // Listen for session invalidation event
         channel.listen('.session.invalidated', (event: any) => {
-            console.log('Session invalidated:', event);
+            console.log('🔴 Session invalidated received!', event);
+            
+            // Force immediate redirect without Inertia (to bypass any caching)
+            window.location.href = '/login?message=' + encodeURIComponent('Anda telah login dari perangkat lain. Silakan login kembali.');
+        });
 
-            // Show a message and redirect to login
-            router.visit('/login', {
-                method: 'get',
-                data: {
-                    message:
-                        'Anda telah login dari perangkat lain. Silakan login kembali.',
-                },
-                onSuccess: () => {
-                    // Force reload to clear all state
-                    window.location.href = '/login';
-                },
-            });
+        // Debug: log connection status
+        channel.subscription.bind('pusher:subscription_succeeded', () => {
+            console.log('✅ Channel subscription succeeded');
+        });
+
+        channel.subscription.bind('pusher:subscription_error', (error: any) => {
+            console.error('❌ Channel subscription error:', error);
         });
 
         // Cleanup: unsubscribe when component unmounts
         return () => {
+            console.log('useSessionInvalidation: Cleaning up listener');
             channel.stopListening('.session.invalidated');
             echo.leave(`session.${userId}`);
         };
