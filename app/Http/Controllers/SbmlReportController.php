@@ -65,12 +65,11 @@ class SbmlReportController extends Controller
                     ->where('status_kepegawaian', $statusKepegawaian)
                     ->whereIn('jenis_penugasan', $jenisPenugasanSbml)
                     ->where('status', 'aktif')
-                    ->orderByDesc('honor_max')
                     ->get();
 
-                // Take the highest honor_max from matching SBML records
-                $maxAllowed = $sbmlRecords->isNotEmpty() ? $sbmlRecords->max('honor_max') : 0;
-                $exceeds = $maxAllowed > 0 && $totalHonor > $maxAllowed;
+                // Ambil honor_max terendah dari SBML yang cocok
+                $minAllowed = $sbmlRecords->isNotEmpty() ? $sbmlRecords->min('honor_max') : 0;
+                $exceeds = $minAllowed > 0 && $totalHonor > $minAllowed;
 
                 // Group by kegiatan for details
                 $kegiatanDetails = [];
@@ -108,10 +107,10 @@ class SbmlReportController extends Controller
                     'nik' => $petugas->nik,
                     'jenis_petugas' => $petugas->jenis_petugas,
                     'total_honor' => $totalHonor,
-                    'max_allowed' => $maxAllowed,
+                    'max_allowed' => $minAllowed,
                     'exceeds' => $exceeds,
-                    'difference' => $totalHonor - $maxAllowed,
-                    'percentage' => $maxAllowed > 0 ? ($totalHonor / $maxAllowed) * 100 : 0,
+                    'difference' => $totalHonor - $minAllowed,
+                    'percentage' => $minAllowed > 0 ? ($totalHonor / $minAllowed) * 100 : 0,
                     'kegiatan_count' => count($kegiatanDetails),
                     'kegiatan_details' => array_values($kegiatanDetails),
                 ];

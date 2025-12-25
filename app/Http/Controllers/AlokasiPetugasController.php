@@ -1798,17 +1798,17 @@ class AlokasiPetugasController extends Controller
             return 'SBML untuk petugas ini belum tersedia. Silakan hubungi admin untuk mengatur SBML terlebih dahulu.';
         }
 
-        // Take the highest honor_max from matching SBML records
-        $maxAllowed = $sbmlRecords->max('honor_max');
+        // Ambil honor_max terendah dari SBML yang cocok
+        $minAllowed = $sbmlRecords->min('honor_max');
 
-        if ($totalHonorInMonth > $maxAllowed) {
+        if ($totalHonorInMonth > $minAllowed) {
             return sprintf(
-                'Total honor petugas %s di bulan %s %d (Rp %s) melebihi batas maksimal SBML tertinggi (Rp %s). Honor yang sudah dialokasikan: Rp %s, Honor baru: Rp %s.',
+                'Total honor petugas %s di bulan %s %d (Rp %s) melebihi batas maksimal SBML terendah (Rp %s). Honor yang sudah dialokasikan: Rp %s, Honor baru: Rp %s.',
                 $petugas->nama,
                 \Carbon\Carbon::create()->month($bulan)->translatedFormat('F'),
                 $tahun,
                 number_format($totalHonorInMonth, 0, ',', '.'),
-                number_format($maxAllowed, 0, ',', '.'),
+                number_format($minAllowed, 0, ',', '.'),
                 number_format($existingTotalHonor, 0, ',', '.'),
                 number_format($newHonor, 0, ',', '.')
             );
