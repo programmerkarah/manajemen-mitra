@@ -63,12 +63,8 @@ class SbmlReportController extends Controller
                 // Get SBML records for the jenis penugasan
                 // Ambil honor_max SBML hanya untuk penugasan yang sudah diberikan ke petugas
                 $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian) {
-                    $jenisPenugasan = match ($peran) {
-                        'pcl_ppl' => 'pcl_ppl',
-                        'pml' => 'pml',
-                        'pengolahan', 'pengawas_pengolahan' => 'pengolahan',
-                        default => $peran,
-                    };
+                    // Gunakan value peran asli dari alokasi sebagai jenis_penugasan
+                    $jenisPenugasan = $peran;
                     $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
                         ->where('status_kepegawaian', $statusKepegawaian)
                         ->where('jenis_penugasan', $jenisPenugasan)
