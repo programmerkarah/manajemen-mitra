@@ -62,12 +62,13 @@ class SbmlReportController extends Controller
 
                 // Get SBML records for the jenis penugasan
                 // Ambil honor_max SBML hanya untuk penugasan yang sudah diberikan ke petugas
-                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian) {
-                    // Gunakan value peran asli dari alokasi sebagai jenis_penugasan
-                    $jenisPenugasan = $peran;
+                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian, $alokasis) {
+                    // Ambil kombinasi unik dari alokasi: [jenis_kegiatan, jenis_penugasan, status_kepegawaian]
+                    $jenisKegiatan = $alokasis->firstWhere('peran', $peran)?->periodeAlokasi?->jenis_kegiatan ?? null;
                     $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
+                        ->where('jenis_kegiatan', $jenisKegiatan)
                         ->where('status_kepegawaian', $statusKepegawaian)
-                        ->where('jenis_penugasan', $jenisPenugasan)
+                        ->where('jenis_penugasan', $peran)
                         ->where('status', 'aktif')
                         ->first();
                     return $sbml ? $sbml->honor_max : null;

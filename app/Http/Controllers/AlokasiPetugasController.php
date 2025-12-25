@@ -1777,12 +1777,31 @@ class AlokasiPetugasController extends Controller
 
         // Map peran ke jenis_penugasan dan ambil honor_max SBML untuk tiap penugasan yang sudah diberikan
         $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
-        $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian) {
-            // Gunakan value peran asli dari alokasi sebagai jenis_penugasan
-            $jenisPenugasan = $peran;
+        // Ambil kombinasi unik dari alokasi: [jenis_kegiatan, jenis_penugasan, status_kepegawaian]
+        $alokasiKombinasi = $existingAlokasis->map(function ($alokasi) {
+            return [
+                'jenis_kegiatan' => $alokasi->periodeAlokasi->jenis_kegiatan ?? null,
+                'jenis_penugasan' => $alokasi->peran,
+                'status_kepegawaian' => $alokasi->status_kepegawaian,
+            ];
+        });
+        // Tambahkan kombinasi baru jika ada
+        if ($newPeran) {
+            $alokasiKombinasi->push([
+                'jenis_kegiatan' => $existingAlokasis->first()?->periodeAlokasi?->jenis_kegiatan ?? null,
+                'jenis_penugasan' => $newPeran,
+                'status_kepegawaian' => $statusKepegawaian,
+            ]);
+        }
+        $uniqueKombinasi = $alokasiKombinasi->unique(function ($item) {
+            return $item['jenis_kegiatan'].'|'.$item['jenis_penugasan'].'|'.$item['status_kepegawaian'];
+        });
+
+        $honorMaxList = $uniqueKombinasi->map(function ($kombinasi) use ($tahun) {
             $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
-                ->where('status_kepegawaian', $statusKepegawaian)
-                ->where('jenis_penugasan', $jenisPenugasan)
+                ->where('jenis_kegiatan', $kombinasi['jenis_kegiatan'])
+                ->where('status_kepegawaian', $kombinasi['status_kepegawaian'])
+                ->where('jenis_penugasan', $kombinasi['jenis_penugasan'])
                 ->where('status', 'aktif')
                 ->first();
             return $sbml ? $sbml->honor_max : null;
