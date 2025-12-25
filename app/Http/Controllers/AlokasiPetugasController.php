@@ -480,8 +480,12 @@ class AlokasiPetugasController extends Controller
         DB::commit();
 
         if (count($errors) > 0) {
-            return back()->withErrors(['sbml_constraint' => $errors])
-                ->with('warning', "{$created} alokasi berhasil ditambahkan. ".count($errors).' alokasi ditolak karena melebihi batas SBML.');
+            $errorMessage = implode("\n", $errors);
+            if ($created > 0) {
+                return back()->withErrors(['sbml_constraint' => $errorMessage])
+                    ->with('warning', "{$created} alokasi berhasil ditambahkan.");
+            }
+            return back()->withErrors(['sbml_constraint' => $errorMessage]);
         }
 
         return redirect()->route('alokasi.index')
