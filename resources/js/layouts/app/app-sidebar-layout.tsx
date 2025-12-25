@@ -3,13 +3,20 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
+import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
 import { type BreadcrumbItem } from '@/types';
+import { usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
+    const { auth } = usePage().props as any;
+
+    // Listen for session invalidation via WebSocket
+    useSessionInvalidation(auth?.user?.id);
+
     return (
         <AppShell variant="sidebar">
             <div className="flex h-screen w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">

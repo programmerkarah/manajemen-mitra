@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Events\SessionInvalidated;
 use App\Models\TrustedDevice;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -165,6 +166,9 @@ class FortifyServiceProvider extends ServiceProvider
                             ->where('id', '!=', $currentSessionId)
                             ->delete();
 
+                        // Broadcast session invalidation to all devices
+                        broadcast(new SessionInvalidated($user->id))->toOthers();
+
                         // ALWAYS save trusted device (no checkbox required)
                         // Expire all other trusted devices
                         TrustedDevice::where('user_id', $user->id)
@@ -284,6 +288,9 @@ class FortifyServiceProvider extends ServiceProvider
                         ->where('user_id', $user->id)
                         ->where('id', '!=', $currentSessionId)
                         ->delete();
+
+                    // Broadcast session invalidation to all devices
+                    broadcast(new SessionInvalidated($user->id))->toOthers();
 
                     // Also expire all old trusted devices
                     TrustedDevice::where('user_id', $user->id)->delete();
