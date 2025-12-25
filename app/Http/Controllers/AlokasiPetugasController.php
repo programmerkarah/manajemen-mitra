@@ -240,7 +240,7 @@ class AlokasiPetugasController extends Controller
             // Get petugas to determine jenis_petugas
             $petugas = Petugas::find($alokasiData['petugas_id']);
             if (! $petugas) {
-                $errors[] = 'Alokasi #'.($index + 1).': Petugas tidak ditemukan.';
+                $errors[] = 'Petugas tidak ditemukan.';
 
                 continue;
             }
@@ -255,7 +255,7 @@ class AlokasiPetugasController extends Controller
             };
 
             if (! $jenisPenugasan) {
-                $errors[] = 'Alokasi #'.($index + 1).': Peran tidak valid.';
+                $errors[] = $petugas->nama.': Peran tidak valid.';
 
                 continue;
             }
@@ -271,7 +271,7 @@ class AlokasiPetugasController extends Controller
                 ->first();
 
             if (! $rateHonor) {
-                $errors[] = 'Alokasi #'.($index + 1).': Rate honor untuk '.$alokasiData['peran'].' ('.$statusKepegawaian.', '.$alokasiData['jenis_kegiatan'].') tidak ditemukan.';
+                $errors[] = $petugas->nama.': Rate honor untuk '.$alokasiData['peran'].' ('.$statusKepegawaian.', '.$alokasiData['jenis_kegiatan'].') tidak ditemukan.';
 
                 continue;
             }
@@ -299,7 +299,7 @@ class AlokasiPetugasController extends Controller
                 );
 
                 if ($constraintError) {
-                    $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
+                    $errors[] = $petugas->nama.': '.$constraintError;
 
                     continue;
                 }
@@ -313,11 +313,13 @@ class AlokasiPetugasController extends Controller
                     $alokasiData['bulan'],
                     $totalHonor,
                     null,
-                    $jenisPenugasan
+                    $jenisPenugasan,
+                    $alokasiData['jenis_kegiatan'],
+                    $statusKepegawaian
                 );
 
                 if ($petugasTotalError) {
-                    $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
+                    $errors[] = $petugas->nama.': '.$petugasTotalError;
 
                     continue;
                 }
@@ -1411,7 +1413,7 @@ class AlokasiPetugasController extends Controller
                 // Get petugas to determine jenis_petugas
                 $petugas = Petugas::find($alokasiData['petugas_id']);
                 if (! $petugas) {
-                    $errors[] = 'Alokasi #'.($index + 1).': Petugas tidak ditemukan.';
+                    $errors[] = 'Petugas tidak ditemukan.';
 
                     continue;
                 }
@@ -1426,7 +1428,7 @@ class AlokasiPetugasController extends Controller
                 };
 
                 if (! $jenisPenugasan) {
-                    $errors[] = 'Alokasi #'.($index + 1).': Peran tidak valid.';
+                    $errors[] = $petugas->nama.': Peran tidak valid.';
 
                     continue;
                 }
@@ -1439,7 +1441,7 @@ class AlokasiPetugasController extends Controller
                     ->first();
 
                 if (! $rateHonor) {
-                    $errors[] = 'Alokasi #'.($index + 1).': Rate honor tidak ditemukan untuk '.$petugas->nama.' ('.$petugasType.') sebagai '.$alokasiData['peran'];
+                    $errors[] = $petugas->nama.': Rate honor tidak ditemukan untuk ('.$petugasType.') sebagai '.$alokasiData['peran'];
 
                     continue;
                 }
@@ -1468,7 +1470,7 @@ class AlokasiPetugasController extends Controller
                     );
 
                     if ($constraintError) {
-                        $errors[] = 'Alokasi #'.($index + 1).': '.$constraintError;
+                        $errors[] = $petugas->nama.': '.$constraintError;
 
                         continue;
                     }
@@ -1483,11 +1485,13 @@ class AlokasiPetugasController extends Controller
                         (int) $bulan,
                         $totalHonor,
                         $periode->id,
-                        $jenisPenugasan
+                        $jenisPenugasan,
+                        $kegiatan->jenis_kegiatan,
+                        $petugasType
                     );
 
                     if ($petugasTotalError) {
-                        $errors[] = 'Alokasi #'.($index + 1).': '.$petugasTotalError;
+                        $errors[] = $petugas->nama.': '.$petugasTotalError;
 
                         continue;
                     }
@@ -1746,7 +1750,9 @@ class AlokasiPetugasController extends Controller
         int $bulan,
         float $newHonor,
         ?int $excludePeriodeId = null,
-        ?string $newPeran = null
+        ?string $newPeran = null,
+        ?string $newJenisKegiatan = null,
+        ?string $newStatusKepegawaian = null
     ): ?string {
         $petugas = Petugas::find($petugasId);
         if (! $petugas) {
@@ -1792,9 +1798,18 @@ class AlokasiPetugasController extends Controller
         // Tambahkan kombinasi baru jika ada
         if ($newPeran) {
             $alokasiKombinasi->push([
-                'jenis_kegiatan' => $existingAlokasis->first()?->periodeAlokasi?->jenis_kegiatan ?? null,
+                'jenis_kegiatan' => $newJenisKegiatan ?? $existingAlokasis->first()?->periodeAlokasi?->jenis_kegiatan ?? null,
                 'jenis_penugasan' => $newPeran,
-                'status_kepegawaian' => $statusKepegawaian,
+                'status_kepegawaian' => $newStatusKepegawaian ?? $statusKepegawaian,
+            ]);
+        }
+        
+        // Jika petugas belum pernah dialokasikan (penugasan perdana), gunakan kombinasi dari penugasan baru
+        if ($alokasiKombinasi->isEmpty() && $newPeran && $newJenisKegiatan && $newStatusKepegawaian) {
+            $alokasiKombinasi->push([
+                'jenis_kegiatan' => $newJenisKegiatan,
+                'jenis_penugasan' => $newPeran,
+                'status_kepegawaian' => $newStatusKepegawaian,
             ]);
         }
         $uniqueKombinasi = $alokasiKombinasi->unique(function ($item) {
