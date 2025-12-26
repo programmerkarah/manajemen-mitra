@@ -33,7 +33,7 @@ class SbmlReportController extends Controller
         // Get all petugas who have allocations in the selected month
         // Only fetch allocations with jumlah > 0 to reduce data
         $petugasData = AlokasiPetugas::with([
-            'petugas:id,hashed_id,nama,nik,jenis_petugas',
+            'petugas:id,nama,nik,jenis_petugas',
             'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status',
             'periodeAlokasi.kegiatan:id,hashed_id,nama_kegiatan',
         ])
@@ -109,7 +109,6 @@ class SbmlReportController extends Controller
 
                 return [
                     'petugas_id' => $petugas->id,
-                    'petugas_hashed_id' => $petugas->hashed_id,
                     'nama' => $petugas->nama,
                     'nik' => $petugas->nik,
                     'jenis_petugas' => $petugas->jenis_petugas,
