@@ -91,7 +91,12 @@ class DashboardController extends Controller
 
         // Get recent activities based on user role
         $recentAlokasi = PeriodeAlokasi::query()
-            ->with(['kegiatan', 'alokasiPetugas.petugas'])
+            ->select('periode_alokasi.*')
+            ->with([
+                'kegiatan:id,kode_kegiatan,nama_kegiatan',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id',
+                'alokasiPetugas.petugas:id,nama,nik',
+            ])
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);
             })

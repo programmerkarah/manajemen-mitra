@@ -22,7 +22,8 @@ class ViewAsUserController extends Controller
             'user_id' => ['required', 'exists:users,id'],
         ]);
 
-        $viewAsUser = User::findOrFail($validated['user_id']);
+        $viewAsUser = User::select('id', 'name', 'username')
+            ->findOrFail($validated['user_id']);
 
         session(['view_as_user_id' => $viewAsUser->id]);
 

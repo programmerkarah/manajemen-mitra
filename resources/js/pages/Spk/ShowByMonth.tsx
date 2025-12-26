@@ -166,7 +166,7 @@ export default function ShowByMonth({
         { title: `Detail SPK ${bulan_label} ${tahun}`, href: '#' },
     ];
 
-    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver' || auth.activeRole?.name === 'operator';
+    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
 
     // Helper functions (must be inside component for hooks/props access)
     const getPeranLabel = (peran: string): string => {

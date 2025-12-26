@@ -31,7 +31,11 @@ class AlokasiPetugasController extends Controller
 
         // Build base query
         $baseQuery = PeriodeAlokasi::query()
-            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating', 'alokasiPetugas'])
+            ->select('periode_alokasi.*')
+            ->with([
+                'kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing',
+            ])
             ->withCount('alokasiPetugas as jumlah_petugas')
             ->where('status', '!=', 'dihapus') // Exclude deleted periods
             ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']) // Show all relevant statuses
@@ -71,6 +75,28 @@ class AlokasiPetugasController extends Controller
             ->orderByDesc('bulan')
             ->orderByDesc('created_at')
             ->get();
+
+        // Pre-calculate total honor terpakai for all kegiatan in one query
+        $totalHonorTerpakaiByKegiatan = AlokasiPetugas::select(
+            'periode_alokasi.kegiatan_id',
+            DB::raw('SUM(alokasi_petugas.total_honor) as total_pencacahan'),
+            DB::raw('SUM(alokasi_petugas.total_honor_listing) as total_listing')
+        )
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->where('periode_alokasi.tahun', $activeYear)
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
+            ->groupBy('periode_alokasi.kegiatan_id')
+            ->pluck('total_pencacahan', 'kegiatan_id');
+
+        $totalHonorTerpakaiListingByKegiatan = AlokasiPetugas::select(
+            'periode_alokasi.kegiatan_id',
+            DB::raw('SUM(alokasi_petugas.total_honor_listing) as total_listing')
+        )
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->where('periode_alokasi.tahun', $activeYear)
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
+            ->groupBy('periode_alokasi.kegiatan_id')
+            ->pluck('total_listing', 'kegiatan_id');
 
         // Deduplicate: If there are both 'direvisi' and 'perubahan' for same kegiatan+bulan,
         // keep only 'perubahan' (the latest change)
@@ -125,7 +151,7 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $activeYear) {
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -135,21 +161,9 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Hitung TOTAL honor yang sudah terpakai dari SEMUA periode sampai periode ini
-            // (periode yang lebih lama atau sama dengan periode saat ini)
-            $totalHonorTerpakaiPencacahan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($periode, $activeYear) {
-                $q->where('kegiatan_id', $periode->kegiatan_id)
-                    ->where('tahun', $activeYear)
-                    ->where('bulan', '<=', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']);
-            })->sum('total_honor');
-
-            $totalHonorTerpakaiListing = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($periode, $activeYear) {
-                $q->where('kegiatan_id', $periode->kegiatan_id)
-                    ->where('tahun', $activeYear)
-                    ->where('bulan', '<=', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft']);
-            })->sum('total_honor_listing');
+            // Use pre-calculated total honor instead of querying
+            $totalHonorTerpakaiPencacahan = $totalHonorTerpakaiByKegiatan->get($periode->kegiatan_id, 0);
+            $totalHonorTerpakaiListing = $totalHonorTerpakaiListingByKegiatan->get($periode->kegiatan_id, 0);
 
             // Sisa pagu = pagu total - total honor terpakai (akumulasi semua periode)
             $sisaPaguPencacahan = $paguPencacahan - $totalHonorTerpakaiPencacahan;

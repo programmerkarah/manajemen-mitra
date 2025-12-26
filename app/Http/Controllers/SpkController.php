@@ -28,11 +28,11 @@ class SpkController extends Controller
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id',
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
-                'spk' => function ($q) {
-                    $q->orderBy('created_at', 'desc');
-                },
+                'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
+            ->select('periode_alokasi.*') // Only select needed columns
             ->whereHas('kegiatan', function ($q) use ($activeYear) {
                 $q->where('tahun_anggaran', $activeYear)
                     ->where('jenis_kegiatan', 'survei'); // Only survei activities
@@ -226,9 +226,13 @@ class SpkController extends Controller
                 $petugas = $spk->alokasiPetugas->petugas;
 
                 // Get all kegiatan for this petugas in this month
-                $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+                $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
+                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
                     ->where('petugas_id', $petugas->id)
-                    ->with(['periodeAlokasi.kegiatan'])
+                    ->with([
+                        'periodeAlokasi:id,kegiatan_id',
+                        'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
+                    ])
                     ->get();
 
                 $kegiatanList = $allAlokasi->map(function ($alokasi) {
@@ -343,9 +347,13 @@ class SpkController extends Controller
         $bast = $spk->bast()->latest()->first();
 
         // Get all kegiatan for this petugas in this month
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+        $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->where('petugas_id', $petugas->id)
-            ->with(['periodeAlokasi.kegiatan'])
+            ->with([
+                'periodeAlokasi:id,kegiatan_id,status',
+                'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
+            ])
             ->get();
 
         // Group by kegiatan only (not peran) - consolidate all peran under one row per kegiatan
@@ -687,12 +695,17 @@ class SpkController extends Controller
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->get()
-            ->filter(function ($alokasi) {
-                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
-            });
+        $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->with([
+                'petugas:id,nama,nik,jenis_petugas',
+                'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
+                'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
+            ])
+            ->get();
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
@@ -1487,9 +1500,13 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->pluck('id');
 
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+        $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->where('petugas_id', $petugas->id)
-            ->with(['periodeAlokasi.kegiatan'])
+            ->with([
+                'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
+                'periodeAlokasi.kegiatan:id,nama_kegiatan,kode_kegiatan',
+            ])
             ->get();
 
         // Group by kegiatan only (not peran) - consolidate all peran under one row per kegiatan
@@ -2284,12 +2301,17 @@ class SpkController extends Controller
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->get()
-            ->filter(function ($alokasi) {
-                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
-            });
+        $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->with([
+                'petugas:id,nama,nik,jenis_petugas',
+                'periodeAlokasi:id,kegiatan_id,status',
+                'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
+            ])
+            ->get();
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')->sortKeys();

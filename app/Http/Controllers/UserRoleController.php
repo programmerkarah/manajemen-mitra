@@ -22,11 +22,14 @@ class UserRoleController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::with('roles')
+        $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.created_at')
+            ->with('roles:id,name')
             ->when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
             })
             ->orderBy('name')
             ->paginate(15)

@@ -19,19 +19,36 @@ class SbmlReportController extends Controller
         $tahun = $request->input('tahun', date('Y'));
         $bulan = $request->input('bulan', str_pad(date('m'), 2, '0', STR_PAD_LEFT));
 
+        // Pre-fetch all SBML data for the year to avoid N+1 queries
+        $sbmlCache = Sbml::where('tahun_anggaran', $tahun)
+            ->where('status', 'aktif')
+            ->get()
+            ->groupBy(function ($sbml) {
+                return $sbml->jenis_kegiatan.'_'.$sbml->status_kepegawaian.'_'.$sbml->jenis_penugasan;
+            })
+            ->map(function ($group) {
+                return $group->first();
+            });
+
         // Get all petugas who have allocations in the selected month
+        // Only fetch allocations with jumlah > 0 to reduce data
         $petugasData = AlokasiPetugas::with([
-            'petugas',
-            'periodeAlokasi.kegiatan',
+            'petugas:id,hashed_id,nama,nik,jenis_petugas',
+            'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status',
+            'periodeAlokasi.kegiatan:id,hashed_id,nama_kegiatan',
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
                     ->where('bulan', $bulan)
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
+            ->where(function ($query) {
+                $query->where('jumlah_satuan', '>', 0)
+                    ->orWhere('jumlah_satuan_listing', '>', 0);
+            })
             ->get()
             ->groupBy('petugas_id')
-            ->map(function ($alokasis, $petugasId) use ($tahun) {
+            ->map(function ($alokasis, $petugasId) use ($sbmlCache) {
                 $petugas = $alokasis->first()->petugas;
 
                 if (! $petugas) {
@@ -50,30 +67,12 @@ class SbmlReportController extends Controller
                 // Collect unique jenis penugasan (peran) from all allocations
                 $jenisPenugasanList = $alokasis->pluck('peran')->unique();
 
-                // Map peran to jenis_penugasan in SBML
-                $jenisPenugasanSbml = $jenisPenugasanList->map(function ($peran) {
-                    return match ($peran) {
-                        'pcl_ppl' => 'pcl_ppl',
-                        'pml' => 'pml',
-                        'pengolahan' => 'pengolahan',
-                        'pengawas_pengolahan' => 'pengawas_pengolahan',
-                        default => $peran,
-                    };
-                })->unique();
-
-                // Get SBML records for the jenis penugasan
-                // Ambil honor_max SBML hanya untuk penugasan yang sudah diberikan ke petugas
-                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($tahun, $statusKepegawaian, $alokasis) {
-                    // Ambil kombinasi unik dari alokasi: [jenis_kegiatan, jenis_penugasan, status_kepegawaian]
+                // Get SBML records from cache instead of querying database
+                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($sbmlCache, $statusKepegawaian, $alokasis) {
                     $jenisKegiatan = $alokasis->firstWhere('peran', $peran)?->periodeAlokasi?->jenis_kegiatan ?? null;
-                    $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
-                        ->where('jenis_kegiatan', $jenisKegiatan)
-                        ->where('status_kepegawaian', $statusKepegawaian)
-                        ->where('jenis_penugasan', $peran)
-                        ->where('status', 'aktif')
-                        ->first();
+                    $cacheKey = $jenisKegiatan.'_'.$statusKepegawaian.'_'.$peran;
 
-                    return $sbml ? $sbml->honor_max : null;
+                    return $sbmlCache->get($cacheKey)?->honor_max;
                 })->filter();
 
                 $minAllowed = $honorMaxList->isNotEmpty() ? $honorMaxList->min() : 0;
@@ -83,32 +82,29 @@ class SbmlReportController extends Controller
                 $kegiatanDetails = [];
                 foreach ($alokasis as $alokasi) {
                     $kegiatanId = $alokasi->periodeAlokasi->kegiatan_id;
-                    $kegiatan = $alokasi->periodeAlokasi->kegiatan;
 
                     if (! isset($kegiatanDetails[$kegiatanId])) {
                         $kegiatanDetails[$kegiatanId] = [
                             'kegiatan_id' => $kegiatanId,
-                            'kegiatan_hashed_id' => $kegiatan->hashed_id,
-                            'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                            'kegiatan_hashed_id' => $alokasi->periodeAlokasi->kegiatan->hashed_id,
+                            'nama_kegiatan' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
                             'jenis_kegiatan' => $alokasi->periodeAlokasi->jenis_kegiatan,
                             'total_honor' => 0,
                             'alokasi' => [],
                         ];
                     }
 
-                    // Only include alokasi with jumlah_satuan > 0 or jumlah_satuan_listing > 0
-                    if ($alokasi->jumlah_satuan > 0 || ($alokasi->jumlah_satuan_listing ?? 0) > 0) {
-                        $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
-                        $kegiatanDetails[$kegiatanId]['alokasi'][] = [
-                            'peran' => $this->formatPeran($alokasi->peran),
-                            'jumlah_satuan' => $alokasi->jumlah_satuan,
-                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                            'total_honor' => $alokasi->total_honor,
-                            'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
-                            'status_kepegawaian' => $alokasi->status_kepegawaian,
-                            'catatan' => $alokasi->catatan,
-                        ];
-                    }
+                    // Already filtered by jumlah > 0 in the query
+                    $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
+                    $kegiatanDetails[$kegiatanId]['alokasi'][] = [
+                        'peran' => $this->formatPeran($alokasi->peran),
+                        'jumlah_satuan' => $alokasi->jumlah_satuan,
+                        'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
+                        'total_honor' => $alokasi->total_honor,
+                        'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
+                        'status_kepegawaian' => $alokasi->status_kepegawaian,
+                        'catatan' => $alokasi->catatan,
+                    ];
                 }
 
                 return [

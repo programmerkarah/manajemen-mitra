@@ -29,7 +29,8 @@ class KegiatanController extends Controller
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
         $query = Kegiatan::query()
-            ->with('ketuaTim')
+            ->select('kegiatan.*')
+            ->with('ketuaTim:id,name')
             ->where('tahun_anggaran', $activeYear);
 
         // Search

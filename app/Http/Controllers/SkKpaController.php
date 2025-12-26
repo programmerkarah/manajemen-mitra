@@ -10,6 +10,7 @@ use App\Services\ActiveYearService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,12 +26,14 @@ class SkKpaController extends Controller
 
         // Get kegiatan that have validated periods (dikirim status)
         $query = Kegiatan::query()
+            ->select('kegiatan.*') // Only select needed columns
             ->with([
                 'ketuaTim:id,name',
-                'skKpa' => function ($q) {
-                    $q->orderBy('created_at', 'desc');
-                },
+                'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at',
             ])
+            ->withCount(['skKpa' => function ($q) {
+                $q->select(DB::raw('count(*)'));
+            }])
             ->whereHas('periodeAlokasi', function ($q) use ($activeYear) {
                 $q->where('tahun', $activeYear)
                     ->whereIn('status', ['dikirim', 'disetujui']);
@@ -57,8 +60,8 @@ class SkKpaController extends Controller
         // Note: status_sk and revision_number are calculated from skKpa relationship
         // They are not stored in kegiatan table
         $kegiatan->getCollection()->transform(function ($keg) {
-            $skCount = $keg->skKpa->count();
-            $latestSk = $keg->skKpa->first();
+            $skCount = $keg->sk_kpa_count ?? 0;
+            $latestSk = $keg->skKpa->sortByDesc('created_at')->first();
 
             // Check if there are personnel changes AFTER the latest SK (for SK Perubahan eligibility)
             $hasPersonnelChanges = $this->checkPersonnelChanges($keg->id, $latestSk);

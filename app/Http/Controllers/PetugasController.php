@@ -23,7 +23,7 @@ class PetugasController extends Controller
     public function index(FilterRequest $request): Response
     {
         $validated = $request->validated();
-        $query = Petugas::query();
+        $query = Petugas::query()->select('petugas.*');
 
         // Search
         if (! empty($validated['search'])) {
@@ -35,8 +35,8 @@ class PetugasController extends Controller
             });
         }
 
-        // Filter by status
-        if (! empty($validated['status'])) {
+        // Filter by status - ignore if 'all'
+        if (! empty($validated['status']) && $validated['status'] !== 'all') {
             $query->where('status', $validated['status']);
         }
 
@@ -45,8 +45,8 @@ class PetugasController extends Controller
             $query->where('tahun_bergabung', (int) $validated['tahun']);
         }
 
-        // Filter by jenis petugas
-        if (! empty($validated['jenis_petugas'])) {
+        // Filter by jenis petugas - ignore if 'all'
+        if (! empty($validated['jenis_petugas']) && $validated['jenis_petugas'] !== 'all') {
             $query->where('jenis_petugas', $validated['jenis_petugas']);
         }
 
