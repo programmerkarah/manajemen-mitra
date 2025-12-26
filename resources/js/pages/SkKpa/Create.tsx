@@ -293,14 +293,14 @@ export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, 
                                             <div className="space-y-1">
                                                 {personnelChangeInfo.changes.map((change, idx) => (
                                                     <div key={idx} className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
-                                                        <span className="font-medium">{change.bulan_nama}:</span>
+                                                        <span className="font-medium">{personnelChangeInfo.estimated_sk_month}:</span>
                                                         {change.added_count > 0 && (
                                                             <span className="text-green-600 dark:text-green-400">+{change.added_count}</span>
-                                                        )}
+                                                        )} petugas;
                                                         {change.removed_count > 0 && (
                                                             <span className="text-red-600 dark:text-red-400">-{change.removed_count}</span>
                                                         )}
-                                                        <span>({change.total_petugas} petugas)</span>
+                                                        <span>Total: ({change.total_petugas} petugas)</span>
                                                     </div>
                                                 ))}
                                             </div>

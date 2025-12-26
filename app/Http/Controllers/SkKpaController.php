@@ -1028,7 +1028,7 @@ class SkKpaController extends Controller
         $estimatedSkMonth = '';
         $estimatedSkYear = $lastChange['tahun'];
         if ($lastChange['bulan'] < 12) {
-            $estimatedSkMonth = $monthNames[$lastChange['bulan'] + 1] ?? '';
+            $estimatedSkMonth = $monthNames[$lastChange['bulan'] + 0] ?? '';
         } else {
             $estimatedSkMonth = $monthNames[1] ?? 'Januari';
             $estimatedSkYear = $lastChange['tahun'] + 1;
