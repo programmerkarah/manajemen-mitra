@@ -53,7 +53,6 @@ interface Petugas {
 interface MergedKegiatan {
     id: number;
     hashed_id: string;
-    kode_kegiatan: string;
     nama_kegiatan: string;
     jenis_kegiatan: string;
     tahun_anggaran: number;
@@ -167,7 +166,7 @@ export default function ShowByMonth({
         { title: `Detail SPK ${bulan_label} ${tahun}`, href: '#' },
     ];
 
-    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver' || auth.activeRole?.name === 'operator';
 
     // Helper functions (must be inside component for hooks/props access)
     const getPeranLabel = (peran: string): string => {
@@ -264,9 +263,9 @@ export default function ShowByMonth({
             >
             </PageHeader>
 
-            <div className="grid gap-6 md:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-3 overflow-x-hidden max-w-full">
                 {/* Sidebar - Petugas List */}
-                <div className="md:col-span-1">
+                <div className="md:col-span-1 min-w-0 w-full">
                     <ContentCard>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
@@ -316,7 +315,7 @@ export default function ShowByMonth({
                 </div>
 
                 {/* Main Content - SPK Details */}
-                <div className="md:col-span-3 space-y-6">
+                <div className="md:col-span-2 space-y-6 min-w-0 w-full">
                     {/* Always show original SPK info */}
                     <ContentCard>
                         <div className="space-y-6">
@@ -332,39 +331,39 @@ export default function ShowByMonth({
                                 {getStatusBadge(spk.status)}
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nomor SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.nomor_spk}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nomor_spk}</p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Tanggal SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{formatIndonesianDate(spk.tanggal_spk)}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{formatIndonesianDate(spk.tanggal_spk)}</p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">
                                         {formatPeriodeKerja(spk.tanggal_mulai_kerja, spk.tanggal_selesai_kerja)}
                                     </p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">
                                         Rp {parseFloat(spk.nilai_kontrak?.toString() || '0').toLocaleString('id-ID')}
                                     </p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.nama_ppk}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nama_ppk}</p>
                                     {spk.nip_ppk && (
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">
                                             NIP: {spk.nip_ppk}
                                         </p>
                                     )}
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.created_by}</p>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">{spk.created_at}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.created_by}</p>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">{spk.created_at}</p>
                                 </div>
                             </div>
                         </div>
@@ -386,39 +385,39 @@ export default function ShowByMonth({
                                     {getStatusBadge(spk.status)}
                                 </div>
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Nomor Addendum</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.nomor_spk}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nomor_spk}</p>
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Tanggal Addendum</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{formatIndonesianDate(spk.tanggal_spk)}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{formatIndonesianDate(spk.tanggal_spk)}</p>
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">
                                             {formatPeriodeKerja(spk.tanggal_mulai_kerja, spk.tanggal_selesai_kerja)}
                                         </p>
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">
                                             Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
                                         </p>
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.nama_ppk}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nama_ppk}</p>
                                         {spk.nip_ppk && (
-                                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                            <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">
                                                 NIP: {spk.nip_ppk}
                                             </p>
                                         )}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{spk.created_by}</p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">{spk.created_at}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.created_by}</p>
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">{spk.created_at}</p>
                                     </div>
                                 </div>
                             </div>
@@ -433,24 +432,24 @@ export default function ShowByMonth({
                             </h3>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Nama Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{petugas.nama}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.nama}</p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">NIK/NIP</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{petugas.nik}</p>
+                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.nik}</p>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">Jenis Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium capitalize">
+                                    <p className="text-neutral-900 dark:text-white font-medium capitalize break-words">
                                         {petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non Organik'}
                                     </p>
                                 </div>
                                 {petugas.alamat && (
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Alamat</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{petugas.alamat}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.alamat}</p>
                                     </div>
                                 )}
                             </div>
@@ -464,23 +463,20 @@ export default function ShowByMonth({
                                 Daftar Kegiatan ({kegiatan_list.length})
                             </h3>
 
-                            <div className="w-full">
+                            <div className="w-full overflow-x-auto">
                                 <table className="w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                     <thead className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                Kode Kegiatan
-                                            </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 max-w-xs">
                                                 Nama Kegiatan
                                             </th>
-                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Peran
                                             </th>
-                                            <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Honor
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
                                                 Perubahan
                                             </th>
                                         </tr>
@@ -490,23 +486,21 @@ export default function ShowByMonth({
                                             const changed = kegiatan.has_change;
                                             return (
                                                 <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
-                                                    <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-neutral-900 dark:text-white">
-                                                        {kegiatan.kode_kegiatan}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                
+                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white max-w-xs">
                                                         <div className="break-words">{kegiatan.nama_kegiatan}</div>
                                                     </td>
-                                                    <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
                                                         {getPeranLabel(kegiatan.peran)}
                                                     </td>
-                                                    <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                                                    <td className="px-3 py-3 text-right text-neutral-900 dark:text-white whitespace-nowrap">
                                                         Rp {kegiatan.total_honor.toLocaleString('id-ID')}
                                                     </td>
-                                                    <td className="px-3 py-3 text-sm">
+                                                    <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                         {changed ? (
                                                             <span className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
                                                                 <svg className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
-                                                                <span className="break-words">Ada perubahan berupa { Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor) < 0 ? "pengurangan" : "peningkatan" } sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}</span>
+                                                                <span className="break-words">Ada perubahan sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}</span>
                                                             </span>
                                                         ) : (
                                                             <span className="text-xs text-neutral-400">-</span>
@@ -518,12 +512,13 @@ export default function ShowByMonth({
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td colSpan={2} className="px-3 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
                                                 Total Honor:
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td colSpan={1} className="px-3 py-3 text-right font-semibold text-neutral-900 dark:text-white break-words">
                                                 Rp {kegiatan_list.reduce((sum, k) => sum + k.total_honor, 0).toLocaleString('id-ID')}
                                             </td>
+                                            <td colSpan={1}></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -541,30 +536,30 @@ export default function ShowByMonth({
                             <div className="space-y-3">
                                 {spk_documents.map((doc) => (
                                     <div key={doc.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex items-start gap-3 flex-1">
-                                                <FileText className="h-5 w-5 text-neutral-600 dark:text-neutral-400 mt-0.5" />
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
+                                        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                <FileText className="h-5 w-5 text-neutral-600 dark:text-neutral-400 mt-0.5 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
                                                         <p className="text-neutral-900 dark:text-white font-semibold">
                                                             {getDocumentLabel(doc.addendum_number)}
                                                         </p>
                                                         {getStatusBadge(doc.status)}
                                                     </div>
-                                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 break-words">
                                                         {doc.nomor_spk}
                                                     </p>
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 break-words">
                                                         Dibuat oleh {doc.created_by} pada {doc.created_at}
                                                     </p>
                                                     {doc.updated_at !== doc.created_at && (
-                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400 break-words">
                                                             Diperbarui pada {doc.updated_at}
                                                         </p>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-2">
+                                            <div className="flex flex-col gap-2 flex-shrink-0">
                                                 {doc.file_path ? (
                                                     <>
                                                         <Button
@@ -618,13 +613,13 @@ export default function ShowByMonth({
                                 </h3>
 
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Nomor BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{bast.nomor_bast}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{bast.nomor_bast}</p>
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">Tanggal BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{bast.tanggal_bast}</p>
+                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{bast.tanggal_bast}</p>
                                     </div>
                                 </div>
 

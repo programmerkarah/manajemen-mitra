@@ -68,8 +68,8 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [jenisKegiatan, setJenisKegiatan] = useState(filters.jenis_kegiatan || 'all');
 
-    // Check if user can create SK (only admin and pj)
-    const canCreateSk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj';
+    // Check if user can create SK (admin, pj, operator)
+    const canCreateSk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj' || auth.activeRole?.name === 'operator';
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -265,7 +265,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* Buat SK / Buat SK Perubahan - Only admin and pj */}
+                                                    {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (
                                                         <>
                                                             {/* Buat SK - Show only if no SK exists yet */}

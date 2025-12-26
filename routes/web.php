@@ -271,8 +271,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('sk-kpa/{skKpaHashedId}/upload-signed', [SkKpaController::class, 'uploadSigned'])->name('sk-kpa.upload-signed');
     });
 
-    // Document Management - Generate SK (Admin, PJ only - NOT operator)
-    Route::middleware(['active.role:admin,pj'])->group(function () {
+    // Document Management - Generate SK (Admin, PJ, Operator can generate)
+    Route::middleware(['active.role:admin,pj,operator'])->group(function () {
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}/create', [SkKpaController::class, 'create'])->name('sk-kpa.create-for-kegiatan');
         Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/preview', [SkKpaController::class, 'previewSk'])->name('sk-kpa.preview');
         Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/generate', [SkKpaController::class, 'generateSk'])->name('sk-kpa.generate');
@@ -286,7 +286,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     });
 
-    Route::middleware(['active.role:admin,approver'])->group(function () {
+    Route::middleware(['active.role:admin,approver,operator'])->group(function () {
         Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
         Route::get('spk/periode/{periodeHashedId}/addendum', [SpkController::class, 'createAddendum'])->name('spk.create-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview', [SpkController::class, 'previewSpk'])->name('spk.preview');
