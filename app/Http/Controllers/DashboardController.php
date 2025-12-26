@@ -325,6 +325,52 @@ class DashboardController extends Controller
             }
         }
 
+        // Calculate summary statistics - use last month data with allocations
+        // Petugas Monitoring Summary - Get from most recent month with data
+        $petugasMonitoringSummary = [
+            'tidak_dialokasikan' => 0,
+            'kegiatan_1_2' => 0,
+            'kegiatan_3_5' => 0,
+            'kegiatan_lebih_5' => 0,
+        ];
+
+        // Use the last available month data
+        if (count($petugasMonitoringData) > 0) {
+            $lastMonthData = end($petugasMonitoringData);
+            $petugasMonitoringSummary = [
+                'tidak_dialokasikan' => round(collect($petugasMonitoringData)->avg('tidak_dialokasikan'), 0),
+                'kegiatan_1_2' => round(collect($petugasMonitoringData)->avg('kegiatan_1_2'), 0),
+                'kegiatan_3_5' => round(collect($petugasMonitoringData)->avg('kegiatan_3_5'), 0),
+                'kegiatan_lebih_5' => round(collect($petugasMonitoringData)->avg('kegiatan_lebih_5'), 0),
+            ];
+        }
+
+        // Honor Inequality Summary - Average per month
+        $honorInequalitySummary = ['has_data' => false];
+
+        $honorMonthsWithData = collect($honorInequalityData)->filter(fn ($data) => $data['total_petugas'] > 0);
+
+        if ($honorMonthsWithData->count() > 0) {
+            $avgRataRataHonor = $honorMonthsWithData->avg('rata_rata_honor');
+            $avgHonorTertinggi = $honorMonthsWithData->avg('honor_tertinggi');
+            $avgHonorTerendah = $honorMonthsWithData->avg('honor_terendah');
+            $avgStdDeviasi = $honorMonthsWithData->avg('std_deviasi');
+            $avgKoefisienVariasi = $honorMonthsWithData->avg('koefisien_variasi');
+            $avgGapHonor = $avgHonorTertinggi - $avgHonorTerendah;
+            $avgTotalPetugas = $honorMonthsWithData->avg('total_petugas');
+
+            $honorInequalitySummary = [
+                'has_data' => true,
+                'rata_rata_honor' => round($avgRataRataHonor, 0),
+                'honor_tertinggi' => round($avgHonorTertinggi, 0),
+                'honor_terendah' => round($avgHonorTerendah, 0),
+                'std_deviasi' => round($avgStdDeviasi, 0),
+                'koefisien_variasi' => round($avgKoefisienVariasi, 2),
+                'gap_honor' => round($avgGapHonor, 0),
+                'total_petugas' => round($avgTotalPetugas, 0),
+            ];
+        }
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'additionalStats' => $additionalStats,
@@ -333,6 +379,8 @@ class DashboardController extends Controller
             'chartData' => $chartData,
             'petugasMonitoringData' => $petugasMonitoringData,
             'honorInequalityData' => $honorInequalityData,
+            'petugasMonitoringSummary' => $petugasMonitoringSummary,
+            'honorInequalitySummary' => $honorInequalitySummary,
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
             'userRole' => $user->role,

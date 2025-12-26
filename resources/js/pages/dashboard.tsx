@@ -150,6 +150,24 @@ interface KegiatanBulanIni {
     };
 }
 
+interface PetugasMonitoringSummary {
+    tidak_dialokasikan: number;
+    kegiatan_1_2: number;
+    kegiatan_3_5: number;
+    kegiatan_lebih_5: number;
+}
+
+interface HonorInequalitySummary {
+    has_data: boolean;
+    rata_rata_honor?: number;
+    honor_tertinggi?: number;
+    honor_terendah?: number;
+    std_deviasi?: number;
+    koefisien_variasi?: number;
+    gap_honor?: number;
+    total_petugas?: number;
+}
+
 interface DashboardProps {
     stats: DashboardStats;
     additionalStats: AdditionalStats;
@@ -158,6 +176,8 @@ interface DashboardProps {
     chartData: ChartData[];
     petugasMonitoringData: PetugasMonitoringData[];
     honorInequalityData: HonorInequalityData[];
+    petugasMonitoringSummary: PetugasMonitoringSummary;
+    honorInequalitySummary: HonorInequalitySummary;
     currentMonth: number;
     currentYear: number;
     userRole: string;
@@ -176,6 +196,8 @@ export default function Dashboard({
     chartData,
     petugasMonitoringData,
     honorInequalityData,
+    petugasMonitoringSummary,
+    honorInequalitySummary,
     currentMonth,
     currentYear,
     userRole,
@@ -541,9 +563,9 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Tidak Dialokasikan</span>
                                 </div>
                                 <p className="text-2xl font-bold text-red-700 dark:text-red-300">
-                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.tidak_dialokasikan || 0}
+                                    {petugasMonitoringSummary.tidak_dialokasikan}
                                 </p>
-                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Bulan ini</p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Januari - sekarang {currentYear}</p>
                             </div>
                             
                             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
@@ -552,9 +574,9 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase">Under-utilized</span>
                                 </div>
                                 <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_1_2 || 0}
+                                    {petugasMonitoringSummary.kegiatan_1_2}
                                 </p>
-                                <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70 mt-0.5">1-2 kegiatan</p>
+                                <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70 mt-0.5">1-2 kegiatan (Januari - sekarang {currentYear})</p>
                             </div>
                             
                             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
@@ -563,9 +585,9 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-green-600 dark:text-green-400 uppercase">Optimal</span>
                                 </div>
                                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_3_5 || 0}
+                                    {petugasMonitoringSummary.kegiatan_3_5}
                                 </p>
-                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">3-5 kegiatan</p>
+                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">3-5 kegiatan (Januari - sekarang {currentYear})</p>
                             </div>
                             
                             <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
@@ -574,9 +596,9 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Overload</span>
                                 </div>
                                 <p className="text-2xl font-bold text-red-700 dark:text-red-300">
-                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_lebih_5 || 0}
+                                    {petugasMonitoringSummary.kegiatan_lebih_5}
                                 </p>
-                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">&gt;5 kegiatan</p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">&gt;5 kegiatan (Januari - sekarang {currentYear})</p>
                             </div>
                         </div>
                     </div>
@@ -786,6 +808,7 @@ export default function Dashboard({
                         </div>
                         
                         {/* Key Metrics */}
+                        {honorInequalitySummary.has_data ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
                                 <div className="flex items-center gap-2 mb-1">
@@ -793,53 +816,53 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 uppercase">Rata-rata</span>
                                 </div>
                                 <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(honorInequalityData[honorInequalityData.length - 1]?.rata_rata_honor || 0)}
+                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(honorInequalitySummary.rata_rata_honor || 0)}
                                 </p>
-                                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">Rp/bulan</p>
+                                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">Rp/bulan ({currentYear})</p>
                             </div>
                             
                             <div className={`rounded-lg p-3 ${
-                                (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                (honorInequalitySummary.koefisien_variasi || 0) > 50 
                                     ? 'bg-red-50 dark:bg-red-900/20' 
-                                    : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                    : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                     ? 'bg-amber-50 dark:bg-amber-900/20'
                                     : 'bg-green-50 dark:bg-green-900/20'
                             }`}>
                                 <div className="flex items-center gap-2 mb-1">
                                     <AlertTriangle className={`size-3.5 ${
-                                        (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                        (honorInequalitySummary.koefisien_variasi || 0) > 50 
                                             ? 'text-red-600 dark:text-red-400' 
-                                            : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                            : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                             ? 'text-amber-600 dark:text-amber-400'
                                             : 'text-green-600 dark:text-green-400'
                                     }`} />
                                     <span className={`text-[10px] font-medium uppercase ${
-                                        (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                        (honorInequalitySummary.koefisien_variasi || 0) > 50 
                                             ? 'text-red-600 dark:text-red-400' 
-                                            : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                            : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                             ? 'text-amber-600 dark:text-amber-400'
                                             : 'text-green-600 dark:text-green-400'
                                     }`}>Ketimpangan</span>
                                 </div>
                                 <p className={`text-2xl font-bold ${
-                                    (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                    (honorInequalitySummary.koefisien_variasi || 0) > 50 
                                         ? 'text-red-700 dark:text-red-300' 
-                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                         ? 'text-amber-700 dark:text-amber-300'
                                         : 'text-green-700 dark:text-green-300'
                                 }`}>
-                                    {(honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0).toFixed(1)}%
+                                    {(honorInequalitySummary.koefisien_variasi || 0).toFixed(1)}%
                                 </p>
                                 <p className={`text-[10px] mt-0.5 ${
-                                    (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                    (honorInequalitySummary.koefisien_variasi || 0) > 50 
                                         ? 'text-red-600/70 dark:text-red-400/70' 
-                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                         ? 'text-amber-600/70 dark:text-amber-400/70'
                                         : 'text-green-600/70 dark:text-green-400/70'
                                 }`}>
-                                    {(honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                    {(honorInequalitySummary.koefisien_variasi || 0) > 50 
                                         ? 'Tinggi (>50%)' 
-                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        : (honorInequalitySummary.koefisien_variasi || 0) > 30
                                         ? 'Sedang (30-50%)'
                                         : 'Rendah (<30%)'}
                                 </p>
@@ -851,10 +874,9 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Gap Honor</span>
                                 </div>
                                 <p className="text-xl font-bold text-red-700 dark:text-red-300">
-                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format((honorInequalityData[honorInequalityData.length - 1]?.honor_tertinggi || 0) - 
-                                      (honorInequalityData[honorInequalityData.length - 1]?.honor_terendah || 0))}
+                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(honorInequalitySummary.gap_honor || 0)}
                                 </p>
-                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Rp</p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Rata-rata/bulan ({currentYear})</p>
                             </div>
                             
                             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
@@ -863,11 +885,20 @@ export default function Dashboard({
                                     <span className="text-[10px] font-medium text-green-600 dark:text-green-400 uppercase">Total Petugas</span>
                                 </div>
                                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                                    {honorInequalityData[honorInequalityData.length - 1]?.total_petugas || 0}
+                                    {honorInequalitySummary.total_petugas || 0}
                                 </p>
-                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">Menerima honor</p>
+                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">Rata-rata/bulan ({currentYear})</p>
                             </div>
                         </div>
+                        ) : (
+                        <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                            <div className="rounded-lg border border-dashed border-neutral-300 p-6 text-center dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900">
+                                <AlertCircle className="mx-auto size-8 text-neutral-400" />
+                                <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">Belum Ada Data Honor</p>
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Data honor petugas non-organik belum tersedia untuk tahun ini</p>
+                            </div>
+                        </div>
+                        )}
                     </div>
                 </div>
 
