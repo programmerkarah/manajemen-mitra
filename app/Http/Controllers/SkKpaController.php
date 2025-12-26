@@ -1020,6 +1020,7 @@ class SkKpaController extends Controller
         foreach ($periodsAfterSk as $periode) {
             $currentPersonnel = $periode->alokasiPetugas->pluck('petugas_id')->sort()->values();
 
+            // Always check for changes compared to previous periode
             if ($currentPersonnel->toArray() !== $previousPersonnel->toArray()) {
                 // Find added and removed personnel
                 $added = $currentPersonnel->diff($previousPersonnel);
@@ -1038,6 +1039,22 @@ class SkKpaController extends Controller
             $previousPersonnel = $currentPersonnel;
         }
 
+        // Determine first and last change months
+        $firstChangePeriod = $periodsAfterSk->first();
+        $lastChangePeriod = $periodsAfterSk->last();
+        $firstChangeMonth = $monthNames[$firstChangePeriod->bulan] ?? '';
+        $lastChangeMonth = $monthNames[$lastChangePeriod->bulan] ?? '';
+        
+        // Estimated SK month is the month after the last change period
+        $estimatedSkMonth = '';
+        $estimatedSkYear = $lastChangePeriod->tahun;
+        if ($lastChangePeriod->bulan < 12) {
+            $estimatedSkMonth = $monthNames[$lastChangePeriod->bulan + 1] ?? '';
+        } else {
+            $estimatedSkMonth = $monthNames[1] ?? 'Januari';
+            $estimatedSkYear = $lastChangePeriod->tahun + 1;
+        }
+
         // Even if no changes detected, if there are periods after SK, this is SK Perubahan
         if (empty($changes) && $periodsAfterSk->isNotEmpty()) {
             // No personnel changes but new periods exist
@@ -1049,9 +1066,11 @@ class SkKpaController extends Controller
                 'sk_year' => $latestSk->tahun,
                 'reference_month' => $monthNames[$referencePeriode->bulan] ?? '',
                 'reference_year' => $referencePeriode->tahun,
-                'first_change_month' => $monthNames[$periodsAfterSk->first()->bulan] ?? '',
-                'last_change_month' => $monthNames[$periodsAfterSk->last()->bulan] ?? '',
-                'change_year' => $activeYear,
+                'first_change_month' => $firstChangeMonth,
+                'last_change_month' => $lastChangeMonth,
+                'change_year' => $lastChangePeriod->tahun,
+                'estimated_sk_month' => $estimatedSkMonth,
+                'estimated_sk_year' => $estimatedSkYear,
                 'total_changes' => 0,
                 'changes' => [],
             ];
@@ -1072,6 +1091,8 @@ class SkKpaController extends Controller
             'first_change_month' => $firstChange['bulan_nama'],
             'last_change_month' => $lastChange['bulan_nama'],
             'change_year' => $firstChange['tahun'],
+            'estimated_sk_month' => $estimatedSkMonth,
+            'estimated_sk_year' => $estimatedSkYear,
             'total_changes' => count($changes),
             'changes' => $changes,
         ];

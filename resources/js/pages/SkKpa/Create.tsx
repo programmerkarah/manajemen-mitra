@@ -49,6 +49,8 @@ interface PersonnelChangeInfo {
     first_change_month: string
     last_change_month: string
     change_year: number
+    estimated_sk_month: string
+    estimated_sk_year: number
     total_changes: number
     changes: PeriodChange[]
 }
@@ -280,15 +282,42 @@ export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, 
                                             </div>
                                             <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
                                                 {personnelChangeInfo.first_change_month}
-                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && 
-                                                    ` - ${personnelChangeInfo.last_change_month}`
+                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && personnelChangeInfo.last_change_month
+                                                    ? ` - ${personnelChangeInfo.last_change_month}`
+                                                    : ''
                                                 } {personnelChangeInfo.change_year}
                                             </div>
                                             <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
-                                                {personnelChangeInfo.total_changes} periode berubah
+                                                {personnelChangeInfo.total_changes > 0 
+                                                    ? `${personnelChangeInfo.total_changes} periode berubah`
+                                                    : 'Periode baru setelah SK terakhir'
+                                                }
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Estimated SK Month - New Prominent Card */}
+                                    {personnelChangeInfo.estimated_sk_month && (
+                                        <div className="rounded-lg border-2 border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 p-3 dark:border-green-700 dark:from-green-950/50 dark:to-emerald-950/50">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                                </svg>
+                                                <div className="text-xs font-semibold text-green-700 dark:text-green-300">
+                                                    Perkiraan SK Perubahan ini:
+                                                </div>
+                                            </div>
+                                            <div className="text-xl font-bold text-green-800 dark:text-green-200">
+                                                {personnelChangeInfo.estimated_sk_month} {personnelChangeInfo.estimated_sk_year}
+                                            </div>
+                                            <div className="text-xs text-green-700 dark:text-green-300 mt-1">
+                                                Berdasarkan periode alokasi terakhir
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Detail Perubahan */}
                                     {personnelChangeInfo.has_changes && personnelChangeInfo.changes.length > 0 ? (
@@ -333,11 +362,11 @@ export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, 
                                     )}
 
                                     {/* Suggestion */}
-                                    {personnelChangeInfo.last_change_month && (
+                                    {personnelChangeInfo.estimated_sk_month && (
                                         <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2.5 dark:bg-amber-900/20">
                                             <span className="text-base">💡</span>
                                             <p className="text-xs text-amber-800 dark:text-amber-200">
-                                                <strong>Saran:</strong> Gunakan tanggal setelah periode perubahan terakhir ({personnelChangeInfo.last_change_month} {personnelChangeInfo.change_year}) untuk SK Perubahan ini.
+                                                <strong>Saran:</strong> Gunakan tanggal di bulan {personnelChangeInfo.estimated_sk_month} {personnelChangeInfo.estimated_sk_year} atau setelahnya untuk SK Perubahan ini.
                                             </p>
                                         </div>
                                     )}
