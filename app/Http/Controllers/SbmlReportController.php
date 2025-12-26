@@ -86,7 +86,6 @@ class SbmlReportController extends Controller
                     if (! isset($kegiatanDetails[$kegiatanId])) {
                         $kegiatanDetails[$kegiatanId] = [
                             'kegiatan_id' => $kegiatanId,
-                            'kegiatan_hashed_id' => $alokasi->periodeAlokasi->kegiatan->hashed_id,
                             'nama_kegiatan' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
                             'jenis_kegiatan' => $alokasi->periodeAlokasi->jenis_kegiatan,
                             'total_honor' => 0,
