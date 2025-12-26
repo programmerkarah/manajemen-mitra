@@ -7,7 +7,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, Pencil, X, ChevronLeft, ChevronRight, Save, Loader2 } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -47,18 +47,22 @@ interface UsersIndexProps {
 export default function Index({ users, filters }: UsersIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
-            '/users',
-            { search },
-            { 
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
+    // Auto-filter with debounce
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            router.get(
+                '/users',
+                { search },
+                { 
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                }
+            );
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [search]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -73,7 +77,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
 
                 {/* Search */}
                 <ContentCard>
-                    <form onSubmit={handleSearch} className="flex gap-4">
+                    <div className="flex gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
                             <Input
@@ -84,10 +88,6 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 className="h-11 text-base pl-10"
                             />
                         </div>
-                        <Button type="submit" className="gap-2 h-11">
-                            <Search className="h-5 w-5" />
-                            Cari
-                        </Button>
                         {search && (
                             <Button
                                 type="button"
@@ -102,7 +102,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 Reset
                             </Button>
                         )}
-                    </form>
+                    </div>
                 </ContentCard>
 
                 {/* User List */}

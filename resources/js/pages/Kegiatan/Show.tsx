@@ -273,8 +273,6 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                         {kegiatan.status === 'aktif' && 'Aktif'}
                                         {kegiatan.status === 'selesai' &&
                                             'Selesai'}
-                                        {kegiatan.status === 'dibatalkan' &&
-                                            'Dibatalkan'}
                                     </span>
                                 </div>
                             </div>

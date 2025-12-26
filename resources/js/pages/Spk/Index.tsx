@@ -2,18 +2,9 @@ import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight, FileEdit } from 'lucide-react';
-import { useState } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 
 interface KegiatanItem {
@@ -66,59 +57,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'SPK', href: '/spk' },
 ];
 
-const bulanOptions = [
-    { value: 'all', label: 'Semua Bulan' },
-    { value: '1', label: 'Januari' },
-    { value: '2', label: 'Februari' },
-    { value: '3', label: 'Maret' },
-    { value: '4', label: 'April' },
-    { value: '5', label: 'Mei' },
-    { value: '6', label: 'Juni' },
-    { value: '7', label: 'Juli' },
-    { value: '8', label: 'Agustus' },
-    { value: '9', label: 'September' },
-    { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'Desember' },
-];
-
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const [search, setSearch] = useState(filters.search || '');
-    const [bulan, setBulan] = useState(filters.bulan?.toString() || 'all');
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
-            '/spk',
-            {
-                search: search || undefined,
-                bulan: bulan && bulan !== 'all' ? bulan : undefined,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
-
-    const handleReset = () => {
-        setSearch('');
-        setBulan('all');
-        router.get(
-            '/spk',
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -129,57 +72,6 @@ export default function Index({ periodeList, filters }: IndexProps) {
                     title="Surat Perjanjian Kerja (SPK)"
                     description="Kelola Surat Perjanjian Kerja untuk petugas per bulan"
                 />
-
-                {/* Filter & Search */}
-                <ContentCard>
-                    <form onSubmit={handleSearch} className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div>
-                                <label htmlFor="search" className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                    Cari Kegiatan
-                                </label>
-                                <Input
-                                    id="search"
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Nama atau kode kegiatan..."
-                                    className="w-full"
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="bulan" className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                    Bulan
-                                </label>
-                                <Select
-                                    value={bulan}
-                                    onValueChange={(value) => setBulan(value)}
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Semua Bulan" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {bulanOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="flex items-end gap-2">
-                                <Button type="submit" className="flex-1">
-                                    Cari
-                                </Button>
-                                <Button type="button" variant="outline" onClick={handleReset}>
-                                    Reset
-                                </Button>
-                            </div>
-                        </div>
-                    </form>
-                </ContentCard>
 
                 {/* Table */}
                 <ContentCard>
@@ -217,34 +109,34 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                 ) : (
                                     periodeList.data.map((monthData, index) => (
                                         <tr key={`${monthData.tahun}-${monthData.bulan}`} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
-                                            <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                            <td className="px-4 py-4 text-sm font-medium text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.bulan_label} {monthData.tahun}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="space-y-1">
+                                            <td className="px-4 py-4">
+                                                <div className="space-y-1 max-w-md">
                                                     {monthData.kegiatan_list.map((kegiatan, kegIndex) => (
                                                         <div key={kegiatan.periode_id} className="text-sm">
-                                                            <div className="font-medium text-neutral-900 dark:text-white">
+                                                            <div className="font-medium text-neutral-900 dark:text-white break-words">
                                                                 {kegiatan.nama_kegiatan}
                                                             </div>
-                                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                            <div className="text-xs text-neutral-600 dark:text-neutral-400 break-words">
                                                                 {kegiatan.kode_kegiatan} • {kegiatan.jumlah_petugas_non_organik} petugas non-organik
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-4 py-4 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.total_petugas_non_organik} petugas
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-4 py-4 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.total_spk} SPK
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4 whitespace-nowrap">
                                                 <StatusBadge status={monthData.spk_status_type} />
                                             </td>
-                                            <td className="px-6 py-4 text-right text-sm">
-                                                <div className="flex items-center justify-end gap-2">
+                                            <td className="px-4 py-4">
+                                                <div className="flex flex-col items-end gap-1.5">
                                                     {/* Generate SPK - Show if:
                                                         1. No SPK exists at all (total_spk === 0), OR
                                                         2. Some petugas don't have SPK yet (total_spk < total_petugas_non_organik)
@@ -254,7 +146,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         <Button
                                                             size="sm"
                                                             asChild
-                                                            className="gap-1"
+                                                            className="gap-1 w-full justify-start"
                                                         >
                                                             <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}>
                                                                 <Plus className="h-3.5 w-3.5" />
@@ -274,7 +166,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                             size="sm"
                                                             variant="default"
                                                             asChild
-                                                            className="gap-1 bg-orange-600 hover:bg-orange-700"
+                                                            className="gap-1 bg-orange-600 hover:bg-orange-700 w-full justify-start"
                                                         >
                                                             <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}>
                                                                 <Plus className="h-3.5 w-3.5" />
@@ -292,10 +184,10 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                 bulan: monthData.bulan,
                                                                 tahun: monthData.tahun
                                                             })}
-                                                            className="gap-1"
+                                                            className="gap-1 w-full justify-start"
                                                         >
                                                             <Eye className="h-3.5 w-3.5" />
-                                                            Lihat Detail SPK
+                                                            Lihat Detail
                                                         </Button>
                                                     )}
 
@@ -310,7 +202,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                             size="sm"
                                                             variant="default"
                                                             asChild
-                                                            className="gap-1"
+                                                            className="gap-1 w-full justify-start"
                                                         >
                                                             <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
                                                                 <FileEdit className="h-3.5 w-3.5" />
@@ -329,7 +221,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                             size="sm"
                                                             variant="default"
                                                             asChild
-                                                            className="gap-1 bg-purple-600 hover:bg-purple-700"
+                                                            className="gap-1 bg-purple-600 hover:bg-purple-700 w-full justify-start"
                                                         >
                                                             <Link href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}>
                                                                 <FileEdit className="h-3.5 w-3.5" />

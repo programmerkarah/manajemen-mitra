@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -52,18 +52,22 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         file: null as File | null,
     });
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
-            '/petugas',
-            { search, status },
-            { 
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
+    // Auto-filter with debounce
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            router.get(
+                '/petugas',
+                { search, status },
+                { 
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                }
+            );
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [search, status]);
 
     const handleImport = (e: React.FormEvent) => {
         e.preventDefault();
@@ -132,7 +136,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
 
                 {/* Filters */}
                 <ContentCard>
-                    <form onSubmit={handleSearch} className="flex flex-col gap-4 sm:flex-row">
+                    <div className="flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -155,11 +159,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 <SelectItem value="nonaktif">Nonaktif</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button type="submit" className="gap-2">
-                            <Search className="h-4 w-4" />
-                            Filter
-                        </Button>
-                    </form>
+                    </div>
                 </ContentCard>
 
                 {/* Table */}

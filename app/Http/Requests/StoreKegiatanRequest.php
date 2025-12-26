@@ -38,7 +38,7 @@ class StoreKegiatanRequest extends FormRequest
             'ketua_tim_user_id' => [$user && $user->isKetuaTim() ? 'nullable' : 'required', 'exists:users,id'],
             'pj_lainnya_id' => ['nullable', 'exists:users,id'],
             'rate_honor_id' => ['nullable', 'exists:rate_honor,id'],
-            'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
+            'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai'],
         ];
     }
 

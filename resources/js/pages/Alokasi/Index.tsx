@@ -20,10 +20,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { StatusBadge } from '@/components/status-badge'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
 import { useState } from 'react'
-import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight, Filter, RotateCcw, Users } from 'lucide-react'
+import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight, Filter, RotateCcw, Users, MoreVertical } from 'lucide-react'
 
 interface AlokasiPeriod {
     kegiatan_id: number
@@ -342,9 +348,9 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                         key={`${periode.kegiatan_id}-${periode.bulan}-${periode.tahun}-${index}`}
                                         className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
                                     >
-                                        <td className="whitespace-nowrap px-6 py-4">
-                                            <div>
-                                                <div className="font-medium text-neutral-900 dark:text-white">
+                                        <td className="px-6 py-4">
+                                            <div className="max-w-xs">
+                                                <div className="font-medium text-neutral-900 dark:text-white break-words">
                                                     {periode.kegiatan.nama_kegiatan}
                                                 </div>
                                                 <div className="text-sm text-neutral-500 dark:text-neutral-400">
@@ -376,90 +382,78 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <StatusBadge status={periode.status} />
                                         </td>
-                                        <td className="whitespace-nowrap px-6 py-4">
-                                            <div className="flex gap-2">
+                                        <td className="whitespace-nowrap px-4 py-4">
+                                            <div className="flex items-center justify-end gap-2">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
                                                     asChild
-                                                    className="gap-2"
+                                                    className="gap-1.5 shrink-0"
                                                     title="Lihat Detail"
                                                 >
                                                     <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}`}>
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className="h-3.5 w-3.5" />
                                                         Detail
                                                     </Link>
                                                 </Button>
-                                                {!isPJ && periode.status === 'draft' && (
-                                                    <>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="default"
-                                                            className="gap-2 bg-blue-600 hover:bg-blue-700"
-                                                            onClick={() => handleKirim(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
-                                                        >
-                                                            <Send className="h-4 w-4" />
-                                                            Kirim
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                                            <MoreVertical className="h-4 w-4" />
                                                         </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            asChild
-                                                            className="gap-2"
-                                                        >
-                                                            <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}/edit`}>
-                                                                <Edit2 className="h-4 w-4" />
-                                                                Edit
-                                                            </Link>
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            asChild
-                                                            className="gap-2"
-                                                        >
-                                                            <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
-                                                                <Copy className="h-4 w-4" />
-                                                                Salin
-                                                            </Link>
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            className="gap-2"
-                                                            onClick={() => handleBatalkan(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                            Batalkan
-                                                        </Button>
-                                                    </>
-                                                )}
-                                                {!isPJ && (periode.status === 'dikirim' || periode.status === 'perubahan') && (
-                                                    <>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            asChild
-                                                            className="gap-2"
-                                                        >
-                                                            <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`}>
-                                                                <Copy className="h-4 w-4" />
-                                                                Salin
-                                                            </Link>
-                                                        </Button>
-                                                        {periode.is_latest_periode && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="default"
-                                                                className="gap-2 bg-purple-600 hover:bg-purple-700"
-                                                                onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
-                                                            >
-                                                                <RefreshCw className="h-4 w-4" />
-                                                                Revisi
-                                                            </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        {!isPJ && periode.status === 'draft' && (
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleKirim(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                                    className="gap-2 cursor-pointer"
+                                                                >
+                                                                    <Send className="h-4 w-4" />
+                                                                    Kirim
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem className="gap-2 cursor-pointer">
+                                                                    <Link href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}/edit`} className="flex items-center gap-2 w-full">
+                                                                        <Edit2 className="h-4 w-4" />
+                                                                        Edit
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem className="gap-2 cursor-pointer">
+                                                                    <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`} className="flex items-center gap-2 w-full">
+                                                                        <Copy className="h-4 w-4" />
+                                                                        Salin
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleBatalkan(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                                    className="gap-2 cursor-pointer text-red-600 dark:text-red-400"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                    Batalkan
+                                                                </DropdownMenuItem>
+                                                            </>
                                                         )}
-                                                    </>
-                                                )}
+                                                        {!isPJ && (periode.status === 'dikirim' || periode.status === 'perubahan') && (
+                                                            <>
+                                                                <DropdownMenuItem className="gap-2 cursor-pointer">
+                                                                    <Link href={`/alokasi/create?kegiatan_id=${periode.kegiatan.hashed_id}&copy_from_bulan=${periode.bulan}&copy_from_tahun=${periode.tahun}`} className="flex items-center gap-2 w-full">
+                                                                        <Copy className="h-4 w-4" />
+                                                                        Salin
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                                {periode.is_latest_periode && (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => handleRevisi(periode.kegiatan.hashed_id, periode.bulan, periode.tahun, periode.kegiatan.nama_kegiatan)}
+                                                                        className="gap-2 cursor-pointer text-purple-600 dark:text-purple-400"
+                                                                    >
+                                                                        <RefreshCw className="h-4 w-4" />
+                                                                        Revisi
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </td>
                                     </tr>

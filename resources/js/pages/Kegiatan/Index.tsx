@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -62,18 +62,22 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
-            '/kegiatan',
-            { search, status },
-            { 
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
+    // Auto-filter with debounce
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            router.get(
+                '/kegiatan',
+                { search, status },
+                { 
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                }
+            );
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [search, status]);
 
     const handleReset = () => {
         setSearch('');
@@ -210,7 +214,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
                 {/* Filters */}
                 <ContentCard>
-                    <form onSubmit={handleSearch} className="space-y-4">
+                    <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div className="space-y-2">
                                 <Label htmlFor="search" className="text-base font-semibold">Cari Kegiatan</Label>
@@ -238,14 +242,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <option value="draft">Draft</option>
                                     <option value="divalidasi">Divalidasi</option>
                                     <option value="selesai">Selesai</option>
-                                    <option value="dibatalkan">Dibatalkan</option>
                                 </select>
                             </div>
                             <div className="flex items-end gap-2">
-                                <Button type="submit" className="flex-1 gap-2">
-                                    <Filter className="h-5 w-5" />
-                                    Filter
-                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -257,7 +256,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 </Button>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </ContentCard>
 
                 {/* Table */}
