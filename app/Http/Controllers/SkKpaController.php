@@ -1044,7 +1044,7 @@ class SkKpaController extends Controller
         $lastChangePeriod = $periodsAfterSk->last();
         $firstChangeMonth = $monthNames[$firstChangePeriod->bulan] ?? '';
         $lastChangeMonth = $monthNames[$lastChangePeriod->bulan] ?? '';
-        
+
         // Estimated SK month is the month after the last change period
         $estimatedSkMonth = '';
         $estimatedSkYear = $lastChangePeriod->tahun;

@@ -192,7 +192,7 @@ class DashboardController extends Controller
         // Chart data from January to current month
         $chartData = [];
         $petugasMonitoringData = [];
-        
+
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
 
@@ -222,7 +222,7 @@ class DashboardController extends Controller
             $totalPetugasAktif = Petugas::where('status', 'aktif')
                 ->where('jenis_petugas', 'non-organik')
                 ->count();
-            
+
             // Get all alokasi for this month with non-organik petugas only
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
@@ -236,9 +236,9 @@ class DashboardController extends Controller
 
             // Count by categories
             $petugasTidakDialokasikan = $totalPetugasAktif - $alokasiThisMonth->count();
-            $petugas1_2Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan >= 1 && $p->jumlah_kegiatan <= 2)->count();
-            $petugas3_5Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan >= 3 && $p->jumlah_kegiatan <= 5)->count();
-            $petugasLebih5Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan > 5)->count();
+            $petugas1_2Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan >= 1 && $p->jumlah_kegiatan <= 2)->count();
+            $petugas3_5Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan >= 3 && $p->jumlah_kegiatan <= 5)->count();
+            $petugasLebih5Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan > 5)->count();
 
             $petugasMonitoringData[] = [
                 'month' => $monthName,
@@ -287,11 +287,11 @@ class DashboardController extends Controller
                 $coefficientVariation = $avgHonor > 0 ? ($stdDev / $avgHonor) * 100 : 0;
 
                 // Count distribution brackets
-                $honor0_500rb = collect($honors)->filter(fn($h) => $h >= 0 && $h <= 500000)->count();
-                $honor501rb_1500rb = collect($honors)->filter(fn($h) => $h >= 501000 && $h <= 1500000)->count();
-                $honor1501rb_2500rb = collect($honors)->filter(fn($h) => $h >= 1501000 && $h <= 2500000)->count();
-                $honor2501rb_3500rb = collect($honors)->filter(fn($h) => $h >= 2501000 && $h <= 3500000)->count();
-                $honorLebih3501rb = collect($honors)->filter(fn($h) => $h >= 3501000)->count();
+                $honor0_500rb = collect($honors)->filter(fn ($h) => $h >= 0 && $h <= 500000)->count();
+                $honor501rb_1500rb = collect($honors)->filter(fn ($h) => $h >= 501000 && $h <= 1500000)->count();
+                $honor1501rb_2500rb = collect($honors)->filter(fn ($h) => $h >= 1501000 && $h <= 2500000)->count();
+                $honor2501rb_3500rb = collect($honors)->filter(fn ($h) => $h >= 2501000 && $h <= 3500000)->count();
+                $honorLebih3501rb = collect($honors)->filter(fn ($h) => $h >= 3501000)->count();
 
                 $honorInequalityData[] = [
                     'month' => $monthName,
