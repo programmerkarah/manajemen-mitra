@@ -26,7 +26,11 @@ class ViewAsUserController extends Controller
 
         session(['view_as_user_id' => $viewAsUser->id]);
 
-        return redirect()->back()->with('success', "Sekarang viewing sebagai: {$viewAsUser->name}");
+        $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
+
+        return redirect($redirectUrl)
+            ->with('success', "Sekarang viewing sebagai: {$viewAsUser->name}")
+            ->header('X-Inertia-Location', $redirectUrl);
     }
 
     /**
@@ -41,7 +45,11 @@ class ViewAsUserController extends Controller
 
         session()->forget('view_as_user_id');
 
-        return redirect()->back()->with('success', 'Kembali sebagai user asli');
+        $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
+
+        return redirect($redirectUrl)
+            ->with('success', 'Kembali sebagai user asli')
+            ->header('X-Inertia-Location', $redirectUrl);
     }
 
     /**

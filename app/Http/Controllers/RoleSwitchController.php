@@ -32,9 +32,12 @@ class RoleSwitchController extends Controller
         $role = Role::find($validated['role_id']);
         $targetUser->setActiveRole($validated['role_id']);
 
-        // Force full page reload by redirecting to current URL
-        return redirect($request->headers->get('referer') ?? route('dashboard'))
+        $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
+
+        // Force full page reload by redirecting to current URL with X-Inertia-Location header
+        // This ensures Inertia cache is cleared and fresh data is loaded
+        return redirect($redirectUrl)
             ->with('success', "Peran Anda sekarang sudah berubah menjadi {$role->display_name}.")
-            ->header('X-Inertia-Location', $request->headers->get('referer') ?? route('dashboard'));
+            ->header('X-Inertia-Location', $redirectUrl);
     }
 }
