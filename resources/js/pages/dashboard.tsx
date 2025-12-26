@@ -24,6 +24,7 @@ import {
     ScrollText,
     TrendingUp,
 } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 
@@ -47,11 +48,6 @@ interface AdditionalStats {
         aktif: number;
         nonaktif: number;
     };
-    dipa: {
-        total: number;
-        aktif: number;
-        nonaktif: number;
-    };
     penandatangan: {
         total: number;
         kepala: number;
@@ -66,7 +62,6 @@ interface AdditionalStats {
         total: number;
         draft: number;
         diterbitkan: number;
-        dibatalkan: number;
     };
     spk: {
         total: number;
@@ -81,10 +76,52 @@ interface AdditionalStats {
     };
     alokasi_detail: {
         draft: number;
-        diajukan: number;
-        disetujui: number;
-        ditolak: number;
+        dikirim: number;
+        direvisi: number;
     };
+}
+
+interface RecentAlokasi {
+    id: number;
+    status: string;
+    bulan: number;
+    tahun: number;
+    kegiatan: {
+        nama_kegiatan: string;
+        kode_kegiatan: string;
+    };
+    jumlah_organik: number;
+    jumlah_non_organik: number;
+    total_petugas: number;
+}
+
+interface ChartData {
+    month: string;
+    petugas_count: number;
+    kegiatan_count: number;
+}
+
+interface PetugasMonitoringData {
+    month: string;
+    tidak_dialokasikan: number;
+    kegiatan_1_2: number;
+    kegiatan_3_5: number;
+    kegiatan_lebih_5: number;
+}
+
+interface HonorInequalityData {
+    month: string;
+    rata_rata_honor: number;
+    honor_tertinggi: number;
+    honor_terendah: number;
+    std_deviasi: number;
+    koefisien_variasi: number;
+    honor_0_500rb: number;
+    honor_501rb_1500rb: number;
+    honor_1501rb_2500rb: number;
+    honor_2501rb_3500rb: number;
+    honor_lebih_3501rb: number;
+    total_petugas: number;
 }
 
 interface KegiatanBulanIni {
@@ -116,8 +153,11 @@ interface KegiatanBulanIni {
 interface DashboardProps {
     stats: DashboardStats;
     additionalStats: AdditionalStats;
-    recentAlokasi: any[];
+    recentAlokasi: RecentAlokasi[];
     kegiatanBulanIni: KegiatanBulanIni[];
+    chartData: ChartData[];
+    petugasMonitoringData: PetugasMonitoringData[];
+    honorInequalityData: HonorInequalityData[];
     currentMonth: number;
     currentYear: number;
     userRole: string;
@@ -133,6 +173,9 @@ export default function Dashboard({
     additionalStats,
     recentAlokasi,
     kegiatanBulanIni,
+    chartData,
+    petugasMonitoringData,
+    honorInequalityData,
     currentMonth,
     currentYear,
     userRole,
@@ -141,183 +184,76 @@ export default function Dashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex flex-1 flex-col gap-8">
+            <div className="flex flex-1 flex-col gap-6 overflow-x-hidden">
                 {/* Welcome Section */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-8 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white break-words">
                         Selamat Datang, {auth.user.name}! 👋
                     </h1>
-                    <p className="mt-2 text-neutral-600 dark:text-neutral-400">
+                    <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 break-words">
                         SIMANTIK (Sistem Manajemen Petugas dan Administrasi Kegiatan Statistik) - Kelola data petugas, kegiatan, dan alokasi dengan mudah
                     </p>
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Petugas Aktif</p>
-                                <p className="mt-2 text-3xl font-bold text-neutral-900 dark:text-white">{stats.total_petugas}</p>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-w-0">
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl flex flex-col justify-between min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">Petugas Aktif</p>
+                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">{stats.total_petugas}</p>
                             </div>
-                            <div className="rounded-lg bg-blue-100 p-3 dark:bg-neutral-700/50">
-                                <Users className="size-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Kegiatan Berjalan</p>
-                                <p className="mt-2 text-3xl font-bold text-neutral-900 dark:text-white">{stats.total_kegiatan}</p>
-                            </div>
-                            <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
-                                <Briefcase className="size-6 text-green-600 dark:text-green-400" />
+                            <div className="rounded-lg bg-blue-100 p-2.5 dark:bg-neutral-700/50 flex-shrink-0">
+                                <Users className="size-5 text-blue-600 dark:text-blue-400" />
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Menunggu Approval</p>
-                                <p className="mt-2 text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.alokasi_pending}</p>
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl flex flex-col justify-between min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">Kegiatan Berjalan</p>
+                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">{stats.total_kegiatan}</p>
                             </div>
-                            <div className="rounded-lg bg-amber-100 p-3 dark:bg-amber-900/30">
-                                <Clock className="size-6 text-amber-600 dark:text-amber-400" />
+                            <div className="rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30 flex-shrink-0">
+                                <Briefcase className="size-5 text-green-600 dark:text-green-400" />
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-8 shadow-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">BAST Pending</p>
-                                <p className="mt-2 text-3xl font-bold text-purple-600 dark:text-purple-400">{stats.bast_pending}</p>
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl flex flex-col justify-between min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">Draft Kegiatan</p>
+                                <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.alokasi_pending}</p>
                             </div>
-                            <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30">
-                                <AlertCircle className="size-6 text-purple-600 dark:text-purple-400" />
+                            <div className="rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30 flex-shrink-0">
+                                <Clock className="size-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl flex flex-col justify-between min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">BAST Pending</p>
+                                <p className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.bast_pending}</p>
+                            </div>
+                            <div className="rounded-lg bg-purple-100 p-2.5 dark:bg-purple-900/30 flex-shrink-0">
+                                <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Comprehensive Statistics */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {/* SBML Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-indigo-100 p-3 dark:bg-indigo-900/30">
-                                <Database className="size-5 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SBML</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.sbml.total}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sbml.aktif}</span>
-                                    <StatusBadge status="aktif" showIcon={false} />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Nonaktif</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sbml.nonaktif}</span>
-                                    <StatusBadge status="nonaktif" showIcon={false} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* DIPA Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/30">
-                                <FolderOpen className="size-5 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">DIPA</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.dipa.total}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dipa.aktif}</span>
-                                    <StatusBadge status="aktif" showIcon={false} />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Nonaktif</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dipa.nonaktif}</span>
-                                    <StatusBadge status="nonaktif" showIcon={false} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Penandatangan Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-violet-100 p-3 dark:bg-violet-900/30">
-                                <UserCheck className="size-5 text-violet-600 dark:text-violet-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Penandatangan</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.penandatangan.total}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">Kepala</span>
-                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.kepala}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">PPK</span>
-                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.ppk}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">Aktif</span>
-                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.penandatangan.aktif}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Dasar Hukum Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-cyan-100 p-3 dark:bg-cyan-900/30">
-                                <BookOpen className="size-5 text-cyan-600 dark:text-cyan-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Dasar Hukum</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.dasar_hukum.total}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Aktif</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.dasar_hukum.aktif}</span>
-                                    <StatusBadge status="aktif" showIcon={false} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                <div className="grid gap-4 sm:grid-cols-2 min-w-0">
                     {/* SK Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-rose-100 p-3 dark:bg-rose-900/30">
-                                <FileSignature className="size-5 text-rose-600 dark:text-rose-400" />
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-5 shadow-2xl min-w-0">
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <div className="rounded-lg bg-rose-100 p-2.5 dark:bg-rose-900/30 flex-shrink-0">
+                                <FileSignature className="size-4 text-rose-600 dark:text-rose-400" />
                             </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SK Petugas</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.sk.total}</p>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white truncate">SK Petugas</h3>
+                                <p className="text-xl font-bold text-neutral-900 dark:text-white">{additionalStats.sk.total}</p>
                             </div>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
@@ -326,30 +262,26 @@ export default function Dashboard({
                                 <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.draft}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">Diterbitkan</span>
+                                <span className="text-neutral-600 dark:text-neutral-400">Ditetapkan</span>
                                 <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.diterbitkan}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">Dibatalkan</span>
-                                <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.sk.dibatalkan}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* SPK Stats */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-orange-100 p-3 dark:bg-orange-900/30">
-                                <ScrollText className="size-5 text-orange-600 dark:text-orange-400" />
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-5 shadow-2xl min-w-0">
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <div className="rounded-lg bg-orange-100 p-2.5 dark:bg-orange-900/30 flex-shrink-0">
+                                <ScrollText className="size-4 text-orange-600 dark:text-orange-400" />
                             </div>
-                            <div>
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">SPK</h3>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{additionalStats.spk.total}</p>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white truncate">SPK</h3>
+                                <p className="text-xl font-bold text-neutral-900 dark:text-white">{additionalStats.spk.total}</p>
                             </div>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">Total SPK Diterbitkan</span>
+                                <span className="text-neutral-600 dark:text-neutral-400">Total Diterbitkan</span>
                                 <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.spk.total}</span>
                             </div>
                         </div>
@@ -357,14 +289,14 @@ export default function Dashboard({
                 </div>
 
                 {/* Detailed Breakdown */}
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
                     {/* Petugas Detail */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-sky-100 p-3 dark:bg-sky-900/30">
-                                <Users className="size-5 text-sky-600 dark:text-sky-400" />
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-5 shadow-2xl min-w-0">
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <div className="rounded-lg bg-sky-100 p-2.5 dark:bg-sky-900/30 flex-shrink-0">
+                                <Users className="size-4 text-sky-600 dark:text-sky-400" />
                             </div>
-                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Petugas by Jenis</h3>
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white truncate">Petugas by Jenis</h3>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -379,12 +311,12 @@ export default function Dashboard({
                     </div>
 
                     {/* Kegiatan Detail */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-teal-100 p-3 dark:bg-teal-900/30">
-                                <Briefcase className="size-5 text-teal-600 dark:text-teal-400" />
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-5 shadow-2xl min-w-0">
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <div className="rounded-lg bg-teal-100 p-2.5 dark:bg-teal-900/30 flex-shrink-0">
+                                <Briefcase className="size-4 text-teal-600 dark:text-teal-400" />
                             </div>
-                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Kegiatan by Jenis</h3>
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white truncate">Kegiatan by Jenis</h3>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -399,12 +331,12 @@ export default function Dashboard({
                     </div>
 
                     {/* Alokasi Detail */}
-                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="rounded-lg bg-fuchsia-100 p-3 dark:bg-fuchsia-900/30">
-                                <TrendingUp className="size-5 text-fuchsia-600 dark:text-fuchsia-400" />
+                    <div className="rounded-2xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/50 backdrop-blur-2xl p-5 shadow-2xl min-w-0">
+                        <div className="flex items-center gap-2.5 mb-3">
+                            <div className="rounded-lg bg-fuchsia-100 p-2.5 dark:bg-fuchsia-900/30 flex-shrink-0">
+                                <TrendingUp className="size-4 text-fuchsia-600 dark:text-fuchsia-400" />
                             </div>
-                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Alokasi by Status</h3>
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white truncate">Alokasi by Status</h3>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -415,69 +347,577 @@ export default function Dashboard({
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Diajukan</span>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Dikirim</span>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.diajukan}</span>
-                                    <StatusBadge status="diajukan" showIcon={false} />
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.dikirim}</span>
+                                    <StatusBadge status="dikirim" showIcon={false} />
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Disetujui</span>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Direvisi</span>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.disetujui}</span>
-                                    <StatusBadge status="disetujui" showIcon={false} />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">Ditolak</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.ditolak}</span>
-                                    <StatusBadge status="ditolak" showIcon={false} />
+                                    <span className="font-medium text-neutral-900 dark:text-white">{additionalStats.alokasi_detail.direvisi}</span>
+                                    <StatusBadge status="direvisi" showIcon={false} />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Recent Activities */}
-                <div className="grid gap-6 lg:grid-cols-2">
-                    {/* Recent Alokasi */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col">
-                        <div className="border-b border-neutral-200 pb-6 mb-6 dark:border-neutral-800">
-                            <div className="flex items-center gap-2">
-                                <Activity className="size-5 text-blue-600 dark:text-blue-400" />
-                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Alokasi Terbaru</h3>
+                {/* Monthly Charts */}
+                <div className="grid gap-4 min-w-0">
+                    {/* Combined Chart: Petugas & Kegiatan */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900 min-w-0">
+                        <div className="border-b border-neutral-200 pb-4 mb-4 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Tren Alokasi Bulanan {currentYear}</h3>
+                                <div className="flex items-center gap-3 text-xs">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="size-2 rounded-full bg-indigo-500"></div>
+                                        <span className="text-neutral-600 dark:text-neutral-400 font-medium">Petugas</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="size-2 rounded-full bg-green-500"></div>
+                                        <span className="text-neutral-600 dark:text-neutral-400 font-medium">Kegiatan</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex-1">
-                            <div className="space-y-4">
+                        <div className="space-y-2">
+                            <ResponsiveContainer width="100%" height={280}>
+                                <LineChart
+                                    data={chartData}
+                                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                                >
+                                    <CartesianGrid 
+                                        strokeDasharray="3 3" 
+                                        stroke="currentColor" 
+                                        className="text-neutral-200 dark:text-neutral-700" 
+                                        opacity={0.3}
+                                    />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                    />
+                                    <YAxis 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{
+                                            backgroundColor: 'var(--color-bg)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '8px',
+                                            padding: '8px 12px'
+                                        }}
+                                        labelStyle={{ 
+                                            color: 'var(--color-text)',
+                                            fontWeight: 600,
+                                            marginBottom: '4px'
+                                        }}
+                                        itemStyle={{ fontSize: '13px' }}
+                                    />
+                                    <Legend 
+                                        wrapperStyle={{ paddingTop: '16px' }}
+                                        iconType="circle"
+                                        iconSize={8}
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="petugas_count" 
+                                        stroke="rgb(99, 102, 241)" 
+                                        strokeWidth={2.5}
+                                        dot={{ fill: 'rgb(99, 102, 241)', r: 4 }}
+                                        activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                                        name="Petugas"
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="kegiatan_count" 
+                                        stroke="rgb(34, 197, 94)" 
+                                        strokeWidth={2.5}
+                                        dot={{ fill: 'rgb(34, 197, 94)', r: 4 }}
+                                        activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                                        name="Kegiatan"
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Petugas Monitoring Chart */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900 min-w-0">
+                        <div className="border-b border-neutral-200 pb-4 mb-4 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Distribusi Beban Kerja Petugas {currentYear}</h3>
+                            </div>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Monitoring alokasi kegiatan per petugas untuk evaluasi workload</p>
+                        </div>
+                        <div className="space-y-2">
+                            <ResponsiveContainer width="100%" height={280}>
+                                <BarChart
+                                    data={petugasMonitoringData}
+                                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                                >
+                                    <CartesianGrid 
+                                        strokeDasharray="3 3" 
+                                        stroke="currentColor" 
+                                        className="text-neutral-200 dark:text-neutral-700" 
+                                        opacity={0.3}
+                                    />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                    />
+                                    <YAxis 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 12 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => new Intl.NumberFormat('id-ID').format(value)}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{
+                                            backgroundColor: 'var(--color-bg)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '8px',
+                                            padding: '8px 12px'
+                                        }}
+                                        labelStyle={{ 
+                                            color: 'var(--color-text)',
+                                            fontWeight: 600,
+                                            marginBottom: '4px'
+                                        }}
+                                        itemStyle={{ fontSize: '13px' }}
+                                    />
+                                    <Legend 
+                                        wrapperStyle={{ paddingTop: '16px' }}
+                                        iconType="square"
+                                        iconSize={10}
+                                    />
+                                    <Bar 
+                                        dataKey="tidak_dialokasikan" 
+                                        fill="rgba(69, 141, 236, 1)" 
+                                        name="Tidak Dialokasikan"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="kegiatan_1_2" 
+                                        fill="rgb(251, 191, 36)" 
+                                        name="1-2 Kegiatan"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="kegiatan_3_5" 
+                                        fill="rgb(34, 197, 94)" 
+                                        name="3-5 Kegiatan"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="kegiatan_lebih_5" 
+                                        fill="rgb(239, 68, 68)" 
+                                        name=">5 Kegiatan (Overload)"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertCircle className="size-3.5 text-red-600 dark:text-red-400" />
+                                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Tidak Dialokasikan</span>
+                                </div>
+                                <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.tidak_dialokasikan || 0}
+                                </p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Bulan ini</p>
+                            </div>
+                            
+                            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase">Under-utilized</span>
+                                </div>
+                                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_1_2 || 0}
+                                </p>
+                                <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70 mt-0.5">1-2 kegiatan</p>
+                            </div>
+                            
+                            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <CheckCircle className="size-3.5 text-green-600 dark:text-green-400" />
+                                    <span className="text-[10px] font-medium text-green-600 dark:text-green-400 uppercase">Optimal</span>
+                                </div>
+                                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_3_5 || 0}
+                                </p>
+                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">3-5 kegiatan</p>
+                            </div>
+                            
+                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <XCircle className="size-3.5 text-red-600 dark:text-red-400" />
+                                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Overload</span>
+                                </div>
+                                <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+                                    {petugasMonitoringData[petugasMonitoringData.length - 1]?.kegiatan_lebih_5 || 0}
+                                </p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">&gt;5 kegiatan</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Honor Inequality Chart */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900 min-w-0">
+                        <div className="border-b border-neutral-200 pb-4 mb-4 dark:border-neutral-800">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Analisis Ketimpangan Honor {currentYear}</h3>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Early warning system untuk distribusi honor yang tidak merata</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            {/* Distribution Chart */}
+                            <ResponsiveContainer width="100%" height={220}>
+                                <BarChart
+                                    data={honorInequalityData}
+                                    margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                                >
+                                    <CartesianGrid 
+                                        strokeDasharray="3 3" 
+                                        stroke="currentColor" 
+                                        className="text-neutral-200 dark:text-neutral-700" 
+                                        opacity={0.3}
+                                    />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 11 }}
+                                        tickLine={false}
+                                    />
+                                    <YAxis 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => new Intl.NumberFormat('id-ID').format(value)}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{
+                                            backgroundColor: 'var(--color-bg)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '8px',
+                                            padding: '8px 12px'
+                                        }}
+                                        labelStyle={{ 
+                                            color: 'var(--color-text)',
+                                            fontWeight: 600,
+                                            marginBottom: '4px'
+                                        }}
+                                        itemStyle={{ fontSize: '12px' }}
+                                        itemSorter={(item: any) => {
+                                            const order = ['honor_0_500rb', 'honor_501rb_1500rb', 'honor_1501rb_2500rb', 'honor_2501rb_3500rb', 'honor_lebih_3501rb'];
+                                            return order.indexOf(item.dataKey);
+                                        }}
+                                    />
+                                    <Legend 
+                                        wrapperStyle={{ paddingTop: '12px' }}
+                                        iconType="square"
+                                        iconSize={8}
+                                    />
+                                    <Bar 
+                                        dataKey="honor_0_500rb" 
+                                        stackId="a"
+                                        fill="rgba(48, 238, 197, 1)" 
+                                        name="0-500rb"
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="honor_501rb_1500rb" 
+                                        stackId="a"
+                                        fill="rgba(56, 197, 240, 1)" 
+                                        name="501rb-1,5jt"
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="honor_1501rb_2500rb" 
+                                        stackId="a"
+                                        fill="rgb(34, 197, 94)" 
+                                        name="1,5jt-2,5jt"
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="honor_2501rb_3500rb" 
+                                        stackId="a"
+                                        fill="rgba(230, 116, 51, 1)" 
+                                        name="2,5jt-3,5jt"
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                    <Bar 
+                                        dataKey="honor_lebih_3501rb" 
+                                        stackId="a"
+                                        fill="rgba(235, 57, 34, 1)" 
+                                        name=">3,5jt"
+                                        radius={[4, 4, 0, 0]}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+
+                            {/* Inequality Metric Chart */}
+                            <ResponsiveContainer width="100%" height={180}>
+                                <ComposedChart
+                                    data={honorInequalityData}
+                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                                >
+                                    <CartesianGrid 
+                                        strokeDasharray="3 3" 
+                                        stroke="currentColor" 
+                                        className="text-neutral-200 dark:text-neutral-700" 
+                                        opacity={0.3}
+                                    />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 11 }}
+                                        tickLine={false}
+                                    />
+                                    <YAxis 
+                                        yAxisId="left"
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        label={{ value: 'Honor (Rp)', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }}
+                                        tickFormatter={(value) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(value)}
+                                    />
+                                    <YAxis 
+                                        yAxisId="right"
+                                        orientation="right"
+                                        stroke="currentColor"
+                                        className="text-neutral-600 dark:text-neutral-400"
+                                        tick={{ fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        label={{ value: 'CV (%)', angle: 90, position: 'insideRight', style: { fontSize: 10 } }}
+                                        tickFormatter={(value) => value + '%'}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{
+                                            backgroundColor: 'var(--color-bg)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '8px',
+                                            padding: '8px 12px'
+                                        }}
+                                        labelStyle={{ 
+                                            color: 'var(--color-text)',
+                                            fontWeight: 600,
+                                            marginBottom: '4px'
+                                        }}
+                                        itemStyle={{ fontSize: '12px' }}
+                                        formatter={(value: number | undefined, name: string | undefined) => {
+                                            if (name === 'Koef. Variasi (%)') {
+                                                return (value?.toFixed(2) ?? '0') + '%';
+                                            }
+                                            return 'Rp ' + (value ? new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value) : '0');
+                                        }}
+                                    />
+                                    <Legend 
+                                        wrapperStyle={{ paddingTop: '12px' }}
+                                        iconSize={8}
+                                    />
+                                    <Area
+                                        yAxisId="left"
+                                        type="monotone"
+                                        dataKey="honor_tertinggi"
+                                        fill="rgba(239, 68, 68, 0.1)"
+                                        stroke="rgb(239, 68, 68)"
+                                        strokeWidth={2}
+                                        name="Honor Tertinggi"
+                                    />
+                                    <Area
+                                        yAxisId="left"
+                                        type="monotone"
+                                        dataKey="honor_terendah"
+                                        fill="rgba(34, 197, 94, 0.1)"
+                                        stroke="rgb(34, 197, 94)"
+                                        strokeWidth={2}
+                                        name="Honor Terendah"
+                                    />
+                                    <Line
+                                        yAxisId="left"
+                                        type="monotone"
+                                        dataKey="rata_rata_honor"
+                                        stroke="rgb(99, 102, 241)"
+                                        strokeWidth={2.5}
+                                        dot={{ fill: 'rgb(99, 102, 241)', r: 4 }}
+                                        name="Rata-rata Honor"
+                                    />
+                                    <Line
+                                        yAxisId="right"
+                                        type="monotone"
+                                        dataKey="koefisien_variasi"
+                                        stroke="rgb(251, 191, 36)"
+                                        strokeWidth={2.5}
+                                        strokeDasharray="5 5"
+                                        dot={{ fill: 'rgb(251, 191, 36)', r: 4 }}
+                                        name="Koef. Variasi (%)"
+                                    />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                        
+                        {/* Key Metrics */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <TrendingUp className="size-3.5 text-blue-600 dark:text-blue-400" />
+                                    <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 uppercase">Rata-rata</span>
+                                </div>
+                                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(honorInequalityData[honorInequalityData.length - 1]?.rata_rata_honor || 0)}
+                                </p>
+                                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">Rp/bulan</p>
+                            </div>
+                            
+                            <div className={`rounded-lg p-3 ${
+                                (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                    ? 'bg-red-50 dark:bg-red-900/20' 
+                                    : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                    ? 'bg-amber-50 dark:bg-amber-900/20'
+                                    : 'bg-green-50 dark:bg-green-900/20'
+                            }`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertTriangle className={`size-3.5 ${
+                                        (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                            ? 'text-red-600 dark:text-red-400' 
+                                            : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : 'text-green-600 dark:text-green-400'
+                                    }`} />
+                                    <span className={`text-[10px] font-medium uppercase ${
+                                        (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                            ? 'text-red-600 dark:text-red-400' 
+                                            : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : 'text-green-600 dark:text-green-400'
+                                    }`}>Ketimpangan</span>
+                                </div>
+                                <p className={`text-2xl font-bold ${
+                                    (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                        ? 'text-red-700 dark:text-red-300' 
+                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        ? 'text-amber-700 dark:text-amber-300'
+                                        : 'text-green-700 dark:text-green-300'
+                                }`}>
+                                    {(honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0).toFixed(1)}%
+                                </p>
+                                <p className={`text-[10px] mt-0.5 ${
+                                    (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                        ? 'text-red-600/70 dark:text-red-400/70' 
+                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        ? 'text-amber-600/70 dark:text-amber-400/70'
+                                        : 'text-green-600/70 dark:text-green-400/70'
+                                }`}>
+                                    {(honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 50 
+                                        ? 'Tinggi (>50%)' 
+                                        : (honorInequalityData[honorInequalityData.length - 1]?.koefisien_variasi || 0) > 30
+                                        ? 'Sedang (30-50%)'
+                                        : 'Rendah (<30%)'}
+                                </p>
+                            </div>
+                            
+                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertCircle className="size-3.5 text-red-600 dark:text-red-400" />
+                                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase">Gap Honor</span>
+                                </div>
+                                <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                                    {new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format((honorInequalityData[honorInequalityData.length - 1]?.honor_tertinggi || 0) - 
+                                      (honorInequalityData[honorInequalityData.length - 1]?.honor_terendah || 0))}
+                                </p>
+                                <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">Rp</p>
+                            </div>
+                            
+                            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Users className="size-3.5 text-green-600 dark:text-green-400" />
+                                    <span className="text-[10px] font-medium text-green-600 dark:text-green-400 uppercase">Total Petugas</span>
+                                </div>
+                                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                    {honorInequalityData[honorInequalityData.length - 1]?.total_petugas || 0}
+                                </p>
+                                <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">Menerima honor</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Recent Activities */}
+                <div className="grid gap-4 lg:grid-cols-2 min-w-0">
+                    {/* Recent Alokasi */}
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col min-w-0">
+                        <div className="border-b border-neutral-200 pb-4 mb-4 dark:border-neutral-800">
+                            <div className="flex items-center gap-2">
+                                <Activity className="size-4 text-blue-600 dark:text-blue-400" />
+                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">Alokasi Terbaru</h3>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="space-y-3">
                                 {recentAlokasi.length > 0 ? (
                                     recentAlokasi.map((alokasi) => (
                                         <div
                                             key={alokasi.id}
-                                            className="flex items-start justify-between rounded-lg border border-neutral-200 p-4 transition-all hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700 bg-white dark:bg-neutral-900"
+                                            className="rounded-lg border border-neutral-200 p-3 transition-all hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700 bg-white dark:bg-neutral-900 min-w-0"
                                         >
-                                            <div className="flex-1">
-                                                <div className="font-medium text-neutral-900 dark:text-white">{alokasi.petugas.nama}</div>
-                                                <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{alokasi.kegiatan.nama_kegiatan || alokasi.kegiatan.kode_kegiatan}</div>
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-semibold text-sm text-neutral-900 dark:text-white truncate">
+                                                        {alokasi.kegiatan.nama_kegiatan || alokasi.kegiatan.kode_kegiatan}
+                                                    </div>
+                                                    <div className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-400">
+                                                        Bulan {monthNames[alokasi.bulan - 1]} {alokasi.tahun}
+                                                    </div>
+                                                </div>
+                                                <StatusBadge status={alokasi.status} showIcon={false} />
                                             </div>
-                                            <span
-                                                className={`ml-4 inline-flex shrink-0 items-center rounded-full px-3 py-1 text-xs font-medium ${
-                                                    alokasi.status === 'disetujui'
-                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                        : alokasi.status === 'diajukan'
-                                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                                          : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300'
-                                                }`}
-                                            >
-                                                {alokasi.status}
-                                            </span>
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="size-1.5 rounded-full bg-blue-500"></div>
+                                                    <span className="text-neutral-600 dark:text-neutral-400">Organik:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{alokasi.jumlah_organik}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="size-1.5 rounded-full bg-green-500"></div>
+                                                    <span className="text-neutral-600 dark:text-neutral-400">Non-Organik:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{alokasi.jumlah_non_organik}</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center dark:border-neutral-700 bg-white dark:bg-neutral-900">
-                                        <Activity className="mx-auto size-8 text-neutral-400" />
-                                        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Belum ada data alokasi</p>
+                                    <div className="rounded-lg border border-dashed border-neutral-300 p-6 text-center dark:border-neutral-700 bg-white dark:bg-neutral-900">
+                                        <Activity className="mx-auto size-6 text-neutral-400" />
+                                        <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">Belum ada data alokasi</p>
                                     </div>
                                 )}
                             </div>
@@ -485,12 +925,12 @@ export default function Dashboard({
                     </div>
 
                     {/* Kegiatan Bulan Ini */}
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col">
-                        <div className="border-b border-neutral-200 pb-6 mb-6 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="size-5 text-green-600 dark:text-green-400" />
-                                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900 flex flex-col min-w-0">
+                        <div className="border-b border-neutral-200 pb-4 mb-4 dark:border-neutral-800">
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <Calendar className="size-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                    <h3 className="text-base font-semibold text-neutral-900 dark:text-white truncate">
                                         Kegiatan {monthNames[currentMonth - 1]} {currentYear}
                                     </h3>
                                 </div>

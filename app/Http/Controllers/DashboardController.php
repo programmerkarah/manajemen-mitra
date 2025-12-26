@@ -14,6 +14,7 @@ use App\Models\SkKpa;
 use App\Models\Spk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +30,7 @@ class DashboardController extends Controller
         $stats = [
             'total_petugas' => Petugas::where('status', 'aktif')->count(),
             'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count(),
-            'alokasi_pending' => PeriodeAlokasi::where('status', 'diajukan')->count(),
+            'alokasi_pending' => PeriodeAlokasi::where('status', 'draft')->count(),
             'bast_pending' => Bast::where('status', 'draft')->count(),
         ];
 
@@ -83,9 +84,8 @@ class DashboardController extends Controller
             // Alokasi by Status
             'alokasi_detail' => [
                 'draft' => PeriodeAlokasi::where('status', 'draft')->count(),
-                'diajukan' => PeriodeAlokasi::where('status', 'diajukan')->count(),
-                'disetujui' => PeriodeAlokasi::where('status', 'disetujui')->count(),
-                'ditolak' => PeriodeAlokasi::where('status', 'ditolak')->count(),
+                'dikirim' => PeriodeAlokasi::where('status', 'dikirim')->count(),
+                'direvisi' => PeriodeAlokasi::where('status', 'direvisi')->count(),
             ],
         ];
 
@@ -95,33 +95,39 @@ class DashboardController extends Controller
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan',
                 'alokasiPetugas:id,periode_alokasi_id,petugas_id',
-                'alokasiPetugas.petugas:id,nama,nik',
+                'alokasiPetugas.petugas:id,jenis_petugas',
             ])
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);
             })
             ->when($user->isApprover(), function ($query) {
-                $query->where('status', 'diajukan');
+                $query->where('status', 'dikirim');
             })
             ->latest()
             ->limit(5)
             ->get()
             ->map(function ($periode) {
-                // Get first petugas from alokasi for display
-                $firstAlokasi = $periode->alokasiPetugas->first();
+                // Count organik and non-organik petugas
+                $organikCount = $periode->alokasiPetugas->filter(function ($alokasi) {
+                    return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'organik';
+                })->count();
+
+                $nonOrganikCount = $periode->alokasiPetugas->filter(function ($alokasi) {
+                    return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+                })->count();
 
                 return [
                     'id' => $periode->id,
                     'status' => $periode->status,
+                    'bulan' => $periode->bulan,
+                    'tahun' => $periode->tahun,
                     'kegiatan' => [
                         'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
                         'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
                     ],
-                    'petugas' => $firstAlokasi && $firstAlokasi->petugas ? [
-                        'nama' => $firstAlokasi->petugas->nama,
-                    ] : [
-                        'nama' => 'N/A',
-                    ],
+                    'jumlah_organik' => $organikCount,
+                    'jumlah_non_organik' => $nonOrganikCount,
+                    'total_petugas' => $organikCount + $nonOrganikCount,
                 ];
             });
 
@@ -183,11 +189,150 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Chart data from January to current month
+        $chartData = [];
+        $petugasMonitoringData = [];
+        
+        for ($month = 1; $month <= $currentMonth; $month++) {
+            $monthName = Carbon::create($currentYear, $month, 1)->format('M');
+
+            // Count total non-organik petugas allocated for this month
+            $totalPetugasAlokasi = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
+                ->distinct('alokasi_petugas.petugas_id')
+                ->count('alokasi_petugas.petugas_id');
+
+            // Count kegiatan for this month
+            $kegiatanCount = PeriodeAlokasi::where('bulan', $month)
+                ->where('tahun', $currentYear)
+                ->distinct('kegiatan_id')
+                ->count('kegiatan_id');
+
+            $chartData[] = [
+                'month' => $monthName,
+                'petugas_count' => $totalPetugasAlokasi,
+                'kegiatan_count' => $kegiatanCount,
+            ];
+
+            // Petugas monitoring data - non-organik only
+            $totalPetugasAktif = Petugas::where('status', 'aktif')
+                ->where('jenis_petugas', 'non-organik')
+                ->count();
+            
+            // Get all alokasi for this month with non-organik petugas only
+            $alokasiThisMonth = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
+                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
+                ->groupBy('alokasi_petugas.petugas_id')
+                ->get();
+
+            // Count by categories
+            $petugasTidakDialokasikan = $totalPetugasAktif - $alokasiThisMonth->count();
+            $petugas1_2Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan >= 1 && $p->jumlah_kegiatan <= 2)->count();
+            $petugas3_5Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan >= 3 && $p->jumlah_kegiatan <= 5)->count();
+            $petugasLebih5Kegiatan = $alokasiThisMonth->filter(fn($p) => $p->jumlah_kegiatan > 5)->count();
+
+            $petugasMonitoringData[] = [
+                'month' => $monthName,
+                'tidak_dialokasikan' => $petugasTidakDialokasikan,
+                'kegiatan_1_2' => $petugas1_2Kegiatan,
+                'kegiatan_3_5' => $petugas3_5Kegiatan,
+                'kegiatan_lebih_5' => $petugasLebih5Kegiatan,
+            ];
+        }
+
+        // Honor inequality analysis data
+        $honorInequalityData = [];
+        for ($month = 1; $month <= $currentMonth; $month++) {
+            $monthName = Carbon::create($currentYear, $month, 1)->format('M');
+
+            // Get all honor data for this month
+            $honorData = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
+                ->select(
+                    'alokasi_petugas.petugas_id',
+                    DB::raw('SUM(alokasi_petugas.total_honor + alokasi_petugas.total_honor_listing) as total_honor_bulan')
+                )
+                ->groupBy('alokasi_petugas.petugas_id')
+                ->having('total_honor_bulan', '>', 0)
+                ->get();
+
+            if ($honorData->count() > 0) {
+                $honors = $honorData->pluck('total_honor_bulan')->toArray();
+                $totalHonor = array_sum($honors);
+                $avgHonor = $totalHonor / count($honors);
+                $maxHonor = max($honors);
+                $minHonor = min($honors);
+
+                // Calculate standard deviation
+                $variance = 0;
+                foreach ($honors as $honor) {
+                    $variance += pow($honor - $avgHonor, 2);
+                }
+                $stdDev = sqrt($variance / count($honors));
+
+                // Calculate coefficient of variation (CV) as inequality measure
+                $coefficientVariation = $avgHonor > 0 ? ($stdDev / $avgHonor) * 100 : 0;
+
+                // Count distribution brackets
+                $honor0_500rb = collect($honors)->filter(fn($h) => $h >= 0 && $h <= 500000)->count();
+                $honor501rb_1500rb = collect($honors)->filter(fn($h) => $h >= 501000 && $h <= 1500000)->count();
+                $honor1501rb_2500rb = collect($honors)->filter(fn($h) => $h >= 1501000 && $h <= 2500000)->count();
+                $honor2501rb_3500rb = collect($honors)->filter(fn($h) => $h >= 2501000 && $h <= 3500000)->count();
+                $honorLebih3501rb = collect($honors)->filter(fn($h) => $h >= 3501000)->count();
+
+                $honorInequalityData[] = [
+                    'month' => $monthName,
+                    'rata_rata_honor' => round($avgHonor, 0),
+                    'honor_tertinggi' => round($maxHonor, 0),
+                    'honor_terendah' => round($minHonor, 0),
+                    'std_deviasi' => round($stdDev, 0),
+                    'koefisien_variasi' => round($coefficientVariation, 2),
+                    'honor_0_500rb' => $honor0_500rb,
+                    'honor_501rb_1500rb' => $honor501rb_1500rb,
+                    'honor_1501rb_2500rb' => $honor1501rb_2500rb,
+                    'honor_2501rb_3500rb' => $honor2501rb_3500rb,
+                    'honor_lebih_3501rb' => $honorLebih3501rb,
+                    'total_petugas' => count($honors),
+                ];
+            } else {
+                $honorInequalityData[] = [
+                    'month' => $monthName,
+                    'rata_rata_honor' => 0,
+                    'honor_tertinggi' => 0,
+                    'honor_terendah' => 0,
+                    'std_deviasi' => 0,
+                    'koefisien_variasi' => 0,
+                    'honor_0_500rb' => 0,
+                    'honor_501rb_1500rb' => 0,
+                    'honor_1501rb_2500rb' => 0,
+                    'honor_2501rb_3500rb' => 0,
+                    'honor_lebih_3501rb' => 0,
+                    'total_petugas' => 0,
+                ];
+            }
+        }
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'additionalStats' => $additionalStats,
             'recentAlokasi' => $recentAlokasi,
             'kegiatanBulanIni' => $kegiatanBulanIni,
+            'chartData' => $chartData,
+            'petugasMonitoringData' => $petugasMonitoringData,
+            'honorInequalityData' => $honorInequalityData,
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
             'userRole' => $user->role,

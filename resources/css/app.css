@@ -185,4 +185,17 @@
     .dark * {
         scrollbar-color: rgb(82 82 82 / 0.5) transparent;
     }
+
+    /* Recharts Tooltip Dark Mode Support */
+    :root {
+        --color-bg: white;
+        --color-border: rgb(229 231 235);
+        --color-text: rgb(23 23 23);
+    }
+
+    .dark {
+        --color-bg: rgb(23 23 23);
+        --color-border: rgb(38 38 38);
+        --color-text: rgb(250 250 250);
+    }
 }
