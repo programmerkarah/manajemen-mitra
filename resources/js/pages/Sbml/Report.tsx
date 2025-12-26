@@ -326,28 +326,32 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                                                                                     {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
                                                                                         alokasi.jumlah_satuan_listing !== null ? (
                                                                                             <>
-                                                                                                <tr key={`${alokasiIdx}-listing`} className="border-t">
-                                                                                                    <td className="p-2">
-                                                                                                        Listing
-                                                                                                    </td>
-                                                                                                    <td className="p-2 text-center">
-                                                                                                        {alokasi.jumlah_satuan_listing}
-                                                                                                    </td>
-                                                                                                    <td className="p-2 text-right font-medium">
-                                                                                                        {formatCurrency(alokasi.total_honor_listing)}
-                                                                                                    </td>
-                                                                                                </tr>
-                                                                                                <tr key={`${alokasiIdx}-pencacahan`} className="border-t">
-                                                                                                    <td className="p-2">
-                                                                                                        Pencacahan
-                                                                                                    </td>
-                                                                                                    <td className="p-2 text-center">
-                                                                                                        {alokasi.jumlah_satuan}
-                                                                                                    </td>
-                                                                                                    <td className="p-2 text-right font-medium">
-                                                                                                        {formatCurrency(alokasi.total_honor)}
-                                                                                                    </td>
-                                                                                                </tr>
+                                                                                                {alokasi.jumlah_satuan_listing > 0 && (
+                                                                                                    <tr key={`${alokasiIdx}-listing`} className="border-t">
+                                                                                                        <td className="p-2">
+                                                                                                            Listing
+                                                                                                        </td>
+                                                                                                        <td className="p-2 text-center">
+                                                                                                            {alokasi.jumlah_satuan_listing}
+                                                                                                        </td>
+                                                                                                        <td className="p-2 text-right font-medium">
+                                                                                                            {formatCurrency(alokasi.total_honor_listing)}
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                )}
+                                                                                                {alokasi.jumlah_satuan > 0 && (
+                                                                                                    <tr key={`${alokasiIdx}-pencacahan`} className="border-t">
+                                                                                                        <td className="p-2">
+                                                                                                            Pencacahan
+                                                                                                        </td>
+                                                                                                        <td className="p-2 text-center">
+                                                                                                            {alokasi.jumlah_satuan}
+                                                                                                        </td>
+                                                                                                        <td className="p-2 text-right font-medium">
+                                                                                                            {formatCurrency(alokasi.total_honor)}
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                )}
                                                                                             </>
                                                                                         ) : (
                                                                                             <tr

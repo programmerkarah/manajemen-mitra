@@ -96,16 +96,19 @@ class SbmlReportController extends Controller
                         ];
                     }
 
-                    $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
-                    $kegiatanDetails[$kegiatanId]['alokasi'][] = [
-                        'peran' => $this->formatPeran($alokasi->peran),
-                        'jumlah_satuan' => $alokasi->jumlah_satuan,
-                        'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                        'total_honor' => $alokasi->total_honor,
-                        'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
-                        'status_kepegawaian' => $alokasi->status_kepegawaian,
-                        'catatan' => $alokasi->catatan,
-                    ];
+                    // Only include alokasi with jumlah_satuan > 0 or jumlah_satuan_listing > 0
+                    if ($alokasi->jumlah_satuan > 0 || ($alokasi->jumlah_satuan_listing ?? 0) > 0) {
+                        $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
+                        $kegiatanDetails[$kegiatanId]['alokasi'][] = [
+                            'peran' => $this->formatPeran($alokasi->peran),
+                            'jumlah_satuan' => $alokasi->jumlah_satuan,
+                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
+                            'total_honor' => $alokasi->total_honor,
+                            'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
+                            'status_kepegawaian' => $alokasi->status_kepegawaian,
+                            'catatan' => $alokasi->catatan,
+                        ];
+                    }
                 }
 
                 return [

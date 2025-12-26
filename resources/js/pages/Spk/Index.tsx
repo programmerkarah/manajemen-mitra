@@ -60,8 +60,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
 
-    // Check if user can create SPK (admin, approver, and operator)
-    const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver' || auth.activeRole?.name === 'operator';
+    // Check if user can create SPK (only admin and pj)
+    const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

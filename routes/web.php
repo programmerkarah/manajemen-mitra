@@ -286,7 +286,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     });
 
-    Route::middleware(['active.role:admin,approver,operator'])->group(function () {
+    Route::middleware(['active.role:admin,approver'])->group(function () {
         Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
         Route::get('spk/periode/{periodeHashedId}/addendum', [SpkController::class, 'createAddendum'])->name('spk.create-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview', [SpkController::class, 'previewSpk'])->name('spk.preview');
