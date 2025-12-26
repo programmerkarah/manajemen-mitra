@@ -35,7 +35,7 @@ class SbmlReportController extends Controller
         $petugasData = AlokasiPetugas::with([
             'petugas:id,nama,nik,jenis_petugas',
             'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status',
-            'periodeAlokasi.kegiatan:id,hashed_id,nama_kegiatan',
+            'periodeAlokasi.kegiatan:id,nama_kegiatan',
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
