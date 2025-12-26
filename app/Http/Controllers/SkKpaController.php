@@ -868,9 +868,10 @@ class SkKpaController extends Controller
             ->orderBy('bulan')
             ->get();
 
-        // If no SK exists yet, check if there are any periods (need at least one for first SK)
+        // If no SK exists yet, return false (this is for first SK creation, not changes)
+        // The button "Buat SK" will be shown based on sk_count === 0, not this method
         if (! $latestSk) {
-            return $periods->count() > 0;
+            return false;
         }
 
         // Get periods that exist AFTER the latest SK bulan
@@ -889,8 +890,8 @@ class SkKpaController extends Controller
             ->first();
 
         if (! $lastPeriodeBeforeSk) {
-            // If we can't find reference periode, any new periode means changes
-            return true;
+            // If we can't find reference periode, can't determine changes
+            return false;
         }
 
         // Get personnel from the last periode before/at SK creation
@@ -964,54 +965,20 @@ class SkKpaController extends Controller
         // Get periods that exist AFTER the latest SK
         $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
 
+        // If no periods after SK, no SK Perubahan needed
+        if ($periodsAfterSk->isEmpty()) {
+            return null;
+        }
+
         // Find the reference periode (last one before or at SK creation)
         $referencePeriode = $periods
             ->filter(fn ($p) => $p->bulan <= $latestSk->bulan)
             ->sortByDesc('bulan')
             ->first();
 
-        // If no periods after SK, but SK exists, show info about latest SK
-        if ($periodsAfterSk->isEmpty()) {
-            // Still show info that this would be SK Perubahan but no new periods yet
-            return [
-                'has_changes' => false,
-                'sk_number' => $latestSk->nomor_sk,
-                'sk_date' => $latestSk->tanggal_sk->format('d-m-Y'),
-                'sk_month' => $monthNames[$latestSk->bulan] ?? '',
-                'sk_year' => $latestSk->tahun,
-                'reference_month' => $referencePeriode ? ($monthNames[$referencePeriode->bulan] ?? '') : '',
-                'reference_year' => $referencePeriode ? $referencePeriode->tahun : $latestSk->tahun,
-                'first_change_month' => '',
-                'last_change_month' => '',
-                'change_year' => $activeYear,
-                'total_changes' => 0,
-                'changes' => [],
-            ];
-        }
-
+        // If no reference found, return null
         if (! $referencePeriode) {
-            // No reference found, but SK exists - show basic info
-            return [
-                'has_changes' => true,
-                'sk_number' => $latestSk->nomor_sk,
-                'sk_date' => $latestSk->tanggal_sk->format('d-m-Y'),
-                'sk_month' => $monthNames[$latestSk->bulan] ?? '',
-                'sk_year' => $latestSk->tahun,
-                'reference_month' => '',
-                'reference_year' => $latestSk->tahun,
-                'first_change_month' => $periodsAfterSk->first() ? ($monthNames[$periodsAfterSk->first()->bulan] ?? '') : '',
-                'last_change_month' => $periodsAfterSk->last() ? ($monthNames[$periodsAfterSk->last()->bulan] ?? '') : '',
-                'change_year' => $activeYear,
-                'total_changes' => $periodsAfterSk->count(),
-                'changes' => $periodsAfterSk->map(fn ($p) => [
-                    'bulan' => $p->bulan,
-                    'bulan_nama' => $monthNames[$p->bulan] ?? '',
-                    'tahun' => $p->tahun,
-                    'added_count' => $p->alokasiPetugas->count(),
-                    'removed_count' => 0,
-                    'total_petugas' => $p->alokasiPetugas->count(),
-                ])->toArray(),
-            ];
+            return null;
         }
 
         // Build change details
@@ -1041,46 +1008,24 @@ class SkKpaController extends Controller
             $previousPersonnel = $currentPersonnel;
         }
 
+        // If NO actual personnel changes detected, return null - no SK Perubahan needed
+        if (empty($changes)) {
+            return null;
+        }
+
         // Determine first and last change months
-        $firstChangePeriod = $periodsAfterSk->first();
-        $lastChangePeriod = $periodsAfterSk->last();
-        $firstChangeMonth = $monthNames[$firstChangePeriod->bulan] ?? '';
-        $lastChangeMonth = $monthNames[$lastChangePeriod->bulan] ?? '';
+        $firstChange = collect($changes)->first();
+        $lastChange = collect($changes)->last();
 
         // Estimated SK month is the month after the last change period
         $estimatedSkMonth = '';
-        $estimatedSkYear = $lastChangePeriod->tahun;
-        if ($lastChangePeriod->bulan < 12) {
-            $estimatedSkMonth = $monthNames[$lastChangePeriod->bulan + 1] ?? '';
+        $estimatedSkYear = $lastChange['tahun'];
+        if ($lastChange['bulan'] < 12) {
+            $estimatedSkMonth = $monthNames[$lastChange['bulan'] + 1] ?? '';
         } else {
             $estimatedSkMonth = $monthNames[1] ?? 'Januari';
-            $estimatedSkYear = $lastChangePeriod->tahun + 1;
+            $estimatedSkYear = $lastChange['tahun'] + 1;
         }
-
-        // Even if no changes detected, if there are periods after SK, this is SK Perubahan
-        if (empty($changes) && $periodsAfterSk->isNotEmpty()) {
-            // No personnel changes but new periods exist
-            return [
-                'has_changes' => false,
-                'sk_number' => $latestSk->nomor_sk,
-                'sk_date' => $latestSk->tanggal_sk->format('d-m-Y'),
-                'sk_month' => $monthNames[$latestSk->bulan] ?? '',
-                'sk_year' => $latestSk->tahun,
-                'reference_month' => $monthNames[$referencePeriode->bulan] ?? '',
-                'reference_year' => $referencePeriode->tahun,
-                'first_change_month' => $firstChangeMonth,
-                'last_change_month' => $lastChangeMonth,
-                'change_year' => $lastChangePeriod->tahun,
-                'estimated_sk_month' => $estimatedSkMonth,
-                'estimated_sk_year' => $estimatedSkYear,
-                'total_changes' => 0,
-                'changes' => [],
-            ];
-        }
-
-        // Get earliest and latest change periode
-        $firstChange = collect($changes)->first();
-        $lastChange = collect($changes)->last();
 
         return [
             'has_changes' => true,
