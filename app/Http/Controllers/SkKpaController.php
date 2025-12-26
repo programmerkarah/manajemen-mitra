@@ -192,6 +192,9 @@ class SkKpaController extends Controller
                 ];
             });
 
+        // Get personnel change information for SK Perubahan
+        $personnelChangeInfo = $this->getPersonnelChangeInfo($kegiatanId);
+
         return Inertia::render('SkKpa/Create', [
             'kegiatan' => [
                 'id' => $kegiatan->id,
@@ -202,6 +205,7 @@ class SkKpaController extends Controller
                 'tahun_anggaran' => $kegiatan->tahun_anggaran,
             ],
             'dasarHukumList' => $dasarHukum,
+            'personnelChangeInfo' => $personnelChangeInfo,
             'oldInput' => old(),
         ]);
     }
@@ -916,5 +920,109 @@ class SkKpaController extends Controller
 
         // No changes found - all periods after SK have same personnel
         return false;
+    }
+
+    private function getPersonnelChangeInfo(int $kegiatanId): ?array
+    {
+        $activeYear = ActiveYearService::get();
+
+        // Get the latest SK for this kegiatan
+        $latestSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        // If no SK exists, this is first SK - no change info needed
+        if (! $latestSk) {
+            return null;
+        }
+
+        // Get all approved/submitted periods for this kegiatan
+        $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
+            ->where('tahun', $activeYear)
+            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->with('alokasiPetugas.petugas:id,nama,jenis_petugas')
+            ->orderBy('bulan')
+            ->get();
+
+        // Get periods that exist AFTER the latest SK
+        $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
+
+        if ($periodsAfterSk->isEmpty()) {
+            return null;
+        }
+
+        // Find the reference periode (last one before or at SK creation)
+        $referencePeriode = $periods
+            ->filter(fn ($p) => $p->bulan <= $latestSk->bulan)
+            ->sortByDesc('bulan')
+            ->first();
+
+        if (! $referencePeriode) {
+            return null;
+        }
+
+        $monthNames = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
+        ];
+
+        // Build change details
+        $changes = [];
+        $referencePersonnel = $referencePeriode->alokasiPetugas->pluck('petugas_id')->sort()->values();
+        $previousPersonnel = $referencePersonnel;
+
+        foreach ($periodsAfterSk as $periode) {
+            $currentPersonnel = $periode->alokasiPetugas->pluck('petugas_id')->sort()->values();
+
+            if ($currentPersonnel->toArray() !== $previousPersonnel->toArray()) {
+                // Find added and removed personnel
+                $added = $currentPersonnel->diff($previousPersonnel);
+                $removed = $previousPersonnel->diff($currentPersonnel);
+
+                $changes[] = [
+                    'bulan' => $periode->bulan,
+                    'bulan_nama' => $monthNames[$periode->bulan] ?? '',
+                    'tahun' => $periode->tahun,
+                    'added_count' => $added->count(),
+                    'removed_count' => $removed->count(),
+                    'total_petugas' => $currentPersonnel->count(),
+                ];
+            }
+
+            $previousPersonnel = $currentPersonnel;
+        }
+
+        if (empty($changes)) {
+            return null;
+        }
+
+        // Get earliest and latest change periode
+        $firstChange = collect($changes)->first();
+        $lastChange = collect($changes)->last();
+
+        return [
+            'has_changes' => true,
+            'sk_number' => $latestSk->nomor_sk,
+            'sk_date' => $latestSk->tanggal_sk->format('d-m-Y'),
+            'sk_month' => $monthNames[$latestSk->bulan] ?? '',
+            'sk_year' => $latestSk->tahun,
+            'reference_month' => $monthNames[$referencePeriode->bulan] ?? '',
+            'reference_year' => $referencePeriode->tahun,
+            'first_change_month' => $firstChange['bulan_nama'],
+            'last_change_month' => $lastChange['bulan_nama'],
+            'change_year' => $firstChange['tahun'],
+            'total_changes' => count($changes),
+            'changes' => $changes,
+        ];
     }
 }

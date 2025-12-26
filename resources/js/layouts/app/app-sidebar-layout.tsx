@@ -30,8 +30,8 @@ export default function AppSidebarLayout({
                         <AppSidebarHeader breadcrumbs={breadcrumbs} />
                     </div>
                     {/* Content - Single Scroll Area */}
-                    <AppContent variant="sidebar" className="overflow-y-auto overflow-x-auto flex-1 min-h-0">
-                        <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6 pb-8 md:pb-12 min-w-max">
+                    <AppContent variant="sidebar" className="overflow-y-auto overflow-x-hidden flex-1 min-h-0">
+                        <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6 pb-8 md:pb-12">
                             {children}
                         </div>
                     </AppContent>

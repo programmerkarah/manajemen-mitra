@@ -29,9 +29,34 @@ interface Kegiatan {
     tahun_anggaran: number
 }
 
+interface PeriodChange {
+    bulan: number
+    bulan_nama: string
+    tahun: number
+    added_count: number
+    removed_count: number
+    total_petugas: number
+}
+
+interface PersonnelChangeInfo {
+    has_changes: boolean
+    sk_number: string
+    sk_date: string
+    sk_month: string
+    sk_year: number
+    reference_month: string
+    reference_year: number
+    first_change_month: string
+    last_change_month: string
+    change_year: number
+    total_changes: number
+    changes: PeriodChange[]
+}
+
 interface CreateProps {
     kegiatan: Kegiatan
     dasarHukumList: DasarHukum[]
+    personnelChangeInfo: PersonnelChangeInfo | null
     oldInput?: {
         nomor_sk?: string
         tanggal_sk?: string
@@ -44,7 +69,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Buat SK', href: '#' },
 ]
 
-export default function Create({ kegiatan, dasarHukumList, oldInput }: CreateProps) {
+export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, oldInput }: CreateProps) {
     const [formData, setFormData] = useState({
         nomor_sk: oldInput?.nomor_sk || '',
         tanggal_sk: oldInput?.tanggal_sk || '',
@@ -53,6 +78,9 @@ export default function Create({ kegiatan, dasarHukumList, oldInput }: CreatePro
         oldInput?.dasar_hukum_ids?.map(id => parseInt(id)) || []
     )
     const [processing, setProcessing] = useState(false)
+
+    // Debug: Log personnelChangeInfo
+    console.log('Personnel Change Info:', personnelChangeInfo)
 
     const handleSelectAllDasarHukum = () => {
         if (selectedDasarHukum.length === dasarHukumList.length) {
@@ -217,6 +245,106 @@ export default function Create({ kegiatan, dasarHukumList, oldInput }: CreatePro
 
             <ContentCard>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Personnel Change Info for SK Perubahan */}
+                    {personnelChangeInfo ? (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/40 flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="12" y1="16" x2="12" y2="12"/>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                    </svg>
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                                        Informasi SK Perubahan
+                                    </h4>
+                                    
+                                    {/* SK Terakhir & Periode Perubahan - Prominent Display */}
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="rounded-lg border border-blue-300 bg-white p-3 dark:border-blue-800 dark:bg-blue-950/50">
+                                            <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
+                                                SK Terakhir Dibuat untuk Periode:
+                                            </div>
+                                            <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                                                {personnelChangeInfo.sk_month} {personnelChangeInfo.sk_year}
+                                            </div>
+                                            <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                                SK No. {personnelChangeInfo.sk_number}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border border-orange-300 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950/50">
+                                            <div className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-1">
+                                                Periode Perubahan SK:
+                                            </div>
+                                            <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                                                {personnelChangeInfo.first_change_month}
+                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && 
+                                                    ` - ${personnelChangeInfo.last_change_month}`
+                                                } {personnelChangeInfo.change_year}
+                                            </div>
+                                            <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                                                {personnelChangeInfo.total_changes} periode berubah
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Detail Perubahan */}
+                                    <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+                                        <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-100">Detail Perubahan Per Bulan:</p>
+                                        <div className="space-y-1.5">
+                                            {personnelChangeInfo.changes.map((change, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                                    <span className="min-w-[80px] font-medium text-blue-900 dark:text-blue-100">
+                                                        {change.bulan_nama}:
+                                                    </span>
+                                                    <span className="text-blue-700 dark:text-blue-300">
+                                                        {change.added_count > 0 && (
+                                                            <span className="text-green-600 dark:text-green-400">+{change.added_count} ditambah</span>
+                                                        )}
+                                                        {change.added_count > 0 && change.removed_count > 0 && ', '}
+                                                        {change.removed_count > 0 && (
+                                                            <span className="text-red-600 dark:text-red-400">-{change.removed_count} dihapus</span>
+                                                        )}
+                                                        {' • Total: '}<strong>{change.total_petugas}</strong> petugas
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Suggestion */}
+                                    <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2.5 dark:bg-amber-900/20">
+                                        <span className="text-base">💡</span>
+                                        <p className="text-xs text-amber-800 dark:text-amber-200">
+                                            <strong>Saran:</strong> Gunakan tanggal setelah periode perubahan terakhir ({personnelChangeInfo.last_change_month} {personnelChangeInfo.change_year}) untuk SK Perubahan ini.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-900/20">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-lg bg-green-100 p-2 dark:bg-green-900/40 flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">
+                                        SK Pertama untuk Kegiatan Ini
+                                    </h4>
+                                    <p className="text-sm text-green-800 dark:text-green-200">
+                                        Ini adalah SK pertama yang akan dibuat untuk kegiatan <strong>{kegiatan.nama_kegiatan}</strong>. Pastikan semua data petugas sudah lengkap dan benar sebelum generate SK.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         {/* Kegiatan Info */}
                         <div className="md:col-span-2 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-900">
@@ -290,10 +418,11 @@ export default function Create({ kegiatan, dasarHukumList, oldInput }: CreatePro
                                         id={`dh-${dh.id}`}
                                         checked={selectedDasarHukum.includes(dh.id)}
                                         onCheckedChange={() => handleDasarHukumToggle(dh.id)}
+                                        className="mt-0.5 flex-shrink-0"
                                     />
                                     <label
                                         htmlFor={`dh-${dh.id}`}
-                                        className="cursor-pointer text-sm text-neutral-900 dark:text-white"
+                                        className="cursor-pointer text-sm text-neutral-900 dark:text-white break-words flex-1"
                                     >
                                         {formatDasarHukum(dh)}
                                     </label>
