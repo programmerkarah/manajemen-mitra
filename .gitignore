@@ -2,6 +2,8 @@
 /bootstrap/ssr
 /node_modules
 # /public/build
+/public/sk
+/public/spk-export
 /public/hot
 /public/storage
 /resources/js/actions
