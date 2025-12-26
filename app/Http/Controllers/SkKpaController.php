@@ -912,8 +912,9 @@ class SkKpaController extends Controller
                 ->values()
                 ->toArray();
 
-            // If current periode has different personnel than previous, there's a change
-            if ($currentPersonnel !== $previousPersonnel) {
+            // Compare arrays using serialize to ensure proper comparison
+            // or check if arrays have different values
+            if (serialize($currentPersonnel) !== serialize($previousPersonnel)) {
                 return true;
             }
 
@@ -989,8 +990,8 @@ class SkKpaController extends Controller
         foreach ($periodsAfterSk as $periode) {
             $currentPersonnel = $periode->alokasiPetugas->pluck('petugas_id')->sort()->values();
 
-            // Always check for changes compared to previous periode
-            if ($currentPersonnel->toArray() !== $previousPersonnel->toArray()) {
+            // Always check for changes compared to previous periode using serialize for proper comparison
+            if (serialize($currentPersonnel->toArray()) !== serialize($previousPersonnel->toArray())) {
                 // Find added and removed personnel
                 $added = $currentPersonnel->diff($previousPersonnel);
                 $removed = $previousPersonnel->diff($currentPersonnel);
