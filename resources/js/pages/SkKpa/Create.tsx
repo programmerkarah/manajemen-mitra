@@ -263,111 +263,47 @@ export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, 
                                         Informasi SK Perubahan
                                     </h4>
                                     
-                                    {/* SK Terakhir & Periode Perubahan - Prominent Display */}
+                                    {/* Simplified Info Cards */}
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <div className="rounded-lg border border-blue-300 bg-white p-3 dark:border-blue-800 dark:bg-blue-950/50">
-                                            <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
-                                                SK Terakhir Dibuat untuk Periode:
+                                            <div className="text-xs text-blue-600 dark:text-blue-400 mb-1">
+                                                SK Terakhir:
                                             </div>
-                                            <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                                            <div className="text-base font-bold text-blue-900 dark:text-blue-100">
                                                 {personnelChangeInfo.sk_month} {personnelChangeInfo.sk_year}
                                             </div>
-                                            <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                                                SK No. {personnelChangeInfo.sk_number}
-                                            </div>
                                         </div>
-                                        <div className="rounded-lg border border-orange-300 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950/50">
-                                            <div className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-1">
-                                                Periode Perubahan SK:
-                                            </div>
-                                            <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
-                                                {personnelChangeInfo.first_change_month}
-                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && personnelChangeInfo.last_change_month
-                                                    ? ` - ${personnelChangeInfo.last_change_month}`
-                                                    : ''
-                                                } {personnelChangeInfo.change_year}
-                                            </div>
-                                            <div className="text-xs text-orange-700 dark:text-orange-300 mt-1">
-                                                {personnelChangeInfo.total_changes > 0 
-                                                    ? `${personnelChangeInfo.total_changes} periode berubah`
-                                                    : 'Periode baru setelah SK terakhir'
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Estimated SK Month - New Prominent Card */}
-                                    {personnelChangeInfo.estimated_sk_month && (
-                                        <div className="rounded-lg border-2 border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 p-3 dark:border-green-700 dark:from-green-950/50 dark:to-emerald-950/50">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                                                    <line x1="16" y1="2" x2="16" y2="6"/>
-                                                    <line x1="8" y1="2" x2="8" y2="6"/>
-                                                    <line x1="3" y1="10" x2="21" y2="10"/>
-                                                </svg>
-                                                <div className="text-xs font-semibold text-green-700 dark:text-green-300">
-                                                    Perkiraan SK Perubahan ini:
+                                        
+                                        {personnelChangeInfo.estimated_sk_month && (
+                                            <div className="rounded-lg border border-green-300 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/50">
+                                                <div className="text-xs text-green-600 dark:text-green-400 mb-1">
+                                                    Perkiraan SK Perubahan:
+                                                </div>
+                                                <div className="text-base font-bold text-green-900 dark:text-green-100">
+                                                    {personnelChangeInfo.estimated_sk_month} {personnelChangeInfo.estimated_sk_year}
                                                 </div>
                                             </div>
-                                            <div className="text-xl font-bold text-green-800 dark:text-green-200">
-                                                {personnelChangeInfo.estimated_sk_month} {personnelChangeInfo.estimated_sk_year}
-                                            </div>
-                                            <div className="text-xs text-green-700 dark:text-green-300 mt-1">
-                                                Berdasarkan periode alokasi terakhir
-                                            </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
 
-                                    {/* Detail Perubahan */}
-                                    {personnelChangeInfo.has_changes && personnelChangeInfo.changes.length > 0 ? (
+                                    {/* Detail Perubahan - Only if has changes */}
+                                    {personnelChangeInfo.has_changes && personnelChangeInfo.changes.length > 0 && (
                                         <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-                                            <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-100">Detail Perubahan Per Bulan:</p>
-                                            <div className="space-y-1.5">
+                                            <p className="mb-2 text-xs font-medium text-blue-900 dark:text-blue-100">Detail Perubahan:</p>
+                                            <div className="space-y-1">
                                                 {personnelChangeInfo.changes.map((change, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 text-xs">
-                                                        <span className="min-w-[80px] font-medium text-blue-900 dark:text-blue-100">
-                                                            {change.bulan_nama}:
-                                                        </span>
-                                                        <span className="text-blue-700 dark:text-blue-300">
-                                                            {change.added_count > 0 && (
-                                                                <span className="text-green-600 dark:text-green-400">+{change.added_count} ditambah</span>
-                                                            )}
-                                                            {change.added_count > 0 && change.removed_count > 0 && ', '}
-                                                            {change.removed_count > 0 && (
-                                                                <span className="text-red-600 dark:text-red-400">-{change.removed_count} dihapus</span>
-                                                            )}
-                                                            {' • Total: '}<strong>{change.total_petugas}</strong> petugas
-                                                        </span>
+                                                    <div key={idx} className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+                                                        <span className="font-medium">{change.bulan_nama}:</span>
+                                                        {change.added_count > 0 && (
+                                                            <span className="text-green-600 dark:text-green-400">+{change.added_count}</span>
+                                                        )}
+                                                        {change.removed_count > 0 && (
+                                                            <span className="text-red-600 dark:text-red-400">-{change.removed_count}</span>
+                                                        )}
+                                                        <span>({change.total_petugas} petugas)</span>
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    ) : personnelChangeInfo.first_change_month ? (
-                                        <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-                                            <p className="text-sm text-blue-800 dark:text-blue-200">
-                                                Terdapat periode baru setelah SK terakhir namun tidak terdeteksi perubahan personel. 
-                                                SK Perubahan tetap diperlukan untuk periode {personnelChangeInfo.first_change_month}
-                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && 
-                                                    ` - ${personnelChangeInfo.last_change_month}`
-                                                }.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-                                            <p className="text-sm text-amber-800 dark:text-amber-200">
-                                                Belum ada periode baru setelah SK terakhir. Pastikan ada periode alokasi yang sudah dikirim sebelum membuat SK Perubahan.
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Suggestion */}
-                                    {personnelChangeInfo.estimated_sk_month && (
-                                        <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2.5 dark:bg-amber-900/20">
-                                            <span className="text-base">💡</span>
-                                            <p className="text-xs text-amber-800 dark:text-amber-200">
-                                                <strong>Saran:</strong> Gunakan tanggal di bulan {personnelChangeInfo.estimated_sk_month} {personnelChangeInfo.estimated_sk_year} atau setelahnya untuk SK Perubahan ini.
-                                            </p>
                                         </div>
                                     )}
                                 </div>

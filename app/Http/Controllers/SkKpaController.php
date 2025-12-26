@@ -854,6 +854,7 @@ class SkKpaController extends Controller
     /**
      * Check if there are personnel changes between consecutive periods
      * If latestSk is provided, only check changes AFTER that SK's period
+     * Returns true ONLY if there are actual personnel changes (added/removed)
      */
     private function checkPersonnelChanges(int $kegiatanId, ?\App\Models\SkKpa $latestSk = null): bool
     {
@@ -875,6 +876,7 @@ class SkKpaController extends Controller
         // Get periods that exist AFTER the latest SK bulan
         $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
 
+        // No periods after SK = no changes possible
         if ($periodsAfterSk->isEmpty()) {
             return false;
         }

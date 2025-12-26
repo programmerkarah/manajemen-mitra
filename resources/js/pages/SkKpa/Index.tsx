@@ -282,7 +282,10 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                                 </Button>
                                                             )}
 
-                                                            {/* SK Perubahan - Show only if SK exists AND there are personnel changes */}
+                                                            {/* SK Perubahan - Show ONLY if:
+                                                                1. SK exists (sk_count > 0) AND
+                                                                2. There are actual personnel changes (has_personnel_changes = true)
+                                                                If no personnel changes detected, button will be hidden */}
                                                             {keg.sk_count > 0 && keg.has_personnel_changes && (
                                                                 <Button
                                                                     size="sm"
