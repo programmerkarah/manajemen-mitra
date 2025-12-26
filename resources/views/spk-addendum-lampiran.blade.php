@@ -121,7 +121,7 @@
                     }
                 @endphp
             Lampiran<br>
-               PERUBAHAN/{{ $addendumLabel }} {{ $judulSpk }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($bulan_label) }} {{ $tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO NOMOR: {{$parent_nomor_spk}}<br>
+               PERUBAHAN/{{ $addendumLabel }} {{ $judulSpk }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($bulan_label) }} {{ $tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO NOMOR: {{$nomorSpk}}<br>
         </div>
     </div>
 

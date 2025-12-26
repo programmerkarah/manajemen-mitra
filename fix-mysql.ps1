@@ -12,7 +12,7 @@ $xamppPath = "C:\xampp"
 $mysqlBin = "$xamppPath\mysql\bin"
 $mysqlData = "$xamppPath\mysql\data"
 $mysqlBackup = "$xamppPath\mysql\backup"
-$appDbName = "manajemen_mitra"
+$appDbName = "manajemenmitra"
 $backupPath = "E:\xampp\htdocs\manajemen-mitra\backup"
 $backupFile = "$backupPath\${appDbName}_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss').sql"
 

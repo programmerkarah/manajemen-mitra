@@ -39,6 +39,8 @@ interface MonthlyPeriodeItem {
     has_new_kegiatan_after_spk: boolean; // Kegiatan baru setelah SPK di-generate
     has_new_revision_after_addendum: boolean; // Revisi baru setelah addendum di-generate
     has_been_regenerated: boolean; // SPK sudah pernah di-regenerate
+    has_incomplete_addendum: boolean; // Ada petugas dengan revisi yang belum punya addendum
+    has_addendum_changes: boolean; // Ada perubahan alokasi ke petugas yang sudah punya addendum
     kegiatan_list: KegiatanItem[];
 }
 
@@ -297,8 +299,13 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* Addendum SPK - Show if there are revisions AND no addendum created yet */}
-                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_revision && !monthData.has_addendum && (
+                                                    {/* Addendum SPK - Show if:
+                                                        1. Has revisions AND
+                                                        2. Some petugas don't have addendum yet (has_incomplete_addendum) AND
+                                                        3. No allocation changes to existing addendum petugas (!has_addendum_changes)
+                                                        This will show form with ONLY petugas who don't have addendum
+                                                    */}
+                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_revision && monthData.has_incomplete_addendum && !monthData.has_addendum_changes && (
                                                         <Button
                                                             size="sm"
                                                             variant="default"
@@ -312,8 +319,12 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {/* Re-generate Addendum - Show if addendum exists but there are new revisions after */}
-                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_addendum && monthData.has_new_revision_after_addendum && (
+                                                    {/* Re-generate Addendum - Show if:
+                                                        1. Has revisions AND
+                                                        2. There are allocation changes to petugas who already have addendum
+                                                        This will show form with ONLY petugas who have allocation changes
+                                                    */}
+                                                    {canCreateSpk && monthData.total_spk > 0 && monthData.has_revision && monthData.has_addendum_changes && (
                                                         <Button
                                                             size="sm"
                                                             variant="default"

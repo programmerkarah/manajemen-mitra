@@ -137,6 +137,12 @@ class SpkController extends Controller
                 return ($spk->regeneration_count ?? 0) > 0;
             });
 
+            // Check for incomplete addendum (some petugas with revision don't have addendum yet)
+            $hasIncompleteAddendum = $this->hasIncompleteAddendum($tahun, $bulan, $monthPeriodes);
+
+            // Check for addendum changes (petugas who already have addendum but have allocation changes)
+            $hasAddendumChanges = $this->hasAddendumChanges($tahun, $bulan, $monthPeriodes);
+
             return [
                 'tahun' => (int) $tahun,
                 'bulan' => (int) $bulan,
@@ -150,6 +156,8 @@ class SpkController extends Controller
                 'has_new_kegiatan_after_spk' => $hasNewKegiatanAfterSpk,
                 'has_new_revision_after_addendum' => $hasNewRevisionAfterAddendum,
                 'has_been_regenerated' => $hasBeenRegenerated,
+                'has_incomplete_addendum' => $hasIncompleteAddendum,
+                'has_addendum_changes' => $hasAddendumChanges,
                 'kegiatan_list' => $kegiatanList,
             ];
         })->sortByDesc(function ($item) {
@@ -935,10 +943,21 @@ class SpkController extends Controller
                 return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
             });
 
-        // Group by petugas_id and aggregate their data
+        // Determine if this is regenerate mode or generate mode
+        // Check if any petugas in this month already have addendum
+        $existingAddendums = Spk::where('addendum_number', '>', 0)
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', $bulan)
+            ->get();
 
+        $isRegenerateAddendum = $existingAddendums->isNotEmpty();
+
+        // Get petugas IDs who already have addendum
+        $petugasWithAddendum = $existingAddendums->pluck('petugas_id')->unique()->toArray();
+
+        // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun) {
+            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum) {
                 $firstAlokasi = $alokasiGroup->first();
 
                 // Get existing SPK for this petugas in this month
@@ -1066,9 +1085,20 @@ class SpkController extends Controller
                     'jumlah_kegiatan' => $alokasiGroup->count(),
                     'kegiatan_list' => $kegiatanList,
                     'total_honor' => $totalHonor,
+                    'has_addendum' => in_array($firstAlokasi->petugas_id, $petugasWithAddendum),
                 ];
             })
             ->filter() // Remove nulls
+            ->filter(function ($item) use ($isRegenerateAddendum) {
+                if ($isRegenerateAddendum) {
+                    // Regenerate mode: Only show petugas who ALREADY have addendum
+                    // (they will have allocation changes, already filtered by isBerubah)
+                    return $item['has_addendum'];
+                } else {
+                    // Generate mode: Only show petugas who DON'T have addendum yet
+                    return ! $item['has_addendum'];
+                }
+            })
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
             })
@@ -1076,7 +1106,11 @@ class SpkController extends Controller
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
 
-        \Log::info('DEBUG PETUGAS LIST FINAL', ['count' => $petugasList->count(), 'ids' => $petugasList->pluck('petugas.id')]);
+        \Log::info('DEBUG PETUGAS LIST FINAL', [
+            'count' => $petugasList->count(),
+            'ids' => $petugasList->pluck('petugas.id'),
+            'is_regenerate_addendum' => $isRegenerateAddendum,
+        ]);
 
         return Inertia::render('Spk/Addendum', [
             'periode' => [
@@ -1094,6 +1128,7 @@ class SpkController extends Controller
                 ],
             ],
             'petugas_list' => $petugasList->values()->all(),
+            'is_regenerate_addendum' => $isRegenerateAddendum,
         ]);
     }
 
@@ -2704,5 +2739,118 @@ class SpkController extends Controller
         }
 
         return $hasNewRevision;
+    }
+
+    /**
+     * Check if there are petugas with revisions who don't have addendum yet
+     */
+    private function hasIncompleteAddendum(int $tahun, int $bulan, $monthPeriodes): bool
+    {
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Get all petugas with revisions (status: direvisi or perubahan)
+        $petugasWithRevision = collect();
+        foreach ($monthPeriodes as $periode) {
+            if (in_array($periode->status, ['direvisi', 'perubahan'])) {
+                $alokasi = $periode->alokasiPetugas()
+                    ->whereHas('petugas', function ($q) {
+                        $q->where('jenis_petugas', 'non-organik');
+                    })
+                    ->with('petugas')
+                    ->get();
+
+                foreach ($alokasi as $item) {
+                    $petugasWithRevision->push($item->petugas_id);
+                }
+            }
+        }
+
+        $petugasWithRevision = $petugasWithRevision->unique();
+
+        // For each petugas with revision, check if they have addendum
+        foreach ($petugasWithRevision as $petugasId) {
+            // Get original SPK for this petugas in this month
+            $originalSpk = Spk::where('petugas_id', $petugasId)
+                ->where('addendum_number', 0)
+                ->whereYear('tanggal_spk', $tahun)
+                ->whereMonth('tanggal_spk', $bulan)
+                ->first();
+
+            if (! $originalSpk) {
+                continue; // Skip if no original SPK
+            }
+
+            // Check if this petugas has addendum
+            $hasAddendum = Spk::where('parent_spk_id', $originalSpk->id)
+                ->where('addendum_number', '>', 0)
+                ->exists();
+
+            if (! $hasAddendum) {
+                return true; // Found petugas without addendum
+            }
+        }
+
+        return false; // All petugas with revisions have addendum
+    }
+
+    /**
+     * Check if there are allocation changes to petugas who already have addendum
+     */
+    private function hasAddendumChanges(int $tahun, int $bulan, $monthPeriodes): bool
+    {
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Get all petugas who already have addendum
+        $petugasWithAddendum = collect();
+        foreach ($monthPeriodes as $periode) {
+            $spksWithAddendum = $periode->spk()
+                ->where('addendum_number', '>', 0)
+                ->with('alokasiPetugas.petugas')
+                ->get();
+
+            foreach ($spksWithAddendum as $spk) {
+                if ($spk->petugas_id) {
+                    $petugasWithAddendum->push($spk->petugas_id);
+                }
+            }
+        }
+
+        $petugasWithAddendum = $petugasWithAddendum->unique();
+
+        if ($petugasWithAddendum->isEmpty()) {
+            return false; // No addendum exists yet
+        }
+
+        // Get the latest addendum creation time
+        $latestAddendumCreatedAt = null;
+        foreach ($monthPeriodes as $periode) {
+            $latestAddendum = $periode->spk()
+                ->where('addendum_number', '>', 0)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestAddendum && (! $latestAddendumCreatedAt || $latestAddendum->created_at > $latestAddendumCreatedAt)) {
+                $latestAddendumCreatedAt = $latestAddendum->created_at;
+            }
+        }
+
+        // Check if any petugas with addendum has new allocation changes
+        foreach ($petugasWithAddendum as $petugasId) {
+            // Check for periode perubahan created after latest addendum
+            $hasNewChanges = AlokasiPetugas::where('petugas_id', $petugasId)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->where('status', 'perubahan');
+                })
+                ->where('created_at', '>', $latestAddendumCreatedAt)
+                ->exists();
+
+            if ($hasNewChanges) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
