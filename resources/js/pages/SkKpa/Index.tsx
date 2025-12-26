@@ -68,6 +68,14 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [jenisKegiatan, setJenisKegiatan] = useState(filters.jenis_kegiatan || 'all');
 
+    // Debug: Log kegiatan data to verify has_personnel_changes
+    console.log('SK KPA Index - Kegiatan data:', kegiatan.data.map(k => ({
+        kode: k.kode_kegiatan,
+        sk_count: k.sk_count,
+        has_personnel_changes: k.has_personnel_changes,
+        should_show_button: k.sk_count > 0 && k.has_personnel_changes
+    })));
+
     // Check if user can create SK (admin, pj, operator)
     const canCreateSk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj' || auth.activeRole?.name === 'operator';
 

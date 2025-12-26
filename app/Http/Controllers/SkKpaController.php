@@ -29,7 +29,13 @@ class SkKpaController extends Controller
             ->select('kegiatan.*') // Only select needed columns
             ->with([
                 'ketuaTim:id,name',
-                'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at',
+                'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at,bulan,tahun',
+                'periodeAlokasi' => function ($q) use ($activeYear) {
+                    $q->where('tahun', $activeYear)
+                        ->whereIn('status', ['dikirim', 'disetujui'])
+                        ->with('alokasiPetugas:id,periode_alokasi_id,petugas_id')
+                        ->orderBy('bulan');
+                },
             ])
             ->withCount(['skKpa' => function ($q) {
                 $q->select(DB::raw('count(*)'));
