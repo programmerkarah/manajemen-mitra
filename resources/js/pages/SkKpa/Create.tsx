@@ -291,36 +291,56 @@ export default function Create({ kegiatan, dasarHukumList, personnelChangeInfo, 
                                     </div>
 
                                     {/* Detail Perubahan */}
-                                    <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-                                        <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-100">Detail Perubahan Per Bulan:</p>
-                                        <div className="space-y-1.5">
-                                            {personnelChangeInfo.changes.map((change, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 text-xs">
-                                                    <span className="min-w-[80px] font-medium text-blue-900 dark:text-blue-100">
-                                                        {change.bulan_nama}:
-                                                    </span>
-                                                    <span className="text-blue-700 dark:text-blue-300">
-                                                        {change.added_count > 0 && (
-                                                            <span className="text-green-600 dark:text-green-400">+{change.added_count} ditambah</span>
-                                                        )}
-                                                        {change.added_count > 0 && change.removed_count > 0 && ', '}
-                                                        {change.removed_count > 0 && (
-                                                            <span className="text-red-600 dark:text-red-400">-{change.removed_count} dihapus</span>
-                                                        )}
-                                                        {' • Total: '}<strong>{change.total_petugas}</strong> petugas
-                                                    </span>
-                                                </div>
-                                            ))}
+                                    {personnelChangeInfo.has_changes && personnelChangeInfo.changes.length > 0 ? (
+                                        <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+                                            <p className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-100">Detail Perubahan Per Bulan:</p>
+                                            <div className="space-y-1.5">
+                                                {personnelChangeInfo.changes.map((change, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-xs">
+                                                        <span className="min-w-[80px] font-medium text-blue-900 dark:text-blue-100">
+                                                            {change.bulan_nama}:
+                                                        </span>
+                                                        <span className="text-blue-700 dark:text-blue-300">
+                                                            {change.added_count > 0 && (
+                                                                <span className="text-green-600 dark:text-green-400">+{change.added_count} ditambah</span>
+                                                            )}
+                                                            {change.added_count > 0 && change.removed_count > 0 && ', '}
+                                                            {change.removed_count > 0 && (
+                                                                <span className="text-red-600 dark:text-red-400">-{change.removed_count} dihapus</span>
+                                                            )}
+                                                            {' • Total: '}<strong>{change.total_petugas}</strong> petugas
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : personnelChangeInfo.first_change_month ? (
+                                        <div className="rounded-md border border-blue-300 bg-white/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+                                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                                Terdapat periode baru setelah SK terakhir namun tidak terdeteksi perubahan personel. 
+                                                SK Perubahan tetap diperlukan untuk periode {personnelChangeInfo.first_change_month}
+                                                {personnelChangeInfo.first_change_month !== personnelChangeInfo.last_change_month && 
+                                                    ` - ${personnelChangeInfo.last_change_month}`
+                                                }.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+                                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                                                Belum ada periode baru setelah SK terakhir. Pastikan ada periode alokasi yang sudah dikirim sebelum membuat SK Perubahan.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {/* Suggestion */}
-                                    <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2.5 dark:bg-amber-900/20">
-                                        <span className="text-base">💡</span>
-                                        <p className="text-xs text-amber-800 dark:text-amber-200">
-                                            <strong>Saran:</strong> Gunakan tanggal setelah periode perubahan terakhir ({personnelChangeInfo.last_change_month} {personnelChangeInfo.change_year}) untuk SK Perubahan ini.
-                                        </p>
-                                    </div>
+                                    {personnelChangeInfo.last_change_month && (
+                                        <div className="flex items-start gap-2 rounded-md bg-amber-50 p-2.5 dark:bg-amber-900/20">
+                                            <span className="text-base">💡</span>
+                                            <p className="text-xs text-amber-800 dark:text-amber-200">
+                                                <strong>Saran:</strong> Gunakan tanggal setelah periode perubahan terakhir ({personnelChangeInfo.last_change_month} {personnelChangeInfo.change_year}) untuk SK Perubahan ini.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
