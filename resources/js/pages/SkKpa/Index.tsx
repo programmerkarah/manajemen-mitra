@@ -16,6 +16,7 @@ import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { encryptFilters } from '@/utils/encryption';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 interface LatestSk {
     id: number;
@@ -44,15 +45,20 @@ interface KegiatanItem {
 
 interface IndexProps {
     kegiatan: {
-        data: KegiatanItem[];
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: Array<{
             url: string | null;
             label: string;
             active: boolean;
         }>;
-        from: number;
-        to: number;
-        total: number;
     };
     filters: {
         encrypted?: string
@@ -69,6 +75,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
+    const decryptedKegiatan = useDecryptedData<KegiatanItem[]>(kegiatan.encrypted);
+    
     const initialFilters = filters.decrypted || {};
     const [search, setSearch] = useState(initialFilters.search || '');
     const [jenisKegiatan, setJenisKegiatan] = useState(initialFilters.jenis_kegiatan || 'all');
@@ -107,7 +115,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     };
 
     // Debug: Log kegiatan data to verify has_personnel_changes
-    console.log('SK KPA Index - Kegiatan data:', kegiatan.data.map(k => ({
+    console.log('SK KPA Index - Kegiatan data:', decryptedKegiatan.map(k => ({
         kode: k.kode_kegiatan,
         sk_count: k.sk_count,
         has_personnel_changes: k.has_personnel_changes,
@@ -244,14 +252,14 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {kegiatan.data.length === 0 ? (
+                                {decryptedKegiatan.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
                                             Tidak ada kegiatan yang memerlukan SK KPA
                                         </td>
                                     </tr>
                                 ) : (
-                                    kegiatan.data.map((keg) => (
+                                    decryptedKegiatan.map((keg) => (
                                         <tr key={keg.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                             <td className="px-6 py-4">
                                                 <div>
@@ -350,10 +358,10 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {kegiatan.data.length > 0 && (
+                    {decryptedKegiatan.length > 0 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Menampilkan {kegiatan.from} hingga {kegiatan.to} dari {kegiatan.total} kegiatan
+                                Menampilkan {kegiatan.meta.from} hingga {kegiatan.meta.to} dari {kegiatan.meta.total} kegiatan
                             </div>
                             <div className="flex gap-2">
                                 {kegiatan.links.map((link, index) => {
