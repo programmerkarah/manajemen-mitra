@@ -36,7 +36,18 @@ class UserRoleController extends Controller
             ->withQueryString();
 
         return Inertia::render('Users/Index', [
-            'users' => $users,
+            'users' => [
+                'encrypted' => encryptData($users->items()),
+                'meta' => [
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'per_page' => $users->perPage(),
+                    'total' => $users->total(),
+                    'from' => $users->firstItem(),
+                    'to' => $users->lastItem(),
+                ],
+                'links' => $users->linkCollection()->toArray(),
+            ],
             'filters' => [
                 'encrypted' => encryptFilters($request->only(['search'])),
                 'decrypted' => $request->only(['search']),

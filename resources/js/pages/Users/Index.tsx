@@ -10,6 +10,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { encryptFilters } from '@/utils/encryption';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -36,9 +37,20 @@ interface User {
 
 interface UsersIndexProps {
     users: {
-        data: User[];
-        links: any[];
-        meta: any;
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
+        links: Array<{
+            url: string | null;
+            label: string;
+            active: boolean;
+        }>;
     };
     filters: {
         encrypted?: string
@@ -49,6 +61,8 @@ interface UsersIndexProps {
 }
 
 export default function Index({ users, filters }: UsersIndexProps) {
+    const decryptedUsers = useDecryptedData<User[]>(users.encrypted);
+    
     const initialFilters = filters.decrypted || {};
     const [search, setSearch] = useState(initialFilters.search || '');
 
@@ -159,7 +173,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    users.data.map((user) => (
+                                    decryptedUsers.map((user) => (
                                         <tr
                                             key={user.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
