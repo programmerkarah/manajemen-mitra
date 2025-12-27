@@ -160,7 +160,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {users.data.length === 0 ? (
+                                {decryptedUsers.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={8}
