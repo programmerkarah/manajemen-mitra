@@ -51,7 +51,8 @@ class SpkController extends Controller
 
         // Filter by bulan
         if (! empty($validated['bulan'])) {
-            $query->where('bulan', (int) $validated['bulan']);
+            $bulan = str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT);
+            $query->where('bulan', $bulan);
         }
 
         $periodes = $query->latest()->get();
@@ -179,10 +180,27 @@ class SpkController extends Controller
             $currentPage,
             ['path' => $request->url(), 'query' => $request->query()]
         );
+        
+        // Encrypt sensitive data
+        $encryptedData = encryptData($paginatedItems);
 
         return Inertia::render('Spk/Index', [
-            'periodeList' => $paginator,
-            'filters' => $request->only(['search', 'bulan']),
+            'periodeList' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'from' => $paginator->firstItem(),
+                    'to' => $paginator->lastItem(),
+                ],
+                'links' => $paginator->linkCollection()->toArray(),
+            ],
+            'filters' => [
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
+            ],
         ]);
     }
 

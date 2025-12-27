@@ -28,8 +28,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { StatusBadge } from '@/components/status-badge'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight, Filter, RotateCcw, Users, MoreVertical } from 'lucide-react'
+import { encryptFilters } from '@/utils/encryption'
+import { useDecryptedData } from '@/hooks/useDecryptedData'
 
 interface AlokasiPeriod {
     kegiatan_id: number
@@ -41,7 +43,9 @@ interface AlokasiPeriod {
     total_honor: number
     estimasi_honor: number
     sisa_pagu: number
-    pagu_anggaran: number
+    pagu_pencacahan: number
+    pagu_listing: number
+    pagu_terpakai: number
     latest_created_at: string
     is_latest_periode: boolean
     kegiatan: Kegiatan
@@ -53,11 +57,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface Props {
     alokasi: {
-        data: AlokasiPeriod[]
-        current_page: number
-        last_page: number
-        per_page: number
-        total: number
+        encrypted: string
+        meta: {
+            current_page: number
+            last_page: number
+            per_page: number
+            total: number
+            from: number
+            to: number
+        }
         links: Array<{
             url: string | null
             label: string
@@ -65,20 +73,62 @@ interface Props {
         }>
     }
     filters: {
-        search?: string
-        status?: string
-        bulan?: string
+        encrypted?: string
+        decrypted?: {
+            search?: string
+            status?: string
+            bulan?: string
+        }
     }
     hasKegiatans: boolean
 }
 
 export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const { auth } = usePage<SharedData>().props;
+    
+    // Decrypt data once with memoization for filtering/sorting
+    const decryptedAlokasi = useDecryptedData<AlokasiPeriod>(alokasi.encrypted);
     const isPJ = auth.activeRole?.name === 'pj';
     
-    const [search, setSearch] = useState(filters.search || '')
-    const [status, setStatus] = useState(filters.status || 'all')
-    const [bulan, setBulan] = useState(filters.bulan || 'all')
+    // Decrypt filters from backend if encrypted, otherwise use decrypted
+    const initialFilters = filters.decrypted || {};
+    const [search, setSearch] = useState(initialFilters.search || '')
+    const [status, setStatus] = useState(initialFilters.status || 'all')
+    const [bulan, setBulan] = useState(initialFilters.bulan || 'all')
+
+    // Auto-filter with debounce for search input
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            applyFilter()
+        }, 500) // Debounce 500ms untuk search input
+
+        return () => clearTimeout(timeoutId)
+    }, [search])
+
+    // Auto-filter immediately for dropdowns
+    useEffect(() => {
+        applyFilter()
+    }, [status, bulan])
+
+    const applyFilter = () => {
+        const filterParams: Record<string, string> = {};
+        
+        if (search) filterParams.search = search;
+        if (status && status !== 'all') filterParams.status = status;
+        if (bulan && bulan !== 'all') filterParams.bulan = bulan;
+
+        const encryptedFilters = encryptFilters(filterParams);
+
+        router.post(
+            '/alokasi',
+            { encrypted_filters: encryptedFilters },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        )
+    }
 
     // Modal states
     const [showKirimModal, setShowKirimModal] = useState(false)
@@ -106,22 +156,6 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         { value: '11', label: 'November' },
         { value: '12', label: 'Desember' },
     ]
-
-    const handleFilter = () => {
-        router.get(
-            '/alokasi',
-            {
-                search: search || undefined,
-                status: status && status !== 'all' ? status : undefined,
-                bulan: bulan && bulan !== 'all' ? bulan : undefined,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        )
-    }
 
     const handleReset = () => {
         setSearch('')
@@ -244,7 +278,6 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleFilter()}
                                 placeholder="Nama atau kode kegiatan..."
                                 className="pl-10"
                             />
@@ -289,14 +322,10 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         </Select>
                     </div>
 
-                    <div className="flex items-end gap-2">
-                        <Button onClick={handleFilter} className="flex-1 gap-2">
-                            <Filter className="h-5 w-5" />
-                            Filter
-                        </Button>
-                        <Button onClick={handleReset} variant="outline" className="gap-2">
+                    <div className="flex items-end">
+                        <Button onClick={handleReset} variant="outline" className="w-full gap-2">
                             <RotateCcw className="h-5 w-5" />
-                            Reset
+                            Reset Filter
                         </Button>
                     </div>
                 </div>
@@ -333,7 +362,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
-                            {alokasi.data.length === 0 ? (
+                            {decryptedAlokasi.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan={7}
@@ -343,7 +372,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                     </td>
                                 </tr>
                             ) : (
-                                alokasi.data.map((periode, index) => (
+                                decryptedAlokasi.map((periode, index) => (
                                     <tr
                                         key={`${periode.kegiatan_id}-${periode.bulan}-${periode.tahun}-${index}`}
                                         className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
@@ -468,7 +497,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                 {alokasi.links && (
                     <div className="flex items-center justify-between border-t border-white/20 px-6 py-4 dark:border-neutral-700/30">
                         <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                            Showing {alokasi.data.length} of {alokasi.total} results
+                            Showing {decryptedAlokasi.length} of {alokasi.meta.total} results
                         </div>
                         <div className="flex gap-1">
                             {alokasi.links.map((link, index) => {

@@ -43,7 +43,7 @@ export default function Create() {
                 </PageHeader>
 
                 <ContentCard>
-                    <Form action="/penandatangan" method="post">
+                    <Form action="/penandatangan/store" method="post">
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-6 md:grid-cols-2">

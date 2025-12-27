@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/app-layout'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { encryptFilters } from '@/utils/encryption'
 import { ContentCard } from '@/components/content-card'
 import {
     Select,
@@ -57,16 +58,20 @@ interface BulanOption {
 interface Props {
     petugas: PetugasData[]
     filters: {
-        tahun: number
-        bulan: string
+        encrypted?: string
+        decrypted?: {
+            tahun: number
+            bulan: string
+        }
     }
     bulan_options: BulanOption[]
     tahun_options: number[]
 }
 
 export default function Report({ petugas, filters, bulan_options, tahun_options }: Props) {
-    const [selectedTahun, setSelectedTahun] = useState(filters.tahun.toString())
-    const [selectedBulan, setSelectedBulan] = useState(filters.bulan)
+    const initialFilters = filters.decrypted || { tahun: new Date().getFullYear(), bulan: '01' }
+    const [selectedTahun, setSelectedTahun] = useState(initialFilters.tahun.toString())
+    const [selectedBulan, setSelectedBulan] = useState(initialFilters.bulan)
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
     
     const breadcrumbs: BreadcrumbItem[] = [
@@ -76,7 +81,8 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
 
 
     const handleFilterChange = (tahun: string, bulan: string) => {
-        router.get('/rekap-honor', { tahun, bulan }, { preserveState: true })
+        const encryptedFilters = encryptFilters({ tahun, bulan })
+        router.post('/rekap-honor', { encrypted_filters: encryptedFilters }, { preserveState: true })
     }
 
     const formatCurrency = (amount: number) => {

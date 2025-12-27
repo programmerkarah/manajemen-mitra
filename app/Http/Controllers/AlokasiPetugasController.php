@@ -29,6 +29,10 @@ class AlokasiPetugasController extends Controller
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
 
+        // Get filters using only() to get values after merge in prepareForValidation
+        // Filter out empty values like SbmlReportController does
+        $filters = array_filter($request->only(['search', 'status', 'bulan']), fn($value) => $value !== null && $value !== '');
+
         // Build base query
         $baseQuery = PeriodeAlokasi::query()
             ->select('periode_alokasi.*')
@@ -42,8 +46,8 @@ class AlokasiPetugasController extends Controller
             ->where('tahun', $activeYear);
 
         // Search by kegiatan
-        if (! empty($validated['search'])) {
-            $search = $validated['search'];
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
             $baseQuery->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
@@ -51,13 +55,14 @@ class AlokasiPetugasController extends Controller
         }
 
         // Filter by status
-        if (! empty($validated['status'])) {
-            $baseQuery->where('status', $validated['status']);
+        if (! empty($filters['status'])) {
+            $baseQuery->where('status', $filters['status']);
         }
 
         // Filter by bulan (gunakan string dengan leading zero agar cocok dengan frontend)
-        if (! empty($validated['bulan'])) {
-            $baseQuery->where('bulan', str_pad($validated['bulan'], 2, '0', STR_PAD_LEFT));
+        if (! empty($filters['bulan'])) {
+            $bulan = str_pad((string) $filters['bulan'], 2, '0', STR_PAD_LEFT);
+            $baseQuery->where('bulan', $bulan);
         }
 
         // Filter for Ketua Tim - only their kegiatan
@@ -209,9 +214,27 @@ class AlokasiPetugasController extends Controller
             })
             ->exists();
 
+        // Encrypt sensitive data for security
+        $alokasiData = $alokasi->items();
+        $encryptedData = encryptData($alokasiData);
+
         return Inertia::render('Alokasi/Index', [
-            'alokasi' => $alokasi,
-            'filters' => $request->only(['search', 'status', 'bulan']),
+            'alokasi' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $alokasi->currentPage(),
+                    'last_page' => $alokasi->lastPage(),
+                    'per_page' => $alokasi->perPage(),
+                    'total' => $alokasi->total(),
+                    'from' => $alokasi->firstItem(),
+                    'to' => $alokasi->lastItem(),
+                ],
+                'links' => $alokasi->linkCollection()->toArray(),
+            ],
+            'filters' => [
+                'encrypted' => encryptFilters($filters),
+                'decrypted' => $filters,
+            ],
             'active_year' => $activeYear,
             'hasKegiatans' => $hasKegiatans,
         ]);

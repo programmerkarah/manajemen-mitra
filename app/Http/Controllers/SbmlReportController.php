@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\AlokasiPetugas;
 use App\Models\Petugas;
 use App\Models\Sbml;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,10 +14,27 @@ class SbmlReportController extends Controller
     /**
      * Display honor summary report per petugas per month
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
-        $tahun = $request->input('tahun', date('Y'));
-        $bulan = $request->input('bulan', str_pad(date('m'), 2, '0', STR_PAD_LEFT));
+        $validated = $request->validated();
+        
+        // Get the latest month with data if no filter is provided
+        if (empty($validated['tahun']) || empty($validated['bulan'])) {
+            $latestPeriode = \App\Models\PeriodeAlokasi::whereIn('status', ['draft', 'dikirim', 'perubahan'])
+                ->whereNull('deleted_at')
+                ->orderBy('tahun', 'desc')
+                ->orderBy('bulan', 'desc')
+                ->first();
+            
+            $defaultTahun = $latestPeriode?->tahun ?? date('Y');
+            $defaultBulan = $latestPeriode?->bulan ?? str_pad(date('m'), 2, '0', STR_PAD_LEFT);
+        } else {
+            $defaultTahun = date('Y');
+            $defaultBulan = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
+        }
+        
+        $tahun = (int) ($validated['tahun'] ?? $defaultTahun);
+        $bulan = str_pad((string) ($validated['bulan'] ?? $defaultBulan), 2, '0', STR_PAD_LEFT);
 
         // Pre-fetch all SBML data for the year to avoid N+1 queries
         $sbmlCache = Sbml::where('tahun_anggaran', $tahun)
@@ -158,8 +175,11 @@ class SbmlReportController extends Controller
         return Inertia::render('Sbml/Report', [
             'petugas' => $petugasData,
             'filters' => [
-                'tahun' => (int) $tahun,
-                'bulan' => $bulan,
+                'encrypted' => encryptFilters($request->only(['tahun', 'bulan'])),
+                'decrypted' => $request->only(['tahun', 'bulan']) ?: [
+                    'tahun' => (int) $tahun,
+                    'bulan' => $bulan,
+                ],
             ],
             'bulan_options' => $bulanOptions,
             'tahun_options' => $tahunOptions,

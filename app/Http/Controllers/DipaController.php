@@ -37,13 +37,20 @@ class DipaController extends Controller
 
         // Filter by tahun
         if (! empty($validated['tahun'])) {
-            $query->where('tahun', (int) $validated['tahun']);
+            $tahun = is_numeric($validated['tahun']) ? (int) $validated['tahun'] : null;
+            if ($tahun) {
+                $query->where('tahun', $tahun);
+            }
         }
 
         $dipaList = $query->orderBy('tahun', 'desc')
             ->orderBy('nomor_dipa', 'asc')
             ->paginate(15)
             ->withQueryString();
+            
+        // Encrypt sensitive data
+        $dipaData = $dipaList->items();
+        $encryptedData = encryptData($dipaData);
 
         // Get unique years for filter
         $tahunOptions = Dipa::select('tahun')
@@ -52,9 +59,23 @@ class DipaController extends Controller
             ->pluck('tahun');
 
         return Inertia::render('Dipa/Index', [
-            'dipaList' => $dipaList,
+            'dipaList' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $dipaList->currentPage(),
+                    'last_page' => $dipaList->lastPage(),
+                    'per_page' => $dipaList->perPage(),
+                    'total' => $dipaList->total(),
+                    'from' => $dipaList->firstItem(),
+                    'to' => $dipaList->lastItem(),
+                ],
+                'links' => $dipaList->linkCollection()->toArray(),
+            ],
             'tahunOptions' => $tahunOptions,
-            'filters' => $request->only(['search', 'status', 'tahun']),
+            'filters' => [
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
+            ],
         ]);
     }
 

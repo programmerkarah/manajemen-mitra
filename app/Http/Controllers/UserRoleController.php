@@ -37,7 +37,10 @@ class UserRoleController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search']),
+            'filters' => [
+                'encrypted' => encryptFilters($request->only(['search'])),
+                'decrypted' => $request->only(['search']),
+            ],
         ]);
     }
 

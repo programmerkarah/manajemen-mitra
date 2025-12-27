@@ -65,7 +65,7 @@ class SkKpaController extends Controller
         // Transform data to include SK status
         // Note: status_sk and revision_number are calculated from skKpa relationship
         // They are not stored in kegiatan table
-        $kegiatan->getCollection()->transform(function ($keg) {
+        $transformedData = $kegiatan->getCollection()->map(function ($keg) {
             $skCount = $keg->sk_kpa_count ?? 0;
             $latestSk = $keg->skKpa->sortByDesc('created_at')->first();
 
@@ -107,10 +107,27 @@ class SkKpaController extends Controller
                 ] : null,
             ];
         });
+        
+        // Encrypt sensitive data
+        $encryptedData = encryptData($transformedData);
 
         return Inertia::render('SkKpa/Index', [
-            'kegiatan' => $kegiatan,
-            'filters' => $request->only(['search', 'jenis_kegiatan']),
+            'kegiatan' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $kegiatan->currentPage(),
+                    'last_page' => $kegiatan->lastPage(),
+                    'per_page' => $kegiatan->perPage(),
+                    'total' => $kegiatan->total(),
+                    'from' => $kegiatan->firstItem(),
+                    'to' => $kegiatan->lastItem(),
+                ],
+                'links' => $kegiatan->linkCollection()->toArray(),
+            ],
+            'filters' => [
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
+            ],
         ]);
     }
 

@@ -47,7 +47,7 @@ export default function Create({ tahunOptions }: CreateProps) {
                 </PageHeader>
 
                 <ContentCard>
-                    <Form action="/dipa" method="post">
+                    <Form action="/dipa/store" method="post">
                         {({ errors, processing }) => (
                             <>
                                 <div className="grid gap-6 md:grid-cols-2">

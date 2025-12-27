@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import {
     Select,
     SelectContent,
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/status-badge';
+import { encryptFilters } from '@/utils/encryption';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -34,39 +36,80 @@ interface Dipa {
 
 interface DipaIndexProps {
     dipaList: {
-        data: Dipa[];
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: any[];
-        meta: any;
     };
     tahunOptions: number[];
     filters: {
-        search?: string;
-        status?: string;
-        tahun?: string;
+        encrypted?: string
+        decrypted?: {
+            search?: string
+            status?: string
+            tahun?: string
+        }
     };
 }
 
 export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    const [search, setSearch] = useState(filters.search || '');
-    const [status, setStatus] = useState(filters.status || '');
-    const [tahun, setTahun] = useState(filters.tahun || '');
+    const initialFilters = filters.decrypted || {};
+    
+    const decryptedDipa = useDecryptedData<Dipa>(dipaList.encrypted);
+    
+    const [search, setSearch] = useState(initialFilters.search || '');
+    const [status, setStatus] = useState(initialFilters.status || '');
+    const [tahun, setTahun] = useState(initialFilters.tahun || '');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedDipa, setSelectedDipa] = useState<Dipa | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
+    // Auto-filter with debounce for search input
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            applyFilter();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [search]);
+
+    // Auto-filter immediately for dropdowns
+    useEffect(() => {
+        applyFilter();
+    }, [status, tahun]);
+
+    const applyFilter = () => {
+        const filterParams = { search, status, tahun };
+        const encryptedFilters = encryptFilters(filterParams);
+
+        router.post(
             '/dipa',
-            { search, status, tahun },
+            { encrypted_filters: encryptedFilters },
             { 
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
             }
         );
+    };
+
+    // Fungsi untuk reset filter
+    const handleReset = () => {
+        setSearch('');
+        setStatus('');
+        setTahun('');
+        router.post('/dipa', { encrypted_filters: encryptFilters({}) }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const handleDeleteClick = (dipa: Dipa) => {
@@ -117,7 +160,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
 
                 <ContentCard>
                     {/* Search and Filter */}
-                    <form onSubmit={handleSearch} className="mb-6 flex flex-col gap-4 sm:flex-row">
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -156,11 +199,11 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                             </SelectContent>
                         </Select>
 
-                        <Button type="submit" className="h-10">
-                            <Search className="mr-2 h-4 w-4" />
-                            Cari
+                        <Button onClick={handleReset} variant="outline" className="h-10">
+                            <X className="mr-2 h-4 w-4" />
+                            Reset
                         </Button>
-                    </form>
+                    </div>
 
                     {/* Table */}
                     <div className="overflow-x-auto">
@@ -177,7 +220,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {dipaList.data.length === 0 ? (
+                                {decryptedDipa.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 4 : 5}
@@ -187,7 +230,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                         </td>
                                     </tr>
                                 ) : (
-                                    dipaList.data.map((dipa) => (
+                                    decryptedDipa.map((dipa) => (
                                         <tr key={dipa.id} className="hover:bg-muted/50">
                                             <td className="whitespace-nowrap px-3 py-3 text-sm font-medium">
                                                 {dipa.nomor_dipa}

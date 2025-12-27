@@ -15,6 +15,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react'
 import { Pencil, Plus, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { StatusBadge } from '@/components/status-badge'
+import { encryptFilters } from '@/utils/encryption'
+import { useDecryptedData } from '@/hooks/useDecryptedData'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -35,16 +37,27 @@ interface DasarHukum {
 
 interface Props {
     dasarHukum: {
-        data: DasarHukum[]
-        links: any[]
-        current_page: number
-        last_page: number
-        per_page: number
-        total: number
+        encrypted: string
+        meta: {
+            current_page: number
+            last_page: number
+            per_page: number
+            total: number
+            from: number
+            to: number
+        }
+        links: Array<{
+            url: string | null
+            label: string
+            active: boolean
+        }>
     }
     filters: {
-        search: string
-        status: string
+        encrypted?: string
+        decrypted?: {
+            search: string
+            status: string
+        }
     }
 }
 
@@ -52,8 +65,11 @@ export default function Index({ dasarHukum, filters }: Props) {
     const { auth } = usePage<SharedData>().props
     const isPJ = auth.activeRole?.name === 'pj'
 
-    const [search, setSearch] = useState(filters.search || '')
-    const [status, setStatus] = useState(filters.status || 'all')
+    const decryptedDasarHukum = useDecryptedData<DasarHukum[]>(dasarHukum.encrypted)
+
+    const initialFilters = filters.decrypted || { search: '', status: 'all' };
+    const [search, setSearch] = useState(initialFilters.search || '')
+    const [status, setStatus] = useState(initialFilters.status || 'all')
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -63,12 +79,16 @@ export default function Index({ dasarHukum, filters }: Props) {
     }, [search, status])
 
     const handleFilter = () => {
-        router.get(
+        const filterParams = {
+            search: search || undefined,
+            status: status !== 'all' ? status : undefined,
+        };
+
+        const encryptedFilters = encryptFilters(filterParams);
+
+        router.post(
             '/dasar-hukum',
-            {
-                search: search || undefined,
-                status: status !== 'all' ? status : undefined,
-            },
+            { encrypted_filters: encryptedFilters },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -164,7 +184,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {dasarHukum.data.length === 0 ? (
+                                {decryptedDasarHukum.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 3 : 4}
@@ -174,7 +194,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    dasarHukum.data.map((item) => {
+                                    decryptedDasarHukum.map((item) => {
                                         // Format dengan atau tanpa instansi
                                         const formatNamaLengkap = () => {
                                             let kategoriLabel = ''
@@ -265,11 +285,11 @@ export default function Index({ dasarHukum, filters }: Props) {
                     </div>
 
                     {/* Pagination */}
-                    {dasarHukum.last_page > 1 && (
+                    {dasarHukum.meta.last_page > 1 && (
                         <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-800">
                             <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                Menampilkan {dasarHukum.data.length} dari{' '}
-                                {dasarHukum.total} data
+                                Menampilkan {decryptedDasarHukum.length} dari{' '}
+                                {dasarHukum.meta.total} data
                             </div>
                             <div className="flex gap-2">
                                 {dasarHukum.links.map((link, index) => {

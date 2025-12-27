@@ -11,6 +11,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { encryptFilters } from '@/utils/encryption';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -36,13 +38,23 @@ interface Kegiatan {
 
 interface KegiatanIndexProps {
     kegiatans: {
-        data: Kegiatan[];
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: any[];
-        meta: any;
     };
     filters: {
-        search?: string;
-        status?: string;
+        encrypted?: string
+        decrypted?: {
+            search?: string
+            status?: string
+        }
     };
 }
 
@@ -53,8 +65,11 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     // isKetuaTimLainnya: true if user is pj_lainnya (ketua tim lainnya)
     const isKetuaTimLainnya = auth.user.active_role === 'pj';
     
-    const [search, setSearch] = useState(filters.search || '');
-    const [status, setStatus] = useState(filters.status || '');
+    // Decrypt data once with memoization
+    const decryptedKegiatans = useDecryptedData<Kegiatan>(kegiatans.encrypted);
+    
+    const [search, setSearch] = useState(filters.decrypted?.search || '');
+    const [status, setStatus] = useState(filters.decrypted?.status || '');
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -65,9 +80,15 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     // Auto-filter with debounce
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            router.get(
+            const filterParams: Record<string, string> = {};
+            if (search) filterParams.search = search;
+            if (status) filterParams.status = status;
+
+            const encryptedFilters = encryptFilters(filterParams);
+
+            router.post(
                 '/kegiatan',
-                { search, status },
+                { encrypted_filters: encryptedFilters },
                 { 
                     preserveState: true,
                     preserveScroll: true,
@@ -82,9 +103,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const handleReset = () => {
         setSearch('');
         setStatus('');
-        router.get(
+        router.post(
             '/kegiatan',
-            {},
+            { encrypted_filters: encryptFilters({}) },
             { 
                 preserveState: true,
                 preserveScroll: true,
@@ -289,7 +310,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {kegiatans.data.length === 0 ? (
+                                {decryptedKegiatans.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
@@ -302,7 +323,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    kegiatans.data.map((kegiatan) => (
+                                    decryptedKegiatans.map((kegiatan) => (
                                         <tr
                                             key={kegiatan.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"

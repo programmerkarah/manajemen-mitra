@@ -13,8 +13,9 @@ import {
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
+import { encryptFilters } from '@/utils/encryption';
 
 interface LatestSk {
     id: number;
@@ -54,8 +55,11 @@ interface IndexProps {
         total: number;
     };
     filters: {
-        search?: string;
-        jenis_kegiatan?: 'sensus' | 'survei';
+        encrypted?: string
+        decrypted?: {
+            search?: string
+            jenis_kegiatan?: 'sensus' | 'survei'
+        }
     };
 }
 
@@ -65,8 +69,42 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const [search, setSearch] = useState(filters.search || '');
-    const [jenisKegiatan, setJenisKegiatan] = useState(filters.jenis_kegiatan || 'all');
+    const initialFilters = filters.decrypted || {};
+    const [search, setSearch] = useState(initialFilters.search || '');
+    const [jenisKegiatan, setJenisKegiatan] = useState(initialFilters.jenis_kegiatan || 'all');
+
+    // Auto-filter with debounce for search input
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            applyFilter();
+        }, 500); // Debounce 500ms untuk search input
+
+        return () => clearTimeout(timeoutId);
+    }, [search]);
+
+    // Auto-filter immediately for dropdowns
+    useEffect(() => {
+        applyFilter();
+    }, [jenisKegiatan]);
+
+    const applyFilter = () => {
+        const filterParams = {
+            search: search || undefined,
+            jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
+        };
+
+        const encryptedFilters = encryptFilters(filterParams);
+
+        router.post(
+            '/sk-kpa',
+            { encrypted_filters: encryptedFilters },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            }
+        );
+    };
 
     // Debug: Log kegiatan data to verify has_personnel_changes
     console.log('SK KPA Index - Kegiatan data:', kegiatan.data.map(k => ({
@@ -78,22 +116,6 @@ export default function Index({ kegiatan, filters }: IndexProps) {
 
     // Check if user can create SK (admin, pj, operator)
     const canCreateSk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj' || auth.activeRole?.name === 'operator';
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get(
-            '/sk-kpa',
-            {
-                search: search || undefined,
-                jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
 
     const handleReset = () => {
         setSearch('');
@@ -151,7 +173,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
 
                 {/* Filter & Search */}
                 <ContentCard>
-                    <form onSubmit={handleSearch} className="space-y-4">
+                    <div className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-3">
                             <div>
                                 <label htmlFor="search" className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -186,16 +208,13 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                 </Select>
                             </div>
 
-                            <div className="flex items-end gap-2">
-                                <Button type="submit" className="flex-1">
-                                    Cari
-                                </Button>
-                                <Button type="button" variant="outline" onClick={handleReset}>
-                                    Reset
+                            <div className="flex items-end">
+                                <Button type="button" variant="outline" onClick={handleReset} className="w-full">
+                                    Reset Filter
                                 </Button>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </ContentCard>
 
                 {/* Table */}

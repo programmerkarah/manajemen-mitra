@@ -107,6 +107,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Filter Encryption Key
+    |--------------------------------------------------------------------------
+    |
+    | This key is used for encrypting filter parameters between frontend and
+    | backend. It should be a secure random string.
+    |
+    */
+
+    'filter_encryption_key' => env('FILTER_ENCRYPTION_KEY', 'manajemen-mitra-filter-key-2025'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

@@ -10,6 +10,8 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
+import { encryptFilters } from '@/utils/encryption';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Petugas', href: '/petugas' },
@@ -29,22 +31,35 @@ interface Petugas {
 
 interface PetugasIndexProps {
     petugas: {
-        data: Petugas[];
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: any[];
-        meta: any;
     };
     filters: {
-        search?: string;
-        status?: string;
-        tahun?: string;
+        encrypted?: string
+        decrypted?: {
+            search?: string
+            status?: string
+            tahun?: string
+        }
     };
 }
 
 export default function Index({ petugas, filters }: PetugasIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    const [search, setSearch] = useState(filters.search || '');
-    const [status, setStatus] = useState(filters.status || '');
+    const initialFilters = filters.decrypted || {};
+    
+    const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted);
+    const [search, setSearch] = useState(initialFilters.search || '');
+    const [status, setStatus] = useState(initialFilters.status || '');
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
 
@@ -55,9 +70,12 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
     // Auto-filter with debounce
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            router.get(
+            const filterParams = { search, status };
+            const encryptedFilters = encryptFilters(filterParams);
+
+            router.post(
                 '/petugas',
-                { search, status },
+                { encrypted_filters: encryptedFilters },
                 { 
                     preserveState: true,
                     preserveScroll: true,
@@ -193,7 +211,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
-                                {petugas.data.map((Petugas) => (
+                                {decryptedPetugas.map((Petugas) => (
                                     <tr
                                         key={Petugas.id}
                                         className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"

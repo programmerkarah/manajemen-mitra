@@ -9,6 +9,7 @@ import { Search, Pencil, X, ChevronLeft, ChevronRight, Save, Loader2 } from 'luc
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/status-badge';
+import { encryptFilters } from '@/utils/encryption';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -40,19 +41,26 @@ interface UsersIndexProps {
         meta: any;
     };
     filters: {
-        search?: string;
+        encrypted?: string
+        decrypted?: {
+            search?: string
+        }
     };
 }
 
 export default function Index({ users, filters }: UsersIndexProps) {
-    const [search, setSearch] = useState(filters.search || '');
+    const initialFilters = filters.decrypted || {};
+    const [search, setSearch] = useState(initialFilters.search || '');
 
     // Auto-filter with debounce
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            router.get(
+            const filterParams = { search };
+            const encryptedFilters = encryptFilters(filterParams);
+
+            router.post(
                 '/users',
-                { search },
+                { encrypted_filters: encryptedFilters },
                 { 
                     preserveState: true,
                     preserveScroll: true,
@@ -94,7 +102,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 variant="outline"
                                 onClick={() => {
                                     setSearch('');
-                                    router.get('/users', {}, { preserveState: true });
+                                    router.post('/users', { encrypted_filters: encryptFilters({}) }, { preserveState: true });
                                 }}
                                 className="gap-2 h-11"
                             >

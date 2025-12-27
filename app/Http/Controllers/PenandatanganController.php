@@ -44,10 +44,28 @@ class PenandatanganController extends Controller
             ->orderBy('periode_mulai', 'desc')
             ->paginate(15)
             ->withQueryString();
+            
+        // Encrypt sensitive data
+        $penandatanganData = $penandatanganList->items();
+        $encryptedData = encryptData($penandatanganData);
 
         return Inertia::render('Penandatangan/Index', [
-            'PenandatanganList' => $penandatanganList,
-            'filters' => $request->only(['search', 'jenis', 'status']),
+            'PenandatanganList' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $penandatanganList->currentPage(),
+                    'last_page' => $penandatanganList->lastPage(),
+                    'per_page' => $penandatanganList->perPage(),
+                    'total' => $penandatanganList->total(),
+                    'from' => $penandatanganList->firstItem(),
+                    'to' => $penandatanganList->lastItem(),
+                ],
+                'links' => $penandatanganList->linkCollection()->toArray(),
+            ],
+            'filters' => [
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
+            ],
         ]);
     }
 

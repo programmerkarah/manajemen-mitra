@@ -15,6 +15,24 @@ class FilterRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     * Decrypt encrypted filters from POST request
+     */
+    protected function prepareForValidation(): void
+    {
+        // If it's a POST request with encrypted_filters parameter
+        if ($this->isMethod('POST') && $this->has('encrypted_filters')) {
+            $decrypted = decryptFilters($this->input('encrypted_filters'));
+            
+            // Merge decrypted filters into request
+            $this->merge($decrypted);
+            
+            // Remove the encrypted_filters parameter
+            $this->request->remove('encrypted_filters');
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>

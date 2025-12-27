@@ -51,10 +51,28 @@ class PetugasController extends Controller
         }
 
         $petugas = $query->latest()->paginate(15)->withQueryString();
+        
+        // Encrypt sensitive data
+        $petugasData = $petugas->items();
+        $encryptedData = encryptData($petugasData);
 
         return Inertia::render('Petugas/Index', [
-            'petugas' => $petugas,
-            'filters' => $request->only(['search', 'status', 'tahun', 'jenis_petugas']),
+            'petugas' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $petugas->currentPage(),
+                    'last_page' => $petugas->lastPage(),
+                    'per_page' => $petugas->perPage(),
+                    'total' => $petugas->total(),
+                    'from' => $petugas->firstItem(),
+                    'to' => $petugas->lastItem(),
+                ],
+                'links' => $petugas->linkCollection()->toArray(),
+            ],
+            'filters' => [
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
+            ],
         ]);
     }
 

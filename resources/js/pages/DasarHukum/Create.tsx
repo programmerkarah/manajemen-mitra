@@ -58,7 +58,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
         setErrors({})
 
         router.post(
-            '/dasar-hukum',
+            '/dasar-hukum/store',
             {
                 kategori: kategori,
                 instansi: instansi || undefined,

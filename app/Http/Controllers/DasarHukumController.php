@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Models\DasarHukum;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,10 +11,11 @@ use Inertia\Response;
 
 class DasarHukumController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
-        $search = $request->input('search');
-        $status = $request->input('status');
+        $validated = $request->validated();
+        $search = $validated['search'] ?? null;
+        $status = $validated['status'] ?? 'all';
 
         $dasarHukum = DasarHukum::query()
             ->when($search, function ($query, $search) {
@@ -29,12 +31,27 @@ class DasarHukumController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
+            
+        // Encrypt sensitive data
+        $dasarHukumData = $dasarHukum->items();
+        $encryptedData = encryptData($dasarHukumData);
 
         return Inertia::render('DasarHukum/Index', [
-            'dasarHukum' => $dasarHukum,
+            'dasarHukum' => [
+                'encrypted' => $encryptedData,
+                'meta' => [
+                    'current_page' => $dasarHukum->currentPage(),
+                    'last_page' => $dasarHukum->lastPage(),
+                    'per_page' => $dasarHukum->perPage(),
+                    'total' => $dasarHukum->total(),
+                    'from' => $dasarHukum->firstItem(),
+                    'to' => $dasarHukum->lastItem(),
+                ],
+                'links' => $dasarHukum->linkCollection()->toArray(),
+            ],
             'filters' => [
-                'search' => $search,
-                'status' => $status ?? 'all',
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
             ],
         ]);
     }
