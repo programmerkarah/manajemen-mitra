@@ -22,7 +22,7 @@ class UserRoleController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.created_at')
+        $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.email_verified_at', 'users.two_factor_secret', 'users.created_at')
             ->with('roles:id,name')
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -35,9 +35,24 @@ class UserRoleController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // Transform data to add computed properties
+        $transformedUsers = collect($users->items())->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'is_active' => $user->is_active,
+                'email_verified_at' => $user->email_verified_at,
+                'two_factor_enabled' => !is_null($user->two_factor_secret),
+                'roles' => $user->roles,
+                'created_at' => $user->created_at,
+            ];
+        });
+
         return Inertia::render('Users/Index', [
             'users' => [
-                'encrypted' => encryptData($users->items()),
+                'encrypted' => encryptData($transformedUsers),
                 'meta' => [
                     'current_page' => $users->currentPage(),
                     'last_page' => $users->lastPage(),
