@@ -100,7 +100,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {periodeList.data.length === 0 ? (
+                                {!periodeList?.data || periodeList.data.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
                                             Tidak ada periode yang memerlukan SPK
@@ -239,7 +239,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {periodeList.data.length > 0 && (
+                    {periodeList?.data && periodeList.data.length > 0 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
                                 Menampilkan {periodeList.from} hingga {periodeList.to} dari {periodeList.total} bulan
