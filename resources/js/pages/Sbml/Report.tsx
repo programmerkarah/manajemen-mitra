@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { encryptFilters } from '@/utils/encryption'
 import { ContentCard } from '@/components/content-card'
+import { useDecryptedData } from '@/hooks/useDecryptedData'
 import {
     Select,
     SelectContent,
@@ -56,7 +57,9 @@ interface BulanOption {
 }
 
 interface Props {
-    petugas: PetugasData[]
+    petugas: {
+        encrypted: string
+    }
     filters: {
         encrypted?: string
         decrypted?: {
@@ -69,6 +72,7 @@ interface Props {
 }
 
 export default function Report({ petugas, filters, bulan_options, tahun_options }: Props) {
+    const decryptedPetugas = useDecryptedData<PetugasData[]>(petugas.encrypted)
     const initialFilters = filters.decrypted || { tahun: new Date().getFullYear(), bulan: '01' }
     const [selectedTahun, setSelectedTahun] = useState(initialFilters.tahun.toString())
     const [selectedBulan, setSelectedBulan] = useState(initialFilters.bulan)
@@ -176,19 +180,19 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                 </ContentCard>
 
                 {/* Summary Info */}
-                {petugas.length > 0 && (
+                {decryptedPetugas && decryptedPetugas.length > 0 && (
                     <div className="grid gap-4 md:grid-cols-3">
                         <ContentCard>
                             <div className="space-y-1">
                                 <p className="text-sm text-muted-foreground">Total Petugas</p>
-                                <p className="text-2xl font-bold">{petugas.length}</p>
+                                <p className="text-2xl font-bold">{decryptedPetugas.length}</p>
                             </div>
                         </ContentCard>
                         <ContentCard>
                             <div className="space-y-1">
                                 <p className="text-sm text-muted-foreground">Total Honor</p>
                                 <p className="text-2xl font-bold">
-                                    {formatCurrency(petugas.reduce((sum, p) => sum + p.total_honor, 0))}
+                                    {formatCurrency(decryptedPetugas.reduce((sum, p) => sum + p.total_honor, 0))}
                                 </p>
                             </div>
                         </ContentCard>
@@ -196,7 +200,7 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                             <div className="space-y-1">
                                 <p className="text-sm text-muted-foreground">Petugas Melebihi Batas</p>
                                 <p className="text-2xl font-bold text-destructive">
-                                    {petugas.filter(p => p.exceeds).length}
+                                    {decryptedPetugas.filter(p => p.exceeds).length}
                                 </p>
                             </div>
                         </ContentCard>
@@ -205,7 +209,7 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
 
                 {/* Table */}
                 <ContentCard>
-                    {petugas.length === 0 ? (
+                    {!decryptedPetugas || decryptedPetugas.length === 0 ? (
                         <div className="py-12 text-center text-muted-foreground">
                             Tidak ada data honor petugas untuk {currentMonth?.label} {selectedTahun}
                         </div>
@@ -226,7 +230,7 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {petugas.map((p) => (
+                                        {decryptedPetugas.map((p) => (
                                             <>
                                                 <tr key={p.petugas_id} className="border-b">
                                                     <td className="p-4 align-middle">

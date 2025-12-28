@@ -56,17 +56,17 @@ export default function Welcome({
                             <div className="flex flex-col justify-center">
                                 <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                     <Activity className="h-4 w-4" />
-                                    <span>Sistem Informasi Manajemen</span>
+                                    <span>SIMANTIK</span>
                                 </div>
                                 <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl lg:text-6xl dark:text-white">
-                                    Sistem Manajemen{' '}
+                                    Sistem Manajemen Petugas dan {' '}
                                     <span className="text-blue-600 dark:text-blue-400">
-                                        Mitra
+                                        Administrasi Kegiatan Statistik
                                     </span>
                                 </h1>
                                 <p className="mb-8 text-lg text-neutral-600 dark:text-neutral-400">
                                     Platform terintegrasi untuk mengelola data petugas,
-                                    kegiatan, alokasi, dan berita acara serah terima
+                                    kegiatan, alokasi, dan kelengkapan administrasi
                                     dengan mudah dan efisien.
                                 </p>
 
