@@ -58,10 +58,10 @@ export default function Index({ year_groups }: Props) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun Anggaran
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
                                     <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -91,7 +91,7 @@ export default function Index({ year_groups }: Props) {
                                                     ({group.count} kategori)
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td className="px-3 py-3 text-center">
                                                 <StatusBadge status={group.status} />
                                             </td>
                                             <td className="px-3 py-3">

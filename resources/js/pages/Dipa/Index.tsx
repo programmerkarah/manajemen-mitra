@@ -210,9 +210,9 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Nomor DIPA</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Nomor DIPA</th>
                                     <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Tahun</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Tanggal DIPA</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Tanggal DIPA</th>
                                     <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
                                     {!isPJ && (
                                         <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>

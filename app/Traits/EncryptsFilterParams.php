@@ -12,14 +12,14 @@ trait EncryptsFilterParams
     {
         // Create encrypted representation
         $encrypted = [];
-        
+
         foreach ($filters as $key => $value) {
             if ($value !== null && $value !== '') {
                 // Encrypt each non-empty filter value
                 $encrypted[$key] = encrypt($value);
             }
         }
-        
+
         return $encrypted;
     }
 
@@ -30,7 +30,7 @@ trait EncryptsFilterParams
     protected function decryptFilterParams(array $filters): array
     {
         $decrypted = [];
-        
+
         foreach ($filters as $key => $value) {
             if ($value !== null && $value !== '') {
                 try {
@@ -42,7 +42,7 @@ trait EncryptsFilterParams
                 }
             }
         }
-        
+
         return $decrypted;
     }
 }

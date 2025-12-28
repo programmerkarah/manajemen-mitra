@@ -47,7 +47,7 @@ class DipaController extends Controller
             ->orderBy('nomor_dipa', 'asc')
             ->paginate(15)
             ->withQueryString();
-            
+
         // Encrypt sensitive data
         $dipaData = $dipaList->items();
         $encryptedData = encryptData($dipaData);

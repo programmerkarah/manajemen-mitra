@@ -31,7 +31,7 @@ class DasarHukumController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
-            
+
         // Encrypt sensitive data
         $dasarHukumData = $dasarHukum->items();
         $encryptedData = encryptData($dasarHukumData);

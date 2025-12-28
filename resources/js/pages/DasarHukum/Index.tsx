@@ -65,7 +65,7 @@ export default function Index({ dasarHukum, filters }: Props) {
     const { auth } = usePage<SharedData>().props
     const isPJ = auth.activeRole?.name === 'pj'
 
-    const decryptedDasarHukum = useDecryptedData<DasarHukum[]>(dasarHukum.encrypted)
+    const decryptedDasarHukum = useDecryptedData<DasarHukum>(dasarHukum.encrypted)
 
     const initialFilters = filters.decrypted || { search: '', status: 'all' };
     const [search, setSearch] = useState(initialFilters.search || '')
@@ -167,7 +167,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Dasar Hukum
                                     </th>
                                     <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">

@@ -72,7 +72,7 @@ interface Props {
 }
 
 export default function Report({ petugas, filters, bulan_options, tahun_options }: Props) {
-    const decryptedPetugas = useDecryptedData<PetugasData[]>(petugas.encrypted)
+    const decryptedPetugas = useDecryptedData<PetugasData>(petugas.encrypted)
     const initialFilters = filters.decrypted || { tahun: new Date().getFullYear(), bulan: '01' }
     const [selectedTahun, setSelectedTahun] = useState(initialFilters.tahun.toString())
     const [selectedBulan, setSelectedBulan] = useState(initialFilters.bulan)
@@ -333,7 +333,7 @@ export default function Report({ petugas, filters, bulan_options, tahun_options 
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody>
-                                                                                    {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
+                                                                                        {kegiatan.alokasi.map((alokasi, alokasiIdx) => (
                                                                                         alokasi.jumlah_satuan_listing !== null ? (
                                                                                             <>
                                                                                                 {alokasi.jumlah_satuan_listing > 0 && (

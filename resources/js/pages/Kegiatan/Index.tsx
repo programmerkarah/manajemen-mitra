@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
@@ -76,9 +76,17 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const [rejectNotes, setRejectNotes] = useState('');
     const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(null);
     const [processing, setProcessing] = useState(false);
+    const isFirstRender = useRef(true);
+
+    // Set first render flag after mount
+    useEffect(() => {
+        isFirstRender.current = false;
+    }, []);
 
     // Auto-filter with debounce
     useEffect(() => {
+        if (isFirstRender.current) return;
+
         const timeoutId = setTimeout(() => {
             const filterParams: Record<string, string> = {};
             if (search) filterParams.search = search;
@@ -286,22 +294,22 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Nama Kegiatan
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Pagu Anggaran
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
                                     <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -336,18 +344,18 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                     {kegiatan.nama_kegiatan}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.tahun_anggaran}
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-neutral-600 dark:text-neutral-400">
                                                 {formatCurrency(kegiatan.pagu_pencacahan)}
                                             </td>
-                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                                 <div className="max-w-xs truncate" title={kegiatan.ketua_tim.name}>
                                                     {kegiatan.ketua_tim.name}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td className="px-3 py-3 text-center">
                                                 <StatusBadge status={kegiatan.status} />
                                             </td>
                                             <td className="px-3 py-3">

@@ -65,7 +65,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem[]>(periodeList.encrypted);
+    const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem>(periodeList.encrypted);
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
@@ -86,22 +86,22 @@ export default function Index({ periodeList, filters }: IndexProps) {
                         <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Periode
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Kegiatan
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Jumlah Petugas Non Organik
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Total SPK
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Status SPK
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -116,7 +116,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                 ) : (
                                     decryptedPeriodeList.map((monthData, index) => (
                                         <tr key={`${monthData.tahun}-${monthData.bulan}`} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
-                                            <td className="px-4 py-4 text-sm font-medium text-neutral-900 dark:text-white whitespace-nowrap">
+                                            <td className="px-4 py-4 text-center text-sm font-medium text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.bulan_label} {monthData.tahun}
                                             </td>
                                             <td className="px-4 py-4">
@@ -136,10 +136,10 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                             <td className="px-4 py-4 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.total_petugas_non_organik} petugas
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
+                                            <td className="px-4 py-4 text-center text-sm text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.total_spk} SPK
                                             </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
+                                            <td className="px-4 py-4 whitespace-nowrap text-center">
                                                 <StatusBadge status={monthData.spk_status_type} />
                                             </td>
                                             <td className="px-4 py-4">

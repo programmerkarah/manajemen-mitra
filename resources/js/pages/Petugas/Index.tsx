@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Download, FileUp, Plus, Search, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
@@ -66,9 +66,17 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null as File | null,
     });
+    const isFirstRender = useRef(true);
+
+    // Set first render flag after mount
+    useEffect(() => {
+        isFirstRender.current = false;
+    }, []);
 
     // Auto-filter with debounce
     useEffect(() => {
+        if (isFirstRender.current) return;
+
         const timeoutId = setTimeout(() => {
             const filterParams = { search, status };
             const encryptedFilters = encryptFilters(filterParams);
@@ -187,22 +195,22 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                             <table className="w-full">
                                 <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Nama
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         NIK/NIP
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Email
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Telepon
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Pendidikan
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                                         Status
                                     </th>
                                     <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300">
@@ -225,13 +233,13 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                             <div className="max-w-xs truncate" title={Petugas.email}>{Petugas.email}</div>
                                         </td>
-                                        <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                        <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                             {Petugas.telepon}
                                         </td>
-                                        <td className="whitespace-nowrap px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                                        <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                             {Petugas.pendidikan}
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td className="px-3 py-3 text-center">
                                             <StatusBadge status={Petugas.status} />
                                         </td>
                                         <td className="px-3 py-3">

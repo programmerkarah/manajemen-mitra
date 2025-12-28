@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { StatusBadge } from '@/components/status-badge'
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, Plus, Send, Edit2, X, RefreshCw, AlertCircle, Copy, Eye, ChevronLeft, ChevronRight, Filter, RotateCcw, Users, MoreVertical } from 'lucide-react'
 import { encryptFilters } from '@/utils/encryption'
 import { useDecryptedData } from '@/hooks/useDecryptedData'
@@ -95,20 +95,34 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const [search, setSearch] = useState(initialFilters.search || '')
     const [status, setStatus] = useState(initialFilters.status || 'all')
     const [bulan, setBulan] = useState(initialFilters.bulan || 'all')
+    const isFirstRender = useRef(true);
+    const previousStatus = useRef(status);
+    const previousBulan = useRef(bulan);
 
-    // Auto-filter with debounce for search input
+    // Combined auto-filter with conditional debounce
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        // Check if dropdown changed (no debounce for dropdowns)
+        const isDropdownChange = previousStatus.current !== status || previousBulan.current !== bulan;
+        previousStatus.current = status;
+        previousBulan.current = bulan;
+
+        if (isDropdownChange) {
+            // Apply filter immediately for dropdown
             applyFilter()
-        }, 500) // Debounce 500ms untuk search input
+        } else {
+            // Apply filter with debounce for search
+            const timeoutId = setTimeout(() => {
+                applyFilter()
+            }, 500)
 
-        return () => clearTimeout(timeoutId)
-    }, [search])
-
-    // Auto-filter immediately for dropdowns
-    useEffect(() => {
-        applyFilter()
-    }, [status, bulan])
+            return () => clearTimeout(timeoutId)
+        }
+    }, [search, status, bulan])
 
     const applyFilter = () => {
         const filterParams: Record<string, string> = {};
@@ -338,25 +352,25 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         <table className="min-w-max w-full divide-y divide-white/20 dark:divide-neutral-700/30">
                         <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Kegiatan
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Bulan
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Estimasi Honor
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Sisa Pagu
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Jumlah Petugas
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Status
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                     Aksi
                                 </th>
                             </tr>
@@ -412,7 +426,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                             <StatusBadge status={periode.status} />
                                         </td>
                                         <td className="whitespace-nowrap px-4 py-4">
-                                            <div className="flex items-center justify-end gap-2">
+                                            <div className="flex items-center justify-center gap-2">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"

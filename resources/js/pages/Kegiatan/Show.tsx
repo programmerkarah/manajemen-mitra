@@ -351,8 +351,8 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Rate Honor
                                 </label>
-                                {Array.isArray(kegiatan.rate_honors) &&
-                                kegiatan.rate_honors.length > 0 ? (
+                                {Array.isArray(kegiatan.rate_honor) &&
+                                kegiatan.rate_honor.length > 0 ? (
                                     <>
                                         <p className="mt-1 text-gray-900 dark:text-white">
                                             Sudah ditentukan

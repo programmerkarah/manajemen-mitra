@@ -18,7 +18,7 @@ class EncryptFiltersInUrl
         if ($request->isMethod('POST') && $this->hasFilterParams($request)) {
             // Get all filter parameters
             $filters = $this->getFilterParams($request);
-            
+
             // Store encrypted filters in session for next request
             session(['encrypted_filters' => encryptFilters($filters)]);
         }
@@ -32,13 +32,13 @@ class EncryptFiltersInUrl
     private function hasFilterParams(Request $request): bool
     {
         $filterKeys = ['search', 'status', 'tahun', 'bulan', 'jenis', 'jenis_kegiatan', 'jenis_petugas'];
-        
+
         foreach ($filterKeys as $key) {
             if ($request->has($key)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -49,7 +49,7 @@ class EncryptFiltersInUrl
     {
         return $request->only([
             'search',
-            'status', 
+            'status',
             'tahun',
             'bulan',
             'jenis',

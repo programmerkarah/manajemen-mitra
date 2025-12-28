@@ -13,7 +13,7 @@ import {
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
@@ -75,25 +75,37 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const decryptedKegiatan = useDecryptedData<KegiatanItem[]>(kegiatan.encrypted);
+    const decryptedKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
     
     const initialFilters = filters.decrypted || {};
     const [search, setSearch] = useState(initialFilters.search || '');
     const [jenisKegiatan, setJenisKegiatan] = useState(initialFilters.jenis_kegiatan || 'all');
+    const isFirstRender = useRef(true);
+    const previousJenisKegiatan = useRef(jenisKegiatan);
 
-    // Auto-filter with debounce for search input
+    // Combined auto-filter with conditional debounce
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        // Check if jenisKegiatan changed (dropdown = no debounce)
+        const isDropdownChange = previousJenisKegiatan.current !== jenisKegiatan;
+        previousJenisKegiatan.current = jenisKegiatan;
+
+        if (isDropdownChange) {
+            // Apply filter immediately for dropdown
             applyFilter();
-        }, 500); // Debounce 500ms untuk search input
+        } else {
+            // Apply filter with debounce for search
+            const timeoutId = setTimeout(() => {
+                applyFilter();
+            }, 500);
 
-        return () => clearTimeout(timeoutId);
-    }, [search]);
-
-    // Auto-filter immediately for dropdowns
-    useEffect(() => {
-        applyFilter();
-    }, [jenisKegiatan]);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [search, jenisKegiatan]);
 
     const applyFilter = () => {
         const filterParams = {
@@ -128,9 +140,11 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
-        router.get(
+        // Kirim filter kosong terenkripsi via POST
+        const encryptedFilters = encryptFilters({});
+        router.post(
             '/sk-kpa',
-            {},
+            { encrypted_filters: encryptedFilters },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -231,22 +245,22 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                         <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Kegiatan
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Jenis
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Tahun
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Status SK
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -271,34 +285,20 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
                                                 <span className="capitalize">{keg.jenis_kegiatan}</span>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
                                                 {keg.tahun_anggaran}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
                                                 {keg.ketua_tim}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4 text-center">
                                                 <StatusBadge status={keg.sk_status_type} />
                                             </td>
-                                            <td className="px-6 py-4 text-right text-sm">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {/* View Latest SK Details - All roles can view */}
-                                                    {keg.latest_sk && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            asChild
-                                                            className="gap-1"
-                                                        >
-                                                            <Link href={`/sk-kpa/${keg.latest_sk.hashed_id}`}>
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                                Detail
-                                                            </Link>
-                                                        </Button>
-                                                    )}
+                                            <td className="px-6 py-4 text-center text-sm">
+                                                <div className="flex items-center justify-left gap-2">
 
                                                     {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (
@@ -335,6 +335,20 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                             )}
                                                         </>
                                                     )}
+                                                    {/* View Latest SK Details - All roles can view */}
+                                                    {keg.latest_sk && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            asChild
+                                                            className="gap-1"
+                                                        >
+                                                            <Link href={`/sk-kpa/${keg.latest_sk.hashed_id}`}>
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                                Detail
+                                                            </Link>
+                                                        </Button>
+                                                    )}
 
                                                     {/* Download SK Terakhir - All roles can download */}
                                                     {keg.latest_sk?.file_path && (
@@ -367,16 +381,42 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                 {kegiatan.links.map((link, index) => {
                                     const isFirst = link.label.includes('Previous');
                                     const isLast = link.label.includes('Next');
-                                    
+                                    // Ambil nomor halaman dari link.url (misal: ?page=2)
+                                    let page = 1;
+                                    if (link.url) {
+                                        const match = link.url.match(/page=(\\d+)/);
+                                        if (match) page = parseInt(match[1], 10);
+                                    }
+                                    const handlePageClick = (e: React.MouseEvent) => {
+                                        e.preventDefault();
+                                        if (!link.url || link.active) return;
+                                        const filterParams = {
+                                            search: search || undefined,
+                                            jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
+                                            page: page,
+                                        };
+                                        const encryptedFilters = encryptFilters(filterParams);
+                                        router.post(
+                                            '/sk-kpa',
+                                            { encrypted_filters: encryptedFilters },
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                replace: true,
+                                            }
+                                        );
+                                    };
                                     return (
-                                        <Link
+                                        <button
                                             key={index}
-                                            href={link.url || '#'}
+                                            onClick={handlePageClick}
+                                            disabled={!link.url || link.active}
                                             className={`rounded px-3 py-1 text-sm ${
                                                 link.active
                                                     ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
                                                     : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
                                             } ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
+                                            type="button"
                                         >
                                             {isFirst ? (
                                                 <ChevronLeft className="h-4 w-4" />
@@ -385,7 +425,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             ) : (
                                                 <span dangerouslySetInnerHTML={{ __html: link.label }} />
                                             )}
-                                        </Link>
+                                        </button>
                                     );
                                 })}
                             </div>

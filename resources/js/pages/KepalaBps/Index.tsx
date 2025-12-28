@@ -152,11 +152,11 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-left text-sm font-medium">Nama</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">NIP</th>
-                                    <th className="px-3 py-3 text-left text-sm font-medium">Jabatan</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Mulai</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-left text-sm font-medium">Periode Selesai</th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">Nama</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">NIP</th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">Jabatan</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Mulai</th>
+                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Selesai</th>
                                     <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
                                     {!isPJ && (
                                         <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>

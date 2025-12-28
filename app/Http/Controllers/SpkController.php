@@ -180,7 +180,7 @@ class SpkController extends Controller
             $currentPage,
             ['path' => $request->url(), 'query' => $request->query()]
         );
-        
+
         // Encrypt sensitive data
         $encryptedData = encryptData($paginatedItems);
 

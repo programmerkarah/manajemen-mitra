@@ -107,11 +107,11 @@ class SkKpaController extends Controller
                 ] : null,
             ];
         });
-        
+
         // Encrypt sensitive data
         $encryptedData = encryptData($transformedData);
 
-        return Inertia::render('SkKpa/Index', [
+        $response = Inertia::render('SkKpa/Index', [
             'kegiatan' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
@@ -129,6 +129,8 @@ class SkKpaController extends Controller
                 'decrypted' => $validated,
             ],
         ]);
+
+        return $response;
     }
 
     /**

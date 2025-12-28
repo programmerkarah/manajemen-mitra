@@ -31,7 +31,7 @@ class AlokasiPetugasController extends Controller
 
         // Get filters using only() to get values after merge in prepareForValidation
         // Filter out empty values like SbmlReportController does
-        $filters = array_filter($request->only(['search', 'status', 'bulan']), fn($value) => $value !== null && $value !== '');
+        $filters = array_filter($request->only(['search', 'status', 'bulan']), fn ($value) => $value !== null && $value !== '');
 
         // Build base query
         $baseQuery = PeriodeAlokasi::query()

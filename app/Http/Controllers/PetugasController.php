@@ -51,7 +51,7 @@ class PetugasController extends Controller
         }
 
         $petugas = $query->latest()->paginate(15)->withQueryString();
-        
+
         // Encrypt sensitive data
         $petugasData = $petugas->items();
         $encryptedData = encryptData($petugasData);

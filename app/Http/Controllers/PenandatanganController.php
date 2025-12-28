@@ -44,7 +44,7 @@ class PenandatanganController extends Controller
             ->orderBy('periode_mulai', 'desc')
             ->paginate(15)
             ->withQueryString();
-            
+
         // Encrypt sensitive data
         $penandatanganData = $penandatanganList->items();
         $encryptedData = encryptData($penandatanganData);

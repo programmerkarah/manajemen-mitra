@@ -23,10 +23,8 @@ class FilterRequest extends FormRequest
         // If it's a POST request with encrypted_filters parameter
         if ($this->isMethod('POST') && $this->has('encrypted_filters')) {
             $decrypted = decryptFilters($this->input('encrypted_filters'));
-            
             // Merge decrypted filters into request
             $this->merge($decrypted);
-            
             // Remove the encrypted_filters parameter
             $this->request->remove('encrypted_filters');
         }

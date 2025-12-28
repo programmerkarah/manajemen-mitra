@@ -277,7 +277,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}/create', [SkKpaController::class, 'create'])->name('sk-kpa.create-for-kegiatan');
         Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/preview', [SkKpaController::class, 'previewSk'])->name('sk-kpa.preview');
         Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/generate', [SkKpaController::class, 'generateSk'])->name('sk-kpa.generate');
-        Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store');
+        // Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store'); // REMOVED: Konflik dengan route filtering di atas
         Route::get('sk-kpa/{skKpa}/edit', [SkKpaController::class, 'edit'])->name('sk-kpa.edit');
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
         Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);

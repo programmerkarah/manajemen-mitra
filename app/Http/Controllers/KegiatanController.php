@@ -28,13 +28,13 @@ class KegiatanController extends Controller
     {
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
-        
+
         // Get only the fields that have non-null values
         $actualFilters = array_filter([
             'search' => $validated['search'] ?? null,
             'status' => $validated['status'] ?? null,
-        ], fn($value) => $value !== null && $value !== '');
-        
+        ], fn ($value) => $value !== null && $value !== '');
+
         $query = Kegiatan::query()
             ->select('kegiatan.*')
             ->with('ketuaTim:id,name')
@@ -61,7 +61,7 @@ class KegiatanController extends Controller
         }
 
         $kegiatans = $query->latest()->paginate(15)->withQueryString();
-        
+
         // Encrypt sensitive data
         $kegiatansData = $kegiatans->items();
         $encryptedData = encryptData($kegiatansData);

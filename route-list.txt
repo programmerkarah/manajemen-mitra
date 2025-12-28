@@ -1,0 +1,736 @@
+
+  GET|HEAD  / ................................................................................................. home
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+  POST      _boost/browser-logs ................................................................. boost.browser-logs
+  GET|POST|HEAD alokasi ............................................. alokasi.index › AlokasiPetugasController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim,approver,pj
+  GET|HEAD  alokasi/create ........................................ alokasi.create › AlokasiPetugasController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/kegiatan/{kegiatan}/store-multiple alokasi.store-multiple › AlokasiPetugasController@storeMultiple
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  alokasi/periode/{kegiatan}/{tahun}/{bulan} . alokasi.periode.show › AlokasiPetugasController@showPeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim,approver,pj
+  PUT       alokasi/periode/{kegiatan}/{tahun}/{bulan} alokasi.periode.update › AlokasiPetugasController@updatePeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  DELETE    alokasi/periode/{kegiatan}/{tahun}/{bulan} alokasi.periode.destroy › AlokasiPetugasController@destroyPeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit alokasi.periode.edit › AlokasiPetugasController@editPeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi alokasi.periode.revisi › AlokasiPetugasController@revisiPeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/periode/{kegiatan}/{tahun}/{bulan}/submit alokasi.periode.submit › AlokasiPetugasController@submitPeriode
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/store ........................................... alokasi.store › AlokasiPetugasController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  alokasi/{alokasi} ......................................... alokasi.show › AlokasiPetugasController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim,approver,pj
+  PUT       alokasi/{alokasi} ..................................... alokasi.update › AlokasiPetugasController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  PATCH     alokasi/{alokasi} ...................................................... AlokasiPetugasController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  DELETE    alokasi/{alokasi} ................................... alokasi.destroy › AlokasiPetugasController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/{alokasi}/approve ........................... alokasi.approve › AlokasiPetugasController@approve
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  alokasi/{alokasi}/edit .................................... alokasi.edit › AlokasiPetugasController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      alokasi/{alokasi}/reject .............................. alokasi.reject › AlokasiPetugasController@reject
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      alokasi/{alokasi}/submit .............................. alokasi.submit › AlokasiPetugasController@submit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  bast ................................................................. bast.index › BastController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  POST      bast ................................................................. bast.store › BastController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  bast/create ........................................................ bast.create › BastController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  bast/{bast} ............................................................ bast.show › BastController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  PUT       bast/{bast} ........................................................ bast.update › BastController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  PATCH     bast/{bast} ...................................................................... BastController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  DELETE    bast/{bast} ...................................................... bast.destroy › BastController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  bast/{bast}/edit ....................................................... bast.edit › BastController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|POST|HEAD broadcasting/auth ....................... Illuminate\Broadcasting › BroadcastController@authenticate
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+  GET|POST|HEAD dasar-hukum ......................................... dasar-hukum.index › DasarHukumController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  GET|HEAD  dasar-hukum/create .................................... dasar-hukum.create › DasarHukumController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  POST      dasar-hukum/store ....................................... dasar-hukum.store › DasarHukumController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  PATCH     dasar-hukum/{dasarHukum} .............................. dasar-hukum.update › DasarHukumController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  DELETE    dasar-hukum/{dasarHukum} ............................ dasar-hukum.destroy › DasarHukumController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  dasar-hukum/{dasarHukum}/edit ............................. dasar-hukum.edit › DasarHukumController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  dashboard ........................................................ dashboard › DashboardController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  debug .................................................................................................. 
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+  GET|POST|HEAD dipa ............................................................. dipa.index › DipaController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  GET|HEAD  dipa/create ........................................................ dipa.create › DipaController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  POST      dipa/store ........................................................... dipa.store › DipaController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  PUT       dipa/{dipa} ........................................................ dipa.update › DipaController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  PATCH     dipa/{dipa} ...................................................................... DipaController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  DELETE    dipa/{dipa} ...................................................... dipa.destroy › DipaController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  dipa/{dipa}/edit ....................................................... dipa.edit › DipaController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  POST      email/verification-notification verification.send › Laravel\Fortify › EmailVerificationNotificationController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ throttle:6,1
+  GET|HEAD  email/verify ........ verification.notice › Laravel\Fortify › EmailVerificationPromptController@__invoke
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+  GET|HEAD  email/verify/{id}/{hash} ........ verification.verify › Laravel\Fortify › VerifyEmailController@__invoke
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ signed
+            ⇂ throttle:6,1
+  GET|HEAD  forgot-password ................ password.request › Laravel\Fortify › PasswordResetLinkController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  POST      forgot-password ................... password.email › Laravel\Fortify › PasswordResetLinkController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  GET|POST|HEAD kegiatan ................................................. kegiatan.index › KegiatanController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim,approver,pj,administrator
+  GET|HEAD  kegiatan/create ............................................ kegiatan.create › KegiatanController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      kegiatan/store ............................................... kegiatan.store › KegiatanController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  kegiatan/{kegiatan} ............................................ kegiatan.show › KegiatanController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim,approver,pj,administrator
+  PUT       kegiatan/{kegiatan} ........................................ kegiatan.update › KegiatanController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  PATCH     kegiatan/{kegiatan} .......................................................... KegiatanController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  DELETE    kegiatan/{kegiatan} ...................................... kegiatan.destroy › KegiatanController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      kegiatan/{kegiatan}/approve .............................. kegiatan.approve › KegiatanController@approve
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  kegiatan/{kegiatan}/edit ....................................... kegiatan.edit › KegiatanController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  POST      kegiatan/{kegiatan}/rate-honor/bulk .. kegiatan.rate-honor.bulk › KegiatanController@bulkUpdateRateHonor
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:operator,admin,ketua_tim
+  GET|HEAD  kegiatan/{kegiatan}/rate-honor/manage .. kegiatan.rate-honor.manage › KegiatanController@manageRateHonor
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:operator,admin,ketua_tim
+  POST      kegiatan/{kegiatan}/reject ................................. kegiatan.reject › KegiatanController@reject
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      kegiatan/{kegiatan}/submit ................................. kegiatan.submit › KegiatanController@submit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,ketua_tim
+  GET|HEAD  login .................................. login › Laravel\Fortify › AuthenticatedSessionController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  POST      login ............................. login.store › Laravel\Fortify › AuthenticatedSessionController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+            ⇂ throttle:login
+  POST      logout ............................... logout › Laravel\Fortify › AuthenticatedSessionController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+  GET|POST|HEAD penandatangan .................................. penandatangan.index › PenandatanganController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  GET|HEAD  penandatangan/create ............................. penandatangan.create › PenandatanganController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  POST      penandatangan/store ................................ penandatangan.store › PenandatanganController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  PUT       penandatangan/{penandatangan} .................... penandatangan.update › PenandatanganController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  PATCH     penandatangan/{penandatangan} ........................................... PenandatanganController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  DELETE    penandatangan/{penandatangan} .................. penandatangan.destroy › PenandatanganController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  penandatangan/{penandatangan}/edit ................... penandatangan.edit › PenandatanganController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  POST      petugas ........................................................ petugas.store › PetugasController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  GET|POST|HEAD petugas .................................................... petugas.index › PetugasController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,administrator
+  GET|HEAD  petugas/create ............................................... petugas.create › PetugasController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  POST      petugas/import ............................................... petugas.import › PetugasController@import
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  GET|HEAD  petugas/template/download ........................ petugas.template › PetugasController@downloadTemplate
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  PUT       petugas/{petugas} ............................................ petugas.update › PetugasController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  PATCH     petugas/{petugas} ............................................................. PetugasController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  DELETE    petugas/{petugas} .......................................... petugas.destroy › PetugasController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  GET|HEAD  petugas/{petugas} ................................................ petugas.show › PetugasController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,administrator
+  GET|HEAD  petugas/{petugas}/edit ........................................... petugas.edit › PetugasController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  GET|HEAD  register .................................. register › Laravel\Fortify › RegisteredUserController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  POST      register ............................. register.store › Laravel\Fortify › RegisteredUserController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  GET|POST|HEAD rekap-honor ............................................... sbml.report › SbmlReportController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  POST      reset-password ......................... password.update › Laravel\Fortify › NewPasswordController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  GET|HEAD  reset-password/{token} ................. password.reset › Laravel\Fortify › NewPasswordController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  GET|POST|HEAD sbml ............................................................. sbml.index › SbmlController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  POST      sbml ................................................................. sbml.store › SbmlController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  sbml/create ........................................................ sbml.create › SbmlController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  DELETE    sbml/year/{tahun} ........................................ sbml.destroyYear › SbmlController@destroyYear
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  sbml/{tahun} ........................................................... sbml.show › SbmlController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj
+  PATCH     sbml/{tahun} ....................................................... sbml.update › SbmlController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  DELETE    sbml/{tahun} ..................................................... sbml.destroy › SbmlController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  GET|HEAD  sbml/{tahun}/edit ...................................................... sbml.edit › SbmlController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator
+  ANY       settings ....................................................... Illuminate\Routing › RedirectController
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  settings/appearance .................................................................... appearance.edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  settings/password ................................ user-password.edit › Settings\PasswordController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  PUT       settings/password ............................ user-password.update › Settings\PasswordController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ throttle:6,1
+  GET|HEAD  settings/profile ........................................ profile.edit › Settings\ProfileController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  PATCH     settings/profile .................................... profile.update › Settings\ProfileController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  DELETE    settings/profile .................................. profile.destroy › Settings\ProfileController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  settings/two-factor .................. two-factor.show › Settings\TwoFactorAuthenticationController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ password.confirm
+  GET|HEAD  simple ................................................................................................. 
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+  GET|POST|HEAD sk-kpa ........................................................ sk-kpa.index › SkKpaController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  POST      sk-kpa ............................................................ sk-kpa.store › SkKpaController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  GET|HEAD  sk-kpa/kegiatan/{kegiatanHashedId} ............ sk-kpa.list-by-kegiatan › SkKpaController@listByKegiatan
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  GET|HEAD  sk-kpa/kegiatan/{kegiatanHashedId}/create .......... sk-kpa.create-for-kegiatan › SkKpaController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  POST      sk-kpa/kegiatan/{kegiatanHashedId}/generate ............... sk-kpa.generate › SkKpaController@generateSk
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  POST      sk-kpa/kegiatan/{kegiatanHashedId}/preview .................. sk-kpa.preview › SkKpaController@previewSk
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  POST      sk-kpa/{skKpaHashedId}/upload-signed ............... sk-kpa.upload-signed › SkKpaController@uploadSigned
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator,ketua_tim
+  GET|HEAD  sk-kpa/{skKpa} ...................................................... sk-kpa.show › SkKpaController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  PUT       sk-kpa/{skKpa} .................................................. sk-kpa.update › SkKpaController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  PATCH     sk-kpa/{skKpa} .................................................................. SkKpaController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  DELETE    sk-kpa/{skKpa} ................................................ sk-kpa.destroy › SkKpaController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  GET|HEAD  sk-kpa/{skKpa}/edit ................................................. sk-kpa.edit › SkKpaController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,pj,operator
+  GET|POST|HEAD spk ................................................................ spk.index › SpkController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  POST      spk .................................................................... spk.store › SpkController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  spk/download-all .......................................... spk.download-all › SpkController@downloadAll
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  GET|HEAD  spk/list-by-month ........................................ spk.list-by-month › SpkController@listByMonth
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  GET|HEAD  spk/month ......................................... spk.show-by-month-get › SpkController@showByMonthGet
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  POST      spk/month ................................................ spk.show-by-month › SpkController@showByMonth
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  GET|HEAD  spk/periode/{periodeHashedId}/addendum .............. spk.create-addendum › SpkController@createAddendum
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  spk/periode/{periodeHashedId}/generate ............................... spk.create › SpkController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/generate-all ............. spk.generate-all › SpkController@generateAllSpk
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate spk.generate › SpkController@generateSpk
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate-addendum spk.generate-addendum › SpkController@generateAddendum
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview . spk.preview › SpkController@previewSpk
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-addendum spk.preview-addendum › SpkController@previewAddendum
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-lampiran spk.preview.lampiran › SpkController@previewSpkLampiran
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-main spk.preview.main › SpkController@previewSpkMain
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  spk/{spk} ................................................................ spk.show › SpkController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  PUT       spk/{spk} ............................................................ spk.update › SpkController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  PATCH     spk/{spk} ......................................................................... SpkController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  DELETE    spk/{spk} .......................................................... spk.destroy › SpkController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  GET|HEAD  spk/{spk}/edit ........................................................... spk.edit › SpkController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,approver
+  POST      spk/{spk}/upload-signed ................................. spk.upload-signed › SpkController@uploadSigned
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin,operator,pj,approver,ketua_tim
+  GET|HEAD  storage/{path} ........................................................................... storage.local
+  POST      switch-role .................................................. role.switch › RoleSwitchController@switch
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  POST      switch-year .................................................. year.switch › YearSwitchController@switch
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  two-factor-challenge two-factor.login › Laravel\Fortify › TwoFactorAuthenticatedSessionController@create
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+  POST      two-factor-challenge two-factor.login.store › Laravel\Fortify › TwoFactorAuthenticatedSessionController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ guest:web
+            ⇂ throttle:two-factor
+  GET|HEAD  two-factor/prompt ........................................ two-factor.prompt › TwoFactorPromptController
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  up ..................................................................................................... 
+  GET|HEAD  user/confirm-password .......... password.confirm › Laravel\Fortify › ConfirmablePasswordController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+  POST      user/confirm-password ... password.confirm.store › Laravel\Fortify › ConfirmablePasswordController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+  GET|HEAD  user/confirmed-password-status password.confirmation › Laravel\Fortify › ConfirmedPasswordStatusController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+  POST      user/confirmed-two-factor-authentication two-factor.confirm › Laravel\Fortify › ConfirmedTwoFactorAuthenticationController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  POST      user/two-factor-authentication two-factor.enable › Laravel\Fortify › TwoFactorAuthenticationController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  DELETE    user/two-factor-authentication two-factor.disable › Laravel\Fortify › TwoFactorAuthenticationController@destroy
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  GET|HEAD  user/two-factor-qr-code .......... two-factor.qr-code › Laravel\Fortify › TwoFactorQrCodeController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  GET|HEAD  user/two-factor-recovery-codes two-factor.recovery-codes › Laravel\Fortify › RecoveryCodeController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  POST      user/two-factor-recovery-codes two-factor.regenerate-recovery-codes › Laravel\Fortify › RecoveryCodeController@store
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  GET|HEAD  user/two-factor-secret-key . two-factor.secret-key › Laravel\Fortify › TwoFactorSecretKeyController@show
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth:web
+            ⇂ password.confirm
+  GET|POST|HEAD users ....................................................... users.index › UserRoleController@index
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  PATCH     users/{user} .................................................. users.update › UserRoleController@update
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  GET|HEAD  users/{user}/edit ................................................. users.edit › UserRoleController@edit
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  POST      users/{user}/reset-2fa .................................. users.reset-2fa › ResetUserTwoFactorController
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+            ⇂ active.role:admin
+  POST      view-as-user/clear ..................................... view-as-user.clear › ViewAsUserController@clear
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  GET|HEAD  view-as-user/search .................................. view-as-user.search › ViewAsUserController@search
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+  POST      view-as-user/set ........................................... view-as-user.set › ViewAsUserController@set
+            ⇂ Laravel\Boost\Middleware\InjectBoost
+            ⇂ auth
+            ⇂ verified
+
+                                                                                                Showing [161] routes
+

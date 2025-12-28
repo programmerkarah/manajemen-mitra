@@ -44,7 +44,7 @@ class UserRoleController extends Controller
                 'email' => $user->email,
                 'is_active' => $user->is_active,
                 'email_verified_at' => $user->email_verified_at,
-                'two_factor_enabled' => !is_null($user->two_factor_secret),
+                'two_factor_enabled' => ! is_null($user->two_factor_secret),
                 'roles' => $user->roles,
                 'created_at' => $user->created_at,
             ];
