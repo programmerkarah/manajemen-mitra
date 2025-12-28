@@ -184,7 +184,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {decryptedDasarHukum.length === 0 ? (
+                                {!decryptedDasarHukum || decryptedDasarHukum.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 3 : 4}
@@ -194,7 +194,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedDasarHukum.map((item) => {
+                                    decryptedDasarHukum?.map((item) => {
                                         // Format dengan atau tanpa instansi
                                         const formatNamaLengkap = () => {
                                             let kategoriLabel = ''
@@ -288,7 +288,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                     {dasarHukum.meta.last_page > 1 && (
                         <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-800">
                             <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                Menampilkan {decryptedDasarHukum.length} dari{' '}
+                                Menampilkan {decryptedDasarHukum?.length || 0} dari{' '}
                                 {dasarHukum.meta.total} data
                             </div>
                             <div className="flex gap-2">
