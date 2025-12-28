@@ -6,6 +6,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, Eye, Plus, ChevronLeft, ChevronRight, FileEdit } from 'lucide-react';
 import { StatusBadge } from '@/components/status-badge';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 
 interface KegiatanItem {
     periode_id: number;
@@ -37,15 +38,20 @@ interface MonthlyPeriodeItem {
 
 interface IndexProps {
     periodeList: {
-        data: MonthlyPeriodeItem[];
+        encrypted: string;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: Array<{
             url: string | null;
             label: string;
             active: boolean;
         }>;
-        from: number;
-        to: number;
-        total: number;
     };
     filters: {
         search?: string;
@@ -59,6 +65,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
+    const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem[]>(periodeList.encrypted);
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
@@ -100,14 +107,14 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {!periodeList?.data || periodeList.data.length === 0 ? (
+                                {!decryptedPeriodeList || decryptedPeriodeList.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
                                             Tidak ada periode yang memerlukan SPK
                                         </td>
                                     </tr>
                                 ) : (
-                                    periodeList.data.map((monthData, index) => (
+                                    decryptedPeriodeList.map((monthData, index) => (
                                         <tr key={`${monthData.tahun}-${monthData.bulan}`} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                                             <td className="px-4 py-4 text-sm font-medium text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {monthData.bulan_label} {monthData.tahun}
@@ -239,10 +246,10 @@ export default function Index({ periodeList, filters }: IndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {periodeList?.data && periodeList.data.length > 0 && (
+                    {decryptedPeriodeList && decryptedPeriodeList.length > 0 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Menampilkan {periodeList.from} hingga {periodeList.to} dari {periodeList.total} bulan
+                                Menampilkan {periodeList.meta.from} hingga {periodeList.meta.to} dari {periodeList.meta.total} bulan
                             </div>
                             <div className="flex gap-2">
                                 {periodeList.links.map((link, index) => {

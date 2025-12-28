@@ -173,7 +173,9 @@ class SbmlReportController extends Controller
         rsort($tahunOptions);
 
         return Inertia::render('Sbml/Report', [
-            'petugas' => encryptData($petugasData),
+            'petugas' => [
+                'encrypted' => encryptData($petugasData->toArray()),
+            ],
             'filters' => [
                 'encrypted' => encryptFilters($request->only(['tahun', 'bulan'])),
                 'decrypted' => $request->only(['tahun', 'bulan']) ?: [
