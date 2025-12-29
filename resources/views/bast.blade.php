@@ -252,7 +252,7 @@
                     <td style="border: none; vertical-align: top; text-align: justify;">Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto</td>
                 </tr>
             </table>
-            <span style="page-break-inside: avoid;">bertindak sebagai Ketua Tim {{$nama_kegiatan}} Tahun {{ $tahun ?? date('Y') }} serta atas nama petugas kegiatan yang selanjutnya disebut sebagai <strong>PARA PETUGAS</strong> sebagaimana terlampir dalam Lampiran Berita Acara ini, selanjutnya disebut <strong>PIHAK KEDUA</strong></span>
+            <div style="page-break-inside: avoid;">bertindak sebagai Ketua Tim {{$nama_kegiatan}} Tahun {{ $tahun ?? date('Y') }} serta atas nama petugas kegiatan yang selanjutnya disebut sebagai <strong>PARA PETUGAS</strong> sebagaimana terlampir dalam Lampiran Berita Acara ini, selanjutnya disebut <strong>PIHAK KEDUA</strong></div>
 
 
             <p style="margin-top: 10px; text-align: justify;">
