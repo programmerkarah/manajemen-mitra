@@ -346,10 +346,9 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             </ContentCard>
 
             {/* Table */}
-            <ContentCard padding="none">
-                <div className="overflow-x-auto">
-                    <div className="overflow-hidden rounded-2xl">
-                        <table className="min-w-max w-full divide-y divide-white/20 dark:divide-neutral-700/30">
+            <ContentCard padding="none" className="overflow-x-auto">
+                <div className="rounded-2xl">
+                    <table className="min-w-max w-full divide-y divide-white/20 dark:divide-neutral-700/30">
                         <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
                             <tr>
                                 <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
@@ -504,7 +503,6 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                             )}
                         </tbody>
                     </table>
-                </div>
                 </div>
 
                 {/* Pagination */}

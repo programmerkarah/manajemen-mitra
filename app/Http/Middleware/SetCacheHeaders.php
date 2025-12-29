@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,7 +22,7 @@ class SetCacheHeaders
         // Skip caching for certain conditions
         if (
             $request->method() !== 'GET' ||
-            auth()->guest() ||
+            Auth::guest() ||
             $response->getStatusCode() !== 200
         ) {
             return $response;
@@ -54,6 +55,12 @@ class SetCacheHeaders
     private function getCacheTime(Request $request): int
     {
         $routeName = $request->route()?->getName() ?? '';
+        $uri = $request->path();
+
+        // No cache for download/export routes
+        if (str_contains($uri, '/download') || str_contains($uri, '/export')) {
+            return 0;
+        }
 
         // SPK pages - cache for 5 minutes (300 seconds) as data changes frequently
         if (str_contains($routeName, 'spk')) {

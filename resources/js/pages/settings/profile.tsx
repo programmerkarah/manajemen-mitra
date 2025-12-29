@@ -68,6 +68,22 @@ export default function Profile({
                                         message={errors.name}
                                     />
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="nip">NIP</Label>
+
+                                    <Input
+                                        id="nip"
+                                        className="mt-1 block w-full"
+                                        defaultValue={auth.user.nip || ''}
+                                        name="nip"
+                                        placeholder="Nomor Induk Pegawai (optional)"
+                                    />
+
+                                    <InputError
+                                        className="mt-2"
+                                        message={errors.nip}
+                                    />
+                                </div>
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email address</Label>

@@ -6,6 +6,7 @@ use App\Traits\HasHashedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Bast extends Model
@@ -22,15 +23,18 @@ class Bast extends Model
         return [
             'tanggal_bast' => 'date:Y-m-d',
             'tanggal_serah_terima' => 'date:Y-m-d',
+            'menggunakan_fasih' => 'boolean',
         ];
     }
 
     protected $fillable = [
         'nomor_bast',
         'spk_id',
+        'periode_alokasi_id',
         'kegiatan_id',
         'tanggal_bast',
         'tanggal_serah_terima',
+        'menggunakan_fasih',
         'uraian_pekerjaan',
         'nama_ketua_tim',
         'nip_ketua_tim',
@@ -64,5 +68,15 @@ class Bast extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function periodeAlokasi(): BelongsTo
+    {
+        return $this->belongsTo(PeriodeAlokasi::class);
+    }
+
+    public function bastPetugas(): HasMany
+    {
+        return $this->hasMany(BastPetugas::class);
     }
 }

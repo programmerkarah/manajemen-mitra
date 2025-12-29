@@ -497,6 +497,8 @@ class KegiatanController extends Controller
             'rate_honors.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
             'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
             'rate_honors.*.rate' => ['required', 'numeric', 'min:0'],
+            'rate_honors.*.satuan_id' => ['nullable', 'exists:satuan,id'],
+            'rate_honors.*.satuan_listing_id' => ['nullable', 'exists:satuan,id'],
             'satuan_id' => ['required', 'exists:satuan,id'],
             'satuan_listing_id' => ['nullable', 'exists:satuan,id'],
             'rate_honors.*.rate_listing' => ['nullable', 'numeric', 'min:0'],
@@ -510,6 +512,10 @@ class KegiatanController extends Controller
 
         // Delete existing rate honors for this kegiatan
         RateHonor::where('kegiatan_id', $kegiatan->id)->delete();
+
+        // Prepare global satuan fallbacks
+        $globalSatuanId = $request->satuan_id ?? null;
+        $globalSatuanListingId = $request->satuan_listing_id ?? null;
 
         // Create new rate honors
         foreach ($request->rate_honors as $rateHonorData) {
@@ -534,14 +540,25 @@ class KegiatanController extends Controller
                 'status_kepegawaian' => $rateHonorData['status_kepegawaian'],
                 'deskripsi' => "Rate honor untuk kegiatan {$kegiatan->kode_kegiatan}",
                 'rate' => $rateHonorData['rate'],
-                'satuan_id' => $request->satuan_id,
                 'tahun_berlaku' => $kegiatan->tahun_anggaran,
                 'status' => 'aktif',
             ];
+
+            // Only allow per-entry satuan override for pengolahan roles; otherwise use global satuan
+            if (in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)) {
+                $data['satuan_id'] = $rateHonorData['satuan_id'] ?? $globalSatuanId;
+            } else {
+                $data['satuan_id'] = $globalSatuanId;
+            }
+
             // Simpan rate_listing dan satuan_listing_id jika ada (untuk tahapan listing/updating)
             if (array_key_exists('rate_listing', $rateHonorData)) {
                 $data['rate_listing'] = $rateHonorData['rate_listing'] ?? null;
-                $data['satuan_listing_id'] = $request->satuan_listing_id ?? null;
+                if (in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)) {
+                    $data['satuan_listing_id'] = $rateHonorData['satuan_listing_id'] ?? $globalSatuanListingId ?? null;
+                } else {
+                    $data['satuan_listing_id'] = $globalSatuanListingId ?? null;
+                }
             }
             RateHonor::create($data);
         }

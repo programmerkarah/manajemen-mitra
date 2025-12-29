@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Pencil, Upload } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Pencil, Upload, Archive } from 'lucide-react';
 import { useState } from 'react';
 
 interface Spk {
@@ -103,10 +103,18 @@ interface MergedKegiatan {
     has_change: boolean;
 }
 
+interface UniqueKegiatan {
+    id: number;
+    hashed_id: string;
+    kode_kegiatan: string;
+    nama_kegiatan: string;
+}
+
 interface ShowProps {
     spk: Spk;
     petugas: Petugas;
     kegiatan_list: MergedKegiatan[];
+    unique_kegiatan_list?: UniqueKegiatan[];
     addendums: Addendum[];
     periode: PeriodeAlokasi;
     bast: Bast | null;
@@ -123,10 +131,13 @@ const bulanLabels: Record<number, string> = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 };
 
-export default function Show({ spk, petugas, kegiatan_list, addendums, periode, bast }: ShowProps) {
+export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list, addendums, periode, bast }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
     const [isUploading, setIsUploading] = useState(false);
+
+    // Ensure unique_kegiatan_list is always an array
+    const kegiatanListForDownload = unique_kegiatan_list || [];
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
@@ -140,6 +151,14 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
 
     const handleDownload = (filePath: string) => {
         window.open(`/${filePath}`, '_blank');
+    };
+
+    const handleDownloadAllByPeriode = () => {
+        window.location.href = `/spk/periode/${periode.hashed_id}/download-all`;
+    };
+
+    const handleDownloadAllByKegiatan = (kegiatanHashedId: string) => {
+        window.location.href = `/spk/periode/${periode.hashed_id}/kegiatan/${kegiatanHashedId}/download-all`;
     };
 
     const handleUploadSigned = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -553,6 +572,57 @@ export default function Show({ spk, petugas, kegiatan_list, addendums, periode, 
                             </div>
                         </div>
                     </ContentCard>
+
+                    <ContentCard>
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Download Semua SPK
+                            </h3>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Download semua SPK untuk semua petugas di periode {bulanLabels[periode.bulan]} {periode.tahun}
+                            </p>
+                            <Button
+                                variant="outline"
+                                onClick={handleDownloadAllByPeriode}
+                                className="w-full"
+                            >
+                                <Archive className="mr-2 h-4 w-4" />
+                                Download Semua SPK
+                            </Button>
+                        </div>
+                    </ContentCard>
+
+                    {kegiatanListForDownload.length > 0 && (
+                        <ContentCard>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Download SPK per Kegiatan
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Download SPK untuk petugas pada kegiatan tertentu
+                                </p>
+                                <div className="space-y-2">
+                                    {kegiatanListForDownload.map((kegiatan) => (
+                                        <Button
+                                            key={kegiatan.id}
+                                            variant="outline"
+                                            onClick={() => handleDownloadAllByKegiatan(kegiatan.hashed_id)}
+                                            className="w-full justify-start"
+                                            size="sm"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            <div className="text-left flex-1">
+                                                <div className="font-medium">{kegiatan.nama_kegiatan}</div>
+                                                <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                    {kegiatan.kode_kegiatan}
+                                                </div>
+                                            </div>
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </ContentCard>
+                    )}
                 </div>
             </div>
         </AppLayout>

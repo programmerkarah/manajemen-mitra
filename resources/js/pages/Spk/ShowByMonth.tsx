@@ -100,6 +100,14 @@ interface PetugasListItem {
     petugas_nik: string;
 }
 
+interface UniqueKegiatanItem {
+    id: number;
+    hashed_id: string;
+    kode_kegiatan: string;
+    nama_kegiatan: string;
+    jumlah_spk: number;
+}
+
 interface BreadcrumbItem {
     title: string;
     href: string;
@@ -123,6 +131,7 @@ interface ShowByMonthProps {
     periode: PeriodeAlokasi;
     bast: Bast | null;
     petugas_list: PetugasListItem[];
+    unique_kegiatan_list: UniqueKegiatanItem[];
     bulan: number;
     tahun: number;
     bulan_label: string;
@@ -143,6 +152,7 @@ export default function ShowByMonth({
     periode,
     bast,
     petugas_list,
+    unique_kegiatan_list,
     bulan,
     tahun,
     bulan_label
@@ -308,6 +318,58 @@ export default function ShowByMonth({
                                             {item.petugas_nama}
                                         </div>
                                     </button>
+                                ))}
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    {/* Download SPK per Kegiatan */}
+                    <ContentCard>
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Download SPK per Kegiatan
+                            </h3>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Unduh SPK semua petugas yang terlibat di masing-masing kegiatan
+                            </p>
+
+                            <div className="space-y-3">
+                                {unique_kegiatan_list.map((kegiatan) => (
+                                    <div key={kegiatan.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                                        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-neutral-900 dark:text-white font-semibold break-words">
+                                                    {kegiatan.nama_kegiatan}
+                                                </p>
+                                                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                                                    {kegiatan.kode_kegiatan}
+                                                </p>
+                                                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                                                    {kegiatan.jumlah_spk} petugas
+                                                </p>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                <form
+                                                    method="POST"
+                                                    action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
+                                                    className="inline-block"
+                                                >
+                                                    <input type="hidden" name="_token" value={document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''} />
+                                                    <input type="hidden" name="bulan" value={bulan} />
+                                                    <input type="hidden" name="tahun" value={tahun} />
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="gap-1"
+                                                    >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                        Download ZIP
+                                                    </Button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>

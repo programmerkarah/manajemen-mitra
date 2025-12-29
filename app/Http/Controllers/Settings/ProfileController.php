@@ -29,13 +29,16 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        // If view-as mode is active, update the viewed user instead of the authenticated user
+        $targetUser = $request->attributes->get('view_as_user') ?? $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $targetUser->fill($request->validated());
+
+        if ($targetUser->isDirty('email')) {
+            $targetUser->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $targetUser->save();
 
         return to_route('profile.edit');
     }

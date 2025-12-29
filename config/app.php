@@ -135,4 +135,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Instansi Configuration
+    |--------------------------------------------------------------------------
+    |
+    | These values are used for document generation (SPK, BAST, etc)
+    |
+    */
+
+    'instansi_name' => env('INSTANSI_NAME', 'Badan Pusat Statistik Kota Sawahlunto'),
+    'instansi_provinsi' => env('INSTANSI_PROVINSI', 'Sumatera Barat'),
+    'instansi_kabupaten' => env('INSTANSI_KABUPATEN', 'Kota Sawahlunto'),
+
 ];

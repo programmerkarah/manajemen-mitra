@@ -308,7 +308,7 @@
             <td>KESATU</td>
             <td>:</td>
             <td>
-                Mengangkat yang namanya tersebut dalam kolom 2 Lampiran Keputusan ini sebagai Petugas {{ $kegiatan->nama }}
+                Mengangkat yang namanya tersebut dalam kolom 2 Lampiran Keputusan ini sebagai Petugas {{ $kegiatan->nama_kegiatan }}
                 Badan Puast Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}.
             </td>
         </tr>

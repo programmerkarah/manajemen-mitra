@@ -260,8 +260,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::match(['get', 'post'], 'spk', [SpkController::class, 'index'])->name('spk.index');
         Route::get('spk/list-by-month', [SpkController::class, 'listByMonth'])->name('spk.list-by-month');
         Route::get('spk/download-all', [SpkController::class, 'downloadAll'])->name('spk.download-all');
+        Route::get('spk/periode/{periode}/kegiatan/{kegiatan}/download-all', [SpkController::class, 'downloadAllByKegiatan'])->name('spk.download-all-by-kegiatan');
         Route::get('spk/month', [SpkController::class, 'showByMonthGet'])->name('spk.show-by-month-get');
         Route::post('spk/month', [SpkController::class, 'showByMonth'])->name('spk.show-by-month');
+        Route::post('spk/month/kegiatan/{kegiatan}/download', [SpkController::class, 'downloadByKegiatanMonth'])->name('spk.download-by-kegiatan-month');
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
         Route::get('bast', [BastController::class, 'index'])->name('bast.index');
@@ -304,7 +306,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('spk/{spk}', [SpkController::class, 'update']);
         Route::delete('spk/{spk}', [SpkController::class, 'destroy'])->name('spk.destroy');
 
+        // BAST Routes - Ketua Tim
         Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
+        Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
+        Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
         Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
         Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');

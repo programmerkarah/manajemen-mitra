@@ -10,6 +10,8 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Spk;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -446,6 +448,36 @@ class SpkController extends Controller
             ];
         })->values()->all();
 
+        // Get all unique kegiatan in this month with SPK count
+        $allKegiatanIds = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->distinct()
+            ->pluck('periode_alokasi_id');
+
+        $uniqueKegiatanList = PeriodeAlokasi::whereIn('id', $allKegiatanIds)
+            ->with('kegiatan')
+            ->get()
+            ->groupBy('kegiatan_id')
+            ->map(function ($periodeGroup) use ($allSpks) {
+                $kegiatan = $periodeGroup->first()->kegiatan;
+                
+                // Count how many SPKs (petugas) are in this kegiatan
+                $spkCount = $allSpks->filter(function ($spk) use ($kegiatan) {
+                    return $spk->alokasiPetugas->periodeAlokasi->kegiatan_id === $kegiatan->id;
+                })->unique('petugas_id')->count();
+
+                return [
+                    'id' => $kegiatan->id,
+                    'hashed_id' => $kegiatan->hashed_id,
+                    'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                    'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                    'jumlah_spk' => $spkCount,
+                ];
+            })
+            ->values()
+            ->sortBy('kode_kegiatan')
+            ->values()
+            ->all();
+
         // Get all SPK documents for this petugas (original + addendums)
         $originalSpk = $spk->parent_spk_id ? $spk->parentSpk : $spk;
         $allSpkDocuments = Spk::where(function ($q) use ($originalSpk) {
@@ -512,6 +544,7 @@ class SpkController extends Controller
                 'file_path' => $bast->file_path,
             ] : null,
             'petugas_list' => $petugasList,
+            'unique_kegiatan_list' => $uniqueKegiatanList,
             'bulan' => (int) $bulan,
             'tahun' => (int) $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
@@ -578,6 +611,148 @@ class SpkController extends Controller
             if (file_exists($filePath)) {
                 $fileName = basename($spk->file_path);
                 $zip->addFile($filePath, $fileName);
+            }
+        }
+
+        $zip->close();
+
+        // Download and delete temp file
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Download all SPK files for a specific kegiatan in a periode as ZIP
+     */
+    public function downloadAllByKegiatan(Request $request, string $periodeHashedId, string $kegiatanHashedId)
+    {
+        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        
+        if (! $periodeId || ! $kegiatanId) {
+            abort(404);
+        }
+
+        $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
+        $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // Get all periodes in the same month and year for this specific kegiatan
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->where('kegiatan_id', $kegiatanId)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->pluck('id');
+
+        // Get all SPKs that have files and are related to these periodes
+        $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+            ->whereNotNull('file_path')
+            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
+                $query->select('id')
+                    ->from('alokasi_petugas')
+                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            })
+            ->orderBy('nomor_spk')
+            ->get();
+
+        if ($allSpks->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada SPK dengan file untuk diunduh pada kegiatan ini');
+        }
+
+        // Create ZIP file
+        $zip = new \ZipArchive;
+        $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
+        $kegiatanName = preg_replace('/[\/\\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
+        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$periode->tahun}_".time().'.zip';
+        $zipPath = storage_path('app/temp/'.$zipFileName);
+
+        // Create temp directory if not exists
+        if (! file_exists(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP');
+        }
+
+        // Add each SPK file to ZIP with organized folder structure
+        foreach ($allSpks as $spk) {
+            $filePath = public_path($spk->file_path);
+            if (file_exists($filePath)) {
+                $fileName = basename($spk->file_path);
+                // Add file with petugas name in the filename for better organization
+                $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
+                $zipFileNameInArchive = "{$petugasName}_{$fileName}";
+                $zip->addFile($filePath, $zipFileNameInArchive);
+            }
+        }
+
+        $zip->close();
+
+        // Download and delete temp file
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Download all SPK files for a specific kegiatan in a specific month as ZIP
+     * Used by ketua tim to download all SPK for their activity
+     */
+    public function downloadByKegiatanMonth(Request $request, string $kegiatanHashedId)
+    {
+        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun');
+        
+
+        $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // Format bulan with leading zero
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Get all periodes in the same month and year for this specific kegiatan
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->where('kegiatan_id', $kegiatanId)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->pluck('id');
+
+        // Get all SPKs that have files and are related to these periodes
+        $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+            ->whereNotNull('file_path')
+            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
+                $query->select('id')
+                    ->from('alokasi_petugas')
+                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            })
+            ->orderBy('nomor_spk')
+            ->get();
+
+        // Create ZIP file
+        $zip = new \ZipArchive;
+        $bulanLabel = $this->getBulanLabel((int) $bulan);
+        $kegiatanName = preg_replace('/[\/\\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
+        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$tahun}_".time().'.zip';
+        $zipPath = storage_path('app/temp/'.$zipFileName);
+
+        // Create temp directory if not exists
+        if (! file_exists(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP');
+        }
+
+        $filesAdded = 0;
+        // Add each SPK file to ZIP with organized folder structure
+        foreach ($allSpks as $spk) {
+            $filePath = public_path($spk->file_path);
+            
+            if (file_exists($filePath)) {
+                $fileName = basename($spk->file_path);
+                // Add file with petugas name in the filename for better organization
+                $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
+                $zipFileNameInArchive = "{$petugasName}_{$fileName}";
+                $zip->addFile($filePath, $zipFileNameInArchive);
+                $filesAdded++;
             }
         }
 
@@ -813,13 +988,6 @@ class SpkController extends Controller
                     ->values()
                     ->toArray();
 
-                \Log::debug('Baseline kegiatan for petugas', [
-                    'petugas_id' => $spk->petugas_id,
-                    'petugas_nama' => $spk->petugas->nama ?? 'Unknown',
-                    'spk_created_at' => $spk->created_at,
-                    'baseline_kegiatan_ids' => $kegiatanIds,
-                ]);
-
                 $existingKegiatanPerPetugas[$spk->petugas_id] = $kegiatanIds;
 
                 $existingSpkMap[$spk->petugas_id] = [
@@ -838,16 +1006,6 @@ class SpkController extends Controller
             $petugasList = $petugasList->filter(function ($item) use ($existingSpkMap, $existingKegiatanPerPetugas) {
                 $petugasId = $item['petugas']['id'];
 
-                // Always include new petugas (never had SPK before)
-                if (! isset($existingSpkMap[$petugasId])) {
-                    \Log::debug('Regenerate Filter: New petugas included', [
-                        'petugas_id' => $petugasId,
-                        'petugas_nama' => $item['petugas']['nama'],
-                    ]);
-
-                    return true;
-                }
-
                 // For existing petugas, check if they have NEW kegiatan (additions only)
                 $currentKegiatanIds = collect($item['kegiatan_list'])
                     ->pluck('kegiatan_id')
@@ -861,15 +1019,6 @@ class SpkController extends Controller
 
                 // Include only if there are NEW kegiatan (current has kegiatan that old doesn't have)
                 $hasNewKegiatan = count(array_diff($currentKegiatanIds, $oldKegiatanIds)) > 0;
-
-                \Log::debug('Regenerate Filter: Existing petugas check', [
-                    'petugas_id' => $petugasId,
-                    'petugas_nama' => $item['petugas']['nama'],
-                    'current_kegiatan' => $currentKegiatanIds,
-                    'old_kegiatan' => $oldKegiatanIds,
-                    'new_kegiatan' => array_diff($currentKegiatanIds, $oldKegiatanIds),
-                    'included' => $hasNewKegiatan,
-                ]);
 
                 return $hasNewKegiatan;
             })->values();
@@ -901,13 +1050,6 @@ class SpkController extends Controller
             $petugasList = $petugasList->filter(function ($item) use ($existingSpkPetugasIds) {
                 $petugasId = $item['petugas']['id'];
                 $notHaveSpk = ! in_array($petugasId, $existingSpkPetugasIds);
-
-                \Log::debug('Generate Filter: Petugas check', [
-                    'petugas_id' => $petugasId,
-                    'petugas_nama' => $item['petugas']['nama'],
-                    'has_spk' => in_array($petugasId, $existingSpkPetugasIds),
-                    'included' => $notHaveSpk,
-                ]);
 
                 return $notHaveSpk;
             })->values();
@@ -943,7 +1085,7 @@ class SpkController extends Controller
     /**
      * Show the form to generate Addendum SPKs for a periode with revisions
      */
-    public function createAddendum(Request $request, string $periodeHashedId): Response
+    public function createAddendum(Request $request, string $periodeHashedId): Response|RedirectResponse
     {
         $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
         $bulan = $request->input('bulan');
@@ -1034,25 +1176,6 @@ class SpkController extends Controller
                     $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
                     $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
 
-                    \Log::info('DEBUG ADDENDUM', [
-                        'petugas_id' => $firstAlokasi->petugas_id,
-                        'periode_perubahan' => $alokasiPerubahan->periode_alokasi_id,
-                        'periode_sebelumnya' => $alokasiSebelumnya->periode_alokasi_id ?? null,
-                        'jumlah_satuan_perubahan' => $alokasiPerubahan->jumlah_satuan,
-                        'jumlah_satuan_sebelumnya' => $alokasiSebelumnya->jumlah_satuan ?? null,
-                        'jumlah_satuan_listing_perubahan' => $alokasiPerubahan->jumlah_satuan_listing,
-                        'jumlah_satuan_listing_sebelumnya' => $alokasiSebelumnya->jumlah_satuan_listing ?? null,
-                        'total_honor_perubahan' => $alokasiPerubahan->total_honor,
-                        'total_honor_sebelumnya' => $alokasiSebelumnya->total_honor ?? null,
-                        'total_honor_listing_perubahan' => $alokasiPerubahan->total_honor_listing,
-                        'total_honor_listing_sebelumnya' => $alokasiSebelumnya->total_honor_listing ?? null,
-                        'peran_perubahan' => $alokasiPerubahan->peran,
-                        'peran_sebelumnya' => $alokasiSebelumnya->peran ?? null,
-                        'selisih_jumlah_satuan' => $selisih_jumlah_satuan,
-                        'selisih_jumlah_satuan_listing' => $selisih_jumlah_satuan_listing,
-                        'selisih_total_honor' => $selisih_total_honor,
-                        'selisih_total_honor_listing' => $selisih_total_honor_listing,
-                    ]);
 
                     if (
                         $selisih_jumlah_satuan !== 0 ||
@@ -1136,12 +1259,6 @@ class SpkController extends Controller
             ->values();
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
-
-        \Log::info('DEBUG PETUGAS LIST FINAL', [
-            'count' => $petugasList->count(),
-            'ids' => $petugasList->pluck('petugas.id'),
-            'is_regenerate_addendum' => $isRegenerateAddendum,
-        ]);
 
         return Inertia::render('Spk/Addendum', [
             'periode' => [
@@ -1282,8 +1399,6 @@ class SpkController extends Controller
                 'Content-Disposition' => 'inline; filename="preview-addendum-spk-'.$petugas->nama.'.pdf"',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error generating addendum preview PDF: '.$e->getMessage());
-
             return back()->with('error', 'Gagal generate preview addendum SPK: '.$e->getMessage());
         }
     }
@@ -1445,7 +1560,7 @@ class SpkController extends Controller
                 'status' => 'draft',
                 'parent_spk_id' => $validated['parent_spk_id'],
                 'addendum_number' => $validated['addendum_number'],
-                'created_by' => auth()->id(),
+                'created_by' => Auth::id(),
             ]);
 
             DB::commit();
@@ -1460,8 +1575,6 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error generating addendum SPK: '.$e->getMessage());
-
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal generate addendum SPK: '.$e->getMessage(),
@@ -1584,6 +1697,29 @@ class SpkController extends Controller
             ];
         })->values()->all();
 
+        // Get unique kegiatan list for download buttons - from all periodes in the same month/year
+        $allPeriodeInMonthIds = PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->pluck('kegiatan_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $uniqueKegiatanList = Kegiatan::whereIn('id', $allPeriodeInMonthIds)
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan')
+            ->get()
+            ->map(function ($kegiatan) {
+                return [
+                    'id' => $kegiatan->id,
+                    'hashed_id' => $kegiatan->hashed_id, // This is an appended attribute from HasHashedRouteKey trait
+                    'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                    'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                ];
+            })
+            ->values()
+            ->all();
+
         return Inertia::render('Spk/Show', [
             'spk' => [
                 'id' => $spk->id,
@@ -1611,6 +1747,7 @@ class SpkController extends Controller
                 'alamat' => $petugas->alamat,
             ],
             'kegiatan_list' => $mergedKegiatanList,
+            'unique_kegiatan_list' => $uniqueKegiatanList ?: [],
             'addendums' => $addendums,
             'periode' => [
                 'id' => $periode->id,
@@ -2054,7 +2191,7 @@ class SpkController extends Controller
                 'nip_ppk' => $penandatangan->nip ?? null,
                 'file_path' => $filePath,
                 'status' => 'draft',
-                'created_by' => auth()->id(),
+                'created_by' => Auth::id(),
             ]);
 
             DB::commit();
@@ -2167,6 +2304,8 @@ class SpkController extends Controller
             return match ($peran) {
                 'pcl_ppl' => 'Pemutakhiran Lapangan',
                 'pml' => 'Pemeriksaan Pemutakhiran Lapangan',
+                'pengolahan' => 'Pengolahan Dokumen Pemutakhiran Lapangan',
+                'pengawas_pengolahan' => 'Pemeriksaan Pengolahan Pemutakhiran Lapangan',
                 default => 'Pemutakhiran Lapangan',
             };
         }
@@ -2175,6 +2314,8 @@ class SpkController extends Controller
         return match ($peran) {
             'pcl_ppl' => 'Pendataan Lapangan',
             'pml' => 'Pemeriksaan Lapangan',
+            'pengolahan' => 'Pengolahan Dokumen Lapangan',
+            'pengawas_pengolahan' => 'Pemeriksaan Pengolahan Lapangan',
             default => 'Pendataan Lapangan',
         };
     }
@@ -2391,14 +2532,6 @@ class SpkController extends Controller
         $nextSuffix = 'A';
         $results = [];
 
-        // Log petugas yang akan diproses
-        \Log::info('SPK Generation Start:', [
-            'periode' => "{$periode->bulan}/{$periode->tahun}",
-            'is_regenerate' => $isRegenerate,
-            'petugas_count' => $sortedPetugas->count(),
-            'petugas_list' => $sortedPetugas->map(fn ($group) => $group->first()->petugas->nama)->values()->all(),
-        ]);
-
         foreach ($sortedPetugas as $petugasId => $alokasiGroup) {
             $petugas = $alokasiGroup->first()->petugas;
             $petugasHashedId = $petugas->hashed_id;
@@ -2503,7 +2636,7 @@ class SpkController extends Controller
             ];
 
             // Use the same PDF/database logic as generateSpk
-            \DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
                     ->setPaper('a4', 'portrait');
@@ -2573,7 +2706,7 @@ class SpkController extends Controller
 
                     $existingSpkRecord->update($updateData);
 
-                    \DB::commit();
+                    DB::commit();
                     $results[] = [
                         'petugas_id' => $petugasId,
                         'status' => 'updated',
@@ -2595,10 +2728,10 @@ class SpkController extends Controller
                         'nip_ppk' => $penandatangan->nip ?? null,
                         'file_path' => $filePath,
                         'status' => 'draft',
-                        'created_by' => auth()->id(),
+                        'created_by' => Auth::id(),
                     ]);
 
-                    \DB::commit();
+                    DB::commit();
                     $results[] = [
                         'petugas_id' => $petugasId,
                         'status' => 'created',
@@ -2611,7 +2744,7 @@ class SpkController extends Controller
                     }
                 }
             } catch (\Exception $e) {
-                \DB::rollBack();
+                DB::rollBack();
                 $results[] = [
                     'petugas_id' => $petugasId,
                     'status' => 'failed',
@@ -2623,13 +2756,6 @@ class SpkController extends Controller
         $successCount = collect($results)->where('status', 'created')->count();
         $updatedCount = collect($results)->where('status', 'updated')->count();
         $failedCount = collect($results)->where('status', 'failed')->count();
-
-        // Log detailed results for debugging
-        if ($failedCount > 0) {
-            \Log::info('SPK Generation Failures:', [
-                'failed_results' => collect($results)->where('status', 'failed')->values()->all(),
-            ]);
-        }
 
         // Adjust message based on regenerate mode
         if ($isRegenerate) {

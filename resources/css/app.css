@@ -137,8 +137,16 @@
         @apply border-border;
     }
 
+    html {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
     body {
         @apply bg-background text-foreground;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 100vh;
     }
 
     /* Ensure backdrop-blur works in dark mode */
