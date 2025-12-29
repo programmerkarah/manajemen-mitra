@@ -186,7 +186,7 @@
         </div>
         <div class="nomor" style="margin-top: 15px; text-align: center;">Nomor: {{ $nomor_bast }}</div>
 
-        <div class="content">
+        <div class="content" style="page-break-inside: avoid;">
             <p>
                 Pada hari ini {{ $hari ?? 'Jum\'at' }}, tanggal {{ $tanggal_bast ?? '-' }}, bulan {{ $bulan_label ?? '-' }}, tahun {{ $tahun ?? date('Y') }}, bertempat di Kantor Badan Pusat Statistik Kota Sawahlunto, kami yang bertanda tangan di bawah ini:
             </p>
@@ -277,12 +277,12 @@
                     <strong>PIHAK KEDUA</strong> menyatakan bahwa sudah menyaksikan <strong>PARA PETUGAS</strong> dalam menghapus Aplikasi FASIH dan data hasil Pendataan Lapangan pada perangkat handphone <strong>PARA PETUGAS.</strong>
                 </li>
                 @endif
-                <li style="margin: 6px 0; text-align: justify;">
-                    Dalam hal terdapat hasil pendataan lapangan yang memerlukan pemeriksaan lanjutan, maka akan dilakukan pengecekan, perbaikan, dan/atau kunjungan kembali ke lapangan sesuai dengan ketentuan yang berlaku dengan tetap berpedoman pada ketentuan dalam Perjanjain Kerja yang telah ditandatangani oleh <strong>PIHAK PERTAMA</strong> dan <strong>PARA PETUGAS</strong>.
-                </li>
-            </ol>
-
-            <div style="page-break-inside: avoid;">
+            <div style="page-break-before: always; page-break-inside: avoid;">
+                <ol style="margin: 10px 0 0 20px;">
+                    <li style="margin: 6px 0; text-align: justify;">
+                        Dalam hal terdapat hasil pendataan lapangan yang memerlukan pemeriksaan lanjutan, maka akan dilakukan pengecekan, perbaikan, dan/atau kunjungan kembali ke lapangan sesuai dengan ketentuan yang berlaku dengan tetap berpedoman pada ketentuan dalam Perjanjain Kerja yang telah ditandatangani oleh <strong>PIHAK PERTAMA</strong> dan <strong>PARA PETUGAS</strong>.
+                    </li>
+                </ol>
                 <p style="margin-top: 20px; text-align: justify;">
                     Demikian Berita Acara ini dibuat dengan sebenarnya dalam rangkap 2 (dua) dan menjadi sah berlaku setelah ditandatangani oleh <strong>PARA PIHAK</strong>.
                 </p>
