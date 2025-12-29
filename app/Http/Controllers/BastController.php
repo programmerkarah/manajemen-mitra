@@ -220,8 +220,8 @@ class BastController extends Controller
                     'nomor_spk' => $spk->nomor_spk,
                     'peran' => $alokasi->peran,
                     // Pre-fill hasil & satuan dari alokasi / periode
-                    'hasil_listing' => $hasListing ? ($alokasi->jumlah_satuan_listing ?? null) : null,
-                    'satuan_listing' => $hasListing ? ($satuanListing ?? null) : null,
+                    'hasil_listing' => ($hasListing && $isPendataanRole) ? ($alokasi->jumlah_satuan_listing ?? null) : null,
+                    'satuan_listing' => ($hasListing && $isPendataanRole) ? ($satuanListing ?? null) : null,
                     'hasil_pendataan_lapangan' => $isPendataanRole ? ($alokasi->jumlah_satuan ?? null) : null,
                     'satuan_pendataan_lapangan' => $isPendataanRole ? ($satuanPendataan ?? null) : null,
                     'hasil_pengolahan' => $isPengolahanRole ? ($alokasi->jumlah_satuan ?? null) : null,
@@ -314,6 +314,10 @@ class BastController extends Controller
                 $petugasData[$idx]['hasil_pendataan_lapangan'] = null;
                 $petugasData[$idx]['satuan_pendataan_lapangan'] = null;
                 $petugasData[$idx]['instrumen_pendataan_lapangan'] = null;
+                // also clear listing values if not a pendataan role
+                $petugasData[$idx]['hasil_listing'] = null;
+                $petugasData[$idx]['satuan_listing'] = null;
+                $petugasData[$idx]['instrumen_listing'] = null;
             }
             if (! in_array($peran, $pengolahanRoles, true)) {
                 $petugasData[$idx]['hasil_pengolahan'] = null;
@@ -344,9 +348,15 @@ class BastController extends Controller
         $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
         $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
 
-        $hasListing = collect($petugasData)->contains(function ($p) { return ! empty($p['hasil_listing']); });
-        $hasPengolahan = collect($petugasData)->contains(function ($p) { return ! empty($p['hasil_pengolahan']); });
-        $hasPendataan = collect($petugasData)->contains(function ($p) { return ! empty($p['hasil_pendataan_lapangan']); });
+        $hasListing = collect($petugasData)->contains(function ($p) {
+            return isset($p['hasil_listing']) && $p['hasil_listing'] !== null && $p['hasil_listing'] !== '';
+        });
+        $hasPengolahan = collect($petugasData)->contains(function ($p) {
+            return isset($p['hasil_pengolahan']) && $p['hasil_pengolahan'] !== null && $p['hasil_pengolahan'] !== '';
+        });
+        $hasPendataan = collect($petugasData)->contains(function ($p) {
+            return isset($p['hasil_pendataan_lapangan']) && $p['hasil_pendataan_lapangan'] !== null && $p['hasil_pendataan_lapangan'] !== '';
+        });
 
         // Use same nomor format as stored BASTs (does not persist)
         $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
@@ -654,6 +664,10 @@ class BastController extends Controller
                 $data['petugas'][$i]['hasil_pendataan_lapangan'] = null;
                 $data['petugas'][$i]['satuan_pendataan_lapangan'] = null;
                 $data['petugas'][$i]['instrumen_pendataan_lapangan'] = null;
+                // also clear listing values if not a pendataan role
+                $data['petugas'][$i]['hasil_listing'] = null;
+                $data['petugas'][$i]['satuan_listing'] = null;
+                $data['petugas'][$i]['instrumen_listing'] = null;
             }
             if (! in_array($peran, $pengolahanRoles, true)) {
                 $data['petugas'][$i]['hasil_pengolahan'] = null;

@@ -282,24 +282,24 @@
                 </li>
             </ol>
 
-            <p style="margin-top: 20px; text-align: justify;">
-                Demikian Berita Acara ini dibuat dengan sebenarnya dalam rangkap 2 (dua) dan menjadi sah berlaku setelah ditandatangani oleh <strong>PARA PIHAK</strong>.
-            </p>
-
-            <div style="height: 10px;"></div>
-
-            <div class="signature-section">
-                <div class="signature-box signature-left">
-                    <div>PIHAK KEDUA,</div>
-                    <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($nama_ketua_tim) }}</div>
+            <div style="page-break-inside: avoid;">
+                <p style="margin-top: 20px; text-align: justify;">
+                    Demikian Berita Acara ini dibuat dengan sebenarnya dalam rangkap 2 (dua) dan menjadi sah berlaku setelah ditandatangani oleh <strong>PARA PIHAK</strong>.
+                </p>
+                <div style="height: 10px;"></div>
+                <div class="signature-section">
+                    <div class="signature-box signature-left">
+                        <div>PIHAK KEDUA,</div>
+                        <div style="height:10px;"></div>
+                        <div class="signature-name">{{ strtoupper($nama_ketua_tim) }}</div>
+                    </div>
+                    <div class="signature-box signature-right">
+                        <div>PIHAK PERTAMA,</div>
+                        <div style="height:10px;"></div>
+                        <div class="signature-name">{{ strtoupper($nama_ppk) }}</div>
+                    </div>
+                    <div style="clear: both;"></div>
                 </div>
-                <div class="signature-box signature-right">
-                    <div>PIHAK PERTAMA,</div>
-                    <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($nama_ppk) }}</div>
-                </div>
-                <div style="clear: both;"></div>
             </div>
 
             @endif
