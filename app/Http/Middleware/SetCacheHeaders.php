@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetCacheHeaders
@@ -23,6 +24,11 @@ class SetCacheHeaders
             auth()->guest() ||
             $response->getStatusCode() !== 200
         ) {
+            return $response;
+        }
+
+        // Skip caching for file downloads (BinaryFileResponse)
+        if ($response instanceof BinaryFileResponse) {
             return $response;
         }
 
