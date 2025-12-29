@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '@/components/status-badge';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw, Copy } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { encryptFilters } from '@/utils/encryption';
@@ -60,10 +60,9 @@ interface KegiatanIndexProps {
 
 export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const { auth } = usePage<SharedData>().props;
-    // isPJ: true if user is pj (pj_lainnya), false otherwise
-    const isPJ = auth.activeRole?.name === 'pj';
-    // isKetuaTimLainnya: true if user is pj_lainnya (ketua tim lainnya)
-    const isKetuaTimLainnya = auth.user.active_role === 'pj';
+    
+    // Check if user can create kegiatan based on active role
+    const canCreate = auth.activeRole?.name && ['admin', 'operator', 'ketua_tim'].includes(auth.activeRole.name);
     
     // Decrypt data once with memoization
     const decryptedKegiatans = useDecryptedData<Kegiatan>(kegiatans.encrypted);
@@ -196,19 +195,40 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         // Only allow editing draft or divalidasi status
         if (!['draft', 'divalidasi'].includes(kegiatan.status)) return false;
         
-        return auth.user.active_role === 'admin' || 
-               auth.user.active_role === 'operator' || 
-               (auth.user.active_role === 'ketua_tim' && kegiatan.ketua_tim.id === auth.user.id && kegiatan.status === 'draft' || kegiatan.status === 'divalidasi') ||
-               (auth.user.active_role === 'pj' && kegiatan.pj_lainnya?.id === auth.user.id && kegiatan.status === 'draft' || kegiatan.status === 'divalidasi'); 
+        // Admin and operator can edit draft or divalidasi
+        if (auth.user.active_role === 'admin' || auth.user.active_role === 'operator') {
+            return true;
+        }
+        
+        // Ketua tim can edit if they own the kegiatan (as ketua_tim or pj_lainnya)
+        if (auth.user.active_role === 'ketua_tim') {
+            return kegiatan.ketua_tim.id === auth.user.id || 
+                   kegiatan.pj_lainnya?.id === auth.user.id;
+        }
+        
+        // PJ role (pj_lainnya) can edit if they're assigned
+        if (auth.user.active_role === 'pj') {
+            return kegiatan.pj_lainnya?.id === auth.user.id;
+        }
+        
+        return false;
     }
 
     const canSubmit = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
-        return kegiatan.status === 'draft' && (
-            auth.user.active_role === 'admin' || 
-            auth.user.active_role === 'operator' || 
-            kegiatan.ketua_tim.id === auth.user.id
-        )
+        if (kegiatan.status !== 'draft') return false;
+        
+        // Admin and operator can always submit
+        if (auth.user.active_role === 'admin' || auth.user.active_role === 'operator') {
+            return true;
+        }
+        
+        // Ketua tim can submit if they own the kegiatan (as ketua_tim, not as pj_lainnya)
+        if (auth.user.active_role === 'ketua_tim') {
+            return kegiatan.ketua_tim.id === auth.user.id;
+        }
+        
+        return false;
     }
 
     const canApprove = (kegiatan: Kegiatan) => {
@@ -231,7 +251,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     title="Kegiatan"
                     description="Kelola kegiatan dan anggaran"
                 >
-                    {(!isPJ || isKetuaTimLainnya) && (
+                    {canCreate && (
                         <Button size="sm" asChild className="gap-2">
                             <Link href="/kegiatan/create">
                                 <Plus className="h-4 w-4" />
@@ -360,7 +380,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {!isPJ && canSubmit(kegiatan) && (
+                                                    {canSubmit(kegiatan) && (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
@@ -371,7 +391,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <span className="sr-only sm:not-sr-only">Ajukan</span>
                                                         </Button>
                                                     )}
-                                                    {!isPJ && canApprove(kegiatan) && (
+                                                    {canApprove(kegiatan) && (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
@@ -382,7 +402,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <span className="sr-only sm:not-sr-only">Setujui</span>
                                                         </Button>
                                                     )}
-                                                    {!isPJ && canReject(kegiatan) && (
+                                                    {canReject(kegiatan) && (
                                                         <Button
                                                             variant="destructive"
                                                             size="sm"
@@ -404,7 +424,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <span className="sr-only sm:not-sr-only">Detail</span>
                                                         </Link>
                                                     </Button>
-                                                    {!isPJ && canEdit(kegiatan) && (
+                                                    {canEdit(kegiatan) && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -414,6 +434,19 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
                                                                 <Pencil className="h-4 w-4" />
                                                                 <span className="sr-only sm:not-sr-only">Edit</span>
+                                                            </Link>
+                                                        </Button>
+                                                    )}
+                                                    {canCreate && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            asChild
+                                                            className="gap-2"
+                                                        >
+                                                            <Link href={`/kegiatan/${kegiatan.hashed_id}/copy`}>
+                                                                <Copy className="h-4 w-4" />
+                                                                <span className="sr-only sm:not-sr-only">Salin</span>
                                                             </Link>
                                                         </Button>
                                                     )}

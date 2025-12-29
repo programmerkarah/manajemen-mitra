@@ -21,8 +21,13 @@ class CheckActiveRole
             return redirect()->route('login');
         }
 
-        // Refresh user to get latest roles from database
-        $user->refresh();
+        // Only refresh if not in view_as mode to preserve effectiveUser data
+        if (! session()->has('view_as_user_id')) {
+            // Refresh user to get latest roles from database
+            $user->refresh();
+        }
+
+        // Always load roles
         $user->load(['roles']);
 
         // If no roles specified, just ensure user has active role

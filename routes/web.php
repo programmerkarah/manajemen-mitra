@@ -133,6 +133,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Kegiatan modification routes (Admin, Operator, Ketua Tim only)
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('kegiatan/create', [KegiatanController::class, 'create'])->name('kegiatan.create');
+        Route::get('kegiatan/{kegiatan}/copy', [KegiatanController::class, 'copy'])->name('kegiatan.copy');
         Route::post('kegiatan/store', [KegiatanController::class, 'store'])->name('kegiatan.store');
         Route::get('kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->name('kegiatan.edit');
         Route::put('kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->name('kegiatan.update');

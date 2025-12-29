@@ -120,6 +120,49 @@ class KegiatanController extends Controller
     }
 
     /**
+     * Show the form for copying an existing kegiatan.
+     */
+    public function copy(Request $request, Kegiatan $kegiatan): Response
+    {
+        // Authorization via policy
+        $this->authorize('view', $kegiatan);
+
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+            ->where('is_active', true)
+            ->select('id', 'name', 'email')
+            ->get();
+
+        // PJ lainnya list for create form (only ketua_tim users)
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+            ->where('is_active', true)
+            ->select('id', 'name', 'email')
+            ->get();
+
+        // Generate tahun options (current year - 2 to current year + 5)
+        $currentYear = (int) date('Y');
+        $tahunOptions = range($currentYear - 2, $currentYear + 5);
+
+        // Prepare copy data from source kegiatan
+        $copyData = [
+            'nama_kegiatan' => $kegiatan->nama_kegiatan,
+            'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+            'deskripsi' => $kegiatan->deskripsi,
+            'tahun_anggaran' => $kegiatan->tahun_anggaran,
+            'has_listing_updating' => $kegiatan->has_listing_updating,
+            'ketua_tim_user_id' => $kegiatan->ketua_tim_user_id,
+            'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
+        ];
+
+        return Inertia::render('Kegiatan/Create', [
+            'ketuaTimUsers' => $ketuaTimUsers,
+            'pjLainnyaUsers' => $pjLainnyaUsers,
+            'tahunOptions' => $tahunOptions,
+            'copyData' => $copyData,
+            'isCopyMode' => true,
+        ]);
+    }
+
+    /**
      * Generate kode kegiatan otomatis.
      */
     private function generateKodeKegiatan(int $tahunAnggaran): string

@@ -170,11 +170,12 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         const data: Record<string, string> = {};
         // Ambil satuan_id dan satuan_listing_id dari rate_honors pertama (jika ada)
         const first = kegiatan.rate_honors?.[0];
-        data['satuan_id'] = first?.satuan_id?.toString() || '';
+        // Set satuan_id dengan fallback ke defaultSatuan
+        data['satuan_id'] = first?.satuan_id?.toString() || defaultSatuan?.id?.toString() || '';
         data['kode_coa'] = kegiatan.kode_coa || '';
         if (kegiatan.has_listing_updating) {
             data['satuan_listing_id'] =
-                first?.satuan_listing_id?.toString() || '';
+                first?.satuan_listing_id?.toString() || defaultSatuan?.id?.toString() || '';
         }
         combinations.forEach((combo) => {
             const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
@@ -243,10 +244,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
 
         // Validasi satuan wajib diisi
         const newErrors: Record<string, string> = {};
-        if (!formData['satuan_id']) {
+        if (!formData['satuan_id'] || formData['satuan_id'].trim() === '') {
             newErrors['satuan_id'] = 'Satuan pencacahan wajib dipilih.';
         }
-        if (kegiatan.has_listing_updating && !formData['satuan_listing_id']) {
+        if (kegiatan.has_listing_updating && (!formData['satuan_listing_id'] || formData['satuan_listing_id'].trim() === '')) {
             newErrors['satuan_listing_id'] =
                 'Satuan listing/updating wajib dipilih.';
         }
@@ -270,36 +271,39 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             })
             .map((combo) => {
                 const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
+                const rateValue = parseInt(formData[key], 10);
                 const base = {
                     status_kepegawaian: combo.status_kepegawaian,
                     jenis_penugasan: combo.jenis_penugasan,
-                    rate: parseInt(formData[key]) || 0,
+                    rate: isNaN(rateValue) ? 0 : rateValue,
                 };
                 if (kegiatan.has_listing_updating) {
+                    const rateListingValue = parseInt(formData[`${key}_listing`], 10);
                     return {
                         ...base,
-                        rate_listing: parseInt(formData[`${key}_listing`]) || 0,
+                        rate_listing: isNaN(rateListingValue) ? 0 : rateListingValue,
                     };
                 }
                 return base;
             });
 
+        const satuanId = parseInt(formData['satuan_id'], 10);
         const payload: any = {
             rate_honors: rateHonors,
-            satuan_id: formData['satuan_id']
-                ? parseInt(formData['satuan_id'])
-                : null,
+            satuan_id: isNaN(satuanId) ? null : satuanId,
             kode_coa: formData['kode_coa'] || null,
         };
-        if (kegiatan.has_listing_updating) {
-            payload.satuan_listing_id = formData['satuan_listing_id']
-                ? parseInt(formData['satuan_listing_id'])
-                : null;
+        
+        if (kegiatan.has_listing_updating && formData['satuan_listing_id']) {
+            const satuanListingId = parseInt(formData['satuan_listing_id'], 10);
+            payload.satuan_listing_id = isNaN(satuanListingId) ? null : satuanListingId;
         }
+        
         router.post(
             `/kegiatan/${kegiatan.hashed_id}/rate-honor/bulk`,
             payload,
             {
+                preserveScroll: true,
                 onSuccess: () => {
                     setProcessing(false);
                 },

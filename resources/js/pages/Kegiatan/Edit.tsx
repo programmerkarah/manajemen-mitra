@@ -75,11 +75,26 @@ export default function Edit({ kegiatan, ketuaTimUsers, tahunOptions, pjLainnyaU
     })
 
     const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        // Kirim pagu_pencacahan dan pagu_listing sebagai number jika ada
-        setData('pagu_pencacahan', data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null as any)
-        setData('pagu_listing', data.pagu_listing ? Number(data.pagu_listing) : null as any)
-        put(`/kegiatan/${kegiatan.hashed_id}`)
+        e.preventDefault();
+        
+        // Transform data: convert string currency values to numbers before submitting
+        const transformedData = {
+            nama_kegiatan: data.nama_kegiatan,
+            jenis_kegiatan: data.jenis_kegiatan,
+            deskripsi: data.deskripsi,
+            tahun_anggaran: data.tahun_anggaran,
+            pagu_pencacahan: data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null,
+            pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
+            has_listing_updating: data.has_listing_updating,
+            ketua_tim_user_id: data.ketua_tim_user_id || null,
+            pj_lainnya_id: data.pj_lainnya_id || null,
+            tanggal_mulai: data.tanggal_mulai,
+            tanggal_selesai: data.tanggal_selesai,
+        };
+        
+        put(`/kegiatan/${kegiatan.hashed_id}`, transformedData, {
+            preserveScroll: true,
+        });
     }
 
     return (

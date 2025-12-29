@@ -32,6 +32,25 @@ class AppServiceProvider extends ServiceProvider
         // Register policies
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);
 
+        // Handle view_as feature globally for all authorization checks
+        Gate::before(function ($user, $ability) {
+            // If in view_as mode, pass effectiveUser to policy checks
+            if (session()->has('view_as_user_id')) {
+                $effectiveUser = effectiveUser();
+
+                // If effectiveUser is different from authenticated user
+                // Policy will handle the authorization using effectiveUser via getEffectiveUser() method
+                if ($effectiveUser && $effectiveUser->id !== $user->id) {
+                    // Return null to continue to policy methods
+                    // Policy methods will use getEffectiveUser() to get the right user
+                    return null;
+                }
+            }
+
+            // Return null to continue with normal authorization flow
+            return null;
+        });
+
         // Define gates for role-based access
         Gate::define('admin', function ($user) {
             return $user->hasRole('admin');

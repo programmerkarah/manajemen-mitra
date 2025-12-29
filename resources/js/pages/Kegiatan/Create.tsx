@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Info, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Info, Save, X, Loader2, Copy } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -23,11 +23,31 @@ interface KegiatanCreateProps {
     ketuaTimUsers: User[];
     tahunOptions: number[];
     pjLainnyaUsers: User[];
+    copyData?: {
+        nama_kegiatan: string;
+        jenis_kegiatan: 'sensus' | 'survei';
+        deskripsi: string | null;
+        tahun_anggaran: number;
+        has_listing_updating: boolean;
+        ketua_tim_user_id: number;
+        pj_lainnya_id: number | null;
+    };
+    isCopyMode?: boolean;
 }
 
-export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: KegiatanCreateProps) {
+export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers, copyData, isCopyMode = false }: KegiatanCreateProps) {
     const { auth } = usePage<SharedData>().props;
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
+    
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Kegiatan', href: '/kegiatan' },
+        { title: isCopyMode ? 'Salin Kegiatan' : 'Tambah Kegiatan', href: '/kegiatan/create' },
+    ];
+    
+    const pageTitle = isCopyMode ? 'Salin Kegiatan' : 'Tambah Kegiatan';
+    const pageDescription = isCopyMode 
+        ? 'Buat kegiatan baru dari kegiatan yang disalin'
+        : 'Buat kegiatan baru dengan informasi lengkap';
     
     // Format currency untuk display
     const formatCurrency = (value: string | number | null): string => {
@@ -43,37 +63,57 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
     }
 
     const { data, setData, post, processing, errors } = useForm({
-        nama_kegiatan: '',
-        jenis_kegiatan: 'survei' as 'sensus' | 'survei',
-        deskripsi: '',
-        tahun_anggaran: new Date().getFullYear(),
+        nama_kegiatan: copyData?.nama_kegiatan || '',
+        jenis_kegiatan: copyData?.jenis_kegiatan || 'survei' as 'sensus' | 'survei',
+        deskripsi: copyData?.deskripsi || '',
+        tahun_anggaran: copyData?.tahun_anggaran || new Date().getFullYear(),
         pagu_pencacahan: '',
         pagu_listing: '',
-        has_listing_updating: false,
-        ketua_tim_user_id: '',
-        pj_lainnya_id: '',
+        has_listing_updating: copyData?.has_listing_updating || false,
+        ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
+        pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
         tanggal_mulai: '',
         tanggal_selesai: '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Kirim pagu_pencacahan dan pagu_listing sebagai number jika ada
-        // Set numeric values into the form data before submit (useForm will send current data)
-        setData('pagu_pencacahan', data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null as any);
-        setData('pagu_listing', data.pagu_listing ? Number(data.pagu_listing) : null as any);
-        post('/kegiatan');
+        
+        // Transform data: convert string currency values to numbers before submitting
+        const transformedData = {
+            nama_kegiatan: data.nama_kegiatan,
+            jenis_kegiatan: data.jenis_kegiatan,
+            deskripsi: data.deskripsi,
+            tahun_anggaran: data.tahun_anggaran,
+            pagu_pencacahan: data.pagu_pencacahan ? Number(data.pagu_pencacahan) : null,
+            pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
+            has_listing_updating: data.has_listing_updating,
+            ketua_tim_user_id: data.ketua_tim_user_id || null,
+            pj_lainnya_id: data.pj_lainnya_id || null,
+            tanggal_mulai: data.tanggal_mulai,
+            tanggal_selesai: data.tanggal_selesai,
+        };
+        
+        post('/kegiatan/store', transformedData, {
+            preserveScroll: true,
+        });
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Tambah Kegiatan" />
+            <Head title={pageTitle} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Tambah Kegiatan"
-                    description="Buat kegiatan baru dengan informasi lengkap"
+                    title={pageTitle}
+                    description={pageDescription}
                 >
+                    {isCopyMode && (
+                        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                            <Copy className="h-4 w-4" />
+                            <span>Mode Salin Kegiatan</span>
+                        </div>
+                    )}
                     <Button variant="outline" size="sm" asChild className="gap-2">
                         <Link href="/kegiatan">
                             <ArrowLeft className="h-4 w-4" />
@@ -139,12 +179,14 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
                                     className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                 >
                                     Jenis Kegiatan <span className="text-red-500">*</span>
+                                    {isCopyMode && <span className="ml-2 text-sm font-normal text-gray-500">(dari kegiatan yang disalin)</span>}
                                 </label>
                                 <select
                                     id="jenis_kegiatan"
                                     value={data.jenis_kegiatan}
                                     onChange={(e) => setData('jenis_kegiatan', e.target.value as 'sensus' | 'survei')}
-                                    className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    disabled={isCopyMode}
+                                    className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <option value="survei">Survei</option>
                                     <option value="sensus">Sensus</option>
@@ -172,6 +214,31 @@ export default function Create({ ketuaTimUsers, tahunOptions, pjLainnyaUsers }: 
                                     className="mt-2 text-base"
                                 />
                                 <InputError message={errors.deskripsi} className="mt-2" />
+                            </div>
+
+                            {/* Tahun Anggaran */}
+                            <div>
+                                <label
+                                    htmlFor="tahun_anggaran"
+                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                >
+                                    Tahun Anggaran <span className="text-red-500">*</span>
+                                    {isCopyMode && <span className="ml-2 text-sm font-normal text-gray-500">(dari kegiatan yang disalin)</span>}
+                                </label>
+                                <select
+                                    id="tahun_anggaran"
+                                    value={data.tahun_anggaran}
+                                    onChange={(e) => setData('tahun_anggaran', parseInt(e.target.value))}
+                                    disabled={isCopyMode}
+                                    className="mt-2 block w-full h-11 text-base rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {tahunOptions.map((tahun) => (
+                                        <option key={tahun} value={tahun}>
+                                            {tahun}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.tahun_anggaran} className="mt-2" />
                             </div>
 
                             {/* Tahapan Listing/Updating */}
