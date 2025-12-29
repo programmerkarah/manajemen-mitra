@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\BastPetugas;
-use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
@@ -17,6 +17,57 @@ use Inertia\Response;
 
 class BastController extends Controller
 {
+    // Role constants
+    private const PENDATAAN_ROLES = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
+
+    private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
+
+    /**
+     * Check if any petugas has pengolahan allocation with jumlah_satuan > 0
+     */
+    private function hasPengolahanListing($petugas): bool
+    {
+        return collect($petugas)->contains(function ($p) {
+            return in_array($p['peran'] ?? null, self::PENGOLAHAN_ROLES, true)
+                && (int) ($p['hasil_pengolahan'] ?? $p['jumlah_satuan'] ?? 0) > 0;
+        });
+    }
+
+    /**
+     * Check if any petugas has both pengolahan and pendataan allocation with valid hasil
+     */
+    private function hasPengolahanPendataan($petugas): bool
+    {
+        return collect($petugas)->contains(function ($p) {
+            return in_array($p['peran'] ?? null, self::PENGOLAHAN_ROLES, true)
+                && in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
+                && (int) ($p['hasil_pengolahan'] ?? 0) > 0
+                && (int) ($p['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
+    }
+
+    /**
+     * Check if any petugas has pendataan allocation with hasil_pendataan_lapangan > 0
+     */
+    private function hasPendataan($petugas): bool
+    {
+        return collect($petugas)->contains(function ($p) {
+            return in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
+                && (int) ($p['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
+    }
+
+    /**
+     * Check if any petugas has listing allocation with hasil_listing > 0
+     */
+    private function hasListing($petugas): bool
+    {
+        return collect($petugas)->contains(function ($p) {
+            return in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
+                && (int) ($p['hasil_listing'] ?? 0) > 0;
+        });
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -50,6 +101,21 @@ class BastController extends Controller
                 ->where('periode_alokasi_id', $periode->id)
                 ->first();
 
+            // Fetch AlokasiPetugas for this periode
+            $alokasiPetugasRaw = AlokasiPetugas::where('periode_alokasi_id', $periode->id)
+                ->with('spk')
+                ->get();
+
+            $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
+            $hasPengolahan = $alokasiPetugasRaw->contains(function ($alokasi) use ($pengolahanRoles) {
+                return in_array($alokasi->peran, $pengolahanRoles, true);
+            });
+
+            // New: has_pengolahan_listing for Blade
+            $has_pengolahan_listing = $alokasiPetugasRaw->contains(function ($alokasi) use ($pengolahanRoles) {
+                return in_array($alokasi->peran, $pengolahanRoles, true)
+                    && (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+            });
             $bulanInt = (int) $periode->bulan;
 
             $data[] = [
@@ -179,38 +245,25 @@ class BastController extends Controller
             ->get();
 
         $hasListing = ($kegiatan->has_listing_updating ?? false)
-            || $alokasiPetugasRaw->contains(function ($alokasi) {
-                return (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-            });
+            || $this->hasListing($alokasiPetugasRaw);
 
-        $hasPengolahan = $alokasiPetugasRaw->contains(function ($alokasi) {
-            return in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
-        });
+        $hasPengolahan = $this->hasPengolahanListing($alokasiPetugasRaw);
 
         $alokasiPetugas = $alokasiPetugasRaw
             ->filter(function ($alokasi) {
                 return $alokasi->spk && $alokasi->spk->isNotEmpty();
             })
-            ->map(function ($alokasi) use ($kegiatan, $hasListing, $hasPengolahan) {
+            ->map(function ($alokasi) use ($kegiatan, $hasListing) {
                 $spk = $alokasi->spk->first();
-
-                // Ambil satuan dari rate honor (berdasarkan kegiatan & jenis penugasan)
                 $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
                     return $rate->status_kepegawaian === $alokasi->status_kepegawaian
                         && $rate->jenis_penugasan === $alokasi->peran;
                 });
-
                 $satuanPendataan = $rateHonor?->satuan?->nama;
                 $satuanListing = $rateHonor?->satuanListing?->nama;
                 $satuanPengolahan = $rateHonor?->satuan?->nama;
-
-                // Roles that represent pendataan/pencacahan (adjust list as needed)
-                $pendataanRoles = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
-                $isPendataanRole = in_array($alokasi->peran, $pendataanRoles, true);
-
-                // Roles that represent pengolahan
-                $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
-                $isPengolahanRole = in_array($alokasi->peran, $pengolahanRoles, true);
+                $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
 
                 return [
                     'id' => $alokasi->id,
@@ -219,7 +272,6 @@ class BastController extends Controller
                     'nama_petugas' => $alokasi->petugas->nama,
                     'nomor_spk' => $spk->nomor_spk,
                     'peran' => $alokasi->peran,
-                    // Pre-fill hasil & satuan dari alokasi / periode
                     'hasil_listing' => ($hasListing && $isPendataanRole) ? ($alokasi->jumlah_satuan_listing ?? null) : null,
                     'satuan_listing' => ($hasListing && $isPendataanRole) ? ($satuanListing ?? null) : null,
                     'hasil_pendataan_lapangan' => $isPendataanRole ? ($alokasi->jumlah_satuan ?? null) : null,
@@ -232,17 +284,17 @@ class BastController extends Controller
             ->values();
 
         // Get PPK from penandatangan
-            // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
-            $penandatangan = Penandatangan::ppk()
-                ->active()
-                ->where(function ($q) {
-                    $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
-                })
-                ->where(function ($q) {
-                    $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
-                })
-                ->orderByDesc('periode_mulai')
-                ->first();
+        // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
+        $penandatangan = Penandatangan::ppk()
+            ->active()
+            ->where(function ($q) {
+                $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+            })
+            ->orderByDesc('periode_mulai')
+            ->first();
 
         return Inertia::render('Bast/CreateForKegiatan', [
             'kegiatan' => [
@@ -306,24 +358,31 @@ class BastController extends Controller
         }
 
         // Sanitize incoming petugas results based on role to avoid misclassification
-        $pendataanRoles = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
-        $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
         foreach ($petugasData as $idx => $p) {
             $peran = $p['peran'] ?? null;
-            if (! in_array($peran, $pendataanRoles, true)) {
+            if (! in_array($peran, self::PENDATAAN_ROLES, true)) {
                 $petugasData[$idx]['hasil_pendataan_lapangan'] = null;
                 $petugasData[$idx]['satuan_pendataan_lapangan'] = null;
                 $petugasData[$idx]['instrumen_pendataan_lapangan'] = null;
-                // also clear listing values if not a pendataan role
                 $petugasData[$idx]['hasil_listing'] = null;
                 $petugasData[$idx]['satuan_listing'] = null;
                 $petugasData[$idx]['instrumen_listing'] = null;
             }
-            if (! in_array($peran, $pengolahanRoles, true)) {
+            if (! in_array($peran, self::PENGOLAHAN_ROLES, true)) {
                 $petugasData[$idx]['hasil_pengolahan'] = null;
                 $petugasData[$idx]['satuan_pengolahan'] = null;
             }
         }
+
+        // Define variables before use
+        $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
+        $tanggalBast = \Carbon\Carbon::parse($validated['tanggal_bast']);
+        $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
+        $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
+
+        $hasListing = $this->hasListing($petugasData);
+        $hasPengolahan = $this->hasPengolahanListing($petugasData);
+        $hasPendataan = $this->hasPendataan($petugasData);
 
         $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
         $bulanLabel = $targetPeriode?->bulan
@@ -332,37 +391,48 @@ class BastController extends Controller
         $tahunPeriode = $targetPeriode?->tahun ?? (int) \Carbon\Carbon::parse($validated['tanggal_bast'])->year;
 
         // Get PPK aktif
-                // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
-                $penandatangan = Penandatangan::ppk()
-                    ->active()
-                    ->where(function ($q) {
-                        $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
-                    })
-                    ->where(function ($q) {
-                        $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
-                    })
-                    ->orderByDesc('periode_mulai')
-                    ->first();
+        // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
+        $penandatangan = Penandatangan::ppk()
+            ->active()
+            ->where(function ($q) {
+                $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+            })
+            ->orderByDesc('periode_mulai')
+            ->first();
 
-        $tanggalBast = \Carbon\Carbon::parse($validated['tanggal_bast']);
-        $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
-        $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
-
-        $hasListing = collect($petugasData)->contains(function ($p) {
-            return isset($p['hasil_listing']) && $p['hasil_listing'] !== null && $p['hasil_listing'] !== '';
-        });
-        $hasPengolahan = collect($petugasData)->contains(function ($p) {
-            return isset($p['hasil_pengolahan']) && $p['hasil_pengolahan'] !== null && $p['hasil_pengolahan'] !== '';
-        });
-        $hasPendataan = collect($petugasData)->contains(function ($p) {
-            return isset($p['hasil_pendataan_lapangan']) && $p['hasil_pendataan_lapangan'] !== null && $p['hasil_pendataan_lapangan'] !== '';
-        });
-
-        // Use same nomor format as stored BASTs (does not persist)
-        $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
-
+        foreach ($petugasData as $idx => $p) {
+            $peran = $p['peran'] ?? null;
+            if (! in_array($peran, self::PENDATAAN_ROLES, true)) {
+                $petugasData[$idx]['hasil_pendataan_lapangan'] = null;
+                $petugasData[$idx]['satuan_pendataan_lapangan'] = null;
+                $petugasData[$idx]['instrumen_pendataan_lapangan'] = null;
+                $petugasData[$idx]['hasil_listing'] = null;
+                $petugasData[$idx]['satuan_listing'] = null;
+                $petugasData[$idx]['instrumen_listing'] = null;
+            }
+            if (! in_array($peran, self::PENGOLAHAN_ROLES, true)) {
+                $petugasData[$idx]['hasil_pengolahan'] = null;
+                $petugasData[$idx]['satuan_pengolahan'] = null;
+            }
+        }
         $namaPpk = $penandatangan->nama ?? 'N/A';
         $namaPpk = $this->stripGelar($namaPpk) ?: 'N/A';
+
+        $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
+        $pendataanRoles = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
+        $has_pengolahan_listing = collect($petugasData)->contains(function ($p) use ($pengolahanRoles) {
+            return in_array($p['peran'] ?? null, $pengolahanRoles, true)
+                && (int) ($p['hasil_pengolahan'] ?? 0) > 0;
+        });
+        $has_pengolahan_pendataan = collect($petugasData)->contains(function ($p) use ($pengolahanRoles, $pendataanRoles) {
+            return in_array($p['peran'] ?? null, $pengolahanRoles, true)
+                && in_array($p['peran'] ?? null, $pendataanRoles, true)
+                && (int) ($p['hasil_pengolahan'] ?? 0) > 0
+                && (int) ($p['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
 
         $viewData = [
             'nomor_bast' => $nomorBast,
@@ -382,6 +452,8 @@ class BastController extends Controller
             'has_listing' => $hasListing,
             'has_pendataan' => $hasPendataan,
             'has_pengolahan' => $hasPengolahan,
+            'has_pengolahan_listing' => $has_pengolahan_listing,
+            'has_pengolahan_pendataan' => $has_pengolahan_pendataan,
             'dokumen_rekap' => $validated['dokumen_rekap'] ?? [],
             'instrumen_listing' => $validated['instrumen_listing'] ?? null,
             'instrumen_pendataan_lapangan' => $validated['instrumen_pendataan_lapangan'] ?? null,
@@ -406,7 +478,7 @@ class BastController extends Controller
         }
 
         $useLandscape = false;
-        if (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0) {
+        if (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0) {
             $useLandscape = true;
         }
         if ($viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pendataan'] ?? false) {
@@ -423,11 +495,12 @@ class BastController extends Controller
         $mainContent = $pdfMain->output();
 
         // If there are lampiran, render lampiran PDF (landscape)
-        $hasLampiran = (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
+        $hasLampiran = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] || ($viewData['has_pendataan'] ?? false);
 
         if (! $hasLampiran) {
             $fileName = 'BAST_PREVIEW_'.str_replace('/', '-', $nomorBast).'.pdf';
+
             return response($mainContent, 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="'.$fileName.'"',
@@ -436,7 +509,9 @@ class BastController extends Controller
 
         $viewDataLamp = $viewData;
         $viewDataLamp['render_lampiran'] = true;
-        $lampOrientation = (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
+        $viewDataLamp['has_pengolahan_listing'] = $has_pengolahan_listing;
+        $viewDataLamp['has_pengolahan_pendataan'] = $has_pengolahan_pendataan;
+        $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] ? 'landscape' : 'portrait';
         $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataLamp)
             ->setPaper('a4', $lampOrientation);
@@ -445,6 +520,7 @@ class BastController extends Controller
         // Merge PDFs using FPDI-TCPDF preserving orientations
         $merged = $this->mergePdfStrings([$mainContent, $lampContent]);
         $fileName = 'BAST_PREVIEW_'.str_replace('/', '-', $nomorBast).'.pdf';
+
         return response($merged, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$fileName.'"',
@@ -497,17 +573,17 @@ class BastController extends Controller
             $periodeId = $targetPeriode->id;
 
             // Get PPK
-                    // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
-                    $penandatangan = Penandatangan::ppk()
-                        ->active()
-                        ->where(function ($q) {
-                            $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
-                        })
-                        ->where(function ($q) {
-                            $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
-                        })
-                        ->orderByDesc('periode_mulai')
-                        ->first();
+            // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
+            $penandatangan = Penandatangan::ppk()
+                ->active()
+                ->where(function ($q) {
+                    $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
+                })
+                ->where(function ($q) {
+                    $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                })
+                ->orderByDesc('periode_mulai')
+                ->first();
 
             // Generate nomor BAST
             $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
@@ -538,7 +614,7 @@ class BastController extends Controller
                 'menggunakan_fasih' => $validated['menggunakan_fasih'],
                 'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? null,
                 'nip_ketua_tim' => $kegiatan->ketuaTim->nip ?? null,
-                    'nama_ppk' => $this->stripGelar($penandatangan->nama) ?? null,
+                'nama_ppk' => $this->stripGelar($penandatangan->nama) ?? null,
                 'nip_ppk' => $penandatangan->nip ?? null,
                 'file_path' => $filePath,
                 'status' => 'draft',
@@ -676,9 +752,15 @@ class BastController extends Controller
         }
 
         // Check if listing, pendataan, or pengolahan exists after sanitization
-        $hasListing = collect($data['petugas'])->contains(function ($p) { return ! empty($p['hasil_listing']); });
-        $hasPengolahan = collect($data['petugas'])->contains(function ($p) { return ! empty($p['hasil_pengolahan']); });
-        $hasPendataan = collect($data['petugas'])->contains(function ($p) { return ! empty($p['hasil_pendataan_lapangan']); });
+        $hasListing = collect($data['petugas'])->contains(function ($p) {
+            return ! empty($p['hasil_listing']);
+        });
+        $hasPengolahan = collect($data['petugas'])->contains(function ($p) {
+            return ! empty($p['hasil_pengolahan']);
+        });
+        $hasPendataan = collect($data['petugas'])->contains(function ($p) {
+            return ! empty($p['hasil_pendataan_lapangan']);
+        });
 
         $viewData = [
             'nomor_bast' => $nomorBast,
@@ -720,7 +802,7 @@ class BastController extends Controller
         }
 
         $useLandscape = false;
-        if (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0) {
+        if (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0) {
             $useLandscape = true;
         }
         if ($viewData['has_listing'] || $viewData['has_pengolahan'] || ($viewData['has_pendataan'] ?? false)) {
@@ -737,7 +819,7 @@ class BastController extends Controller
         $mainContent = $pdfMain->output();
 
         // If no lampiran, save main PDF directly
-        $hasLampiran = (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
+        $hasLampiran = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] || ($viewData['has_pendataan'] ?? false);
 
         if (! $hasLampiran) {
@@ -745,17 +827,18 @@ class BastController extends Controller
             if (! file_exists($directory)) {
                 mkdir($directory, 0755, true);
             }
-            $fileName = 'BAST_'.$kegiatan->nama_kegiatan.'_'.$kegiatan->periodeAlokasi()->bulan.'_'.time().'.pdf';
+            $fileName = 'BAST_'.$kegiatan->nama_kegiatan.'_'.($targetPeriode?->bulan ?? 'unknown').'_'.time().'.pdf';
             $filePath = 'bast-export/'.now()->year.'/'.now()->month.'/'.$fileName;
             $fullPath = public_path($filePath);
             file_put_contents($fullPath, $mainContent);
+
             return $filePath;
         }
 
         // Render lampiran only (landscape)
         $viewDataLamp = $viewData;
         $viewDataLamp['render_lampiran'] = true;
-        $lampOrientation = (!empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
+        $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] ? 'landscape' : 'portrait';
         $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataLamp)
             ->setPaper('a4', $lampOrientation);
@@ -768,10 +851,13 @@ class BastController extends Controller
         if (! file_exists($directory)) {
             mkdir($directory, 0755, true);
         }
-        $fileName = 'BAST_'.$kegiatan->nama_kegiatan.'_'.$kegiatan->periodeAlokasi()->bulan.'_'.time().'.pdf';
+        $periodeAlokasi = $kegiatan->periodeAlokasi()->latest('id')->first();
+        $bulan = $periodeAlokasi?->bulan ?? 'unknown';
+        $fileName = 'BAST_'.$kegiatan->nama_kegiatan.'_'.$bulan.'_'.time().'.pdf';
         $filePath = 'bast-export/'.now()->year.'/'.now()->month.'/'.$fileName;
         $fullPath = public_path($filePath);
         file_put_contents($fullPath, $merged);
+
         return $filePath;
     }
 
@@ -781,7 +867,7 @@ class BastController extends Controller
     private function mergePdfStrings(array $pdfStrings): string
     {
         // Use FPDI TCPDF implementation
-        $pdf = new \setasign\Fpdi\Tcpdf\Fpdi();
+        $pdf = new \setasign\Fpdi\Tcpdf\Fpdi;
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
 

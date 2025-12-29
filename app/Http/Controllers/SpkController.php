@@ -9,8 +9,8 @@ use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Spk;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -459,7 +459,7 @@ class SpkController extends Controller
             ->groupBy('kegiatan_id')
             ->map(function ($periodeGroup) use ($allSpks) {
                 $kegiatan = $periodeGroup->first()->kegiatan;
-                
+
                 // Count how many SPKs (petugas) are in this kegiatan
                 $spkCount = $allSpks->filter(function ($spk) use ($kegiatan) {
                     return $spk->alokasiPetugas->periodeAlokasi->kegiatan_id === $kegiatan->id;
@@ -627,7 +627,7 @@ class SpkController extends Controller
     {
         $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
         $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
-        
+
         if (! $periodeId || ! $kegiatanId) {
             abort(404);
         }
@@ -700,7 +700,6 @@ class SpkController extends Controller
         $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
-        
 
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
@@ -745,7 +744,7 @@ class SpkController extends Controller
         // Add each SPK file to ZIP with organized folder structure
         foreach ($allSpks as $spk) {
             $filePath = public_path($spk->file_path);
-            
+
             if (file_exists($filePath)) {
                 $fileName = basename($spk->file_path);
                 // Add file with petugas name in the filename for better organization
@@ -1003,7 +1002,7 @@ class SpkController extends Controller
 
             // Filter petugas list for regenerate mode
             // Only show: 1) New petugas (not in existingSpkMap), 2) Petugas with kegiatan additions
-            $petugasList = $petugasList->filter(function ($item) use ($existingSpkMap, $existingKegiatanPerPetugas) {
+            $petugasList = $petugasList->filter(function ($item) use ($existingKegiatanPerPetugas) {
                 $petugasId = $item['petugas']['id'];
 
                 // For existing petugas, check if they have NEW kegiatan (additions only)
@@ -1175,7 +1174,6 @@ class SpkController extends Controller
                     $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
                     $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
                     $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
-
 
                     if (
                         $selisih_jumlah_satuan !== 0 ||
@@ -1575,6 +1573,7 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal generate addendum SPK: '.$e->getMessage(),

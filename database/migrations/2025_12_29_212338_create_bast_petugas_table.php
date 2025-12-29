@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('spk_id')->constrained('spk')->cascadeOnDelete();
             $table->string('nomor_spk');
             $table->string('nama_petugas');
-            
+
             // Hasil Pekerjaan
             $table->decimal('hasil_listing', 10, 2)->nullable();
             $table->string('satuan_listing')->nullable();
@@ -26,10 +26,10 @@ return new class extends Migration
             $table->string('satuan_pendataan_lapangan')->nullable();
             $table->decimal('hasil_pengolahan', 10, 2)->nullable();
             $table->string('satuan_pengolahan')->nullable();
-            
+
             $table->text('catatan')->nullable();
             $table->timestamps();
-            
+
             $table->unique(['bast_id', 'petugas_id']);
         });
     }
