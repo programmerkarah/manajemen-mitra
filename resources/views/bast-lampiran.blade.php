@@ -90,7 +90,7 @@
 			page-break-after: avoid;
 		}
 		.signature-box {
-			width: 45%;
+			width: 50%;
 			text-align: center;
 			line-height: 1.3;
 			font-size: 10pt;
@@ -389,7 +389,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
-		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
+		<div class="signature-section">
 			<div class="signature-box">
 				<div class="signature-title">Yang melakukan pemeriksaan,</div>
 				<div class="signature-title">Penanggung Jawab Teknis</div>
