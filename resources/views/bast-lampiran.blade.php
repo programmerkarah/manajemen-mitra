@@ -9,20 +9,22 @@
 			margin: 10px 10px 10px 10px;
 		}
 		@font-face {
+            font-family: 'Bookman Old Style';
+            src: url('{{ public_path("/Bookman Old Style Normal.ttf") }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Bookman Old Style';
+            src: url('{{ public_path("/Bookman Old Style Bold.ttf") }}') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        @font-face {
 			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
-			font-weight: normal;
-			font-style: normal;
-		}
-		@font-face {
-			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
-			font-weight: bold;
-			font-style: normal;
-		}
-		@font-face {
-			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+			src: url('{{ public_path("/Bookman Old Style Italic.ttf") }}') format('truetype');
 			font-weight: normal;
 			font-style: italic;
 		}
