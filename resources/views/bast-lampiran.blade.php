@@ -5,7 +5,7 @@
 	<title>Lampiran BAST</title>
 	<style>
 		@page {
-			size: A4 landscape;
+			size: A4;
 			margin: 10px 10px 10px 10px;
 		}
 		@font-face {
