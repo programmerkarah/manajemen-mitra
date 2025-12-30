@@ -1101,163 +1101,134 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
             ->whereIn('status', ['direvisi', 'perubahan'])
-            ->pluck('id');
+            ->with(['alokasiPetugas.petugas', 'kegiatan'])
+            ->get();
 
         if ($allPeriodeInMonth->isEmpty()) {
             return redirect()->route('spk.index')->with('error', 'Tidak ada periode dengan status revisi/perubahan');
         }
 
-        // Get all petugas with revisions (those who have alokasi in revision periods)
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->get()
-            ->filter(function ($alokasi) {
+        // Flatten all alokasi petugas for non-organik
+        $allAlokasi = $allPeriodeInMonth->flatMap(function ($periode) {
+            return $periode->alokasiPetugas->filter(function ($alokasi) {
                 return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
             });
+        });
 
-        // Determine if this is regenerate mode or generate mode
-        // Check if any petugas in this month already have addendum
+        // Get all addendums for this month
         $existingAddendums = Spk::where('addendum_number', '>', 0)
             ->whereYear('tanggal_spk', $tahun)
             ->whereMonth('tanggal_spk', $bulan)
             ->get();
-
-        $isRegenerateAddendum = $existingAddendums->isNotEmpty();
-
-        // Get petugas IDs who already have addendum
         $petugasWithAddendum = $existingAddendums->pluck('petugas_id')->unique()->toArray();
+        $isRegenerateAddendum = !empty($petugasWithAddendum);
 
-        // Group by petugas_id and aggregate their data
-        $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum) {
-                $firstAlokasi = $alokasiGroup->first();
+        // Cache dikirim/perubahan allocations for comparison
+        $periodeByStatus = $allPeriodeInMonth->groupBy('status');
+        $dikirimPeriodes = $periodeByStatus['dikirim'] ?? collect();
+        $perubahanPeriodes = $periodeByStatus['perubahan'] ?? collect();
 
-                // Get existing SPK for this petugas in this month
-                $existingSpk = Spk::whereHas('alokasiPetugas', function ($q) use ($firstAlokasi, $bulanFormatted, $tahun) {
-                    $q->where('petugas_id', $firstAlokasi->petugas_id)
-                        ->whereHas('periodeAlokasi', function ($q2) use ($bulanFormatted, $tahun) {
-                            $q2->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun);
-                        });
-                })
-                    ->where('addendum_number', 0) // Get original SPK only
-                    ->first();
-
-                if (! $existingSpk) {
-                    return null; // Skip petugas without original SPK
-                }
-
-                // Ambil semua alokasi 'perubahan' (bisa lebih dari satu kegiatan)
-                $alokasiPerubahanList = $alokasiGroup->filter(function ($alokasi) {
-                    return $alokasi->periodeAlokasi->status === 'perubahan';
+        // Helper: get dikirim allocation for petugas/peran
+        $getDikirimAlokasi = function($petugasId, $peran) use ($dikirimPeriodes) {
+            foreach ($dikirimPeriodes as $periode) {
+                $found = $periode->alokasiPetugas->first(function ($a) use ($petugasId, $peran) {
+                    return $a->petugas_id == $petugasId && $a->peran == $peran;
                 });
-                if ($alokasiPerubahanList->isEmpty()) {
-                    return null;
-                }
+                if ($found) return $found;
+            }
+            return null;
+        };
 
-                $isBerubah = false;
-                foreach ($alokasiPerubahanList as $alokasiPerubahan) {
-                    // Cari alokasi sebelumnya untuk kegiatan yang sama
-                    $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
-                        ->where('periode_alokasi_id', '!=', $alokasiPerubahan->periode_alokasi_id)
-                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                            $q->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun)
-                                ->whereIn('status', ['disetujui', 'dikirim', 'direvisi']);
-                        })
-                        ->where('peran', $alokasiPerubahan->peran)
-                        ->where('jumlah_satuan', '!=', null)
-                        ->orderByDesc('id')
-                        ->first();
+        // Group by petugas_id and aggregate
+        $petugasListRaw = $allAlokasi->groupBy('petugas_id')->map(function ($alokasiGroup) use ($getDikirimAlokasi, $petugasWithAddendum) {
+            $firstAlokasi = $alokasiGroup->first();
+            $existingSpk = Spk::where('petugas_id', $firstAlokasi->petugas_id)
+                ->where('addendum_number', 0)
+                ->first();
+            if (! $existingSpk) return null;
 
-                    $selisih_jumlah_satuan = (int) ($alokasiPerubahan->jumlah_satuan ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan ?? 0);
-                    $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
-                    $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
-                    $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
+            // Only consider perubahan allocations
+            $alokasiPerubahanList = $alokasiGroup->filter(function ($a) {
+                return $a->periodeAlokasi->status === 'perubahan';
+            });
+            if ($alokasiPerubahanList->isEmpty()) return null;
 
-                    if (
-                        $selisih_jumlah_satuan !== 0 ||
-                        $selisih_jumlah_satuan_listing !== 0 ||
-                        abs($selisih_total_honor) > 0.01 ||
-                        abs($selisih_total_honor_listing) > 0.01 ||
-                        $alokasiPerubahan->peran !== ($alokasiSebelumnya->peran ?? null)
-                    ) {
-                        $isBerubah = true;
-                        break;
-                    }
-                }
+            $isBerubah = $alokasiPerubahanList->contains(function ($alokasiPerubahan) use ($getDikirimAlokasi) {
+                $prev = $getDikirimAlokasi($alokasiPerubahan->petugas_id, $alokasiPerubahan->peran);
+                return !$prev ||
+                    $prev->jumlah_satuan != $alokasiPerubahan->jumlah_satuan ||
+                    $prev->jumlah_satuan_listing != $alokasiPerubahan->jumlah_satuan_listing ||
+                    $prev->total_honor != $alokasiPerubahan->total_honor ||
+                    $prev->total_honor_listing != $alokasiPerubahan->total_honor_listing ||
+                    $prev->peran != $alokasiPerubahan->peran;
+            });
+            if (! $isBerubah) return null;
 
-                if (! $isBerubah) {
-                    return null;
-                }
-
-                // Calculate total honor only from 'perubahan' status (latest revision)
-                $totalHonor = $alokasiGroup
-                    ->filter(function ($alokasi) {
-                        return $alokasi->periodeAlokasi->status === 'perubahan';
-                    })
-                    ->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
-
-                // Get all kegiatan with their peran (only from 'perubahan' status)
-                $kegiatanList = $alokasiGroup
-                    ->filter(function ($alokasi) {
-                        return $alokasi->periodeAlokasi->status === 'perubahan';
-                    })
-                    ->map(function ($alokasi) {
-                        return [
-                            'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
-                            'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
-                            'peran' => $alokasi->peran,
-                        ];
-                    })->values()->all();
-
-                // Get last addendum number for this petugas
-                $lastAddendum = Spk::where('parent_spk_id', $existingSpk->id)
-                    ->orderBy('addendum_number', 'desc')
-                    ->first();
-
-                $nextAddendumNumber = $lastAddendum ? $lastAddendum->addendum_number + 1 : 1;
-
+            $totalHonor = $alokasiPerubahanList->sum(function ($a) {
+                return ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0);
+            });
+            $kegiatanList = $alokasiPerubahanList->map(function ($a) {
                 return [
-                    'alokasi_id' => $firstAlokasi->id,
-                    'alokasi_hashed_id' => $firstAlokasi->hashed_id,
-                    'existing_spk_id' => $existingSpk->id,
-                    'existing_spk_hashed_id' => $existingSpk->hashed_id,
-                    'existing_spk_nomor' => $existingSpk->nomor_spk,
-                    'next_addendum_number' => $nextAddendumNumber,
-                    'petugas' => [
-                        'id' => $firstAlokasi->petugas->id,
-                        'hashed_id' => $firstAlokasi->petugas->hashed_id,
-                        'nama' => $firstAlokasi->petugas->nama,
-                        'nik' => $firstAlokasi->petugas->nik,
-                        'jenis_petugas' => $firstAlokasi->petugas->jenis_petugas,
-                    ],
-                    'jumlah_kegiatan' => $alokasiGroup->count(),
-                    'kegiatan_list' => $kegiatanList,
-                    'total_honor' => $totalHonor,
-                    'has_addendum' => in_array($firstAlokasi->petugas_id, $petugasWithAddendum),
+                    'kegiatan_kode' => $a->periodeAlokasi->kegiatan->kode_kegiatan,
+                    'kegiatan_nama' => $a->periodeAlokasi->kegiatan->nama_kegiatan,
+                    'peran' => $a->peran,
                 ];
-            })
-            ->filter() // Remove nulls
-            ->filter(function ($item) use ($isRegenerateAddendum) {
-                if ($isRegenerateAddendum) {
-                    // Regenerate mode: Only show petugas who ALREADY have addendum
-                    // (they will have allocation changes, already filtered by isBerubah)
-                    return $item['has_addendum'];
-                } else {
-                    // Generate mode: Only show petugas who DON'T have addendum yet
-                    return ! $item['has_addendum'];
-                }
-            })
-            ->sortBy(function ($item) {
+            })->values()->all();
+            $lastAddendum = Spk::where('parent_spk_id', $existingSpk->id)
+                ->orderBy('addendum_number', 'desc')
+                ->first();
+            $nextAddendumNumber = $lastAddendum ? $lastAddendum->addendum_number + 1 : 1;
+            return [
+                'alokasi_id' => $firstAlokasi->id,
+                'alokasi_hashed_id' => $firstAlokasi->hashed_id,
+                'existing_spk_id' => $existingSpk->id,
+                'existing_spk_hashed_id' => $existingSpk->hashed_id,
+                'existing_spk_nomor' => $existingSpk->nomor_spk,
+                'next_addendum_number' => $nextAddendumNumber,
+                'petugas' => [
+                    'id' => $firstAlokasi->petugas->id,
+                    'hashed_id' => $firstAlokasi->petugas->hashed_id,
+                    'nama' => $firstAlokasi->petugas->nama,
+                    'nik' => $firstAlokasi->petugas->nik,
+                    'jenis_petugas' => $firstAlokasi->petugas->jenis_petugas,
+                ],
+                'jumlah_kegiatan' => $alokasiGroup->count(),
+                'kegiatan_list' => $kegiatanList,
+                'total_honor' => $totalHonor,
+                'has_addendum' => in_array($firstAlokasi->petugas_id, $petugasWithAddendum),
+            ];
+        })->filter()->values();
+
+        // Pisahkan petugas yang sudah punya addendum dan yang belum
+        $petugasBelumAddendum = $petugasListRaw->filter(function ($item) {
+            return ! $item['has_addendum'];
+        });
+        $petugasSudahAddendum = $petugasListRaw->filter(function ($item) {
+            return $item['has_addendum'];
+        });
+
+        // Mode: generate jika masih ada yang belum addendum, regenerate jika ada yang sudah addendum
+        if ($petugasBelumAddendum->isNotEmpty()) {
+            $petugasList = $petugasBelumAddendum->sortBy(function ($item) {
                 return $item['petugas']['nama'];
-            })
-            ->values();
+            })->values();
+            $isRegenerateAddendum = false;
+        } elseif ($petugasSudahAddendum->isNotEmpty()) {
+            $petugasList = $petugasSudahAddendum->sortBy(function ($item) {
+                return $item['petugas']['nama'];
+            })->values();
+            $isRegenerateAddendum = true;
+        } else {
+            $petugasList = collect();
+            $isRegenerateAddendum = false;
+        }
 
-        $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
+        $periode = $allPeriodeInMonth->first();
 
+        // If no eligible petugas for addendum, block access
+        if ($petugasList->isEmpty()) {
+            abort(404, 'Tidak ada petugas yang dapat dibuatkan addendum SPK.');
+        }
         return Inertia::render('Spk/Addendum', [
             'periode' => [
                 'id' => $periode->id,

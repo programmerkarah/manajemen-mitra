@@ -60,7 +60,7 @@ const peranLabel = (peran?: string | null): string => {
         pengolahan: 'Petugas Pengolahan',
         pml: 'Petugas Pemeriksa Pemutakhiran / Lapangan',
         pemeriksa_pengolahan: 'Petugas Pemeriksa Pengolahan',
-        pcl_ppl: 'Petugas Pencacahan Petmutakhiran / Lapangan',
+        pcl_ppl: 'Petugas Pencacahan Pemutakhiran / Lapangan',
     };
     return map[key] ?? peran;
 };
