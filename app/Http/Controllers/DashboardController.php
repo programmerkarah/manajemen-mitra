@@ -254,20 +254,58 @@ class DashboardController extends Controller
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
 
-            // Get all honor data for this month
-            $honorData = DB::table('alokasi_petugas')
+            // Get all honor data for this month, prefer 'perubahan' over 'dikirim' per (petugas, kegiatan)
+            $rawAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->where('periode_alokasi.bulan', $month)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
+                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
                 ->select(
                     'alokasi_petugas.petugas_id',
-                    DB::raw('SUM(alokasi_petugas.total_honor + alokasi_petugas.total_honor_listing) as total_honor_bulan')
+                    'periode_alokasi.kegiatan_id',
+                    'periode_alokasi.status as periode_status',
+                    'alokasi_petugas.total_honor',
+                    'alokasi_petugas.total_honor_listing'
                 )
-                ->groupBy('alokasi_petugas.petugas_id')
-                ->having('total_honor_bulan', '>', 0)
                 ->get();
+
+            // Group by petugas_id + kegiatan_id, prefer perubahan
+            $grouped = [];
+            foreach ($rawAlokasi as $row) {
+                $key = $row->petugas_id . '-' . $row->kegiatan_id;
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = $row;
+                } else {
+                    // Prefer perubahan over dikirim
+                    if ($row->periode_status === 'perubahan') {
+                        $grouped[$key] = $row;
+                    }
+                }
+            }
+
+            // Sum honor per petugas
+            $petugasHonor = [];
+            foreach ($grouped as $row) {
+                $pid = $row->petugas_id;
+                $honor = ($row->total_honor ?? 0) + ($row->total_honor_listing ?? 0);
+                if (!isset($petugasHonor[$pid])) {
+                    $petugasHonor[$pid] = 0;
+                }
+                $petugasHonor[$pid] += $honor;
+            }
+
+            // Build honorData as collection of objects for compatibility
+            $honorData = collect();
+            foreach ($petugasHonor as $pid => $total) {
+                if ($total > 0) {
+                    $honorData->push((object)[
+                        'petugas_id' => $pid,
+                        'total_honor_bulan' => $total,
+                    ]);
+                }
+            }
 
             if ($honorData->count() > 0) {
                 $honors = $honorData->pluck('total_honor_bulan')->toArray();

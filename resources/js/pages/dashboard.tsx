@@ -842,6 +842,16 @@ export default function Dashboard({
                                         wrapperStyle={{ paddingTop: '12px' }}
                                         iconType="square"
                                         iconSize={8}
+                                        itemSorter={(item: any) => {
+                                            const order = [
+                                                'honor_0_500rb',
+                                                'honor_501rb_1500rb',
+                                                'honor_1501rb_2500rb',
+                                                'honor_2501rb_3500rb',
+                                                'honor_lebih_3501rb',
+                                            ];
+                                            return order.indexOf(item.dataKey);
+                                        }}
                                     />
                                     <Bar
                                         dataKey="honor_0_500rb"
