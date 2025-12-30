@@ -134,6 +134,7 @@
 
         li {
             margin: 5px 0;
+            page-break-inside: avoid;
         }
 
         /* Lampiran formatting */
