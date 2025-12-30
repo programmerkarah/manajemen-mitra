@@ -21,7 +21,10 @@ export default function TwoFactorPrompt() {
                                 Peningkatan Keamanan Diperlukan
                             </h3>
                             <p className="text-sm text-amber-800 dark:text-amber-200">
-                                Autentikasi dua faktor (2FA) menambah lapisan keamanan pada akun Anda. Anda akan diminta memasukkan kode dari aplikasi autentikator setiap kali login.
+                                Autentikasi dua faktor (2FA) menambah lapisan
+                                keamanan pada akun Anda. Anda akan diminta
+                                memasukkan kode dari aplikasi autentikator
+                                setiap kali login.
                             </p>
                         </div>
                     </div>
@@ -33,10 +36,12 @@ export default function TwoFactorPrompt() {
                     </h4>
                     <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
                         <li>
-                            Instal aplikasi autentikator (Google Authenticator, Authy, dsb)
+                            Instal aplikasi autentikator (Google Authenticator,
+                            Authy, dsb)
                         </li>
                         <li>
-                            Pindai kode QR atau masukkan kode setup secara manual
+                            Pindai kode QR atau masukkan kode setup secara
+                            manual
                         </li>
                         <li>Masukkan kode 6 digit untuk konfirmasi</li>
                         <li>Simpan kode recovery Anda di tempat aman</li>

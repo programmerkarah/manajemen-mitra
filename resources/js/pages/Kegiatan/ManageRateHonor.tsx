@@ -29,7 +29,7 @@ const getCombinations = (jenisKegiatan: 'sensus' | 'survei') => {
         label: string;
     }> = [];
 
-        if (jenisKegiatan === 'survei') {
+    if (jenisKegiatan === 'survei') {
         // Survei: 8 kombinasi (both organik and non-organik support pengolahan and pemeriksa pengolahan)
         // Non-Organik: PCL/PPL, PML, Pengolahan, Pengawas Pengolahan (4)
         combinations.push(
@@ -176,22 +176,27 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         // Ambil satuan_id dan satuan_listing_id dari rate_honors pertama (jika ada)
         const first = kegiatan.rate_honors?.[0];
         // Set satuan_id dengan fallback ke defaultSatuan
-        data['satuan_id'] = first?.satuan_id?.toString() || defaultSatuan?.id?.toString() || '';
+        data['satuan_id'] =
+            first?.satuan_id?.toString() || defaultSatuan?.id?.toString() || '';
         data['kode_coa'] = kegiatan.kode_coa || '';
         if (kegiatan.has_listing_updating) {
             data['satuan_listing_id'] =
-                first?.satuan_listing_id?.toString() || defaultSatuan?.id?.toString() || '';
+                first?.satuan_listing_id?.toString() ||
+                defaultSatuan?.id?.toString() ||
+                '';
         }
-            // Prefill pengolahan-specific satuan (per tahapan) from existing pengolahan rate if present
-            const firstPengolahan = kegiatan.rate_honors?.find(
-                (rh) => rh.jenis_penugasan === 'pengolahan',
-            );
-            data['satuan_pengolahan_pencacahan_id'] =
-                firstPengolahan?.satuan_id?.toString() || data['satuan_id'] || '';
-            if (kegiatan.has_listing_updating) {
-                data['satuan_pengolahan_listing_id'] =
-                    firstPengolahan?.satuan_listing_id?.toString() || data['satuan_listing_id'] || '';
-            }
+        // Prefill pengolahan-specific satuan (per tahapan) from existing pengolahan rate if present
+        const firstPengolahan = kegiatan.rate_honors?.find(
+            (rh) => rh.jenis_penugasan === 'pengolahan',
+        );
+        data['satuan_pengolahan_pencacahan_id'] =
+            firstPengolahan?.satuan_id?.toString() || data['satuan_id'] || '';
+        if (kegiatan.has_listing_updating) {
+            data['satuan_pengolahan_listing_id'] =
+                firstPengolahan?.satuan_listing_id?.toString() ||
+                data['satuan_listing_id'] ||
+                '';
+        }
         combinations.forEach((combo) => {
             const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
             const existing = kegiatan.rate_honors?.find(
@@ -203,8 +208,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             if (kegiatan.has_listing_updating) {
                 data[`${key}_listing`] =
                     existing?.rate_listing?.toString() || '';
-                data[`${key}_satuan_id`] = existing?.satuan_id?.toString() || '';
-                data[`${key}_satuan_listing_id`] = existing?.satuan_listing_id?.toString() || '';
+                data[`${key}_satuan_id`] =
+                    existing?.satuan_id?.toString() || '';
+                data[`${key}_satuan_listing_id`] =
+                    existing?.satuan_listing_id?.toString() || '';
             }
         });
         return data;
@@ -264,19 +271,32 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         if (!formData['satuan_id'] || formData['satuan_id'].trim() === '') {
             newErrors['satuan_id'] = 'Satuan pencacahan wajib dipilih.';
         }
-        if (kegiatan.has_listing_updating && (!formData['satuan_listing_id'] || formData['satuan_listing_id'].trim() === '')) {
+        if (
+            kegiatan.has_listing_updating &&
+            (!formData['satuan_listing_id'] ||
+                formData['satuan_listing_id'].trim() === '')
+        ) {
             newErrors['satuan_listing_id'] =
                 'Satuan listing/updating wajib dipilih.';
         }
-            // If pengolahan enabled, require pengolahan-specific satuan inputs
-            if (enabledJenisPenugasan.pengolahan) {
-                if (!formData['satuan_pengolahan_pencacahan_id'] || formData['satuan_pengolahan_pencacahan_id'].trim() === '') {
-                    newErrors['satuan_pengolahan_pencacahan_id'] = 'Satuan pengolahan (pencacahan) wajib dipilih.';
-                }
-                if (kegiatan.has_listing_updating && (!formData['satuan_pengolahan_listing_id'] || formData['satuan_pengolahan_listing_id'].trim() === '')) {
-                    newErrors['satuan_pengolahan_listing_id'] = 'Satuan pengolahan (listing/updating) wajib dipilih.';
-                }
+        // If pengolahan enabled, require pengolahan-specific satuan inputs
+        if (enabledJenisPenugasan.pengolahan) {
+            if (
+                !formData['satuan_pengolahan_pencacahan_id'] ||
+                formData['satuan_pengolahan_pencacahan_id'].trim() === ''
+            ) {
+                newErrors['satuan_pengolahan_pencacahan_id'] =
+                    'Satuan pengolahan (pencacahan) wajib dipilih.';
             }
+            if (
+                kegiatan.has_listing_updating &&
+                (!formData['satuan_pengolahan_listing_id'] ||
+                    formData['satuan_pengolahan_listing_id'].trim() === '')
+            ) {
+                newErrors['satuan_pengolahan_listing_id'] =
+                    'Satuan pengolahan (listing/updating) wajib dipilih.';
+            }
+        }
         if (Object.keys(newErrors).length > 0) {
             setProcessing(false);
             setErrors(newErrors);
@@ -306,14 +326,27 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
 
                 // Pengolahan-specific satuan (per tahapan)
                 if (combo.jenis_penugasan === 'pengolahan') {
-                    const satPenc = parseInt(formData['satuan_pengolahan_pencacahan_id'], 10);
+                    const satPenc = parseInt(
+                        formData['satuan_pengolahan_pencacahan_id'],
+                        10,
+                    );
                     entry.satuan_id = isNaN(satPenc) ? null : satPenc;
 
                     if (kegiatan.has_listing_updating) {
-                        const satList = parseInt(formData['satuan_pengolahan_listing_id'], 10);
-                        entry.satuan_listing_id = isNaN(satList) ? null : satList;
-                        const rateListingValue = parseInt(formData[`${key}_listing`], 10);
-                        entry.rate_listing = isNaN(rateListingValue) ? 0 : rateListingValue;
+                        const satList = parseInt(
+                            formData['satuan_pengolahan_listing_id'],
+                            10,
+                        );
+                        entry.satuan_listing_id = isNaN(satList)
+                            ? null
+                            : satList;
+                        const rateListingValue = parseInt(
+                            formData[`${key}_listing`],
+                            10,
+                        );
+                        entry.rate_listing = isNaN(rateListingValue)
+                            ? 0
+                            : rateListingValue;
                     }
                 } else {
                     // For non-pengolahan, allow per-combo satuan if provided (fallback to global on backend)
@@ -322,10 +355,18 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                         entry.satuan_id = isNaN(s) ? null : s;
                     }
                     if (kegiatan.has_listing_updating) {
-                        const rateListingValue = parseInt(formData[`${key}_listing`], 10);
-                        entry.rate_listing = isNaN(rateListingValue) ? 0 : rateListingValue;
+                        const rateListingValue = parseInt(
+                            formData[`${key}_listing`],
+                            10,
+                        );
+                        entry.rate_listing = isNaN(rateListingValue)
+                            ? 0
+                            : rateListingValue;
                         if (formData[`${key}_satuan_listing_id`]) {
-                            const s2 = parseInt(formData[`${key}_satuan_listing_id`], 10);
+                            const s2 = parseInt(
+                                formData[`${key}_satuan_listing_id`],
+                                10,
+                            );
                             entry.satuan_listing_id = isNaN(s2) ? null : s2;
                         }
                     }
@@ -340,12 +381,14 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             satuan_id: isNaN(satuanId) ? null : satuanId,
             kode_coa: formData['kode_coa'] || null,
         };
-        
+
         if (kegiatan.has_listing_updating && formData['satuan_listing_id']) {
             const satuanListingId = parseInt(formData['satuan_listing_id'], 10);
-            payload.satuan_listing_id = isNaN(satuanListingId) ? null : satuanListingId;
+            payload.satuan_listing_id = isNaN(satuanListingId)
+                ? null
+                : satuanListingId;
         }
-        
+
         router.post(
             `/kegiatan/${kegiatan.hashed_id}/rate-honor/bulk`,
             payload,
@@ -413,7 +456,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                 </div>
 
                 {/* Info Alert */}
-                <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 p-4 shadow-lg">
+                <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
                     <div className="flex items-start space-x-3">
                         <svg
                             className="mt-0.5 size-5 flex-shrink-0 text-blue-600 dark:text-blue-400"
@@ -464,7 +507,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 type="text"
                                 value={formData['kode_coa'] || ''}
                                 onChange={(e) =>
-                                    handleInputChange('kode_coa', e.target.value, true)
+                                    handleInputChange(
+                                        'kode_coa',
+                                        e.target.value,
+                                        true,
+                                    )
                                 }
                                 placeholder="Contoh: 054.01.GG.2905.BMA.004.005.A.521211"
                                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
@@ -593,11 +640,14 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     {enabledJenisPenugasan.pengolahan && (
                                         <div className="flex items-center gap-2 px-6 pt-4 pb-2">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                                Satuan Pengolahan Dokumen Listing/Updating
+                                                Satuan Pengolahan Dokumen
+                                                Listing/Updating
                                             </label>
                                             <select
                                                 value={
-                                                    formData['satuan_pengolahan_listing_id'] || ''
+                                                    formData[
+                                                        'satuan_pengolahan_listing_id'
+                                                    ] || ''
                                                 }
                                                 onChange={(e) =>
                                                     handleInputChange(
@@ -608,9 +658,14 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 }
                                                 className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                             >
-                                                <option value="">Pilih Satuan</option>
+                                                <option value="">
+                                                    Pilih Satuan
+                                                </option>
                                                 {satuans.map((satuan: any) => (
-                                                    <option key={satuan.id} value={satuan.id}>
+                                                    <option
+                                                        key={satuan.id}
+                                                        value={satuan.id}
+                                                    >
                                                         {satuan.nama}
                                                     </option>
                                                 ))}
@@ -759,9 +814,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     }
                                     className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 >
-                                    <option value="">
-                                        Pilih Satuan
-                                    </option>
+                                    <option value="">Pilih Satuan</option>
                                     {satuans.map((satuan: any) => (
                                         <option
                                             key={satuan.id}
@@ -780,7 +833,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         Satuan Pengolahan Dokumen Pencacahan
                                     </label>
                                     <select
-                                        value={formData['satuan_pengolahan_pencacahan_id'] || ''}
+                                        value={
+                                            formData[
+                                                'satuan_pengolahan_pencacahan_id'
+                                            ] || ''
+                                        }
                                         onChange={(e) =>
                                             handleInputChange(
                                                 'satuan_pengolahan_pencacahan_id',
@@ -792,7 +849,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     >
                                         <option value="">Pilih Satuan</option>
                                         {satuans.map((satuan: any) => (
-                                            <option key={satuan.id} value={satuan.id}>
+                                            <option
+                                                key={satuan.id}
+                                                value={satuan.id}
+                                            >
                                                 {satuan.nama}
                                             </option>
                                         ))}
@@ -825,8 +885,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                             if (
                                                 combo.jenis_penugasan ===
                                                     'pcl_ppl' ||
-                                                combo.jenis_penugasan ===
-                                                    'pml'
+                                                combo.jenis_penugasan === 'pml'
                                             ) {
                                                 return true;
                                             }
@@ -854,10 +913,8 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                             };
                                             const penugasanLabel =
                                                 penugasanLabels[
-                                                    combo
-                                                        .jenis_penugasan
-                                                ] ||
-                                                combo.jenis_penugasan;
+                                                    combo.jenis_penugasan
+                                                ] || combo.jenis_penugasan;
 
                                             return (
                                                 <tr
@@ -877,9 +934,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                         <input
                                                             type="text"
                                                             value={
-                                                                formData[
-                                                                    key
-                                                                ]
+                                                                formData[key]
                                                                     ? formatCurrency(
                                                                           formData[
                                                                               key
@@ -887,27 +942,20 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                                       )
                                                                     : ''
                                                             }
-                                                            onChange={(
-                                                                e,
-                                                            ) =>
+                                                            onChange={(e) =>
                                                                 handleInputChange(
                                                                     key,
-                                                                    e
-                                                                        .target
+                                                                    e.target
                                                                         .value,
                                                                 )
                                                             }
                                                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                                             placeholder="0"
                                                         />
-                                                        {errors[
-                                                            key
-                                                        ] && (
+                                                        {errors[key] && (
                                                             <InputError
                                                                 message={
-                                                                    errors[
-                                                                        key
-                                                                    ]
+                                                                    errors[key]
                                                                 }
                                                                 className="mt-1"
                                                             />

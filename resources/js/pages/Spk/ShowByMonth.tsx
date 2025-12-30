@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { usePage, router, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Download, Upload, FileText, Archive } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { Archive, Download, FileText, Upload } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface Spk {
     id: number;
@@ -138,9 +138,18 @@ interface ShowByMonthProps {
 }
 
 const bulanLabels: Record<number, string> = {
-    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
-    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
-    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
+    1: 'Januari',
+    2: 'Februari',
+    3: 'Maret',
+    4: 'April',
+    5: 'Mei',
+    6: 'Juni',
+    7: 'Juli',
+    8: 'Agustus',
+    9: 'September',
+    10: 'Oktober',
+    11: 'November',
+    12: 'Desember',
 };
 
 export default function ShowByMonth({
@@ -155,7 +164,7 @@ export default function ShowByMonth({
     unique_kegiatan_list,
     bulan,
     tahun,
-    bulan_label
+    bulan_label,
 }: ShowByMonthProps) {
     // The 'spk' prop contains the current SPK being viewed (could be original or addendum)
     // If it's an original (addendum_number === 0), show it in the main card
@@ -176,29 +185,46 @@ export default function ShowByMonth({
         { title: `Detail SPK ${bulan_label} ${tahun}`, href: '#' },
     ];
 
-    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+    const canEdit =
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'approver';
 
     // Helper functions (must be inside component for hooks/props access)
     const getPeranLabel = (peran: string): string => {
         const labels: Record<string, string> = {
-            'pcl_ppl': 'Petugas Pencacahan',
-            'pml': 'Pemeriksa Lapangan',
-            'pengolahan': 'Petugas Pengolahan',
-            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+            pcl_ppl: 'Petugas Pencacahan',
+            pml: 'Pemeriksa Lapangan',
+            pengolahan: 'Petugas Pengolahan',
+            pengawas_pengolahan: 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
     };
 
     const formatIndonesianDate = (isoDate: string): string => {
         if (!isoDate) return '-';
-        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const months = [
+            'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember',
+        ];
         const date = new Date(isoDate);
         if (isNaN(date.getTime())) return isoDate;
         return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     };
 
-    const formatPeriodeKerja = (tanggalMulai: string, tanggalSelesai: string) => {
+    const formatPeriodeKerja = (
+        tanggalMulai: string,
+        tanggalSelesai: string,
+    ) => {
         if (!tanggalMulai || !tanggalSelesai) return '-';
         const mulai = new Date(tanggalMulai);
         const selesai = new Date(tanggalSelesai);
@@ -230,14 +256,16 @@ export default function ShowByMonth({
         router.post('/spk/month', {
             bulan: bulan,
             tahun: tahun,
-            spk: spkHashedId
+            spk: spkHashedId,
         });
     };
 
     const handleUploadSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!data.file || !uploadingDocId) return;
-        const doc = spk_documents.find((d: SpkDocument) => d.hashed_id === uploadingDocId);
+        const doc = spk_documents.find(
+            (d: SpkDocument) => d.hashed_id === uploadingDocId,
+        );
         if (!doc) return;
         post(`/spk/${doc.hashed_id}/upload-signed`, {
             onSuccess: () => {
@@ -270,12 +298,11 @@ export default function ShowByMonth({
         <AppLayout breadcrumbs={breadcrumbs}>
             <PageHeader
                 title={`Detail SPK ${bulan_label} ${tahun}`}
-            >
-            </PageHeader>
+            ></PageHeader>
 
-            <div className="grid gap-6 md:grid-cols-3 overflow-x-hidden max-w-full">
+            <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
                 {/* Sidebar - Petugas List */}
-                <div className="md:col-span-1 min-w-0 w-full">
+                <div className="w-full min-w-0 md:col-span-1">
                     <ContentCard>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
@@ -284,8 +311,8 @@ export default function ShowByMonth({
                                 </h3>
                             </div>
 
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={handleDownloadAll}
                                 className="w-full"
                                 size="sm"
@@ -294,27 +321,31 @@ export default function ShowByMonth({
                                 Download Semua SPK
                             </Button>
 
-                            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                            <div className="max-h-[600px] space-y-2 overflow-y-auto">
                                 {Array.from(
                                     petugas_list.reduce((map, item) => {
                                         // Gabungkan berdasarkan NIK jika ada, jika tidak pakai ID
-                                        const key = item.petugas_nik ? item.petugas_nik : item.id;
+                                        const key = item.petugas_nik
+                                            ? item.petugas_nik
+                                            : item.id;
                                         if (!map.has(key)) {
                                             map.set(key, item);
                                         }
                                         return map;
-                                    }, new Map())
+                                    }, new Map()),
                                 ).map(([key, item]) => (
                                     <button
                                         key={item.id}
-                                        onClick={() => handleSelectPetugas(item.hashed_id)}
+                                        onClick={() =>
+                                            handleSelectPetugas(item.hashed_id)
+                                        }
                                         className={`w-full rounded-lg border p-3 text-left transition-colors ${
                                             item.id === spk.id
                                                 ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
                                                 : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
                                         }`}
                                     >
-                                        <div className="font-medium text-sm text-neutral-900 dark:text-white">
+                                        <div className="text-sm font-medium text-neutral-900 dark:text-white">
                                             {item.petugas_nama}
                                         </div>
                                     </button>
@@ -330,22 +361,27 @@ export default function ShowByMonth({
                                 Download SPK per Kegiatan
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Unduh SPK semua petugas yang terlibat di masing-masing kegiatan
+                                Unduh SPK semua petugas yang terlibat di
+                                masing-masing kegiatan
                             </p>
 
                             <div className="space-y-3">
                                 {unique_kegiatan_list.map((kegiatan) => (
-                                    <div key={kegiatan.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                                        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-neutral-900 dark:text-white font-semibold break-words">
+                                    <div
+                                        key={kegiatan.id}
+                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                                    >
+                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold break-words text-neutral-900 dark:text-white">
                                                     {kegiatan.nama_kegiatan}
                                                 </p>
-                                                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                                                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
                                                     {kegiatan.kode_kegiatan}
                                                 </p>
-                                                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-                                                    {kegiatan.jumlah_spk} petugas
+                                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                                    {kegiatan.jumlah_spk}{' '}
+                                                    petugas
                                                 </p>
                                             </div>
                                             <div className="flex-shrink-0">
@@ -354,9 +390,29 @@ export default function ShowByMonth({
                                                     action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
                                                     className="inline-block"
                                                 >
-                                                    <input type="hidden" name="_token" value={document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''} />
-                                                    <input type="hidden" name="bulan" value={bulan} />
-                                                    <input type="hidden" name="tahun" value={tahun} />
+                                                    <input
+                                                        type="hidden"
+                                                        name="_token"
+                                                        value={
+                                                            document
+                                                                .querySelector(
+                                                                    'meta[name="csrf-token"]',
+                                                                )
+                                                                ?.getAttribute(
+                                                                    'content',
+                                                                ) || ''
+                                                        }
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="bulan"
+                                                        value={bulan}
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="tahun"
+                                                        value={tahun}
+                                                    />
                                                     <Button
                                                         type="submit"
                                                         size="sm"
@@ -377,7 +433,7 @@ export default function ShowByMonth({
                 </div>
 
                 {/* Main Content - SPK Details */}
-                <div className="md:col-span-2 space-y-6 min-w-0 w-full">
+                <div className="w-full min-w-0 space-y-6 md:col-span-2">
                     {/* Always show original SPK info */}
                     <ContentCard>
                         <div className="space-y-6">
@@ -394,38 +450,67 @@ export default function ShowByMonth({
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nomor SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nomor_spk}</p>
-                                </div>
-                                <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Tanggal SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{formatIndonesianDate(spk.tanggal_spk)}</p>
-                                </div>
-                                <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">
-                                        {formatPeriodeKerja(spk.tanggal_mulai_kerja, spk.tanggal_selesai_kerja)}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nomor SPK
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {spk.nomor_spk}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">
-                                        Rp {parseFloat(spk.nilai_kontrak?.toString() || '0').toLocaleString('id-ID')}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Tanggal SPK
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {formatIndonesianDate(spk.tanggal_spk)}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nama_ppk}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Periode Kerja
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {formatPeriodeKerja(
+                                            spk.tanggal_mulai_kerja,
+                                            spk.tanggal_selesai_kerja,
+                                        )}
+                                    </p>
+                                </div>
+                                <div className="min-w-0">
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nilai Kontrak
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        Rp{' '}
+                                        {parseFloat(
+                                            spk.nilai_kontrak?.toString() ||
+                                                '0',
+                                        ).toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <div className="min-w-0">
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        PPK
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {spk.nama_ppk}
+                                    </p>
                                     {spk.nip_ppk && (
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">
+                                        <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
                                             NIP: {spk.nip_ppk}
                                         </p>
                                     )}
                                 </div>
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.created_by}</p>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">{spk.created_at}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Dibuat Oleh
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {spk.created_by}
+                                    </p>
+                                    <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
+                                        {spk.created_at}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -448,38 +533,68 @@ export default function ShowByMonth({
                                 </div>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Nomor Addendum</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nomor_spk}</p>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Tanggal Addendum</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{formatIndonesianDate(spk.tanggal_spk)}</p>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">
-                                            {formatPeriodeKerja(spk.tanggal_mulai_kerja, spk.tanggal_selesai_kerja)}
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Nomor Addendum
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {spk.nomor_spk}
                                         </p>
                                     </div>
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">
-                                            Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Tanggal Addendum
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {formatIndonesianDate(
+                                                spk.tanggal_spk,
+                                            )}
                                         </p>
                                     </div>
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.nama_ppk}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Periode Kerja
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {formatPeriodeKerja(
+                                                spk.tanggal_mulai_kerja,
+                                                spk.tanggal_selesai_kerja,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Nilai Kontrak
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            Rp{' '}
+                                            {parseFloat(
+                                                spk.nilai_kontrak.toString(),
+                                            ).toLocaleString('id-ID')}
+                                        </p>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            PPK
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {spk.nama_ppk}
+                                        </p>
                                         {spk.nip_ppk && (
-                                            <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">
+                                            <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
                                                 NIP: {spk.nip_ppk}
                                             </p>
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{spk.created_by}</p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400 break-words">{spk.created_at}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Dibuat Oleh
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {spk.created_by}
+                                        </p>
+                                        <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
+                                            {spk.created_at}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -495,23 +610,39 @@ export default function ShowByMonth({
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nama Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.nama}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nama Petugas
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {petugas.nama}
+                                    </p>
                                 </div>
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">NIK/NIP</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.nik}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        NIK/NIP
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                        {petugas.nik}
+                                    </p>
                                 </div>
                                 <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Jenis Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium capitalize break-words">
-                                        {petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non Organik'}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Jenis Petugas
+                                    </Label>
+                                    <p className="font-medium break-words text-neutral-900 capitalize dark:text-white">
+                                        {petugas.jenis_petugas === 'organik'
+                                            ? 'Organik'
+                                            : 'Non Organik'}
                                     </p>
                                 </div>
                                 {petugas.alamat && (
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Alamat</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{petugas.alamat}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Alamat
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {petugas.alamat}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -529,16 +660,16 @@ export default function ShowByMonth({
                                 <table className="w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                     <thead className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 max-w-xs">
+                                            <th className="max-w-xs px-3 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Nama Kegiatan
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                            <th className="px-3 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-neutral-700 uppercase dark:text-neutral-300">
                                                 Peran
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                            <th className="px-3 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-neutral-700 uppercase dark:text-neutral-300">
                                                 Honor
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
+                                            <th className="px-3 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-neutral-700 uppercase dark:text-neutral-300">
                                                 Perubahan
                                             </th>
                                         </tr>
@@ -547,25 +678,75 @@ export default function ShowByMonth({
                                         {kegiatan_list.map((kegiatan, idx) => {
                                             const changed = kegiatan.has_change;
                                             return (
-                                                <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
-                
-                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white max-w-xs">
-                                                        <div className="break-words">{kegiatan.nama_kegiatan}</div>
+                                                <tr
+                                                    key={
+                                                        kegiatan.id +
+                                                        '-' +
+                                                        kegiatan.peran
+                                                    }
+                                                    className={
+                                                        changed
+                                                            ? 'bg-yellow-50 dark:bg-yellow-900'
+                                                            : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                                                    }
+                                                >
+                                                    <td className="max-w-xs px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                                                        <div className="break-words">
+                                                            {
+                                                                kegiatan.nama_kegiatan
+                                                            }
+                                                        </div>
                                                     </td>
-                                                    <td className="px-3 py-3 text-sm text-neutral-900 dark:text-white whitespace-nowrap">
-                                                        {getPeranLabel(kegiatan.peran)}
+                                                    <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {getPeranLabel(
+                                                            kegiatan.peran,
+                                                        )}
                                                     </td>
-                                                    <td className="px-3 py-3 text-right text-neutral-900 dark:text-white whitespace-nowrap">
-                                                        Rp {kegiatan.total_honor.toLocaleString('id-ID')}
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        Rp{' '}
+                                                        {kegiatan.total_honor.toLocaleString(
+                                                            'id-ID',
+                                                        )}
                                                     </td>
                                                     <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                         {changed ? (
-                                                            <span className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
-                                                                <svg className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
-                                                                <span className="break-words">Ada perubahan sebesar Rp {Math.abs(kegiatan.latest.total_honor - kegiatan.original.total_honor).toLocaleString('id-ID')}</span>
+                                                            <span
+                                                                className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200"
+                                                                title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}
+                                                            >
+                                                                <svg
+                                                                    className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-500"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"
+                                                                    />
+                                                                </svg>
+                                                                <span className="break-words">
+                                                                    Ada
+                                                                    perubahan
+                                                                    sebesar Rp{' '}
+                                                                    {Math.abs(
+                                                                        kegiatan
+                                                                            .latest
+                                                                            .total_honor -
+                                                                            kegiatan
+                                                                                .original
+                                                                                .total_honor,
+                                                                    ).toLocaleString(
+                                                                        'id-ID',
+                                                                    )}
+                                                                </span>
                                                             </span>
                                                         ) : (
-                                                            <span className="text-xs text-neutral-400">-</span>
+                                                            <span className="text-xs text-neutral-400">
+                                                                -
+                                                            </span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -574,11 +755,24 @@ export default function ShowByMonth({
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={2} className="px-3 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td
+                                                colSpan={2}
+                                                className="px-3 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white"
+                                            >
                                                 Total Honor:
                                             </td>
-                                            <td colSpan={1} className="px-3 py-3 text-right font-semibold text-neutral-900 dark:text-white break-words">
-                                                Rp {kegiatan_list.reduce((sum, k) => sum + k.total_honor, 0).toLocaleString('id-ID')}
+                                            <td
+                                                colSpan={1}
+                                                className="px-3 py-3 text-right font-semibold break-words text-neutral-900 dark:text-white"
+                                            >
+                                                Rp{' '}
+                                                {kegiatan_list
+                                                    .reduce(
+                                                        (sum, k) =>
+                                                            sum + k.total_honor,
+                                                        0,
+                                                    )
+                                                    .toLocaleString('id-ID')}
                                             </td>
                                             <td colSpan={1}></td>
                                         </tr>
@@ -597,60 +791,88 @@ export default function ShowByMonth({
 
                             <div className="space-y-3">
                                 {spk_documents.map((doc) => (
-                                    <div key={doc.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                                        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-                                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                                                <FileText className="h-5 w-5 text-neutral-600 dark:text-neutral-400 mt-0.5 flex-shrink-0" />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <p className="text-neutral-900 dark:text-white font-semibold">
-                                                            {getDocumentLabel(doc.addendum_number)}
+                                    <div
+                                        key={doc.id}
+                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                                    >
+                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+                                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400" />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="font-semibold text-neutral-900 dark:text-white">
+                                                            {getDocumentLabel(
+                                                                doc.addendum_number,
+                                                            )}
                                                         </p>
-                                                        {getStatusBadge(doc.status)}
+                                                        {getStatusBadge(
+                                                            doc.status,
+                                                        )}
                                                     </div>
-                                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 break-words">
+                                                    <p className="mt-1 text-sm break-words text-neutral-600 dark:text-neutral-400">
                                                         {doc.nomor_spk}
                                                     </p>
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 break-words">
-                                                        Dibuat oleh {doc.created_by} pada {doc.created_at}
+                                                    <p className="mt-1 text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                        Dibuat oleh{' '}
+                                                        {doc.created_by} pada{' '}
+                                                        {doc.created_at}
                                                     </p>
-                                                    {doc.updated_at !== doc.created_at && (
-                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400 break-words">
-                                                            Diperbarui pada {doc.updated_at}
+                                                    {doc.updated_at !==
+                                                        doc.created_at && (
+                                                        <p className="text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                            Diperbarui pada{' '}
+                                                            {doc.updated_at}
                                                         </p>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-2 flex-shrink-0">
+                                            <div className="flex flex-shrink-0 flex-col gap-2">
                                                 {doc.file_path ? (
                                                     <>
                                                         <Button
                                                             size="sm"
                                                             variant="default"
-                                                            onClick={() => handleDownload(doc.file_path!)}
+                                                            onClick={() =>
+                                                                handleDownload(
+                                                                    doc.file_path!,
+                                                                )
+                                                            }
                                                         >
                                                             <Download className="mr-2 h-3.5 w-3.5" />
                                                             Download
                                                         </Button>
-                                                        {canEdit && doc.status === 'draft' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => setUploadingDocId(doc.hashed_id)}
-                                                            >
-                                                                <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                Upload Signed
-                                                            </Button>
-                                                        )}
+                                                        {canEdit &&
+                                                            doc.status ===
+                                                                'draft' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        setUploadingDocId(
+                                                                            doc.hashed_id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Upload className="mr-2 h-3.5 w-3.5" />
+                                                                    Upload
+                                                                    Signed
+                                                                </Button>
+                                                            )}
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">File belum tersedia</p>
+                                                        <p className="mb-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                                            File belum tersedia
+                                                        </p>
                                                         {canEdit && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => setUploadingDocId(doc.hashed_id)}
+                                                                onClick={() =>
+                                                                    setUploadingDocId(
+                                                                        doc.hashed_id,
+                                                                    )
+                                                                }
                                                             >
                                                                 <Upload className="mr-2 h-3.5 w-3.5" />
                                                                 Upload
@@ -676,19 +898,29 @@ export default function ShowByMonth({
 
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Nomor BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{bast.nomor_bast}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Nomor BAST
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {bast.nomor_bast}
+                                        </p>
                                     </div>
                                     <div className="min-w-0">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Tanggal BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium break-words">{bast.tanggal_bast}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Tanggal BAST
+                                        </Label>
+                                        <p className="font-medium break-words text-neutral-900 dark:text-white">
+                                            {bast.tanggal_bast}
+                                        </p>
                                     </div>
                                 </div>
 
                                 {bast.file_path && (
                                     <Button
                                         variant="outline"
-                                        onClick={() => handleDownload(bast.file_path!)}
+                                        onClick={() =>
+                                            handleDownload(bast.file_path!)
+                                        }
                                         className="w-full"
                                     >
                                         <Download className="mr-2 h-4 w-4" />
@@ -702,54 +934,76 @@ export default function ShowByMonth({
             </div>
 
             {/* Upload Modal */}
-            {uploadingDocId && (() => {
-                const doc = spk_documents.find((d: SpkDocument) => d.hashed_id === uploadingDocId);
-                if (!doc) return null;
-                return (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setUploadingDocId(null)}>
-                        <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
-                            <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">
-                                Upload {getDocumentLabel(doc.addendum_number)}
-                            </h3>
-                        
-                            <form onSubmit={handleUploadSubmit} className="space-y-4">
-                                <div>
-                                    <Label htmlFor="file">Pilih File PDF</Label>
-                                    <Input
-                                        id="file"
-                                        type="file"
-                                        accept=".pdf"
-                                        onChange={handleFileChange}
-                                        required
-                                    />
-                                    {errors.file && (
-                                        <p className="mt-1 text-sm text-red-600">{errors.file}</p>
-                                    )}
-                                    <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                                        Format: PDF, Maksimal 10MB
-                                    </p>
-                                </div>
+            {uploadingDocId &&
+                (() => {
+                    const doc = spk_documents.find(
+                        (d: SpkDocument) => d.hashed_id === uploadingDocId,
+                    );
+                    if (!doc) return null;
+                    return (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                            onClick={() => setUploadingDocId(null)}
+                        >
+                            <div
+                                className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Upload{' '}
+                                    {getDocumentLabel(doc.addendum_number)}
+                                </h3>
 
-                                <div className="flex justify-end gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => {
-                                            setUploadingDocId(null);
-                                            reset();
-                                        }}
-                                    >
-                                        Batal
-                                    </Button>
-                                    <Button type="submit" disabled={processing || !data.file}>
-                                        {processing ? 'Mengunggah...' : 'Upload'}
-                                    </Button>
-                                </div>
-                            </form>
+                                <form
+                                    onSubmit={handleUploadSubmit}
+                                    className="space-y-4"
+                                >
+                                    <div>
+                                        <Label htmlFor="file">
+                                            Pilih File PDF
+                                        </Label>
+                                        <Input
+                                            id="file"
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={handleFileChange}
+                                            required
+                                        />
+                                        {errors.file && (
+                                            <p className="mt-1 text-sm text-red-600">
+                                                {errors.file}
+                                            </p>
+                                        )}
+                                        <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                            Format: PDF, Maksimal 10MB
+                                        </p>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setUploadingDocId(null);
+                                                reset();
+                                            }}
+                                        >
+                                            Batal
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing || !data.file}
+                                        >
+                                            {processing
+                                                ? 'Mengunggah...'
+                                                : 'Upload'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </div>
-                );
-            })()}
+                    );
+                })()}
         </AppLayout>
     );
 }

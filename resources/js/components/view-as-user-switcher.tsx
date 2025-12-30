@@ -1,4 +1,4 @@
- import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
     Command,
     CommandEmpty,
@@ -7,7 +7,11 @@ import {
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
 import { Check, Eye, EyeOff, User } from 'lucide-react';
@@ -57,7 +61,7 @@ export default function ViewAsUserSwitcher() {
                     setSearch('');
                     window.location.reload(); // Tambahkan baris ini
                 },
-            }
+            },
         );
     };
 
@@ -116,13 +120,18 @@ export default function ViewAsUserSwitcher() {
                                         <CommandItem
                                             key={user.id}
                                             value={user.id.toString()}
-                                            onSelect={() => handleSelectUser(user.id)}
+                                            onSelect={() =>
+                                                handleSelectUser(user.id)
+                                            }
                                             className="cursor-pointer"
                                         >
                                             <div className="flex flex-1 flex-col">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-medium">{user.name}</span>
-                                                    {auth.user?.id === user.id && (
+                                                    <span className="font-medium">
+                                                        {user.name}
+                                                    </span>
+                                                    {auth.user?.id ===
+                                                        user.id && (
                                                         <Check className="h-4 w-4 text-green-600" />
                                                     )}
                                                 </div>

@@ -1,9 +1,9 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { StatusBadge } from '@/components/status-badge';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { FileText, Plus, Search } from 'lucide-react';
@@ -48,9 +48,7 @@ interface IndexProps {
     active_year: number;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'BAST', href: '/bast' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
 
 export default function Index({ data, filters, active_year }: IndexProps) {
     const [search, setSearch] = useState(filters.search || '');
@@ -79,7 +77,7 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                 <ContentCard>
                     <form onSubmit={handleSearch} className="flex gap-2">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-500" />
                             <Input
                                 type="text"
                                 placeholder="Cari kegiatan..."
@@ -95,7 +93,11 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                 variant="outline"
                                 onClick={() => {
                                     setSearch('');
-                                    router.get('/bast', {}, { preserveState: true });
+                                    router.get(
+                                        '/bast',
+                                        {},
+                                        { preserveState: true },
+                                    );
                                 }}
                             >
                                 Reset
@@ -110,16 +112,16 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                         <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Periode
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Nama Kegiatan
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Status BAST
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -127,8 +129,12 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                 {data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-neutral-500">
-                                            Tidak ada data BAST untuk tahun {active_year}
+                                        <td
+                                            colSpan={4}
+                                            className="px-6 py-12 text-center text-neutral-500"
+                                        >
+                                            Tidak ada data BAST untuk tahun{' '}
+                                            {active_year}
                                         </td>
                                     </tr>
                                 ) : (
@@ -137,43 +143,68 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                             key={`${item.kegiatan.id}-${item.periode.bulan}-${item.periode.tahun}`}
                                             className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
                                         >
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-neutral-100">
+                                            <td className="px-6 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                 <div className="font-medium">
-                                                    {item.periode.bulan_label} {item.periode.tahun}
+                                                    {item.periode.bulan_label}{' '}
+                                                    {item.periode.tahun}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-neutral-100">
-                                                <div className="font-medium">{item.kegiatan.nama_kegiatan}</div>
+                                                <div className="font-medium">
+                                                    {
+                                                        item.kegiatan
+                                                            .nama_kegiatan
+                                                    }
+                                                </div>
                                                 <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    {item.kegiatan.kode_kegiatan}
-                                                    {item.kegiatan.ketua_tim && ` • Ketua Tim: ${item.kegiatan.ketua_tim}`}
+                                                    {
+                                                        item.kegiatan
+                                                            .kode_kegiatan
+                                                    }
+                                                    {item.kegiatan.ketua_tim &&
+                                                        ` • Ketua Tim: ${item.kegiatan.ketua_tim}`}
                                                 </div>
                                                 {item.has_bast && item.bast && (
                                                     <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                        {item.bast.nomor_bast} • {item.bast.jumlah_petugas} petugas
+                                                        {item.bast.nomor_bast} •{' '}
+                                                        {
+                                                            item.bast
+                                                                .jumlah_petugas
+                                                        }{' '}
+                                                        petugas
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-center text-sm">
+                                            <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
                                                 {item.has_bast && item.bast ? (
-                                                    getStatusBadge(item.bast.status)
+                                                    getStatusBadge(
+                                                        item.bast.status,
+                                                    )
                                                 ) : (
                                                     <StatusBadge status="not_created" />
                                                 )}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-center text-sm">
+                                            <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {item.has_bast && item.bast ? (
+                                                    {item.has_bast &&
+                                                    item.bast ? (
                                                         <>
-                                                            <Link href={`/bast/${item.bast.hashed_id}`}>
-                                                                <Button size="sm" variant="outline">
+                                                            <Link
+                                                                href={`/bast/${item.bast.hashed_id}`}
+                                                            >
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                >
                                                                     <FileText className="mr-1 h-4 w-4" />
                                                                     Lihat BAST
                                                                 </Button>
                                                             </Link>
                                                         </>
                                                     ) : (
-                                                        <Link href={`/bast/kegiatan/${item.kegiatan.hashed_id}/create?bulan=${item.periode.bulan}&tahun=${item.periode.tahun}`}>
+                                                        <Link
+                                                            href={`/bast/kegiatan/${item.kegiatan.hashed_id}/create?bulan=${item.periode.bulan}&tahun=${item.periode.tahun}`}
+                                                        >
                                                             <Button size="sm">
                                                                 <Plus className="mr-1 h-4 w-4" />
                                                                 Buat BAST

@@ -1,14 +1,13 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, FileEdit, Download, Eye } from 'lucide-react';
-import { useState } from 'react';
-import { Breadcrumb } from '@/components/ui/breadcrumb';
+import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Download, Eye, FileEdit } from 'lucide-react';
+import { useState } from 'react';
 
 interface Petugas {
     id: number;
@@ -71,9 +70,12 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
     const [generatedCount, setGeneratedCount] = useState(0);
 
     const breadcrumbs: BreadcrumbItem[] = [
-            { title: 'SPK', href: '/spk' },
-            { title: `Addendum SPK - ${periode.bulan_label} ${periode.tahun}`, href: '#' },
-        ];
+        { title: 'SPK', href: '/spk' },
+        {
+            title: `Addendum SPK - ${periode.bulan_label} ${periode.tahun}`,
+            href: '#',
+        },
+    ];
 
     const handleSelectAll = () => {
         if (selectedPetugas.length === petugas_list.length) {
@@ -85,13 +87,17 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
     const handlePetugasToggle = (hashedId: string) => {
         setSelectedPetugas((prev) =>
-            prev.includes(hashedId) ? prev.filter((id) => id !== hashedId) : [...prev, hashedId]
+            prev.includes(hashedId)
+                ? prev.filter((id) => id !== hashedId)
+                : [...prev, hashedId],
         );
     };
 
     const handlePreview = (petugasData: PetugasWithAddendum) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu');
+            setModalMessage(
+                'Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu',
+            );
             setShowFormModal(true);
             return;
         }
@@ -104,7 +110,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         form.style.display = 'none';
 
         // Add CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
         if (csrfToken) {
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -136,7 +144,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
     const handleGenerate = async (petugasData: PetugasWithAddendum) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu');
+            setModalMessage(
+                'Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu',
+            );
             setShowFormModal(true);
             return;
         }
@@ -150,7 +160,10 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector('meta[name="csrf-token"]')
+                                ?.getAttribute('content') || '',
                     },
                     body: JSON.stringify({
                         tanggal_spk: formData.tanggal_spk,
@@ -158,29 +171,37 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         parent_spk_id: petugasData.existing_spk_id,
                         addendum_number: petugasData.next_addendum_number,
                     }),
-                }
+                },
             );
             let result = null;
             try {
                 result = await response.json();
             } catch {
                 // Jika gagal parse JSON (redirect), anggap sukses
-                setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
+                setSuccessMessage(
+                    `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+                );
                 setShowSuccessModal(true);
                 setTimeout(() => window.location.reload(), 1000);
                 return;
             }
             if (result && result.success) {
-                setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
+                setSuccessMessage(
+                    `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+                );
                 setShowSuccessModal(true);
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                setModalMessage(result?.message || 'Gagal generate addendum SPK');
+                setModalMessage(
+                    result?.message || 'Gagal generate addendum SPK',
+                );
                 setShowFormModal(true);
             }
         } catch (error) {
             // Jika error network, tetap reload (anggap sukses, karena data biasanya sudah masuk)
-            setSuccessMessage(`Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`);
+            setSuccessMessage(
+                `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+            );
             setShowSuccessModal(true);
             setTimeout(() => window.location.reload(), 1000);
         } finally {
@@ -190,13 +211,17 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
     const handleBatchGenerate = async () => {
         if (selectedPetugas.length === 0) {
-            setModalMessage('Pilih minimal 1 petugas untuk generate batch addendum');
+            setModalMessage(
+                'Pilih minimal 1 petugas untuk generate batch addendum',
+            );
             setShowFormModal(true);
             return;
         }
 
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu');
+            setModalMessage(
+                'Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu',
+            );
             setShowFormModal(true);
             return;
         }
@@ -206,7 +231,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         let failCount = 0;
 
         for (const hashedId of selectedPetugas) {
-            const petugasData = petugas_list.find((p) => p.petugas.hashed_id === hashedId);
+            const petugasData = petugas_list.find(
+                (p) => p.petugas.hashed_id === hashedId,
+            );
             if (!petugasData) continue;
 
             try {
@@ -216,7 +243,10 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            'X-CSRF-TOKEN':
+                                document
+                                    .querySelector('meta[name="csrf-token"]')
+                                    ?.getAttribute('content') || '',
                         },
                         body: JSON.stringify({
                             tanggal_spk: formData.tanggal_spk,
@@ -224,7 +254,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                             parent_spk_id: petugasData.existing_spk_id,
                             addendum_number: petugasData.next_addendum_number,
                         }),
-                    }
+                    },
                 );
 
                 const result = await response.json();
@@ -241,11 +271,15 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
         setProcessing(false);
         setGeneratedCount(successCount);
-        
+
         if (failCount === 0) {
-            setSuccessMessage(`Berhasil generate ${successCount} addendum SPK!`);
+            setSuccessMessage(
+                `Berhasil generate ${successCount} addendum SPK!`,
+            );
         } else {
-            setSuccessMessage(`Generate selesai: ${successCount} berhasil, ${failCount} gagal.`);
+            setSuccessMessage(
+                `Generate selesai: ${successCount} berhasil, ${failCount} gagal.`,
+            );
         }
         setShowSuccessModal(true);
         setSelectedPetugas([]);
@@ -254,7 +288,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Addendum SPK - ${periode.bulan_label} ${periode.tahun}`} />
+            <Head
+                title={`Addendum SPK - ${periode.bulan_label} ${periode.tahun}`}
+            />
 
             <div className="space-y-6">
                 {/* Info Card */}
@@ -262,26 +298,37 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
                             <FileEdit className="h-6 w-6 text-primary" />
-                            <h2 className="text-xl font-semibold">Generate Addendum SPK</h2>
+                            <h2 className="text-xl font-semibold">
+                                Generate Addendum SPK
+                            </h2>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                             <div>
-                                <span className="font-medium">Kegiatan:</span> {periode.kegiatan.nama_kegiatan}
+                                <span className="font-medium">Kegiatan:</span>{' '}
+                                {periode.kegiatan.nama_kegiatan}
                             </div>
                             <div>
-                                <span className="font-medium">Kode:</span> {periode.kegiatan.kode_kegiatan}
+                                <span className="font-medium">Kode:</span>{' '}
+                                {periode.kegiatan.kode_kegiatan}
                             </div>
                             <div>
-                                <span className="font-medium">Periode:</span> {periode.bulan_label} {periode.tahun}
+                                <span className="font-medium">Periode:</span>{' '}
+                                {periode.bulan_label} {periode.tahun}
                             </div>
                             <div>
-                                <span className="font-medium">Total Petugas:</span> {petugas_list.length} petugas
+                                <span className="font-medium">
+                                    Total Petugas:
+                                </span>{' '}
+                                {petugas_list.length} petugas
                             </div>
                         </div>
-                        <div className="border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 rounded-md p-4 shadow-lg">
+                        <div className="rounded-md border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
-                                <strong>Catatan:</strong> Anda akan membuat addendum SPK untuk petugas yang sudah memiliki SPK di bulan ini. 
-                                Addendum akan mereferensikan SPK asli dan menyimpan perubahan sebagai dokumen baru.
+                                <strong>Catatan:</strong> Anda akan membuat
+                                addendum SPK untuk petugas yang sudah memiliki
+                                SPK di bulan ini. Addendum akan mereferensikan
+                                SPK asli dan menyimpan perubahan sebagai dokumen
+                                baru.
                             </p>
                         </div>
                     </div>
@@ -290,28 +337,40 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 {/* Form Card */}
                 <ContentCard>
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Form Addendum SPK</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h3 className="text-lg font-semibold">
+                            Form Addendum SPK
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="tanggal_spk">Tanggal Addendum</Label>
+                                <Label htmlFor="tanggal_spk">
+                                    Tanggal Addendum
+                                </Label>
                                 <Input
                                     id="tanggal_spk"
                                     type="date"
                                     value={formData.tanggal_spk}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, tanggal_spk: e.target.value })
+                                        setFormData({
+                                            ...formData,
+                                            tanggal_spk: e.target.value,
+                                        })
                                     }
                                     required
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="sampai_tanggal">Sampai Tanggal</Label>
+                                <Label htmlFor="sampai_tanggal">
+                                    Sampai Tanggal
+                                </Label>
                                 <Input
                                     id="sampai_tanggal"
                                     type="date"
                                     value={formData.sampai_tanggal}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, sampai_tanggal: e.target.value })
+                                        setFormData({
+                                            ...formData,
+                                            sampai_tanggal: e.target.value,
+                                        })
                                     }
                                     required
                                 />
@@ -325,7 +384,8 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold">
-                                Daftar Petugas dengan SPK Aktif ({petugas_list.length})
+                                Daftar Petugas dengan SPK Aktif (
+                                {petugas_list.length})
                             </h3>
                             <div className="flex gap-2">
                                 <Button
@@ -334,12 +394,18 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                     size="sm"
                                     onClick={handleSelectAll}
                                 >
-                                    {selectedPetugas.length === petugas_list.length ? 'Unselect All' : 'Select All'}
+                                    {selectedPetugas.length ===
+                                    petugas_list.length
+                                        ? 'Unselect All'
+                                        : 'Select All'}
                                 </Button>
                                 <Button
                                     type="button"
                                     onClick={handleBatchGenerate}
-                                    disabled={selectedPetugas.length === 0 || processing}
+                                    disabled={
+                                        selectedPetugas.length === 0 ||
+                                        processing
+                                    }
                                     size="sm"
                                 >
                                     Generate Batch ({selectedPetugas.length})
@@ -353,62 +419,114 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                     <tr>
                                         <th className="p-3 text-left">
                                             <Checkbox
-                                                checked={selectedPetugas.length === petugas_list.length && petugas_list.length > 0}
-                                                onCheckedChange={handleSelectAll}
+                                                checked={
+                                                    selectedPetugas.length ===
+                                                        petugas_list.length &&
+                                                    petugas_list.length > 0
+                                                }
+                                                onCheckedChange={
+                                                    handleSelectAll
+                                                }
                                             />
                                         </th>
                                         <th className="p-3 text-left">No</th>
-                                        <th className="p-3 text-left">Nama Petugas</th>
+                                        <th className="p-3 text-left">
+                                            Nama Petugas
+                                        </th>
                                         <th className="p-3 text-left">NIK</th>
-                                        <th className="p-3 text-left">SPK Asli</th>
-                                        <th className="p-3 text-left">Addendum</th>
-                                        <th className="p-3 text-left">Kegiatan</th>
-                                        <th className="p-3 text-right">Total Honor</th>
-                                        <th className="p-3 text-center">Aksi</th>
+                                        <th className="p-3 text-left">
+                                            SPK Asli
+                                        </th>
+                                        <th className="p-3 text-left">
+                                            Addendum
+                                        </th>
+                                        <th className="p-3 text-left">
+                                            Kegiatan
+                                        </th>
+                                        <th className="p-3 text-right">
+                                            Total Honor
+                                        </th>
+                                        <th className="p-3 text-center">
+                                            Aksi
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {petugas_list.map((petugasData, index) => (
-                                        <tr key={petugasData.petugas.hashed_id} className="hover:bg-muted/50">
+                                        <tr
+                                            key={petugasData.petugas.hashed_id}
+                                            className="hover:bg-muted/50"
+                                        >
                                             <td className="p-3">
                                                 <Checkbox
-                                                    checked={selectedPetugas.includes(petugasData.petugas.hashed_id)}
+                                                    checked={selectedPetugas.includes(
+                                                        petugasData.petugas
+                                                            .hashed_id,
+                                                    )}
                                                     onCheckedChange={() =>
-                                                        handlePetugasToggle(petugasData.petugas.hashed_id)
+                                                        handlePetugasToggle(
+                                                            petugasData.petugas
+                                                                .hashed_id,
+                                                        )
                                                     }
                                                 />
                                             </td>
                                             <td className="p-3">{index + 1}</td>
-                                            <td className="p-3 font-medium">{petugasData.petugas.nama}</td>
-                                            <td className="p-3">{petugasData.petugas.nik}</td>
+                                            <td className="p-3 font-medium">
+                                                {petugasData.petugas.nama}
+                                            </td>
+                                            <td className="p-3">
+                                                {petugasData.petugas.nik}
+                                            </td>
                                             <td className="p-3 text-xs">
                                                 {petugasData.existing_spk_nomor}
                                             </td>
                                             <td className="p-3">
-                                                <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-neutral-700/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
-                                                    Addendum ke-{petugasData.next_addendum_number}
+                                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-neutral-700/50 dark:text-blue-300">
+                                                    Addendum ke-
+                                                    {
+                                                        petugasData.next_addendum_number
+                                                    }
                                                 </span>
                                             </td>
                                             <td className="p-3">
                                                 <div className="space-y-1">
-                                                    {petugasData.kegiatan_list.map((keg, kidx) => {
-                                                        const peranLabel = {
-                                                            'pcl_ppl': 'Petugas Pencacahan',
-                                                            'pml': 'Pengawas',
-                                                            'pengolahan': 'Pengolahan',
-                                                            'pengawas_pengolahan': 'Pengawas Pengolahan'
-                                                        }[keg.peran] || keg.peran;
-                                                        
-                                                        return (
-                                                            <div key={kidx} className="text-xs">
-                                                                {keg.nama_kegiatan} ({peranLabel})
-                                                            </div>
-                                                        );
-                                                    })}
+                                                    {petugasData.kegiatan_list.map(
+                                                        (keg, kidx) => {
+                                                            const peranLabel =
+                                                                {
+                                                                    pcl_ppl:
+                                                                        'Petugas Pencacahan',
+                                                                    pml: 'Pengawas',
+                                                                    pengolahan:
+                                                                        'Pengolahan',
+                                                                    pengawas_pengolahan:
+                                                                        'Pengawas Pengolahan',
+                                                                }[keg.peran] ||
+                                                                keg.peran;
+
+                                                            return (
+                                                                <div
+                                                                    key={kidx}
+                                                                    className="text-xs"
+                                                                >
+                                                                    {
+                                                                        keg.nama_kegiatan
+                                                                    }{' '}
+                                                                    (
+                                                                    {peranLabel}
+                                                                    )
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="p-3 text-right font-medium">
-                                                Rp {petugasData.total_honor.toLocaleString('id-ID')}
+                                                Rp{' '}
+                                                {petugasData.total_honor.toLocaleString(
+                                                    'id-ID',
+                                                )}
                                             </td>
                                             <td className="p-3">
                                                 <div className="flex items-center justify-center gap-2">
@@ -416,19 +534,27 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => handlePreview(petugasData)}
+                                                        onClick={() =>
+                                                            handlePreview(
+                                                                petugasData,
+                                                            )
+                                                        }
                                                         disabled={processing}
                                                     >
-                                                        <Eye className="h-4 w-4 mr-1" />
+                                                        <Eye className="mr-1 h-4 w-4" />
                                                         Preview
                                                     </Button>
                                                     <Button
                                                         type="button"
                                                         size="sm"
-                                                        onClick={() => handleGenerate(petugasData)}
+                                                        onClick={() =>
+                                                            handleGenerate(
+                                                                petugasData,
+                                                            )
+                                                        }
                                                         disabled={processing}
                                                     >
-                                                        <Download className="h-4 w-4 mr-1" />
+                                                        <Download className="mr-1 h-4 w-4" />
                                                         Generate
                                                     </Button>
                                                 </div>
@@ -445,7 +571,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 <div className="flex justify-start">
                     <Link href="/spk">
                         <Button type="button" variant="outline">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            <ArrowLeft className="mr-2 h-4 w-4" />
                             Kembali
                         </Button>
                     </Link>
@@ -454,12 +580,16 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
             {/* Form Modal */}
             {showFormModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold mb-4">Perhatian</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
+                        <h3 className="mb-4 text-lg font-semibold">
+                            Perhatian
+                        </h3>
                         <p className="mb-6">{modalMessage}</p>
                         <div className="flex justify-end">
-                            <Button onClick={() => setShowFormModal(false)}>OK</Button>
+                            <Button onClick={() => setShowFormModal(false)}>
+                                OK
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -467,9 +597,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
             {/* Success Modal */}
             {showSuccessModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold mb-4 text-green-600 dark:text-green-400">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
+                        <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-400">
                             Berhasil!
                         </h3>
                         <p className="mb-6">{successMessage}</p>

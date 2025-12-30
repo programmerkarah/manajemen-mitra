@@ -14,7 +14,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -93,11 +93,14 @@ interface AlokasiCreateProps {
         number,
         { pagu_pencacahan: number; current_total_spent: number }
     >;
-    used_months_info: Record<number, {
-        has_listing: boolean;
-        periods?: Record<number, string[]>; // For listing kegiatan: {1: ['listing', 'pencacahan'], 2: ['listing']}
-        months?: number[]; // For non-listing kegiatan: [1, 2, 3]
-    }>;
+    used_months_info: Record<
+        number,
+        {
+            has_listing: boolean;
+            periods?: Record<number, string[]>; // For listing kegiatan: {1: ['listing', 'pencacahan'], 2: ['listing']}
+            months?: number[]; // For non-listing kegiatan: [1, 2, 3]
+        }
+    >;
     isEditMode?: boolean;
     isRevisiMode?: boolean;
     isViewMode?: boolean;
@@ -127,16 +130,22 @@ export default function Create({
 
     // Helper function to find first available month
     const getFirstAvailableMonth = (
-        usedInfo: { has_listing: boolean; periods?: Record<number, string[]>; months?: number[] } | undefined,
+        usedInfo:
+            | {
+                  has_listing: boolean;
+                  periods?: Record<number, string[]>;
+                  months?: number[];
+              }
+            | undefined,
         startMonth: number = 1,
     ): number => {
         // Extract used months array from new structure
-        const usedMonthsList = usedInfo 
-            ? (usedInfo.has_listing 
+        const usedMonthsList = usedInfo
+            ? usedInfo.has_listing
                 ? Object.keys(usedInfo.periods || {}).map(Number)
-                : usedInfo.months || [])
+                : usedInfo.months || []
             : [];
-        
+
         for (let month = startMonth; month <= 12; month++) {
             if (!usedMonthsList.includes(month)) {
                 return month;
@@ -224,16 +233,16 @@ export default function Create({
     );
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
-    
+
     // Combine local errors with backend errors
     const allErrors = { ...backendErrors, ...errors };
 
     // Auto-scroll to error alert when errors occur
     useEffect(() => {
         if (allErrors.sbml_constraint || allErrors.budget || allErrors.error) {
-            errorAlertRef.current?.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
+            errorAlertRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
             });
             errorAlertRef.current?.focus();
         }
@@ -242,39 +251,62 @@ export default function Create({
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
         let filtered = kegiatans;
-        
+
         // First, filter by role permission
         if (auth.activeRole?.name === 'ketua_tim') {
             filtered = kegiatans.filter((k) => {
-                const ketuaMatch = Number(k.ketua_tim_user_id) === Number(auth.user.id);
+                const ketuaMatch =
+                    Number(k.ketua_tim_user_id) === Number(auth.user.id);
                 // If pj_lainnya_id is null/undefined, treat as 0 (never match user.id)
-                const pjLainnyaId = typeof k.pj_lainnya_id === 'undefined' || k.pj_lainnya_id === null ? 0 : Number(k.pj_lainnya_id);
+                const pjLainnyaId =
+                    typeof k.pj_lainnya_id === 'undefined' ||
+                    k.pj_lainnya_id === null
+                        ? 0
+                        : Number(k.pj_lainnya_id);
                 const pjLainnyaMatch = pjLainnyaId === Number(auth.user.id);
-                console.log('[DEBUG] k:', k, 'ketuaMatch:', ketuaMatch, 'pjLainnyaId:', pjLainnyaId, 'pjLainnyaMatch:', pjLainnyaMatch, 'auth.user.id:', auth.user.id);
+                console.log(
+                    '[DEBUG] k:',
+                    k,
+                    'ketuaMatch:',
+                    ketuaMatch,
+                    'pjLainnyaId:',
+                    pjLainnyaId,
+                    'pjLainnyaMatch:',
+                    pjLainnyaMatch,
+                    'auth.user.id:',
+                    auth.user.id,
+                );
                 return ketuaMatch || pjLainnyaMatch;
             });
             console.log('[DEBUG] filteredKegiatans:', filtered);
             console.log('[DEBUG] all kegiatans:', kegiatans);
-            console.log('[DEBUG] auth.user.id:', auth.user.id, 'activeRole:', auth.activeRole);
+            console.log(
+                '[DEBUG] auth.user.id:',
+                auth.user.id,
+                'activeRole:',
+                auth.activeRole,
+            );
         }
-        
+
         // Second, filter out kegiatan where ALL months are already used
         // Only apply this filter when NOT in edit mode
         if (!isEditMode && !isViewMode) {
             filtered = filtered.filter((k) => {
                 const usedInfo = used_months_info[Number(k.id)];
-                
+
                 // If no used info, kegiatan is available
                 if (!usedInfo) return true;
-                
+
                 // If kegiatan has listing (has_listing_updating = true), it can have up to 24 periods (12 * 2 tahapan)
                 // If no listing, max 12 periods (1 per month)
                 const maxPeriods = k.has_listing_updating ? 24 : 12;
-                
+
                 if (usedInfo.has_listing) {
                     // For listing kegiatan: count total used tahapan slots
                     // usedInfo.periods is object: {1: ['listing', 'pencacahan'], 2: ['listing']}
-                    const totalUsed = Object.values(usedInfo.periods || {}).flat().length;
+                    const totalUsed = Object.values(
+                        usedInfo.periods || {},
+                    ).flat().length;
                     return totalUsed < maxPeriods;
                 } else {
                     // For non-listing kegiatan: simple month array
@@ -283,7 +315,7 @@ export default function Create({
                 }
             });
         }
-        
+
         // Third, filter out kegiatan where there are no available months within date range
         // Only apply this filter when NOT in edit mode
         if (!isEditMode && !isViewMode) {
@@ -292,23 +324,28 @@ export default function Create({
                 if (!k.tanggal_mulai || !k.tanggal_selesai) {
                     return true; // Keep kegiatan if no date range specified
                 }
-                
+
                 const start = new Date(k.tanggal_mulai);
                 const end = new Date(k.tanggal_selesai);
-                
+
                 // Get months within kegiatan's date range for active_year
                 const availableMonthsInRange: number[] = [];
-                
+
                 for (let m = 1; m <= 12; m++) {
                     // Check if month is within kegiatan's date range
-                    if (active_year < start.getFullYear() || active_year > end.getFullYear()) {
+                    if (
+                        active_year < start.getFullYear() ||
+                        active_year > end.getFullYear()
+                    ) {
                         continue;
                     }
-                    
+
                     if (start.getFullYear() === end.getFullYear()) {
-                        if (active_year === start.getFullYear() && 
-                            m >= start.getMonth() + 1 && 
-                            m <= end.getMonth() + 1) {
+                        if (
+                            active_year === start.getFullYear() &&
+                            m >= start.getMonth() + 1 &&
+                            m <= end.getMonth() + 1
+                        ) {
                             availableMonthsInRange.push(m);
                         }
                     } else if (active_year === start.getFullYear()) {
@@ -319,46 +356,64 @@ export default function Create({
                         if (m <= end.getMonth() + 1) {
                             availableMonthsInRange.push(m);
                         }
-                    } else if (active_year > start.getFullYear() && active_year < end.getFullYear()) {
+                    } else if (
+                        active_year > start.getFullYear() &&
+                        active_year < end.getFullYear()
+                    ) {
                         availableMonthsInRange.push(m);
                     }
                 }
-                
+
                 // If no months in range, hide kegiatan
                 if (availableMonthsInRange.length === 0) {
                     return false;
                 }
-                
+
                 // Check if any months are actually available (not all used)
                 const usedInfo = used_months_info[Number(k.id)];
                 if (!usedInfo) {
                     return true; // If no used info, all months in range are available
                 }
-                
+
                 // For non-listing kegiatan: check if all months in range are used
                 if (!k.has_listing_updating) {
                     const usedMonths = usedInfo.months || [];
-                    const hasAvailableMonth = availableMonthsInRange.some(m => !usedMonths.includes(m));
+                    const hasAvailableMonth = availableMonthsInRange.some(
+                        (m) => !usedMonths.includes(m),
+                    );
                     return hasAvailableMonth;
                 }
-                
+
                 // For listing kegiatan: check if any month has at least one available tahapan slot
                 if (usedInfo.has_listing && usedInfo.periods) {
-                    const hasAvailableSlot = availableMonthsInRange.some(m => {
-                        const usedTahapan = usedInfo.periods?.[m] || [];
-                        // At least one tahapan slot must be available
-                        return usedTahapan.length < 2; // Less than 2 means not both tahapan are used
-                    });
+                    const hasAvailableSlot = availableMonthsInRange.some(
+                        (m) => {
+                            const usedTahapan = usedInfo.periods?.[m] || [];
+                            // At least one tahapan slot must be available
+                            return usedTahapan.length < 2; // Less than 2 means not both tahapan are used
+                        },
+                    );
                     return hasAvailableSlot;
                 }
-                
+
                 return true;
             });
         }
-        
-        console.log('[DEBUG] final filtered kegiatans (after available months check):', filtered);
+
+        console.log(
+            '[DEBUG] final filtered kegiatans (after available months check):',
+            filtered,
+        );
         return filtered;
-    }, [kegiatans, auth.activeRole, auth.user.id, used_months_info, isEditMode, isViewMode, active_year]);
+    }, [
+        kegiatans,
+        auth.activeRole,
+        auth.user.id,
+        used_months_info,
+        isEditMode,
+        isViewMode,
+        active_year,
+    ]);
 
     const selectedKegiatan = filteredKegiatans.find(
         (k) => String(k.id) === String(selectedKegiatanId),
@@ -395,10 +450,10 @@ export default function Create({
     // Get used months for selected kegiatan
     const usedMonths = useMemo(() => {
         if (!selectedKegiatan || !selectedKegiatanId) return [];
-        
+
         const usedInfo = used_months_info[Number(selectedKegiatan.id)];
         if (!usedInfo) return [];
-        
+
         if (usedInfo.has_listing) {
             // For listing kegiatan: extract unique months from periods object
             return Object.keys(usedInfo.periods || {}).map(Number);
@@ -816,8 +871,10 @@ export default function Create({
 
     // Calculate sisa pagu for each phase
     // Total terpakai = total honor periode lain + estimasi periode ini
-    const totalTerpakaiPencacahan = current_total_spent + totalEstimasiPencacahan;
-    const totalTerpakaiListing = current_total_spent_listing + totalEstimasiListing;
+    const totalTerpakaiPencacahan =
+        current_total_spent + totalEstimasiPencacahan;
+    const totalTerpakaiListing =
+        current_total_spent_listing + totalEstimasiListing;
     const sisaPaguPencacahan = pagu_pencacahan - totalTerpakaiPencacahan;
     const sisaPaguListing = pagu_listing - totalTerpakaiListing;
     const isSufficientPencacahan = sisaPaguPencacahan >= 0;
@@ -1098,30 +1155,43 @@ export default function Create({
     const availableMonthsForTahapan = useMemo(() => {
         if (!selectedKegiatan || !selectedKegiatan.has_listing_updating) {
             // For non-listing kegiatan: filter out fully used months
-            return filteredMonths.filter((month) => !usedMonths.includes(month.value));
+            return filteredMonths.filter(
+                (month) => !usedMonths.includes(month.value),
+            );
         }
-        
+
         // For listing kegiatan: filter based on selected tahapan
         const usedInfo = used_months_info[Number(selectedKegiatan.id)];
         if (!usedInfo || !usedInfo.has_listing) {
-            return filteredMonths.filter((month) => !usedMonths.includes(month.value));
+            return filteredMonths.filter(
+                (month) => !usedMonths.includes(month.value),
+            );
         }
-        
+
         return filteredMonths.filter((month) => {
             const usedTahapan = usedInfo.periods?.[month.value] || [];
-            
+
             if (tahapan === 'both') {
                 // Need both slots available
-                return !usedTahapan.includes('listing') && !usedTahapan.includes('pencacahan');
+                return (
+                    !usedTahapan.includes('listing') &&
+                    !usedTahapan.includes('pencacahan')
+                );
             } else if (tahapan === 'listing_only') {
                 return !usedTahapan.includes('listing');
             } else if (tahapan === 'pencacahan_only') {
                 return !usedTahapan.includes('pencacahan');
             }
-            
+
             return true;
         });
-    }, [selectedKegiatan, filteredMonths, usedMonths, tahapan, used_months_info]);
+    }, [
+        selectedKegiatan,
+        filteredMonths,
+        usedMonths,
+        tahapan,
+        used_months_info,
+    ]);
 
     // Set default bulan to first available month in availableMonthsForTahapan
     useEffect(() => {
@@ -1205,11 +1275,13 @@ export default function Create({
             )}
 
             {/* Display SBML and Budget Errors */}
-            {(allErrors.sbml_constraint || allErrors.budget || allErrors.error) && (
-                <div 
-                    ref={errorAlertRef} 
+            {(allErrors.sbml_constraint ||
+                allErrors.budget ||
+                allErrors.error) && (
+                <div
+                    ref={errorAlertRef}
                     tabIndex={-1}
-                    className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-4 shadow-2xl backdrop-blur-xl dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10 focus:outline-none focus:ring-2 focus:ring-red-400/50 focus:ring-offset-2"
+                    className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-4 shadow-2xl backdrop-blur-xl focus:ring-2 focus:ring-red-400/50 focus:ring-offset-2 focus:outline-none dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10"
                 >
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20 backdrop-blur-sm dark:bg-red-400/20">
@@ -1219,8 +1291,10 @@ export default function Create({
                             <h3 className="text-base font-bold text-red-800 dark:text-red-300">
                                 Validasi Gagal
                             </h3>
-                            <div className="mt-2 text-sm text-red-700 dark:text-red-400 whitespace-pre-line">
-                                {allErrors.sbml_constraint || allErrors.budget || allErrors.error}
+                            <div className="mt-2 text-sm whitespace-pre-line text-red-700 dark:text-red-400">
+                                {allErrors.sbml_constraint ||
+                                    allErrors.budget ||
+                                    allErrors.error}
                             </div>
                         </div>
                     </div>
@@ -1346,14 +1420,16 @@ export default function Create({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {availableMonthsForTahapan.map((month) => (
-                                            <SelectItem
-                                                key={month.value}
-                                                value={month.value.toString()}
-                                            >
-                                                {month.label}
-                                            </SelectItem>
-                                        ))}
+                                        {availableMonthsForTahapan.map(
+                                            (month) => (
+                                                <SelectItem
+                                                    key={month.value}
+                                                    value={month.value.toString()}
+                                                >
+                                                    {month.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1387,7 +1463,7 @@ export default function Create({
                                 {/* Jadwal Listing - Show only if tahapan includes listing */}
                                 {tahapan === 'both' &&
                                     selectedKegiatan?.has_listing_updating && (
-                                        <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10 p-4 shadow-lg">
+                                        <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
                                             <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
                                                 Jadwal Listing
                                             </h5>
@@ -1525,7 +1601,9 @@ export default function Create({
                                                   )
                                                 : allErrors.tanggal_mulai && (
                                                       <p className="text-sm text-red-500">
-                                                          {allErrors.tanggal_mulai}
+                                                          {
+                                                              allErrors.tanggal_mulai
+                                                          }
                                                       </p>
                                                   )}
                                         </div>
@@ -2127,8 +2205,8 @@ export default function Create({
                                         tahapan === 'listing_only') && (
                                         <div
                                             className={`rounded-2xl border p-6 shadow-xl backdrop-blur-xl ${
-                                                isSufficientListing 
-                                                    ? 'border-blue-400/30 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-blue-300/10 dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10' 
+                                                isSufficientListing
+                                                    ? 'border-blue-400/30 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-blue-300/10 dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10'
                                                     : 'border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10'
                                             }`}
                                         >
@@ -2197,7 +2275,8 @@ export default function Create({
                                                             className={`flex justify-between text-sm ${isSufficientListing ? 'text-blue-800 dark:text-blue-300' : 'text-red-800 dark:text-red-300'}`}
                                                         >
                                                             <span className="font-medium">
-                                                                Total Terpakai (Semua Periode):
+                                                                Total Terpakai
+                                                                (Semua Periode):
                                                             </span>
                                                             <span className="font-semibold">
                                                                 {formatCurrency(
@@ -2333,7 +2412,8 @@ export default function Create({
                                                             className={`flex justify-between text-sm ${isSufficientPencacahan ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}
                                                         >
                                                             <span className="font-medium">
-                                                                Total Terpakai (Semua Periode):
+                                                                Total Terpakai
+                                                                (Semua Periode):
                                                             </span>
                                                             <span className="font-semibold">
                                                                 {formatCurrency(
@@ -2527,7 +2607,13 @@ export default function Create({
                 {/* Footer Buttons */}
                 {!isViewMode && (
                     <div className="flex items-center justify-end gap-3">
-                        <Button variant="outline" type="button" asChild className="gap-2" disabled={processing}>
+                        <Button
+                            variant="outline"
+                            type="button"
+                            asChild
+                            className="gap-2"
+                            disabled={processing}
+                        >
                             <Link href="/alokasi">
                                 <X className="h-5 w-5" />
                                 Batal
@@ -2536,7 +2622,7 @@ export default function Create({
                         <Button
                             type="submit"
                             disabled={processing || !selectedKegiatanId}
-                            className="gap-2 min-w-[180px]"
+                            className="min-w-[180px] gap-2"
                         >
                             {processing ? (
                                 <>
@@ -2556,4 +2642,3 @@ export default function Create({
         </AppLayout>
     );
 }
-

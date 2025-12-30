@@ -1,12 +1,12 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, usePage, router } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Pencil, Upload, Archive } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Archive, ArrowLeft, Download, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 interface Spk {
@@ -126,14 +126,33 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const bulanLabels: Record<number, string> = {
-    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
-    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
-    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
+    1: 'Januari',
+    2: 'Februari',
+    3: 'Maret',
+    4: 'April',
+    5: 'Mei',
+    6: 'Juni',
+    7: 'Juli',
+    8: 'Agustus',
+    9: 'September',
+    10: 'Oktober',
+    11: 'November',
+    12: 'Desember',
 };
 
-export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list, addendums, periode, bast }: ShowProps) {
+export default function Show({
+    spk,
+    petugas,
+    kegiatan_list,
+    unique_kegiatan_list,
+    addendums,
+    periode,
+    bast,
+}: ShowProps) {
     const { auth } = usePage<SharedData>().props;
-    const canEdit = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'approver';
+    const canEdit =
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'approver';
     const [isUploading, setIsUploading] = useState(false);
 
     // Ensure unique_kegiatan_list is always an array
@@ -141,10 +160,10 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
-            'pcl_ppl': 'Petugas Pencacahan',
-            'pml': 'Pemeriksa Lapangan',
-            'pengolahan': 'Petugas Pengolahan',
-            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+            pcl_ppl: 'Petugas Pencacahan',
+            pml: 'Pemeriksa Lapangan',
+            pengolahan: 'Petugas Pengolahan',
+            pengawas_pengolahan: 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
     };
@@ -166,14 +185,14 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
         if (!file) return;
 
         setIsUploading(true);
-        
+
         router.post(
             `/spk/${spk.hashed_id}/upload-signed`,
             { file },
             {
                 onFinish: () => setIsUploading(false),
                 onError: () => setIsUploading(false),
-            }
+            },
         );
     };
 
@@ -210,7 +229,7 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
             <div className="grid gap-6 md:grid-cols-3">
                 {/* Main Content - SPK Details */}
-                <div className="md:col-span-2 space-y-6">
+                <div className="space-y-6 md:col-span-2">
                     <ContentCard>
                         <div className="space-y-6">
                             <div className="flex items-start justify-between">
@@ -227,31 +246,52 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nomor SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.nomor_spk}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nomor SPK
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {spk.nomor_spk}
+                                    </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Tanggal SPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.tanggal_spk}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Tanggal SPK
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {spk.tanggal_spk}
+                                    </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Periode Kerja</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
-                                        {bulanLabels[periode.bulan]} {periode.tahun}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Periode Kerja
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {bulanLabels[periode.bulan]}{' '}
+                                        {periode.tahun}
                                     </p>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        {spk.tanggal_mulai_kerja} s/d {spk.tanggal_selesai_kerja}
+                                        {spk.tanggal_mulai_kerja} s/d{' '}
+                                        {spk.tanggal_selesai_kerja}
                                     </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nilai Kontrak</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">
-                                        Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nilai Kontrak
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        Rp{' '}
+                                        {parseFloat(
+                                            spk.nilai_kontrak.toString(),
+                                        ).toLocaleString('id-ID')}
                                     </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">PPK</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.nama_ppk}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        PPK
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {spk.nama_ppk}
+                                    </p>
                                     {spk.nip_ppk && (
                                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                             NIP: {spk.nip_ppk}
@@ -259,9 +299,15 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                     )}
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Dibuat Oleh</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{spk.created_by}</p>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">{spk.created_at}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Dibuat Oleh
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {spk.created_by}
+                                    </p>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        {spk.created_at}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -276,32 +322,72 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                 </h3>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-blue-200 dark:divide-blue-700">
-                                        <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
+                                        <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
                                             <tr>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">No.</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Nomor Addendum</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Tanggal</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Nilai Kontrak</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">Status</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-200">File</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    No.
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    Nomor Addendum
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    Tanggal
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    Nilai Kontrak
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    Status
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-blue-700 uppercase dark:text-blue-200">
+                                                    File
+                                                </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-white/10 dark:divide-neutral-700/20 bg-white/30 dark:bg-neutral-800/30 backdrop-blur-sm">
+                                        <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
                                             {addendums.map((add, idx) => (
-                                                <tr key={add.id} className="hover:bg-blue-50 dark:hover:bg-blue-900">
-                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{idx + 1}</td>
-                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{add.nomor_spk}</td>
-                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{add.tanggal_spk}</td>
-                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">Rp {add.nilai_kontrak.toLocaleString('id-ID')}</td>
-                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">{getStatusBadge(add.status)}</td>
+                                                <tr
+                                                    key={add.id}
+                                                    className="hover:bg-blue-50 dark:hover:bg-blue-900"
+                                                >
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">
+                                                        {idx + 1}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">
+                                                        {add.nomor_spk}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">
+                                                        {add.tanggal_spk}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">
+                                                        Rp{' '}
+                                                        {add.nilai_kontrak.toLocaleString(
+                                                            'id-ID',
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm text-blue-900 dark:text-blue-100">
+                                                        {getStatusBadge(
+                                                            add.status,
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-2 text-sm">
                                                         {add.file_path ? (
-                                                            <Button variant="outline" size="sm" onClick={() => handleDownload(add.file_path!)}>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    handleDownload(
+                                                                        add.file_path!,
+                                                                    )
+                                                                }
+                                                            >
                                                                 <Download className="mr-1 h-4 w-4" />
                                                                 Download
                                                             </Button>
                                                         ) : (
-                                                            <span className="text-xs text-blue-400">Belum ada file</span>
+                                                            <span className="text-xs text-blue-400">
+                                                                Belum ada file
+                                                            </span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -324,19 +410,19 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                 <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                     <thead className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Kode Kegiatan
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Nama Kegiatan
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Peran
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Honor
                                             </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Perubahan
                                             </th>
                                         </tr>
@@ -345,7 +431,18 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                         {kegiatan_list.map((kegiatan, idx) => {
                                             const changed = kegiatan.has_change;
                                             return (
-                                                <tr key={kegiatan.id + '-' + kegiatan.peran} className={changed ? "bg-yellow-50 dark:bg-yellow-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"}>
+                                                <tr
+                                                    key={
+                                                        kegiatan.id +
+                                                        '-' +
+                                                        kegiatan.peran
+                                                    }
+                                                    className={
+                                                        changed
+                                                            ? 'bg-yellow-50 dark:bg-yellow-900'
+                                                            : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                                                    }
+                                                >
                                                     <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
                                                         {kegiatan.kode_kegiatan}
                                                     </td>
@@ -353,19 +450,41 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                                         {kegiatan.nama_kegiatan}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                        {getPeranLabel(kegiatan.peran)}
+                                                        {getPeranLabel(
+                                                            kegiatan.peran,
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                        Rp {kegiatan.total_honor.toLocaleString('id-ID')}
+                                                        Rp{' '}
+                                                        {kegiatan.total_honor.toLocaleString(
+                                                            'id-ID',
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm">
                                                         {changed ? (
-                                                            <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-200" title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}>
-                                                                <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+                                                            <span
+                                                                className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-200"
+                                                                title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}
+                                                            >
+                                                                <svg
+                                                                    className="h-4 w-4 text-yellow-500"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"
+                                                                    />
+                                                                </svg>
                                                                 Ada perubahan
                                                             </span>
                                                         ) : (
-                                                            <span className="text-xs text-neutral-400">-</span>
+                                                            <span className="text-xs text-neutral-400">
+                                                                -
+                                                            </span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -374,11 +493,21 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white"
+                                            >
                                                 Total Honor:
                                             </td>
                                             <td className="px-6 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
-                                                Rp {kegiatan_list.reduce((sum, k) => sum + k.total_honor, 0).toLocaleString('id-ID')}
+                                                Rp{' '}
+                                                {kegiatan_list
+                                                    .reduce(
+                                                        (sum, k) =>
+                                                            sum + k.total_honor,
+                                                        0,
+                                                    )
+                                                    .toLocaleString('id-ID')}
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -395,23 +524,39 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Nama Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{petugas.nama}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Nama Petugas
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {petugas.nama}
+                                    </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">NIK/NIP</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium">{petugas.nik}</p>
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        NIK/NIP
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 dark:text-white">
+                                        {petugas.nik}
+                                    </p>
                                 </div>
                                 <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">Jenis Petugas</Label>
-                                    <p className="text-neutral-900 dark:text-white font-medium capitalize">
-                                        {petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non Organik'}
+                                    <Label className="text-neutral-600 dark:text-neutral-400">
+                                        Jenis Petugas
+                                    </Label>
+                                    <p className="font-medium text-neutral-900 capitalize dark:text-white">
+                                        {petugas.jenis_petugas === 'organik'
+                                            ? 'Organik'
+                                            : 'Non Organik'}
                                     </p>
                                 </div>
                                 {petugas.alamat && (
                                     <div>
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Alamat</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{petugas.alamat}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Alamat
+                                        </Label>
+                                        <p className="font-medium text-neutral-900 dark:text-white">
+                                            {petugas.alamat}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -428,19 +573,29 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div>
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Nomor BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{bast.nomor_bast}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Nomor BAST
+                                        </Label>
+                                        <p className="font-medium text-neutral-900 dark:text-white">
+                                            {bast.nomor_bast}
+                                        </p>
                                     </div>
                                     <div>
-                                        <Label className="text-neutral-600 dark:text-neutral-400">Tanggal BAST</Label>
-                                        <p className="text-neutral-900 dark:text-white font-medium">{bast.tanggal_bast}</p>
+                                        <Label className="text-neutral-600 dark:text-neutral-400">
+                                            Tanggal BAST
+                                        </Label>
+                                        <p className="font-medium text-neutral-900 dark:text-white">
+                                            {bast.tanggal_bast}
+                                        </p>
                                     </div>
                                 </div>
 
                                 {bast.file_path && (
                                     <Button
                                         variant="outline"
-                                        onClick={() => handleDownload(bast.file_path!)}
+                                        onClick={() =>
+                                            handleDownload(bast.file_path!)
+                                        }
                                         className="w-full"
                                     >
                                         <Download className="mr-2 h-4 w-4" />
@@ -465,11 +620,15 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                 {spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            SPK Terbaru {spk.signed_file_path && '(Belum Ditandatangani)'}
+                                            SPK Terbaru{' '}
+                                            {spk.signed_file_path &&
+                                                '(Belum Ditandatangani)'}
                                         </Label>
                                         <Button
                                             variant="default"
-                                            onClick={() => handleDownload(spk.file_path!)}
+                                            onClick={() =>
+                                                handleDownload(spk.file_path!)
+                                            }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
@@ -486,7 +645,11 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                         </Label>
                                         <Button
                                             variant="outline"
-                                            onClick={() => handleDownload(spk.signed_file_path!)}
+                                            onClick={() =>
+                                                handleDownload(
+                                                    spk.signed_file_path!,
+                                                )
+                                            }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
@@ -503,7 +666,11 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                         </Label>
                                         <Button
                                             variant="outline"
-                                            onClick={() => handleDownload(spk.previous_file_path!)}
+                                            onClick={() =>
+                                                handleDownload(
+                                                    spk.previous_file_path!,
+                                                )
+                                            }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
@@ -513,18 +680,21 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                 )}
 
                                 {!spk.file_path && (
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center py-4">
+                                    <p className="py-4 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                         File SPK belum tersedia
                                     </p>
                                 )}
 
                                 {/* Upload Signed SPK */}
                                 {canEdit && spk.file_path && (
-                                    <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-                                        <Label className="text-xs text-neutral-600 dark:text-neutral-400 block mb-2">
+                                    <div className="border-t border-neutral-200 pt-3 dark:border-neutral-700">
+                                        <Label className="mb-2 block text-xs text-neutral-600 dark:text-neutral-400">
                                             Upload SPK yang Sudah Ditandatangani
                                         </Label>
-                                        <label htmlFor="upload-signed" className="cursor-pointer">
+                                        <label
+                                            htmlFor="upload-signed"
+                                            className="cursor-pointer"
+                                        >
                                             <Button
                                                 variant="secondary"
                                                 className="w-full"
@@ -533,7 +703,9 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                             >
                                                 <span>
                                                     <Upload className="mr-2 h-4 w-4" />
-                                                    {isUploading ? 'Mengupload...' : 'Upload SPK Signed'}
+                                                    {isUploading
+                                                        ? 'Mengupload...'
+                                                        : 'Upload SPK Signed'}
                                                 </span>
                                             </Button>
                                         </label>
@@ -558,15 +730,21 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
 
                             <div className="space-y-3 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-neutral-600 dark:text-neutral-400">Status</span>
-                                    <span className="font-medium text-neutral-900 dark:text-white capitalize">
+                                    <span className="text-neutral-600 dark:text-neutral-400">
+                                        Status
+                                    </span>
+                                    <span className="font-medium text-neutral-900 capitalize dark:text-white">
                                         {spk.status}
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-neutral-600 dark:text-neutral-400">Dibuat</span>
+                                    <span className="text-neutral-600 dark:text-neutral-400">
+                                        Dibuat
+                                    </span>
                                     <span className="font-medium text-neutral-900 dark:text-white">
-                                        {new Date(spk.created_at).toLocaleDateString('id-ID')}
+                                        {new Date(
+                                            spk.created_at,
+                                        ).toLocaleDateString('id-ID')}
                                     </span>
                                 </div>
                             </div>
@@ -579,7 +757,9 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                 Download Semua SPK
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Download semua SPK untuk semua petugas di periode {bulanLabels[periode.bulan]} {periode.tahun}
+                                Download semua SPK untuk semua petugas di
+                                periode {bulanLabels[periode.bulan]}{' '}
+                                {periode.tahun}
                             </p>
                             <Button
                                 variant="outline"
@@ -599,20 +779,27 @@ export default function Show({ spk, petugas, kegiatan_list, unique_kegiatan_list
                                     Download SPK per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Download SPK untuk petugas pada kegiatan tertentu
+                                    Download SPK untuk petugas pada kegiatan
+                                    tertentu
                                 </p>
                                 <div className="space-y-2">
                                     {kegiatanListForDownload.map((kegiatan) => (
                                         <Button
                                             key={kegiatan.id}
                                             variant="outline"
-                                            onClick={() => handleDownloadAllByKegiatan(kegiatan.hashed_id)}
+                                            onClick={() =>
+                                                handleDownloadAllByKegiatan(
+                                                    kegiatan.hashed_id,
+                                                )
+                                            }
                                             className="w-full justify-start"
                                             size="sm"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            <div className="text-left flex-1">
-                                                <div className="font-medium">{kegiatan.nama_kegiatan}</div>
+                                            <div className="flex-1 text-left">
+                                                <div className="font-medium">
+                                                    {kegiatan.nama_kegiatan}
+                                                </div>
                                                 <div className="text-xs text-neutral-500 dark:text-neutral-400">
                                                     {kegiatan.kode_kegiatan}
                                                 </div>

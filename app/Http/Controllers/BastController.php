@@ -278,10 +278,33 @@ class BastController extends Controller
                     'satuan_pendataan_lapangan' => $isPendataanRole ? ($satuanPendataan ?? null) : null,
                     'hasil_pengolahan' => $isPengolahanRole ? ($alokasi->jumlah_satuan ?? null) : null,
                     'satuan_pengolahan' => $isPengolahanRole ? ($satuanPengolahan ?? null) : null,
+                    'hasil_pengolahan_listing' => $isPengolahanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
+                    'satuan_pengolahan_listing' => $isPengolahanRole ? ($satuanListing ?? null) : null,
                     'catatan' => $alokasi->catatan,
                 ];
             })
             ->values();
+
+        // Check if there's actual meaningful data in the columns to determine which columns to show
+        // Check for listing data (PCL/PPL roles) - treat null as 0
+        $hasActualListingData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_listing'] ?? 0) > 0;
+        });
+
+        // Check for pendataan lapangan data (PCL/PPL roles) - treat null as 0
+        $hasActualPendataanData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
+
+        // Check for pengolahan listing data (pengolahan roles) - treat null as 0
+        $hasActualPengolahanListingData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_pengolahan_listing'] ?? 0) > 0;
+        });
+
+        // Check for pengolahan lapangan data (pengolahan roles) - treat null as 0
+        $hasActualPengolahanLapanganData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_pengolahan'] ?? 0) > 0;
+        });
 
         // Get PPK from penandatangan
         // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
@@ -306,8 +329,12 @@ class BastController extends Controller
                 'ketua_tim_nip' => $kegiatan->ketuaTim?->nip ?? null,
             ],
             'petugas_list' => $alokasiPetugas,
-            'show_listing_columns' => $hasListing,
-            'show_pengolahan_columns' => $hasPengolahan,
+            'show_listing_columns' => $hasActualListingData,
+            'show_pengolahan_columns' => $hasActualPengolahanListingData || $hasActualPengolahanLapanganData,
+            'has_actual_listing_data' => $hasActualListingData,
+            'has_actual_pendataan_data' => $hasActualPendataanData,
+            'has_actual_pengolahan_listing_data' => $hasActualPengolahanListingData,
+            'has_actual_pengolahan_lapangan_data' => $hasActualPengolahanLapanganData,
             'ppk' => $penandatangan ? [
                 'nama' => $this->stripGelar($penandatangan->nama),
                 'nip' => $penandatangan->nip,
@@ -321,12 +348,12 @@ class BastController extends Controller
      */
     public function preview(Request $request)
     {
-        $validated = $request->validate([
+        // First do basic validation
+        $basicValidated = $request->validate([
             'kegiatan_id' => 'required|exists:kegiatan,id',
             'tanggal_bast' => 'required|date',
             'menggunakan_fasih' => 'required|boolean',
             'petugas' => 'required|array|min:1',
-            'petugas_index' => 'nullable|integer|min:0',
             'petugas.*.petugas_id' => 'required|exists:petugas,id',
             'petugas.*.spk_id' => 'required|exists:spk,id',
             'petugas.*.nomor_spk' => 'required|string',
@@ -339,9 +366,9 @@ class BastController extends Controller
             'petugas.*.instrumen_pendataan_lapangan' => 'nullable|string',
             'petugas.*.hasil_pengolahan' => 'nullable|numeric',
             'petugas.*.satuan_pengolahan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan_listing' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan_listing' => 'nullable|string',
             'petugas.*.catatan' => 'nullable|string',
-            'instrumen_listing' => 'nullable|string',
-            'instrumen_pendataan_lapangan' => 'nullable|string',
             'dokumen_rekap' => 'nullable|array',
             'dokumen_rekap.*.nama' => 'nullable|string',
             'dokumen_rekap.*.kode' => 'nullable|string',
@@ -350,48 +377,78 @@ class BastController extends Controller
             'dokumen_rekap.*.keterangan' => 'nullable|string',
         ]);
 
+        // Check if we need to validate instruments based on data availability
+        $alokasiPetugas = collect($basicValidated['petugas']);
+
+        // Check for listing data (pencacah roles) - treat null as 0
+        $hasActualListingData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_listing'] ?? 0) > 0;
+        });
+
+        // Check for pendataan data (pencacah roles) - treat null as 0
+        $hasActualPendataanData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
+
+        // Dynamic validation for instruments based on data
+        $instrumentValidation = [];
+        if ($hasActualListingData || $hasActualPendataanData) {
+            // Only require if we have actual data to report
+            if ($hasActualListingData) {
+                $instrumentValidation['instrumen_listing'] = 'required|string';
+            } else {
+                $instrumentValidation['instrumen_listing'] = 'nullable|string';
+            }
+            if ($hasActualPendataanData) {
+                $instrumentValidation['instrumen_pendataan_lapangan'] = 'required|string';
+            } else {
+                $instrumentValidation['instrumen_pendataan_lapangan'] = 'nullable|string';
+            }
+        } else {
+            // No data, instruments are optional
+            $instrumentValidation['instrumen_listing'] = 'nullable|string';
+            $instrumentValidation['instrumen_pendataan_lapangan'] = 'nullable|string';
+        }
+
+        // Re-validate with conditional instrument rules
+        $validated = $request->validate(array_merge([
+            'kegiatan_id' => 'required|exists:kegiatan,id',
+            'tanggal_bast' => 'required|date',
+            'menggunakan_fasih' => 'required|boolean',
+            'petugas' => 'required|array|min:1',
+            'petugas.*.petugas_id' => 'required|exists:petugas,id',
+            'petugas.*.spk_id' => 'required|exists:spk,id',
+            'petugas.*.nomor_spk' => 'required|string',
+            'petugas.*.nama_petugas' => 'required|string',
+            'petugas.*.hasil_listing' => 'nullable|numeric',
+            'petugas.*.satuan_listing' => 'nullable|string',
+            'petugas.*.instrumen_listing' => 'nullable|string',
+            'petugas.*.hasil_pendataan_lapangan' => 'nullable|numeric',
+            'petugas.*.satuan_pendataan_lapangan' => 'nullable|string',
+            'petugas.*.instrumen_pendataan_lapangan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan_listing' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan_listing' => 'nullable|string',
+            'petugas.*.catatan' => 'nullable|string',
+            'dokumen_rekap' => 'nullable|array',
+            'dokumen_rekap.*.nama' => 'nullable|string',
+            'dokumen_rekap.*.kode' => 'nullable|string',
+            'dokumen_rekap.*.didata' => 'nullable|numeric',
+            'dokumen_rekap.*.non_respon' => 'nullable|numeric',
+            'dokumen_rekap.*.keterangan' => 'nullable|string',
+        ], $instrumentValidation));
+
+        // Ambil data kegiatan
         $kegiatan = Kegiatan::with('ketuaTim')->findOrFail($validated['kegiatan_id']);
 
-        $petugasData = $validated['petugas'];
-        if (isset($validated['petugas_index']) && array_key_exists($validated['petugas_index'], $petugasData)) {
-            $petugasData = [$petugasData[$validated['petugas_index']]];
-        }
-
-        // Sanitize incoming petugas results based on role to avoid misclassification
-        foreach ($petugasData as $idx => $p) {
-            $peran = $p['peran'] ?? null;
-            if (! in_array($peran, self::PENDATAAN_ROLES, true)) {
-                $petugasData[$idx]['hasil_pendataan_lapangan'] = null;
-                $petugasData[$idx]['satuan_pendataan_lapangan'] = null;
-                $petugasData[$idx]['instrumen_pendataan_lapangan'] = null;
-                $petugasData[$idx]['hasil_listing'] = null;
-                $petugasData[$idx]['satuan_listing'] = null;
-                $petugasData[$idx]['instrumen_listing'] = null;
-            }
-            if (! in_array($peran, self::PENGOLAHAN_ROLES, true)) {
-                $petugasData[$idx]['hasil_pengolahan'] = null;
-                $petugasData[$idx]['satuan_pengolahan'] = null;
-            }
-        }
-
-        // Define variables before use
+        // Nomor dan tanggal
         $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
         $tanggalBast = \Carbon\Carbon::parse($validated['tanggal_bast']);
         $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
         $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
 
-        $hasListing = $this->hasListing($petugasData);
-        $hasPengolahan = $this->hasPengolahanListing($petugasData);
-        $hasPendataan = $this->hasPendataan($petugasData);
-
-        $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
-        $bulanLabel = $targetPeriode?->bulan
-            ? \Carbon\Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
-            : \Carbon\Carbon::parse($validated['tanggal_bast'])->isoFormat('MMMM');
-        $tahunPeriode = $targetPeriode?->tahun ?? (int) \Carbon\Carbon::parse($validated['tanggal_bast'])->year;
-
-        // Get PPK aktif
-        // Get active PPK from penandatangan (by jenis_penandatangan + active + valid date range)
+        // PPK
         $penandatangan = Penandatangan::ppk()
             ->active()
             ->where(function ($q) {
@@ -402,66 +459,16 @@ class BastController extends Controller
             })
             ->orderByDesc('periode_mulai')
             ->first();
+        $namaPpk = $penandatangan ? $this->stripGelar($penandatangan->nama) : 'N/A';
 
-        foreach ($petugasData as $idx => $p) {
-            $peran = $p['peran'] ?? null;
-            if (! in_array($peran, self::PENDATAAN_ROLES, true)) {
-                $petugasData[$idx]['hasil_pendataan_lapangan'] = null;
-                $petugasData[$idx]['satuan_pendataan_lapangan'] = null;
-                $petugasData[$idx]['instrumen_pendataan_lapangan'] = null;
-                $petugasData[$idx]['hasil_listing'] = null;
-                $petugasData[$idx]['satuan_listing'] = null;
-                $petugasData[$idx]['instrumen_listing'] = null;
-            }
-            if (! in_array($peran, self::PENGOLAHAN_ROLES, true)) {
-                $petugasData[$idx]['hasil_pengolahan'] = null;
-                $petugasData[$idx]['satuan_pengolahan'] = null;
-            }
-        }
-        $namaPpk = $penandatangan->nama ?? 'N/A';
-        $namaPpk = $this->stripGelar($namaPpk) ?: 'N/A';
+        // Periode
+        $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
+        $bulanLabel = $targetPeriode?->bulan
+            ? \Carbon\Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
+            : $tanggalBast->isoFormat('MMMM');
+        $tahunPeriode = $targetPeriode?->tahun ?? (int) $tanggalBast->year;
 
-        $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
-        $pendataanRoles = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
-        $has_pengolahan_listing = collect($petugasData)->contains(function ($p) use ($pengolahanRoles) {
-            return in_array($p['peran'] ?? null, $pengolahanRoles, true)
-                && (int) ($p['hasil_pengolahan'] ?? 0) > 0;
-        });
-        $has_pengolahan_pendataan = collect($petugasData)->contains(function ($p) use ($pengolahanRoles, $pendataanRoles) {
-            return in_array($p['peran'] ?? null, $pengolahanRoles, true)
-                && in_array($p['peran'] ?? null, $pendataanRoles, true)
-                && (int) ($p['hasil_pengolahan'] ?? 0) > 0
-                && (int) ($p['hasil_pendataan_lapangan'] ?? 0) > 0;
-        });
-
-        $viewData = [
-            'nomor_bast' => $nomorBast,
-            'hari' => $hari,
-            'tanggal_bast' => $tanggalFormatted,
-            'bulan_label' => $bulanLabel,
-            'tahun' => $tahunPeriode,
-            'nama_ppk' => $namaPpk,
-            'nip_ppk' => $penandatangan->nip ?? 'N/A',
-            'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? 'N/A',
-            'nip_ketua_tim' => $kegiatan->ketuaTim->nip ?? null,
-            'nama_kegiatan' => $kegiatan->nama_kegiatan,
-            'nama_instansi' => config('app.instansi_name', 'Badan Pusat Statistik Kota Sawahlunto'),
-            'menggunakan_fasih' => $validated['menggunakan_fasih'],
-            'petugas' => $petugasData,
-            // petugas entries may include instrument names
-            'has_listing' => $hasListing,
-            'has_pendataan' => $hasPendataan,
-            'has_pengolahan' => $hasPengolahan,
-            'has_pengolahan_listing' => $has_pengolahan_listing,
-            'has_pengolahan_pendataan' => $has_pengolahan_pendataan,
-            'dokumen_rekap' => $validated['dokumen_rekap'] ?? [],
-            'instrumen_listing' => $validated['instrumen_listing'] ?? null,
-            'instrumen_pendataan_lapangan' => $validated['instrumen_pendataan_lapangan'] ?? null,
-            // Kepala BPS penandatangan (if available)
-            'kepalaBps' => null,
-        ];
-
-        // Attach Kepala BPS if available
+        // Kepala BPS
         $kepala = Penandatangan::kepala()
             ->active()
             ->where(function ($q) {
@@ -472,53 +479,42 @@ class BastController extends Controller
             })
             ->orderByDesc('periode_mulai')
             ->first();
+        $kepalaBps = $kepala ? $this->stripGelar($kepala->nama) : null;
 
-        if ($kepala) {
-            $viewData['kepalaBps'] = $this->stripGelar($kepala->nama) ?: $kepala->nama;
-        }
+        // Data utama
+        $viewData = [
+            'nomor_bast' => $nomorBast,
+            'hari' => $hari,
+            'tanggal_bast' => $tanggalFormatted,
+            'tanggal_angka' => $tanggalBast->day,
+            'bulan_label' => $bulanLabel,
+            'tahun' => $tahunPeriode,
+            'nama_ppk' => $namaPpk,
+            'nip_ppk' => $penandatangan->nip ?? 'N/A',
+            'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? 'N/A',
+            'nip_ketua_tim' => $kegiatan->ketuaTim->nip ?? null,
+            'nama_kegiatan' => $kegiatan->nama_kegiatan,
+            'nama_instansi' => config('app.instansi_name', 'Badan Pusat Statistik Kota Sawahlunto'),
+            'menggunakan_fasih' => $validated['menggunakan_fasih'],
+            'petugas' => $validated['petugas'],
+            'dokumen_rekap' => $validated['dokumen_rekap'] ?? [],
+            'instrumen_listing' => $validated['instrumen_listing'] ?? null,
+            'instrumen_pendataan_lapangan' => $validated['instrumen_pendataan_lapangan'] ?? null,
+            'kepalaBps' => $kepalaBps,
+        ];
 
-        $useLandscape = false;
-        if (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0) {
-            $useLandscape = true;
-        }
-        if ($viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pendataan'] ?? false) {
-            $useLandscape = true;
-        }
-
-        $orientation = $useLandscape ? 'landscape' : 'portrait';
-
-        // Render main (without lampiran) as portrait PDF
-        $viewDataMain = $viewData;
-        $viewDataMain['render_lampiran'] = false;
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataMain)
+        // PDF utama
+        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewData)
             ->setPaper('a4', 'portrait');
         $mainContent = $pdfMain->output();
 
-        // If there are lampiran, render lampiran PDF (landscape)
-        $hasLampiran = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
-            || $viewData['has_listing'] || $viewData['has_pengolahan'] || ($viewData['has_pendataan'] ?? false);
+        // PDF lampiran: selalu render sebagai halaman terpisah
+        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran', $viewData)
+            ->setPaper('a4', 'landscape');
+        $lampiranContent = $pdfLampiran->output();
 
-        if (! $hasLampiran) {
-            $fileName = 'BAST_PREVIEW_'.str_replace('/', '-', $nomorBast).'.pdf';
-
-            return response($mainContent, 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$fileName.'"',
-            ]);
-        }
-
-        $viewDataLamp = $viewData;
-        $viewDataLamp['render_lampiran'] = true;
-        $viewDataLamp['has_pengolahan_listing'] = $has_pengolahan_listing;
-        $viewDataLamp['has_pengolahan_pendataan'] = $has_pengolahan_pendataan;
-        $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
-            || $viewData['has_listing'] || $viewData['has_pengolahan'] ? 'landscape' : 'portrait';
-        $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataLamp)
-            ->setPaper('a4', $lampOrientation);
-        $lampContent = $pdfLamp->output();
-
-        // Merge PDFs using FPDI-TCPDF preserving orientations
-        $merged = $this->mergePdfStrings([$mainContent, $lampContent]);
+        // Gabungkan PDF
+        $merged = $this->mergePdfStrings([$mainContent, $lampiranContent]);
         $fileName = 'BAST_PREVIEW_'.str_replace('/', '-', $nomorBast).'.pdf';
 
         return response($merged, 200, [
@@ -532,7 +528,72 @@ class BastController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // First do basic validation
+        $basicValidated = $request->validate([
+            'kegiatan_id' => 'required|exists:kegiatan,id',
+            'bulan' => 'nullable|string|size:2',
+            'tahun' => 'nullable|integer',
+            'tanggal_bast' => 'required|date',
+            'menggunakan_fasih' => 'required|boolean',
+            'petugas' => 'required|array|min:1',
+            'petugas.*.petugas_id' => 'required|exists:petugas,id',
+            'petugas.*.spk_id' => 'required|exists:spk,id',
+            'petugas.*.nomor_spk' => 'required|string',
+            'petugas.*.nama_petugas' => 'required|string',
+            'petugas.*.hasil_listing' => 'nullable|numeric',
+            'petugas.*.satuan_listing' => 'nullable|string',
+            'petugas.*.instrumen_listing' => 'nullable|string',
+            'petugas.*.hasil_pendataan_lapangan' => 'nullable|numeric',
+            'petugas.*.satuan_pendataan_lapangan' => 'nullable|string',
+            'petugas.*.instrumen_pendataan_lapangan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan_listing' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan_listing' => 'nullable|string',
+            'petugas.*.catatan' => 'nullable|string',
+            'dokumen_rekap' => 'nullable|array',
+            'dokumen_rekap.*.nama' => 'nullable|string',
+            'dokumen_rekap.*.kode' => 'nullable|string',
+            'dokumen_rekap.*.didata' => 'nullable|numeric',
+            'dokumen_rekap.*.non_respon' => 'nullable|numeric',
+            'dokumen_rekap.*.keterangan' => 'nullable|string',
+        ]);
+
+        // Check if we need to validate instruments based on data availability
+        $alokasiPetugas = collect($basicValidated['petugas']);
+
+        // Check for listing data (pencacah roles) - treat null as 0
+        $hasActualListingData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_listing'] ?? 0) > 0;
+        });
+
+        // Check for pendataan data (pencacah roles) - treat null as 0
+        $hasActualPendataanData = $alokasiPetugas->some(function ($petugas) {
+            return ($petugas['hasil_pendataan_lapangan'] ?? 0) > 0;
+        });
+
+        // Dynamic validation for instruments based on data
+        $instrumentValidation = [];
+        if ($hasActualListingData || $hasActualPendataanData) {
+            // Only require if we have actual data to report
+            if ($hasActualListingData) {
+                $instrumentValidation['instrumen_listing'] = 'required|string';
+            } else {
+                $instrumentValidation['instrumen_listing'] = 'nullable|string';
+            }
+            if ($hasActualPendataanData) {
+                $instrumentValidation['instrumen_pendataan_lapangan'] = 'required|string';
+            } else {
+                $instrumentValidation['instrumen_pendataan_lapangan'] = 'nullable|string';
+            }
+        } else {
+            // No data, instruments are optional
+            $instrumentValidation['instrumen_listing'] = 'nullable|string';
+            $instrumentValidation['instrumen_pendataan_lapangan'] = 'nullable|string';
+        }
+
+        // Re-validate with conditional instrument rules
+        $validated = $request->validate(array_merge([
             'kegiatan_id' => 'required|exists:kegiatan,id',
             'tanggal_bast' => 'required|date',
             'menggunakan_fasih' => 'required|boolean',
@@ -549,6 +610,8 @@ class BastController extends Controller
             'petugas.*.instrumen_pendataan_lapangan' => 'nullable|string',
             'petugas.*.hasil_pengolahan' => 'nullable|numeric',
             'petugas.*.satuan_pengolahan' => 'nullable|string',
+            'petugas.*.hasil_pengolahan_listing' => 'nullable|numeric',
+            'petugas.*.satuan_pengolahan_listing' => 'nullable|string',
             'petugas.*.catatan' => 'nullable|string',
             'dokumen_rekap' => 'nullable|array',
             'dokumen_rekap.*.nama' => 'nullable|string',
@@ -556,15 +619,28 @@ class BastController extends Controller
             'dokumen_rekap.*.didata' => 'nullable|numeric',
             'dokumen_rekap.*.non_respon' => 'nullable|numeric',
             'dokumen_rekap.*.keterangan' => 'nullable|string',
-        ]);
+        ], $instrumentValidation));
 
         DB::beginTransaction();
 
         try {
             $kegiatan = Kegiatan::with('ketuaTim')->findOrFail($validated['kegiatan_id']);
 
-            // Get periode alokasi ID
-            $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
+            // Get periode alokasi ID - use bulan/tahun if provided
+            $targetPeriode = null;
+            if (!empty($validated['bulan']) && !empty($validated['tahun'])) {
+                $targetPeriode = PeriodeAlokasi::where('kegiatan_id', $validated['kegiatan_id'])
+                    ->where('bulan', $validated['bulan'])
+                    ->where('tahun', $validated['tahun'])
+                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->orderBy('status', 'desc') // perubahan > dikirim alphabetically
+                    ->first();
+            }
+            
+            // Fallback to getTargetPeriode if not found
+            if (!$targetPeriode) {
+                $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
+            }
 
             if (! $targetPeriode) {
                 throw new \RuntimeException('Periode alokasi tidak ditemukan untuk kegiatan ini.');
@@ -592,6 +668,38 @@ class BastController extends Controller
                 ? \Carbon\Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
                 : \Carbon\Carbon::parse($validated['tanggal_bast'])->isoFormat('MMMM');
             $tahunPeriode = $targetPeriode?->tahun ?? (int) \Carbon\Carbon::parse($validated['tanggal_bast'])->year;
+
+            // Ambil data petugas dari AlokasiPetugas untuk periode dan kegiatan ini
+            $alokasiPetugas = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $periodeId)
+                ->with(['spk', 'petugas'])
+                ->get();
+
+            $petugas = $alokasiPetugas->map(function ($alokasi) {
+                $isPendataanRole = in_array($alokasi->peran, ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'], true);
+                $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
+
+                return [
+                    'petugas_id' => $alokasi->petugas_id,
+                    'spk_id' => $alokasi->spk?->id,
+                    'nomor_spk' => $alokasi->spk?->nomor_spk ?? $alokasi->nomor_spk ?? '-',
+                    'nama_petugas' => $alokasi->petugas?->nama ?? '-',
+                    'peran' => $alokasi->peran,
+                    'hasil_listing' => $isPendataanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
+                    'satuan_listing' => $isPendataanRole ? ($alokasi->satuan_listing ?? null) : null,
+                    'instrumen_listing' => $isPendataanRole ? ($alokasi->instrumen_listing ?? null) : null,
+                    'hasil_pendataan_lapangan' => $isPendataanRole ? ($alokasi->jumlah_satuan ?? null) : null,
+                    'satuan_pendataan_lapangan' => $isPendataanRole ? ($alokasi->satuan_pendataan_lapangan ?? null) : null,
+                    'instrumen_pendataan_lapangan' => $isPendataanRole ? ($alokasi->instrumen_pendataan_lapangan ?? null) : null,
+                    'hasil_pengolahan' => $isPengolahanRole ? ($alokasi->jumlah_satuan ?? null) : null,
+                    'satuan_pengolahan' => $isPengolahanRole ? ($alokasi->satuan_pengolahan ?? null) : null,
+                    'hasil_pengolahan_listing' => $isPengolahanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
+                    'satuan_pengolahan_listing' => $isPengolahanRole ? ($alokasi->satuan_listing ?? null) : null,
+                    'catatan' => $alokasi->catatan ?? null,
+                ];
+            })->toArray();
+
+            // Inject ke $validated agar generateBastPdf menggunakan data petugas dari alokasi
+            $validated['petugas'] = $petugas;
 
             // Generate PDF for BAST
             $filePath = $this->generateBastPdf(
@@ -633,6 +741,8 @@ class BastController extends Controller
                     'satuan_listing' => $petugasData['satuan_listing'],
                     'hasil_pendataan_lapangan' => $petugasData['hasil_pendataan_lapangan'],
                     'satuan_pendataan_lapangan' => $petugasData['satuan_pendataan_lapangan'],
+                    'hasil_pengolahan_listing' => $petugasData['hasil_pengolahan_listing'],
+                    'satuan_pengolahan_listing' => $petugasData['satuan_pengolahan_listing'],
                     'hasil_pengolahan' => $petugasData['hasil_pengolahan'],
                     'satuan_pengolahan' => $petugasData['satuan_pengolahan'],
                     'catatan' => $petugasData['catatan'] ?? null,
@@ -813,7 +923,6 @@ class BastController extends Controller
 
         // Render main (without lampiran)
         $viewDataMain = $viewData;
-        $viewDataMain['render_lampiran'] = false;
         $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataMain)
             ->setPaper('a4', 'portrait');
         $mainContent = $pdfMain->output();
@@ -835,12 +944,11 @@ class BastController extends Controller
             return $filePath;
         }
 
-        // Render lampiran only (landscape)
+        // Render lampiran only (landscape) using bast-lampiran.blade.php directly
         $viewDataLamp = $viewData;
-        $viewDataLamp['render_lampiran'] = true;
         $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] ? 'landscape' : 'portrait';
-        $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataLamp)
+        $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran', $viewDataLamp)
             ->setPaper('a4', $lampOrientation);
         $lampContent = $pdfLamp->output();
 

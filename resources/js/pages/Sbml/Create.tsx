@@ -1,33 +1,33 @@
-import AppLayout from '@/layouts/app-layout'
-import { PageHeader } from '@/components/page-header'
-import { ContentCard } from '@/components/content-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
-import type { BreadcrumbItem } from '@/types'
-import { Head, Link, router } from '@inertiajs/react'
-import { FormEventHandler, useState } from 'react'
-import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
     { title: 'SBML', href: '/sbml' },
     { title: 'Tambah SBML', href: '/sbml/create' },
-]
+];
 
 interface SbmlEntry {
-    jenis_kegiatan: 'sensus' | 'survei'
-    status_kepegawaian: 'organik' | 'non_organik'
-    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan'
-    honor_max: string
+    jenis_kegiatan: 'sensus' | 'survei';
+    status_kepegawaian: 'organik' | 'non_organik';
+    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    honor_max: string;
 }
 
 interface CreateProps {
@@ -35,44 +35,121 @@ interface CreateProps {
 }
 
 export default function Create({ tahun_options }: CreateProps) {
-    const [tahun, setTahun] = useState(tahun_options[0] || new Date().getFullYear())
-    const [keterangan, setKeterangan] = useState('')
-    const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif')
+    const [tahun, setTahun] = useState(
+        tahun_options[0] || new Date().getFullYear(),
+    );
+    const [keterangan, setKeterangan] = useState('');
+    const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
     // Define all 15 combinations in the order specified
     const initialEntries: SbmlEntry[] = [
         // Survei - Non Organik
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'non_organik', jenis_penugasan: 'pcl_ppl', honor_max: '' },
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'non_organik', jenis_penugasan: 'pml', honor_max: '' },
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'non_organik', jenis_penugasan: 'pengolahan', honor_max: '' },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pcl_ppl',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pml',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pengolahan',
+            honor_max: '',
+        },
         // Survei - Organik
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'organik', jenis_penugasan: 'pcl_ppl', honor_max: '' },
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'organik', jenis_penugasan: 'pml', honor_max: '' },
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'organik', jenis_penugasan: 'pengolahan', honor_max: '' },
-        { jenis_kegiatan: 'survei', status_kepegawaian: 'organik', jenis_penugasan: 'pengawas_pengolahan', honor_max: '' },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pcl_ppl',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pml',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pengolahan',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pengawas_pengolahan',
+            honor_max: '',
+        },
         // Sensus - Non Organik
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'non_organik', jenis_penugasan: 'pcl_ppl', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'non_organik', jenis_penugasan: 'pml', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'non_organik', jenis_penugasan: 'pengolahan', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'non_organik', jenis_penugasan: 'pengawas_pengolahan', honor_max: '' },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pcl_ppl',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pml',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pengolahan',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pengawas_pengolahan',
+            honor_max: '',
+        },
         // Sensus - Organik
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'organik', jenis_penugasan: 'pcl_ppl', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'organik', jenis_penugasan: 'pml', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'organik', jenis_penugasan: 'pengolahan', honor_max: '' },
-        { jenis_kegiatan: 'sensus', status_kepegawaian: 'organik', jenis_penugasan: 'pengawas_pengolahan', honor_max: '' },
-    ]
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pcl_ppl',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pml',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pengolahan',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'pengawas_pengolahan',
+            honor_max: '',
+        },
+    ];
 
-    const [entries, setEntries] = useState<SbmlEntry[]>(initialEntries)
-    const [processing, setProcessing] = useState(false)
-    const [errors, setErrors] = useState<any>({})
+    const [entries, setEntries] = useState<SbmlEntry[]>(initialEntries);
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<any>({});
 
     const getJenisKegiatanLabel = (jenis: string) => {
-        return jenis === 'sensus' ? 'Sensus' : 'Survei'
-    }
+        return jenis === 'sensus' ? 'Sensus' : 'Survei';
+    };
 
     const getStatusKepegawaianLabel = (status: string) => {
-        return status === 'organik' ? 'Organik (PNS/PPPK)' : 'Non-Organik'
-    }
+        return status === 'organik' ? 'Organik (PNS/PPPK)' : 'Non-Organik';
+    };
 
     const getJenisPenugasanLabel = (jenis: string) => {
         const labels: Record<string, string> = {
@@ -80,33 +157,33 @@ export default function Create({ tahun_options }: CreateProps) {
             pml: 'PML (Petugas Pemeriksaan Lapangan)',
             pengolahan: 'Petugas Pengolahan Data',
             pengawas_pengolahan: 'Pengawas Pengolahan',
-        }
-        return labels[jenis] || jenis
-    }
+        };
+        return labels[jenis] || jenis;
+    };
 
     const formatNumber = (value: string) => {
         // Remove non-numeric characters
-        const numericValue = value.replace(/\D/g, '')
+        const numericValue = value.replace(/\D/g, '');
         // Format with thousand separators
-        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    }
+        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
 
     const handleHonorChange = (index: number, value: string) => {
-        const formatted = formatNumber(value)
-        const newEntries = [...entries]
-        newEntries[index].honor_max = formatted
-        setEntries(newEntries)
-    }
+        const formatted = formatNumber(value);
+        const newEntries = [...entries];
+        newEntries[index].honor_max = formatted;
+        setEntries(newEntries);
+    };
 
     const submit: FormEventHandler = (e) => {
-        e.preventDefault()
-        setProcessing(true)
-        setErrors({})
+        e.preventDefault();
+        setProcessing(true);
+        setErrors({});
 
         // Convert entries to API format
         const payload = {
             tahun_anggaran: tahun,
-            entries: entries.map(entry => ({
+            entries: entries.map((entry) => ({
                 jenis_kegiatan: entry.jenis_kegiatan,
                 status_kepegawaian: entry.status_kepegawaian,
                 jenis_penugasan: entry.jenis_penugasan,
@@ -114,19 +191,19 @@ export default function Create({ tahun_options }: CreateProps) {
             })),
             keterangan,
             status,
-        }
+        };
 
         // Use Inertia router to post
         router.post('/sbml', payload, {
             onSuccess: () => {
-                setProcessing(false)
+                setProcessing(false);
             },
             onError: (errors) => {
-                setErrors(errors)
-                setProcessing(false)
+                setErrors(errors);
+                setProcessing(false);
             },
-        })
-    }
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -137,7 +214,12 @@ export default function Create({ tahun_options }: CreateProps) {
                     title="Tambah SBML"
                     description="Tentukan batas maksimal honor per bulan untuk semua kategori"
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/sbml">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -150,14 +232,20 @@ export default function Create({ tahun_options }: CreateProps) {
                         <div className="space-y-6">
                             {/* Tahun Anggaran */}
                             <div>
-                                <Label htmlFor="tahun_anggaran" className="text-base font-semibold">
-                                    Tahun Anggaran <span className="text-red-500">*</span>
+                                <Label
+                                    htmlFor="tahun_anggaran"
+                                    className="text-base font-semibold"
+                                >
+                                    Tahun Anggaran{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <select
                                     id="tahun_anggaran"
                                     value={tahun}
-                                    onChange={(e) => setTahun(parseInt(e.target.value))}
-                                    className="mt-1 block h-11 w-full rounded-lg border border-neutral-300 bg-white/50 backdrop-blur-md dark:bg-neutral-800/60 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-white px-3 py-2"
+                                    onChange={(e) =>
+                                        setTahun(parseInt(e.target.value))
+                                    }
+                                    className="mt-1 block h-11 w-full rounded-lg border border-neutral-300 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-white"
                                 >
                                     {tahun_options.map((year) => (
                                         <option key={year} value={year}>
@@ -166,79 +254,108 @@ export default function Create({ tahun_options }: CreateProps) {
                                     ))}
                                 </select>
                                 {errors.tahun_anggaran && (
-                                    <p className="mt-2 text-sm text-red-600">{errors.tahun_anggaran}</p>
+                                    <p className="mt-2 text-sm text-red-600">
+                                        {errors.tahun_anggaran}
+                                    </p>
                                 )}
                             </div>
 
                             {/* Table of all combinations */}
                             <div>
                                 <Label className="mb-3 block text-base font-semibold">
-                                    Batas Honor Maksimal <span className="text-red-500">*</span>
+                                    Batas Honor Maksimal{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <div className="overflow-x-auto">
                                     <div className="overflow-hidden rounded-2xl">
                                         <table className="min-w-full divide-y divide-white/20 dark:divide-neutral-700/30">
-                                            <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
+                                            <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                    No
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                    Jenis Kegiatan
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                    Status Kepegawaian
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                    Jenis Penugasan
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                                                    Honor Maksimal (Rp)
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                            <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
-                                                {entries.map((entry, index) => (
-                                                    <tr key={index} className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50">
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
-                                                        {index + 1}
-                                                    </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
-                                                        {getJenisKegiatanLabel(entry.jenis_kegiatan)}
-                                                    </td>
-                                                    <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-900 dark:text-white">
-                                                        {getStatusKepegawaianLabel(entry.status_kepegawaian)}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
-                                                        {getJenisPenugasanLabel(entry.jenis_penugasan)}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <Input
-                                                            type="text"
-                                                            value={entry.honor_max}
-                                                            onChange={(e) => handleHonorChange(index, e.target.value)}
-                                                            placeholder="0"
-                                                            className="h-11 w-full text-base"
-                                                        />
-                                                    </td>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                        No
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                        Jenis Kegiatan
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                        Status Kepegawaian
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                        Jenis Penugasan
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                        Honor Maksimal (Rp)
+                                                    </th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
+                                                {entries.map((entry, index) => (
+                                                    <tr
+                                                        key={index}
+                                                        className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
+                                                    >
+                                                        <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {index + 1}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {getJenisKegiatanLabel(
+                                                                entry.jenis_kegiatan,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {getStatusKepegawaianLabel(
+                                                                entry.status_kepegawaian,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
+                                                            {getJenisPenugasanLabel(
+                                                                entry.jenis_penugasan,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <Input
+                                                                type="text"
+                                                                value={
+                                                                    entry.honor_max
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleHonorChange(
+                                                                        index,
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                placeholder="0"
+                                                                className="h-11 w-full text-base"
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                                 {errors.entries && (
-                                    <p className="mt-2 text-sm text-red-600">{errors.entries}</p>
+                                    <p className="mt-2 text-sm text-red-600">
+                                        {errors.entries}
+                                    </p>
                                 )}
                             </div>
 
                             {/* Keterangan */}
                             <div>
-                                <Label htmlFor="keterangan" className="text-base font-semibold">Keterangan</Label>
+                                <Label
+                                    htmlFor="keterangan"
+                                    className="text-base font-semibold"
+                                >
+                                    Keterangan
+                                </Label>
                                 <Textarea
                                     id="keterangan"
                                     value={keterangan}
-                                    onChange={(e) => setKeterangan(e.target.value)}
+                                    onChange={(e) =>
+                                        setKeterangan(e.target.value)
+                                    }
                                     rows={3}
                                     placeholder="Catatan tambahan (opsional)"
                                     className="text-base"
@@ -247,19 +364,29 @@ export default function Create({ tahun_options }: CreateProps) {
 
                             {/* Status */}
                             <div>
-                                <Label htmlFor="status" className="text-base font-semibold">
-                                    Status <span className="text-red-500">*</span>
+                                <Label
+                                    htmlFor="status"
+                                    className="text-base font-semibold"
+                                >
+                                    Status{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
                                     value={status}
-                                    onValueChange={(value) => setStatus(value as 'aktif' | 'nonaktif')}
+                                    onValueChange={(value) =>
+                                        setStatus(value as 'aktif' | 'nonaktif')
+                                    }
                                 >
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="aktif">Aktif</SelectItem>
-                                        <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                                        <SelectItem value="aktif">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="nonaktif">
+                                            Nonaktif
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -267,13 +394,22 @@ export default function Create({ tahun_options }: CreateProps) {
                     </ContentCard>
 
                     <div className="flex justify-end gap-3">
-                        <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            asChild
+                            className="min-w-[180px] gap-2"
+                        >
                             <Link href="/sbml">
                                 <X className="h-5 w-5" />
                                 Batal
                             </Link>
                         </Button>
-                        <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            className="min-w-[180px] gap-2"
+                        >
                             {processing ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -290,5 +426,5 @@ export default function Create({ tahun_options }: CreateProps) {
                 </form>
             </div>
         </AppLayout>
-    )
+    );
 }

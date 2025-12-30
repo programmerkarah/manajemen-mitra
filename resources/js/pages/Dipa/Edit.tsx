@@ -1,14 +1,10 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
+import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import InputError from '@/components/input-error';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save, X, Loader2 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -16,6 +12,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -58,7 +58,12 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                     title="Edit DIPA"
                     description={`Perbarui informasi DIPA ${dipa.nomor_dipa}`}
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/dipa">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -72,13 +77,16 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                             {/* Nomor DIPA */}
                             <div className="space-y-2">
                                 <Label htmlFor="nomor_dipa">
-                                    Nomor DIPA <span className="text-red-600">*</span>
+                                    Nomor DIPA{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
                                 <Input
                                     id="nomor_dipa"
                                     type="text"
                                     value={data.nomor_dipa}
-                                    onChange={(e) => setData('nomor_dipa', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('nomor_dipa', e.target.value)
+                                    }
                                     required
                                     className="h-10"
                                 />
@@ -88,18 +96,24 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                             {/* Tahun */}
                             <div className="space-y-2">
                                 <Label htmlFor="tahun">
-                                    Tahun <span className="text-red-600">*</span>
+                                    Tahun{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
                                 <Select
                                     value={data.tahun.toString()}
-                                    onValueChange={(value) => setData('tahun', parseInt(value))}
+                                    onValueChange={(value) =>
+                                        setData('tahun', parseInt(value))
+                                    }
                                 >
                                     <SelectTrigger className="h-10">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {tahunOptions.map((year) => (
-                                            <SelectItem key={year} value={year.toString()}>
+                                            <SelectItem
+                                                key={year}
+                                                value={year.toString()}
+                                            >
                                                 {year}
                                             </SelectItem>
                                         ))}
@@ -111,13 +125,16 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                             {/* Tanggal DIPA */}
                             <div className="space-y-2">
                                 <Label htmlFor="tanggal_dipa">
-                                    Tanggal DIPA <span className="text-red-600">*</span>
+                                    Tanggal DIPA{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
                                 <Input
                                     id="tanggal_dipa"
                                     type="date"
                                     value={data.tanggal_dipa}
-                                    onChange={(e) => setData('tanggal_dipa', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('tanggal_dipa', e.target.value)
+                                    }
                                     required
                                     className="h-10"
                                 />
@@ -143,13 +160,22 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                         </div>
 
                         <div className="mt-6 flex justify-end gap-3">
-                            <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                                className="min-w-[180px] gap-2"
+                            >
                                 <Link href="/dipa">
                                     <X className="h-5 w-5" />
                                     Batal
                                 </Link>
                             </Button>
-                            <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="min-w-[200px] gap-2"
+                            >
                                 {processing ? (
                                     <>
                                         <Loader2 className="h-5 w-5 animate-spin" />

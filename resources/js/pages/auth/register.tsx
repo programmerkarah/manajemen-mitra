@@ -2,14 +2,13 @@ import { login } from '@/routes';
 import { store } from '@/routes/register';
 import { Form, Head, Link } from '@inertiajs/react';
 
+import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AppLogo from '@/components/app-logo';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { UserPlus } from 'lucide-react';
 
 export default function Register() {
@@ -51,7 +50,10 @@ export default function Register() {
 
                             <Form
                                 {...store.form()}
-                                resetOnSuccess={['password', 'password_confirmation']}
+                                resetOnSuccess={[
+                                    'password',
+                                    'password_confirmation',
+                                ]}
                                 disableWhileProcessing
                                 className="flex flex-col gap-6"
                             >
@@ -59,7 +61,10 @@ export default function Register() {
                                     <>
                                         <div className="grid gap-5">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="name" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="name"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Nama Lengkap
                                                 </Label>
                                                 <Input
@@ -73,11 +78,16 @@ export default function Register() {
                                                     placeholder="Masukkan nama lengkap"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.name} />
+                                                <InputError
+                                                    message={errors.name}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="username" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="username"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Username
                                                 </Label>
                                                 <Input
@@ -90,11 +100,16 @@ export default function Register() {
                                                     placeholder="Pilih username"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.username} />
+                                                <InputError
+                                                    message={errors.username}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="email" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="email"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Email
                                                 </Label>
                                                 <Input
@@ -107,11 +122,16 @@ export default function Register() {
                                                     placeholder="email@contoh.com"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.email} />
+                                                <InputError
+                                                    message={errors.email}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="password"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Password
                                                 </Label>
                                                 <Input
@@ -124,11 +144,16 @@ export default function Register() {
                                                     placeholder="Buat password"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password} />
+                                                <InputError
+                                                    message={errors.password}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password_confirmation" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="password_confirmation"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Konfirmasi Password
                                                 </Label>
                                                 <Input
@@ -141,7 +166,11 @@ export default function Register() {
                                                     placeholder="Ulangi password"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password_confirmation} />
+                                                <InputError
+                                                    message={
+                                                        errors.password_confirmation
+                                                    }
+                                                />
                                             </div>
 
                                             <Button
@@ -157,8 +186,8 @@ export default function Register() {
 
                                         <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
                                             Sudah punya akun?{' '}
-                                            <TextLink 
-                                                href={login()} 
+                                            <TextLink
+                                                href={login()}
                                                 tabIndex={6}
                                                 className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                             >

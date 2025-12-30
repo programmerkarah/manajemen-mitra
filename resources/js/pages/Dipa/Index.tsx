@@ -1,12 +1,15 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import {
     Select,
     SelectContent,
@@ -14,10 +17,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { StatusBadge } from '@/components/status-badge';
-import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+    X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -49,22 +63,26 @@ interface DipaIndexProps {
     };
     tahunOptions: number[];
     filters: {
-        encrypted?: string
+        encrypted?: string;
         decrypted?: {
-            search?: string
-            status?: string
-            tahun?: string
-        }
+            search?: string;
+            status?: string;
+            tahun?: string;
+        };
     };
 }
 
-export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProps) {
+export default function Index({
+    dipaList,
+    tahunOptions,
+    filters,
+}: DipaIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
     const initialFilters = filters.decrypted || {};
-    
+
     const decryptedDipa = useDecryptedData<Dipa>(dipaList.encrypted);
-    
+
     const [search, setSearch] = useState(initialFilters.search || '');
     const [status, setStatus] = useState(initialFilters.status || '');
     const [tahun, setTahun] = useState(initialFilters.tahun || '');
@@ -93,11 +111,11 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
         router.post(
             '/dipa',
             { encrypted_filters: encryptedFilters },
-            { 
+            {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
@@ -106,10 +124,14 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
         setSearch('');
         setStatus('');
         setTahun('');
-        router.post('/dipa', { encrypted_filters: encryptFilters({}) }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.post(
+            '/dipa',
+            { encrypted_filters: encryptFilters({}) },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
     };
 
     const handleDeleteClick = (dipa: Dipa) => {
@@ -135,7 +157,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
         return new Date(dateString).toLocaleDateString('id-ID', {
             day: '2-digit',
             month: 'long',
-            year: 'numeric'
+            year: 'numeric',
         });
     };
 
@@ -163,7 +185,7 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                     <div className="mb-6 flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     type="text"
                                     placeholder="Cari nomor DIPA atau tahun..."
@@ -174,32 +196,53 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                             </div>
                         </div>
 
-                        <Select value={tahun || 'all'} onValueChange={(value) => setTahun(value === 'all' ? '' : value)}>
+                        <Select
+                            value={tahun || 'all'}
+                            onValueChange={(value) =>
+                                setTahun(value === 'all' ? '' : value)
+                            }
+                        >
                             <SelectTrigger className="h-10 w-full sm:w-[150px]">
                                 <SelectValue placeholder="Semua Tahun" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Semua Tahun</SelectItem>
                                 {tahunOptions.map((year) => (
-                                    <SelectItem key={year} value={year.toString()}>
+                                    <SelectItem
+                                        key={year}
+                                        value={year.toString()}
+                                    >
                                         {year}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
 
-                        <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+                        <Select
+                            value={status || 'all'}
+                            onValueChange={(value) =>
+                                setStatus(value === 'all' ? '' : value)
+                            }
+                        >
                             <SelectTrigger className="h-10 w-full sm:w-[150px]">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="all">
+                                    Semua Status
+                                </SelectItem>
                                 <SelectItem value="aktif">Aktif</SelectItem>
-                                <SelectItem value="nonaktif">Non-Aktif</SelectItem>
+                                <SelectItem value="nonaktif">
+                                    Non-Aktif
+                                </SelectItem>
                             </SelectContent>
                         </Select>
 
-                        <Button onClick={handleReset} variant="outline" className="h-10">
+                        <Button
+                            onClick={handleReset}
+                            variant="outline"
+                            className="h-10"
+                        >
                             <X className="mr-2 h-4 w-4" />
                             Reset
                         </Button>
@@ -210,12 +253,22 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Nomor DIPA</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Tahun</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Tanggal DIPA</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Nomor DIPA
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Tahun
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Tanggal DIPA
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Status
+                                    </th>
                                     {!isPJ && (
-                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                            Aksi
+                                        </th>
                                     )}
                                 </tr>
                             </thead>
@@ -231,18 +284,27 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                     </tr>
                                 ) : (
                                     decryptedDipa.map((dipa) => (
-                                        <tr key={dipa.id} className="hover:bg-muted/50">
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-medium">
+                                        <tr
+                                            key={dipa.id}
+                                            className="hover:bg-muted/50"
+                                        >
+                                            <td className="px-3 py-3 text-sm font-medium whitespace-nowrap">
                                                 {dipa.nomor_dipa}
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-semibold">
+                                            <td className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap">
                                                 {dipa.tahun}
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                 {formatDate(dipa.tanggal_dipa)}
                                             </td>
                                             <td className="px-3 py-3 text-center">
-                                                <StatusBadge status={dipa.is_active ? 'aktif' : 'nonaktif'} />
+                                                <StatusBadge
+                                                    status={
+                                                        dipa.is_active
+                                                            ? 'aktif'
+                                                            : 'nonaktif'
+                                                    }
+                                                />
                                             </td>
                                             {!isPJ && (
                                                 <td className="px-3 py-3">
@@ -253,7 +315,9 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                                             asChild
                                                             className="h-8 gap-1.5"
                                                         >
-                                                            <Link href={`/dipa/${dipa.id}/edit`}>
+                                                            <Link
+                                                                href={`/dipa/${dipa.id}/edit`}
+                                                            >
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                                 <span className="sr-only sm:not-sr-only">
                                                                     Edit
@@ -263,7 +327,11 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => handleDeleteClick(dipa)}
+                                                            onClick={() =>
+                                                                handleDeleteClick(
+                                                                    dipa,
+                                                                )
+                                                            }
                                                             className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
@@ -287,11 +355,13 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                             {dipaList.links.map((link: any, index: number) => {
                                 const isFirst = link.label.includes('Previous');
                                 const isLast = link.label.includes('Next');
-                                
+
                                 return (
                                     <Button
                                         key={index}
-                                        variant={link.active ? 'default' : 'outline'}
+                                        variant={
+                                            link.active ? 'default' : 'outline'
+                                        }
                                         size="sm"
                                         disabled={!link.url || processing}
                                         onClick={() => {
@@ -305,7 +375,11 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                                         ) : isLast ? (
                                             <ChevronRight className="h-4 w-4" />
                                         ) : (
-                                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                            <span
+                                                dangerouslySetInnerHTML={{
+                                                    __html: link.label,
+                                                }}
+                                            />
                                         )}
                                     </Button>
                                 );
@@ -323,8 +397,14 @@ export default function Index({ dipaList, tahunOptions, filters }: DipaIndexProp
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
                         Apakah Anda yakin ingin menghapus DIPA{' '}
-                        <span className="font-semibold">{selectedDipa?.nomor_dipa}</span> tahun{' '}
-                        <span className="font-semibold">{selectedDipa?.tahun}</span>?
+                        <span className="font-semibold">
+                            {selectedDipa?.nomor_dipa}
+                        </span>{' '}
+                        tahun{' '}
+                        <span className="font-semibold">
+                            {selectedDipa?.tahun}
+                        </span>
+                        ?
                     </p>
                     <DialogFooter>
                         <Button

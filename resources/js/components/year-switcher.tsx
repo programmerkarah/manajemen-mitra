@@ -1,6 +1,3 @@
-import { router, usePage, Link } from '@inertiajs/react';
-import { Calendar1, AlertCircle } from 'lucide-react';
-import { type SharedData } from '@/types';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,9 +7,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { type SharedData } from '@/types';
+import { Link, router, usePage } from '@inertiajs/react';
+import { AlertCircle, Calendar1 } from 'lucide-react';
 
 export function YearSwitcher() {
-    const { activeYear, availableYears, hasAvailableYears } = usePage<SharedData>().props;
+    const { activeYear, availableYears, hasAvailableYears } =
+        usePage<SharedData>().props;
 
     const handleYearSwitch = (year: number) => {
         if (year === activeYear) return;
@@ -26,7 +27,7 @@ export function YearSwitcher() {
                     // Reload the current page to reflect year-specific data
                     router.reload();
                 },
-            }
+            },
         );
     };
 
@@ -36,14 +37,18 @@ export function YearSwitcher() {
             <Link href="/sbml">
                 <SidebarMenuButton
                     size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-orange-100 dark:hover:bg-orange-900/20"
+                    className="hover:bg-orange-100 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground dark:hover:bg-orange-900/20"
                 >
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-orange-500 dark:bg-orange-600 text-sidebar-primary-foreground">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-orange-500 text-sidebar-primary-foreground dark:bg-orange-600">
                         <AlertCircle className="size-5 text-white dark:text-white" />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold text-orange-700 dark:text-orange-400">Belum ada SBML</span>
-                        <span className="truncate text-xs text-orange-600 dark:text-orange-500">Klik untuk membuat</span>
+                        <span className="truncate font-semibold text-orange-700 dark:text-orange-400">
+                            Belum ada SBML
+                        </span>
+                        <span className="truncate text-xs text-orange-600 dark:text-orange-500">
+                            Klik untuk membuat
+                        </span>
                     </div>
                 </SidebarMenuButton>
             </Link>
@@ -57,11 +62,13 @@ export function YearSwitcher() {
                     size="lg"
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gray-400 dark:bg-slate-500 text-sidebar-primary-foreground">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gray-400 text-sidebar-primary-foreground dark:bg-slate-500">
                         <Calendar1 className="size-5 text-white dark:text-white" />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">Tahun Aktif</span>
+                        <span className="truncate font-semibold">
+                            Tahun Aktif
+                        </span>
                         <span className="truncate text-xs">{activeYear}</span>
                     </div>
                 </SidebarMenuButton>

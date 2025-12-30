@@ -206,7 +206,7 @@
 
     <div class="content">
         <p>
-            Pada hari ini {{ $hari ?? 'Jum\'at' }}, tanggal {{ $tanggal_bast ?? '-' }}, bulan {{ $bulan_label ?? '-' }}, tahun {{ $tahun ?? date('Y') }}, bertempat di Kantor Badan Pusat Statistik Kota Sawahlunto, kami yang bertanda tangan di bawah ini:
+            Pada hari ini {{ $hari ?? 'Jum\'at' }}, tanggal {{ tanggalTerbilang($tanggal_angka ?? date('d')) }}, bulan {{ $bulan_label ?? '-' }} tahun {{ tahunTerbilang($tahun ?? date('Y')) }} bertempat di Kantor Badan Pusat Statistik Kota Sawahlunto, kami yang bertanda tangan di bawah ini:
         </p>
 
         <table style="border: none;">
@@ -314,10 +314,7 @@
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
                     <div style="height:10px;"></div>
-                    {{-- Lampiran section moved to bast-lampiran.blade.php --}}
-                    @include('bast-lampiran')
-                    <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($nama_ketua_tim ?? '') }}</div>
+                    <div class="signature-name">{{ strtoupper($nama_ppk ?? '') }}</div>
                 </div>
             </div>
         </div>

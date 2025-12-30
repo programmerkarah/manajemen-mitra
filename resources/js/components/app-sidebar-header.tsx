@@ -1,7 +1,7 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import RoleSwitcher from '@/components/role-switcher';
-import ViewAsUserSwitcher from '@/components/view-as-user-switcher';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import ViewAsUserSwitcher from '@/components/view-as-user-switcher';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function AppSidebarHeader({

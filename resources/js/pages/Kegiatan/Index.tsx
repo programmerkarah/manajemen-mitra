@@ -1,18 +1,36 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { StatusBadge } from '@/components/status-badge';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Eye, Pencil, X, Check, Send, ChevronLeft, ChevronRight, Filter, RotateCcw, Copy } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Copy,
+    Eye,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Search,
+    Send,
+    X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -50,30 +68,34 @@ interface KegiatanIndexProps {
         links: any[];
     };
     filters: {
-        encrypted?: string
+        encrypted?: string;
         decrypted?: {
-            search?: string
-            status?: string
-        }
+            search?: string;
+            status?: string;
+        };
     };
 }
 
 export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const { auth } = usePage<SharedData>().props;
-    
+
     // Check if user can create kegiatan based on active role
-    const canCreate = auth.activeRole?.name && ['admin', 'operator', 'ketua_tim'].includes(auth.activeRole.name);
-    
+    const canCreate =
+        auth.activeRole?.name &&
+        ['admin', 'operator', 'ketua_tim'].includes(auth.activeRole.name);
+
     // Decrypt data once with memoization
     const decryptedKegiatans = useDecryptedData<Kegiatan>(kegiatans.encrypted);
-    
+
     const [search, setSearch] = useState(filters.decrypted?.search || '');
     const [status, setStatus] = useState(filters.decrypted?.status || '');
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectNotes, setRejectNotes] = useState('');
-    const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(null);
+    const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(
+        null,
+    );
     const [processing, setProcessing] = useState(false);
     const isFirstRender = useRef(true);
 
@@ -96,11 +118,11 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
             router.post(
                 '/kegiatan',
                 { encrypted_filters: encryptedFilters },
-                { 
+                {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
-                }
+                },
             );
         }, 300);
 
@@ -113,133 +135,156 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         router.post(
             '/kegiatan',
             { encrypted_filters: encryptFilters({}) },
-            { 
+            {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
     const formatCurrency = (value: number | null | undefined) => {
-        if (!value || isNaN(value)) return 'Rp 0'
+        if (!value || isNaN(value)) return 'Rp 0';
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
-        }).format(value)
-    }
+        }).format(value);
+    };
 
     const handleSubmitClick = (kegiatan: Kegiatan) => {
-        setSelectedKegiatan(kegiatan)
-        setShowSubmitDialog(true)
-    }
+        setSelectedKegiatan(kegiatan);
+        setShowSubmitDialog(true);
+    };
 
     const handleSubmit = () => {
-        if (!selectedKegiatan) return
-        
-        setProcessing(true)
-        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/submit`, {}, {
-            preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false)
-                setShowSubmitDialog(false)
-                setSelectedKegiatan(null)
-            }
-        })
-    }
+        if (!selectedKegiatan) return;
+
+        setProcessing(true);
+        router.post(
+            `/kegiatan/${selectedKegiatan.hashed_id}/submit`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setProcessing(false);
+                    setShowSubmitDialog(false);
+                    setSelectedKegiatan(null);
+                },
+            },
+        );
+    };
 
     const handleApproveClick = (kegiatan: Kegiatan) => {
-        setSelectedKegiatan(kegiatan)
-        setShowApproveDialog(true)
-    }
+        setSelectedKegiatan(kegiatan);
+        setShowApproveDialog(true);
+    };
 
     const handleApprove = () => {
-        if (!selectedKegiatan) return
-        
-        setProcessing(true)
-        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/approve`, {}, {
-            preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false)
-                setShowApproveDialog(false)
-                setSelectedKegiatan(null)
-            }
-        })
-    }
+        if (!selectedKegiatan) return;
+
+        setProcessing(true);
+        router.post(
+            `/kegiatan/${selectedKegiatan.hashed_id}/approve`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setProcessing(false);
+                    setShowApproveDialog(false);
+                    setSelectedKegiatan(null);
+                },
+            },
+        );
+    };
 
     const handleRejectClick = (kegiatan: Kegiatan) => {
-        setSelectedKegiatan(kegiatan)
-        setShowRejectDialog(true)
-    }
+        setSelectedKegiatan(kegiatan);
+        setShowRejectDialog(true);
+    };
 
     const handleReject = () => {
-        if (!selectedKegiatan) return
-        
-        setProcessing(true)
-        router.post(`/kegiatan/${selectedKegiatan.hashed_id}/reject`, {
-            catatan: rejectNotes
-        }, {
-            preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false)
-                setShowRejectDialog(false)
-                setRejectNotes('')
-                setSelectedKegiatan(null)
-            }
-        })
-    }
+        if (!selectedKegiatan) return;
+
+        setProcessing(true);
+        router.post(
+            `/kegiatan/${selectedKegiatan.hashed_id}/reject`,
+            {
+                catatan: rejectNotes,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setProcessing(false);
+                    setShowRejectDialog(false);
+                    setRejectNotes('');
+                    setSelectedKegiatan(null);
+                },
+            },
+        );
+    };
 
     const canEdit = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
         // Only allow editing draft or divalidasi status
         if (!['draft', 'divalidasi'].includes(kegiatan.status)) return false;
-        
+
         // Admin and operator can edit draft or divalidasi
-        if (auth.user.active_role === 'admin' || auth.user.active_role === 'operator') {
+        if (
+            auth.user.active_role === 'admin' ||
+            auth.user.active_role === 'operator'
+        ) {
             return true;
         }
-        
+
         // Ketua tim can edit if they own the kegiatan (as ketua_tim or pj_lainnya)
         if (auth.user.active_role === 'ketua_tim') {
-            return kegiatan.ketua_tim.id === auth.user.id || 
-                   kegiatan.pj_lainnya?.id === auth.user.id;
+            return (
+                kegiatan.ketua_tim.id === auth.user.id ||
+                kegiatan.pj_lainnya?.id === auth.user.id
+            );
         }
-        
+
         // PJ role (pj_lainnya) can edit if they're assigned
         if (auth.user.active_role === 'pj') {
             return kegiatan.pj_lainnya?.id === auth.user.id;
         }
-        
+
         return false;
-    }
+    };
 
     const canSubmit = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
         if (kegiatan.status !== 'draft') return false;
-        
+
         // Admin and operator can always submit
-        if (auth.user.active_role === 'admin' || auth.user.active_role === 'operator') {
+        if (
+            auth.user.active_role === 'admin' ||
+            auth.user.active_role === 'operator'
+        ) {
             return true;
         }
-        
+
         // Ketua tim can submit if they own the kegiatan (as ketua_tim, not as pj_lainnya)
         if (auth.user.active_role === 'ketua_tim') {
             return kegiatan.ketua_tim.id === auth.user.id;
         }
-        
+
         return false;
-    }
+    };
 
     const canApprove = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
-        return (auth.user.active_role === 'admin' || auth.user.active_role === 'approver') &&
-               (kegiatan.status === 'draft' || kegiatan.status === 'diajukan')
-    }
+        return (
+            (auth.user.active_role === 'admin' ||
+                auth.user.active_role === 'approver') &&
+            (kegiatan.status === 'draft' || kegiatan.status === 'diajukan')
+        );
+    };
 
     const canReject = (kegiatan: Kegiatan) => {
-        return canApprove(kegiatan)
-    }
+        return canApprove(kegiatan);
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -266,21 +311,33 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div className="space-y-2">
-                                <Label htmlFor="search" className="text-base font-semibold">Cari Kegiatan</Label>
+                                <Label
+                                    htmlFor="search"
+                                    className="text-base font-semibold"
+                                >
+                                    Cari Kegiatan
+                                </Label>
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+                                    <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
                                     <Input
                                         id="search"
                                         type="text"
                                         value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
+                                        onChange={(e) =>
+                                            setSearch(e.target.value)
+                                        }
                                         placeholder="Cari nama atau kode kegiatan..."
                                         className="pl-10"
                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="status" className="text-base font-semibold">Status</Label>
+                                <Label
+                                    htmlFor="status"
+                                    className="text-base font-semibold"
+                                >
+                                    Status
+                                </Label>
                                 <select
                                     id="status"
                                     value={status}
@@ -289,7 +346,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 >
                                     <option value="">Semua Status</option>
                                     <option value="draft">Draft</option>
-                                    <option value="divalidasi">Divalidasi</option>
+                                    <option value="divalidasi">
+                                        Divalidasi
+                                    </option>
                                     <option value="selesai">Selesai</option>
                                 </select>
                             </div>
@@ -314,25 +373,25 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Nama Kegiatan
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Pagu Anggaran
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
@@ -346,7 +405,10 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                         >
                                             <div className="flex flex-col items-center gap-2">
                                                 <Search className="h-8 w-8 text-neutral-400" />
-                                                <p>Tidak ada kegiatan yang ditemukan</p>
+                                                <p>
+                                                    Tidak ada kegiatan yang
+                                                    ditemukan
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
@@ -356,7 +418,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             key={kegiatan.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            <td className="px-3 py-3 text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                 {kegiatan.kode_kegiatan}
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
@@ -364,19 +426,28 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                     {kegiatan.nama_kegiatan}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {kegiatan.tahun_anggaran}
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-neutral-600 dark:text-neutral-400">
-                                                {formatCurrency(kegiatan.pagu_pencacahan)}
+                                            <td className="px-3 py-3 text-right text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                                {formatCurrency(
+                                                    kegiatan.pagu_pencacahan,
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
-                                                <div className="max-w-xs truncate" title={kegiatan.ketua_tim.name}>
+                                                <div
+                                                    className="max-w-xs truncate"
+                                                    title={
+                                                        kegiatan.ketua_tim.name
+                                                    }
+                                                >
                                                     {kegiatan.ketua_tim.name}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-center">
-                                                <StatusBadge status={kegiatan.status} />
+                                                <StatusBadge
+                                                    status={kegiatan.status}
+                                                />
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center justify-center gap-2">
@@ -385,10 +456,16 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             variant="default"
                                                             size="sm"
                                                             className="gap-2 bg-blue-600 hover:bg-blue-700"
-                                                            onClick={() => handleSubmitClick(kegiatan)}
+                                                            onClick={() =>
+                                                                handleSubmitClick(
+                                                                    kegiatan,
+                                                                )
+                                                            }
                                                         >
                                                             <Send className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">Ajukan</span>
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Ajukan
+                                                            </span>
                                                         </Button>
                                                     )}
                                                     {canApprove(kegiatan) && (
@@ -396,10 +473,16 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             variant="default"
                                                             size="sm"
                                                             className="gap-2 bg-green-600 hover:bg-green-700"
-                                                            onClick={() => handleApproveClick(kegiatan)}
+                                                            onClick={() =>
+                                                                handleApproveClick(
+                                                                    kegiatan,
+                                                                )
+                                                            }
                                                         >
                                                             <Check className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">Setujui</span>
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Setujui
+                                                            </span>
                                                         </Button>
                                                     )}
                                                     {canReject(kegiatan) && (
@@ -407,10 +490,16 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             variant="destructive"
                                                             size="sm"
                                                             className="gap-2"
-                                                            onClick={() => handleRejectClick(kegiatan)}
+                                                            onClick={() =>
+                                                                handleRejectClick(
+                                                                    kegiatan,
+                                                                )
+                                                            }
                                                         >
                                                             <X className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">Tolak</span>
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Tolak
+                                                            </span>
                                                         </Button>
                                                     )}
                                                     <Button
@@ -419,9 +508,13 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                         asChild
                                                         className="gap-2"
                                                     >
-                                                        <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                                                        <Link
+                                                            href={`/kegiatan/${kegiatan.hashed_id}`}
+                                                        >
                                                             <Eye className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">Detail</span>
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Detail
+                                                            </span>
                                                         </Link>
                                                     </Button>
                                                     {canEdit(kegiatan) && (
@@ -431,9 +524,13 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             asChild
                                                             className="gap-2"
                                                         >
-                                                            <Link href={`/kegiatan/${kegiatan.hashed_id}/edit`}>
+                                                            <Link
+                                                                href={`/kegiatan/${kegiatan.hashed_id}/edit`}
+                                                            >
                                                                 <Pencil className="h-4 w-4" />
-                                                                <span className="sr-only sm:not-sr-only">Edit</span>
+                                                                <span className="sr-only sm:not-sr-only">
+                                                                    Edit
+                                                                </span>
                                                             </Link>
                                                         </Button>
                                                     )}
@@ -444,9 +541,13 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                                             asChild
                                                             className="gap-2"
                                                         >
-                                                            <Link href={`/kegiatan/${kegiatan.hashed_id}/copy`}>
+                                                            <Link
+                                                                href={`/kegiatan/${kegiatan.hashed_id}/copy`}
+                                                            >
                                                                 <Copy className="h-4 w-4" />
-                                                                <span className="sr-only sm:not-sr-only">Salin</span>
+                                                                <span className="sr-only sm:not-sr-only">
+                                                                    Salin
+                                                                </span>
                                                             </Link>
                                                         </Button>
                                                     )}
@@ -465,11 +566,13 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                             {kegiatans.links.map((link, index) => {
                                 const isFirst = link.label.includes('Previous');
                                 const isLast = link.label.includes('Next');
-                                
+
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => link.url && router.get(link.url)}
+                                        onClick={() =>
+                                            link.url && router.get(link.url)
+                                        }
                                         disabled={!link.url}
                                         className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                             link.active
@@ -492,7 +595,10 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                 </ContentCard>
 
                 {/* Submit Dialog */}
-                <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+                <Dialog
+                    open={showSubmitDialog}
+                    onOpenChange={setShowSubmitDialog}
+                >
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Ajukan Kegiatan</DialogTitle>
@@ -506,15 +612,16 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 untuk persetujuan?
                             </p>
                             <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
-                                Kegiatan akan dikirim ke Admin/Approver untuk ditinjau.
+                                Kegiatan akan dikirim ke Admin/Approver untuk
+                                ditinjau.
                             </p>
                         </div>
                         <DialogFooter>
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    setShowSubmitDialog(false)
-                                    setSelectedKegiatan(null)
+                                    setShowSubmitDialog(false);
+                                    setSelectedKegiatan(null);
                                 }}
                                 disabled={processing}
                             >
@@ -525,14 +632,19 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 disabled={processing}
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
-                                {processing ? 'Memproses...' : 'Ajukan Kegiatan'}
+                                {processing
+                                    ? 'Memproses...'
+                                    : 'Ajukan Kegiatan'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
                 {/* Approve Dialog */}
-                <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+                <Dialog
+                    open={showApproveDialog}
+                    onOpenChange={setShowApproveDialog}
+                >
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Setujui Kegiatan</DialogTitle>
@@ -542,18 +654,20 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 Apakah Anda yakin ingin menyetujui kegiatan{' '}
                                 <span className="font-semibold text-neutral-900 dark:text-white">
                                     {selectedKegiatan?.nama_kegiatan}
-                                </span>?
+                                </span>
+                                ?
                             </p>
                             <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
-                                Kegiatan akan berstatus divalidasi dan dapat dikelola rate honor serta alokasi petugas.
+                                Kegiatan akan berstatus divalidasi dan dapat
+                                dikelola rate honor serta alokasi petugas.
                             </p>
                         </div>
                         <DialogFooter>
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    setShowApproveDialog(false)
-                                    setSelectedKegiatan(null)
+                                    setShowApproveDialog(false);
+                                    setSelectedKegiatan(null);
                                 }}
                                 disabled={processing}
                             >
@@ -564,26 +678,35 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 disabled={processing}
                                 className="bg-green-600 hover:bg-green-700"
                             >
-                                {processing ? 'Memproses...' : 'Setujui Kegiatan'}
+                                {processing
+                                    ? 'Memproses...'
+                                    : 'Setujui Kegiatan'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
                 {/* Reject Dialog */}
-                <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+                <Dialog
+                    open={showRejectDialog}
+                    onOpenChange={setShowRejectDialog}
+                >
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Tolak Kegiatan</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="catatan">Catatan Penolakan</Label>
+                                <Label htmlFor="catatan">
+                                    Catatan Penolakan
+                                </Label>
                                 <Textarea
                                     id="catatan"
                                     className="min-h-[100px]"
                                     value={rejectNotes}
-                                    onChange={(e) => setRejectNotes(e.target.value)}
+                                    onChange={(e) =>
+                                        setRejectNotes(e.target.value)
+                                    }
                                     placeholder="Masukkan alasan penolakan..."
                                     disabled={processing}
                                 />
@@ -593,9 +716,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    setShowRejectDialog(false)
-                                    setRejectNotes('')
-                                    setSelectedKegiatan(null)
+                                    setShowRejectDialog(false);
+                                    setRejectNotes('');
+                                    setSelectedKegiatan(null);
                                 }}
                                 disabled={processing}
                             >

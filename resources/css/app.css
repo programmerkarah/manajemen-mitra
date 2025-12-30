@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -175,7 +175,7 @@
     }
 
     ::-webkit-scrollbar-thumb {
-        @apply bg-neutral-300/50 dark:bg-neutral-600/50 rounded-full;
+        @apply rounded-full bg-neutral-300/50 dark:bg-neutral-600/50;
         border: 2px solid transparent;
         background-clip: padding-box;
     }

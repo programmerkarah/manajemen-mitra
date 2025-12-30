@@ -1,4 +1,9 @@
 import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
@@ -8,11 +13,6 @@ import {
     SidebarMenuSubButton,
     SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { resolveUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -32,12 +32,16 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 key={item.title}
                                 asChild
                                 defaultOpen={item.items.some((subItem) =>
-                                    page.url.startsWith(resolveUrl(subItem.href))
+                                    page.url.startsWith(
+                                        resolveUrl(subItem.href),
+                                    ),
                                 )}
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
-                                        <SidebarMenuButton tooltip={{ children: item.title }}>
+                                        <SidebarMenuButton
+                                            tooltip={{ children: item.title }}
+                                        >
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
                                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]:rotate-90" />
@@ -46,15 +50,24 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     <CollapsibleContent>
                                         <SidebarMenuSub>
                                             {item.items.map((subItem) => (
-                                                <SidebarMenuSubItem key={subItem.title}>
+                                                <SidebarMenuSubItem
+                                                    key={subItem.title}
+                                                >
                                                     <SidebarMenuSubButton
                                                         asChild
                                                         isActive={page.url.startsWith(
-                                                            resolveUrl(subItem.href)
+                                                            resolveUrl(
+                                                                subItem.href,
+                                                            ),
                                                         )}
                                                     >
-                                                        <Link href={subItem.href} prefetch>
-                                                            <span>{subItem.title}</span>
+                                                        <Link
+                                                            href={subItem.href}
+                                                            prefetch
+                                                        >
+                                                            <span>
+                                                                {subItem.title}
+                                                            </span>
                                                         </Link>
                                                     </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>

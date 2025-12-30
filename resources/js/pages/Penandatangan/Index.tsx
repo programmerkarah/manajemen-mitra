@@ -1,12 +1,16 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import {
     Select,
     SelectContent,
@@ -14,11 +18,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { StatusBadge } from '@/components/status-badge';
-import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+    X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -52,27 +66,33 @@ interface PenandatanganIndexProps {
         links: any[];
     };
     filters: {
-        encrypted?: string
+        encrypted?: string;
         decrypted?: {
-            search?: string
-            status?: string
-            jenis?: string
-        }
+            search?: string;
+            status?: string;
+            jenis?: string;
+        };
     };
 }
 
-export default function Index({ PenandatanganList, filters }: PenandatanganIndexProps) {
+export default function Index({
+    PenandatanganList,
+    filters,
+}: PenandatanganIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
     const initialFilters = filters.decrypted || {};
-    
-    const decryptedPenandatangan = useDecryptedData<Penandatangan>(PenandatanganList.encrypted);
-    
+
+    const decryptedPenandatangan = useDecryptedData<Penandatangan>(
+        PenandatanganList.encrypted,
+    );
+
     const [search, setSearch] = useState(initialFilters.search || '');
     const [status, setStatus] = useState(initialFilters.status || '');
     const [jenis, setJenis] = useState(initialFilters.jenis || '');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [selectedPenandatangan, setSelectedPenandatangan] = useState<Penandatangan | null>(null);
+    const [selectedPenandatangan, setSelectedPenandatangan] =
+        useState<Penandatangan | null>(null);
     const [processing, setProcessing] = useState(false);
 
     // Auto-filter with debounce for search input
@@ -96,11 +116,11 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
         router.post(
             '/penandatangan',
             { encrypted_filters: encryptedFilters },
-            { 
+            {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
@@ -127,17 +147,21 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
         setSearch('');
         setStatus('');
         setJenis('');
-        router.post('/penandatangan', { encrypted_filters: encryptFilters({}) }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.post(
+            '/penandatangan',
+            { encrypted_filters: encryptFilters({}) },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
     };
     const formatDate = (dateString: string | null) => {
         if (!dateString) return '-';
         return new Date(dateString).toLocaleDateString('id-ID', {
             day: '2-digit',
             month: 'short',
-            year: 'numeric'
+            year: 'numeric',
         });
     };
 
@@ -165,7 +189,7 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                     <div className="mb-6 flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     type="text"
                                     placeholder="Cari nama, NIP, atau jabatan..."
@@ -176,7 +200,12 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                             </div>
                         </div>
 
-                        <Select value={jenis || 'all'} onValueChange={(value) => setJenis(value === 'all' ? '' : value)}>
+                        <Select
+                            value={jenis || 'all'}
+                            onValueChange={(value) =>
+                                setJenis(value === 'all' ? '' : value)
+                            }
+                        >
                             <SelectTrigger className="h-10 w-full sm:w-[180px]">
                                 <SelectValue placeholder="Semua Jenis" />
                             </SelectTrigger>
@@ -187,18 +216,31 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                             </SelectContent>
                         </Select>
 
-                        <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+                        <Select
+                            value={status || 'all'}
+                            onValueChange={(value) =>
+                                setStatus(value === 'all' ? '' : value)
+                            }
+                        >
                             <SelectTrigger className="h-10 w-full sm:w-[180px]">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="all">
+                                    Semua Status
+                                </SelectItem>
                                 <SelectItem value="aktif">Aktif</SelectItem>
-                                <SelectItem value="nonaktif">Non-Aktif</SelectItem>
+                                <SelectItem value="nonaktif">
+                                    Non-Aktif
+                                </SelectItem>
                             </SelectContent>
                         </Select>
 
-                        <Button onClick={handleReset} variant="outline" className="h-10">
+                        <Button
+                            onClick={handleReset}
+                            variant="outline"
+                            className="h-10"
+                        >
                             <X className="mr-2 h-4 w-4" />
                             Reset
                         </Button>
@@ -209,15 +251,31 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">Nama</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">NIP</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Jenis</th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">Jabatan</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Mulai</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Selesai</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                        Nama
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        NIP
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Jenis
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                        Jabatan
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Periode Mulai
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Periode Selesai
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Status
+                                    </th>
                                     {!isPJ && (
-                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                            Aksi
+                                        </th>
                                     )}
                                 </tr>
                             </thead>
@@ -232,63 +290,108 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedPenandatangan.map((Penandatangan) => (
-                                        <tr key={Penandatangan.id} className="hover:bg-muted/50">
-                                            <td className="px-3 py-3 text-sm font-medium">
-                                                <div className="max-w-xs truncate" title={Penandatangan.nama}>{Penandatangan.nama}</div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
-                                                {Penandatangan.nip || '-'}
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
-                                                <Badge variant={Penandatangan.jenis_penandatangan === 'kepala' ? 'default' : 'secondary'}>
-                                                    {Penandatangan.jenis_penandatangan === 'kepala' ? 'Kepala (SK)' : 'PPK (SPK/BAST)'}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-3 py-3 text-sm">
-                                                <div className="max-w-xs" title={Penandatangan.jabatan}>{Penandatangan.jabatan}</div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
-                                                {formatDate(Penandatangan.periode_mulai)}
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
-                                                {formatDate(Penandatangan.periode_selesai)}
-                                            </td>
-                                            <td className="px-3 py-3 text-center">
-                                                <StatusBadge status={Penandatangan.is_active ? 'aktif' : 'nonaktif'} />
-                                            </td>
-                                            {!isPJ && (
-                                                <td className="px-3 py-3">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            asChild
-                                                            className="h-8 gap-1.5"
-                                                        >
-                                                            <Link href={`/penandatangan/${Penandatangan.id}/edit`}>
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                                <span className="sr-only sm:not-sr-only">
-                                                                    Edit
-                                                                </span>
-                                                            </Link>
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleDeleteClick(Penandatangan)}
-                                                            className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                            <span className="sr-only sm:not-sr-only">
-                                                                Hapus
-                                                            </span>
-                                                        </Button>
+                                    decryptedPenandatangan.map(
+                                        (Penandatangan) => (
+                                            <tr
+                                                key={Penandatangan.id}
+                                                className="hover:bg-muted/50"
+                                            >
+                                                <td className="px-3 py-3 text-sm font-medium">
+                                                    <div
+                                                        className="max-w-xs truncate"
+                                                        title={
+                                                            Penandatangan.nama
+                                                        }
+                                                    >
+                                                        {Penandatangan.nama}
                                                     </div>
                                                 </td>
-                                            )}
-                                        </tr>
-                                    ))
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                                    {Penandatangan.nip || '-'}
+                                                </td>
+                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                    <Badge
+                                                        variant={
+                                                            Penandatangan.jenis_penandatangan ===
+                                                            'kepala'
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {Penandatangan.jenis_penandatangan ===
+                                                        'kepala'
+                                                            ? 'Kepala (SK)'
+                                                            : 'PPK (SPK/BAST)'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-3 py-3 text-sm">
+                                                    <div
+                                                        className="max-w-xs"
+                                                        title={
+                                                            Penandatangan.jabatan
+                                                        }
+                                                    >
+                                                        {Penandatangan.jabatan}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                    {formatDate(
+                                                        Penandatangan.periode_mulai,
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                    {formatDate(
+                                                        Penandatangan.periode_selesai,
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-3 text-center">
+                                                    <StatusBadge
+                                                        status={
+                                                            Penandatangan.is_active
+                                                                ? 'aktif'
+                                                                : 'nonaktif'
+                                                        }
+                                                    />
+                                                </td>
+                                                {!isPJ && (
+                                                    <td className="px-3 py-3">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                asChild
+                                                                className="h-8 gap-1.5"
+                                                            >
+                                                                <Link
+                                                                    href={`/penandatangan/${Penandatangan.id}/edit`}
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                    <span className="sr-only sm:not-sr-only">
+                                                                        Edit
+                                                                    </span>
+                                                                </Link>
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    handleDeleteClick(
+                                                                        Penandatangan,
+                                                                    )
+                                                                }
+                                                                className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                <span className="sr-only sm:not-sr-only">
+                                                                    Hapus
+                                                                </span>
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ),
+                                    )
                                 )}
                             </tbody>
                         </table>
@@ -297,32 +400,43 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                     {/* Pagination */}
                     {PenandatanganList.links.length > 3 && (
                         <div className="mt-6 flex items-center justify-center gap-2">
-                            {PenandatanganList.links.map((link: any, index: number) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
-                                
-                                return (
-                                    <Button
-                                        key={index}
-                                        variant={link.active ? 'default' : 'outline'}
-                                        size="sm"
-                                        disabled={!link.url || processing}
-                                        onClick={() => {
-                                            if (link.url) {
-                                                router.visit(link.url);
+                            {PenandatanganList.links.map(
+                                (link: any, index: number) => {
+                                    const isFirst =
+                                        link.label.includes('Previous');
+                                    const isLast = link.label.includes('Next');
+
+                                    return (
+                                        <Button
+                                            key={index}
+                                            variant={
+                                                link.active
+                                                    ? 'default'
+                                                    : 'outline'
                                             }
-                                        }}
-                                    >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                        )}
-                                    </Button>
-                                );
-                            })}
+                                            size="sm"
+                                            disabled={!link.url || processing}
+                                            onClick={() => {
+                                                if (link.url) {
+                                                    router.visit(link.url);
+                                                }
+                                            }}
+                                        >
+                                            {isFirst ? (
+                                                <ChevronLeft className="h-4 w-4" />
+                                            ) : isLast ? (
+                                                <ChevronRight className="h-4 w-4" />
+                                            ) : (
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: link.label,
+                                                    }}
+                                                />
+                                            )}
+                                        </Button>
+                                    );
+                                },
+                            )}
                         </div>
                     )}
                 </ContentCard>
@@ -336,7 +450,10 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
                         Apakah Anda yakin ingin menghapus data Penandatangan{' '}
-                        <span className="font-semibold">{selectedPenandatangan?.nama}</span>?
+                        <span className="font-semibold">
+                            {selectedPenandatangan?.nama}
+                        </span>
+                        ?
                     </p>
                     <DialogFooter>
                         <Button
@@ -359,4 +476,3 @@ export default function Index({ PenandatanganList, filters }: PenandatanganIndex
         </AppLayout>
     );
 }
-

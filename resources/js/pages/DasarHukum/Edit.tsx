@@ -1,72 +1,72 @@
-import AppLayout from '@/layouts/app-layout'
-import { PageHeader } from '@/components/page-header'
-import { ContentCard } from '@/components/content-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
-import type { BreadcrumbItem } from '@/types'
-import { Head, Link, router } from '@inertiajs/react'
-import { FormEventHandler, useState } from 'react'
-import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
     { title: 'Edit Dasar Hukum', href: '#' },
-]
+];
 
 interface KategoriOption {
-    value: string
-    label: string
+    value: string;
+    label: string;
 }
 
 interface DasarHukum {
-    id: number
-    kategori: string
-    instansi: string | null
-    nomor: string
-    tentang: string
-    tahun: number
-    status: 'aktif' | 'nonaktif'
+    id: number;
+    kategori: string;
+    instansi: string | null;
+    nomor: string;
+    tentang: string;
+    tahun: number;
+    status: 'aktif' | 'nonaktif';
 }
 
 interface Props {
-    dasarHukum: DasarHukum
-    kategoriOptions: KategoriOption[]
+    dasarHukum: DasarHukum;
+    kategoriOptions: KategoriOption[];
 }
 
 export default function Edit({ dasarHukum, kategoriOptions }: Props) {
-    const [kategori, setKategori] = useState(dasarHukum.kategori)
-    const [instansi, setInstansi] = useState(dasarHukum.instansi || '')
-    const [nomor, setNomor] = useState(dasarHukum.nomor)
-    const [tentang, setTentang] = useState(dasarHukum.tentang)
-    const [tahun, setTahun] = useState(dasarHukum.tahun.toString())
+    const [kategori, setKategori] = useState(dasarHukum.kategori);
+    const [instansi, setInstansi] = useState(dasarHukum.instansi || '');
+    const [nomor, setNomor] = useState(dasarHukum.nomor);
+    const [tentang, setTentang] = useState(dasarHukum.tentang);
+    const [tahun, setTahun] = useState(dasarHukum.tahun.toString());
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>(
         dasarHukum.status,
-    )
+    );
 
-    const [processing, setProcessing] = useState(false)
-    const [errors, setErrors] = useState<any>({})
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<any>({});
 
     // Kategori yang memerlukan instansi
     const kategoriDenganInstansi = [
         'peraturan_menteri_badan',
         'keputusan_menteri_kepala_badan',
-    ]
-    const needsInstansi = kategoriDenganInstansi.includes(kategori)
+    ];
+    const needsInstansi = kategoriDenganInstansi.includes(kategori);
 
     const handleSubmit: FormEventHandler = (e) => {
-        e.preventDefault()
-        setProcessing(true)
-        setErrors({})
+        e.preventDefault();
+        setProcessing(true);
+        setErrors({});
 
         router.patch(
             `/dasar-hukum/${dasarHukum.id}`,
@@ -80,15 +80,15 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
             },
             {
                 onError: (errors) => {
-                    setErrors(errors)
-                    setProcessing(false)
+                    setErrors(errors);
+                    setProcessing(false);
                 },
                 onSuccess: () => {
-                    setProcessing(false)
+                    setProcessing(false);
                 },
             },
-        )
-    }
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -99,7 +99,12 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                     title="Edit Dasar Hukum SK"
                     description="Perbarui informasi dasar hukum"
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/dasar-hukum">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -113,7 +118,8 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                             {/* Kategori */}
                             <div className="space-y-2">
                                 <Label htmlFor="kategori">
-                                    Kategori <span className="text-red-500">*</span>
+                                    Kategori{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
                                     value={kategori}
@@ -152,7 +158,9 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                                         id="instansi"
                                         type="text"
                                         value={instansi}
-                                        onChange={(e) => setInstansi(e.target.value)}
+                                        onChange={(e) =>
+                                            setInstansi(e.target.value)
+                                        }
                                         placeholder="Contoh: Keuangan, Badan Pusat Statistik"
                                         disabled={processing}
                                     />
@@ -167,7 +175,8 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                             {/* Nomor */}
                             <div className="space-y-2">
                                 <Label htmlFor="nomor">
-                                    Nomor <span className="text-red-500">*</span>
+                                    Nomor{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="nomor"
@@ -187,7 +196,8 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                             {/* Tentang */}
                             <div className="space-y-2">
                                 <Label htmlFor="tentang">
-                                    Tentang <span className="text-red-500">*</span>
+                                    Tentang{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Textarea
                                     id="tentang"
@@ -208,13 +218,16 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                                 {/* Tahun */}
                                 <div className="space-y-2">
                                     <Label htmlFor="tahun">
-                                        Tahun <span className="text-red-500">*</span>
+                                        Tahun{' '}
+                                        <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         id="tahun"
                                         type="number"
                                         value={tahun}
-                                        onChange={(e) => setTahun(e.target.value)}
+                                        onChange={(e) =>
+                                            setTahun(e.target.value)
+                                        }
                                         min="1900"
                                         max="2100"
                                         disabled={processing}
@@ -229,12 +242,15 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                                 {/* Status */}
                                 <div className="space-y-2">
                                     <Label htmlFor="status">
-                                        Status <span className="text-red-500">*</span>
+                                        Status{' '}
+                                        <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
                                         value={status}
                                         onValueChange={(value) =>
-                                            setStatus(value as 'aktif' | 'nonaktif')
+                                            setStatus(
+                                                value as 'aktif' | 'nonaktif',
+                                            )
                                         }
                                         disabled={processing}
                                     >
@@ -242,7 +258,9 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="aktif">Aktif</SelectItem>
+                                            <SelectItem value="aktif">
+                                                Aktif
+                                            </SelectItem>
                                             <SelectItem value="nonaktif">
                                                 Nonaktif
                                             </SelectItem>
@@ -265,12 +283,16 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                             variant="outline"
                             onClick={() => router.visit('/dasar-hukum')}
                             disabled={processing}
-                            className="gap-2 min-w-[180px]"
+                            className="min-w-[180px] gap-2"
                         >
                             <X className="h-5 w-5" />
                             Batal
                         </Button>
-                        <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            className="min-w-[200px] gap-2"
+                        >
                             {processing ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -287,5 +309,5 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
                 </form>
             </div>
         </AppLayout>
-    )
+    );
 }

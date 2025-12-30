@@ -1,15 +1,10 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
+import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import InputError from '@/components/input-error';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { Form } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -17,6 +12,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Form, Head, Link } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -34,7 +33,12 @@ export default function Create() {
                     title="Tambah Penandatangan"
                     description="Masukkan informasi Penandatangan"
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/penandatangan">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -49,8 +53,14 @@ export default function Create() {
                                 <div className="grid gap-6 md:grid-cols-2">
                                     {/* Nama */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="nama" className="text-base font-semibold">
-                                            Nama Lengkap <span className="text-red-600">*</span>
+                                        <Label
+                                            htmlFor="nama"
+                                            className="text-base font-semibold"
+                                        >
+                                            Nama Lengkap{' '}
+                                            <span className="text-red-600">
+                                                *
+                                            </span>
                                         </Label>
                                         <Input
                                             id="nama"
@@ -65,7 +75,12 @@ export default function Create() {
 
                                     {/* NIP */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="nip" className="text-base font-semibold">NIP</Label>
+                                        <Label
+                                            htmlFor="nip"
+                                            className="text-base font-semibold"
+                                        >
+                                            NIP
+                                        </Label>
                                         <Input
                                             id="nip"
                                             type="text"
@@ -78,28 +93,50 @@ export default function Create() {
 
                                     {/* Jenis Penandatangan */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="jenis_penandatangan" className="text-base font-semibold">
-                                            Jenis Penandatangan <span className="text-red-600">*</span>
+                                        <Label
+                                            htmlFor="jenis_penandatangan"
+                                            className="text-base font-semibold"
+                                        >
+                                            Jenis Penandatangan{' '}
+                                            <span className="text-red-600">
+                                                *
+                                            </span>
                                         </Label>
-                                        <Select name="jenis_penandatangan" required>
+                                        <Select
+                                            name="jenis_penandatangan"
+                                            required
+                                        >
                                             <SelectTrigger className="h-11">
                                                 <SelectValue placeholder="Pilih jenis penandatangan" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="kepala">Kepala (untuk SK Petugas)</SelectItem>
-                                                <SelectItem value="ppk">PPK (untuk SPK dan BAST)</SelectItem>
+                                                <SelectItem value="kepala">
+                                                    Kepala (untuk SK Petugas)
+                                                </SelectItem>
+                                                <SelectItem value="ppk">
+                                                    PPK (untuk SPK dan BAST)
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <InputError message={errors.jenis_penandatangan} />
+                                        <InputError
+                                            message={errors.jenis_penandatangan}
+                                        />
                                         <p className="text-xs text-neutral-500">
-                                            Kepala menandatangani SK, PPK menandatangani SPK dan BAST
+                                            Kepala menandatangani SK, PPK
+                                            menandatangani SPK dan BAST
                                         </p>
                                     </div>
 
                                     {/* Jabatan */}
                                     <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="jabatan" className="text-base font-semibold">
-                                            Jabatan <span className="text-red-600">*</span>
+                                        <Label
+                                            htmlFor="jabatan"
+                                            className="text-base font-semibold"
+                                        >
+                                            Jabatan{' '}
+                                            <span className="text-red-600">
+                                                *
+                                            </span>
                                         </Label>
                                         <Input
                                             id="jabatan"
@@ -114,31 +151,51 @@ export default function Create() {
 
                                     {/* Periode Mulai */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="periode_mulai" className="text-base font-semibold">Periode Mulai</Label>
+                                        <Label
+                                            htmlFor="periode_mulai"
+                                            className="text-base font-semibold"
+                                        >
+                                            Periode Mulai
+                                        </Label>
                                         <Input
                                             id="periode_mulai"
                                             type="date"
                                             name="periode_mulai"
                                             className="h-11 text-base"
                                         />
-                                        <InputError message={errors.periode_mulai} />
+                                        <InputError
+                                            message={errors.periode_mulai}
+                                        />
                                     </div>
 
                                     {/* Periode Selesai */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="periode_selesai" className="text-base font-semibold">Periode Selesai</Label>
+                                        <Label
+                                            htmlFor="periode_selesai"
+                                            className="text-base font-semibold"
+                                        >
+                                            Periode Selesai
+                                        </Label>
                                         <Input
                                             id="periode_selesai"
                                             type="date"
                                             name="periode_selesai"
                                             className="h-11 text-base"
                                         />
-                                        <InputError message={errors.periode_selesai} />
+                                        <InputError
+                                            message={errors.periode_selesai}
+                                        />
                                     </div>
 
                                     {/* Is Active */}
                                     <div className="flex items-center space-x-2 md:col-span-2">
-                                        <Checkbox id="is_active" name="is_active" value="1" defaultChecked className="h-5 w-5" />
+                                        <Checkbox
+                                            id="is_active"
+                                            name="is_active"
+                                            value="1"
+                                            defaultChecked
+                                            className="h-5 w-5"
+                                        />
                                         <Label
                                             htmlFor="is_active"
                                             className="cursor-pointer text-base font-normal"
@@ -149,13 +206,22 @@ export default function Create() {
                                 </div>
 
                                 <div className="mt-6 flex justify-end gap-3">
-                                    <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        asChild
+                                        className="min-w-[180px] gap-2"
+                                    >
                                         <Link href="/penandatangan">
                                             <X className="h-5 w-5" />
                                             Batal
                                         </Link>
                                     </Button>
-                                    <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="min-w-[180px] gap-2"
+                                    >
                                         {processing ? (
                                             <>
                                                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -177,4 +243,3 @@ export default function Create() {
         </AppLayout>
     );
 }
-

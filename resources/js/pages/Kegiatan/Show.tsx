@@ -323,7 +323,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                         : 'Tidak'}
                                 </p>
                             </div>
-                                    
+
                             {kegiatan.has_listing_updating && (
                                 <div>
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -441,7 +441,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md">
+                                <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                                             No
@@ -457,7 +457,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/10 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30 backdrop-blur-sm">
+                                <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
                                     {periodeAlokasi.map((periode, index) => (
                                         <tr
                                             key={`${periode.tahun}-${periode.bulan}`}

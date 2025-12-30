@@ -1,13 +1,12 @@
-
+import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Head, Form, Link } from '@inertiajs/react';
-import { Shield, Lock } from 'lucide-react';
 import { store } from '@/routes/password/confirm';
-import AppLogo from '@/components/app-logo';
+import { Form, Head, Link } from '@inertiajs/react';
+import { Lock } from 'lucide-react';
 
 export default function ConfirmPassword() {
     return (
@@ -18,7 +17,7 @@ export default function ConfirmPassword() {
                 <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                         <Link href="/" className="flex items-center gap-3">
-                                <AppLogo />
+                            <AppLogo />
                         </Link>
                     </div>
                 </header>
@@ -40,12 +39,19 @@ export default function ConfirmPassword() {
                                 </p>
                             </div>
 
-                            <Form {...store.form()} resetOnSuccess={['password']} className="flex flex-col gap-6">
+                            <Form
+                                {...store.form()}
+                                resetOnSuccess={['password']}
+                                className="flex flex-col gap-6"
+                            >
                                 {({ processing, errors }) => (
                                     <>
                                         <div className="grid gap-5">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="password"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Password
                                                 </Label>
                                                 <Input
@@ -58,7 +64,9 @@ export default function ConfirmPassword() {
                                                     placeholder="Masukkan password"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password} />
+                                                <InputError
+                                                    message={errors.password}
+                                                />
                                             </div>
 
                                             <Button

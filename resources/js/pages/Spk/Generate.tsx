@@ -1,13 +1,13 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, FileText, Download } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -64,12 +64,32 @@ interface GenerateProps {
 }
 
 const bulanLabels: Record<number, string> = {
-    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
-    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
-    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
+    1: 'Januari',
+    2: 'Februari',
+    3: 'Maret',
+    4: 'April',
+    5: 'Mei',
+    6: 'Juni',
+    7: 'Juli',
+    8: 'Agustus',
+    9: 'September',
+    10: 'Oktober',
+    11: 'November',
+    12: 'Desember',
 };
 
-export default function Generate({ periode, petugas_list, has_draft_periode, next_nomor_urut, is_regenerate, default_tanggal_spk, default_sampai_tanggal, existing_spk_map, last_nomor_urut_in_month, uses_suffix_for_new_petugas }: GenerateProps) {
+export default function Generate({
+    periode,
+    petugas_list,
+    has_draft_periode,
+    next_nomor_urut,
+    is_regenerate,
+    default_tanggal_spk,
+    default_sampai_tanggal,
+    existing_spk_map,
+    last_nomor_urut_in_month,
+    uses_suffix_for_new_petugas,
+}: GenerateProps) {
     const [formData, setFormData] = useState({
         tanggal_spk: default_tanggal_spk || '',
         sampai_tanggal: default_sampai_tanggal || '',
@@ -81,10 +101,12 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'SPK', href: '/spk' },
-        { title: `Generate SPK - ${periode.bulan_label} ${periode.tahun}`, href: '#' },
+        {
+            title: `Generate SPK - ${periode.bulan_label} ${periode.tahun}`,
+            href: '#',
+        },
     ];
 
     const handleSelectAll = () => {
@@ -97,13 +119,17 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
     const handlePetugasToggle = (hashedId: string) => {
         setSelectedPetugas((prev) =>
-            prev.includes(hashedId) ? prev.filter((id) => id !== hashedId) : [...prev, hashedId]
+            prev.includes(hashedId)
+                ? prev.filter((id) => id !== hashedId)
+                : [...prev, hashedId],
         );
     };
 
     const handlePreview = (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu');
+            setModalMessage(
+                'Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu',
+            );
             setShowFormModal(true);
             return;
         }
@@ -114,21 +140,25 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         // Check if this petugas already has an existing SPK
         const existingSpk = existing_spk_map[alokasi.petugas.id];
         let nomorSpk: string;
-        
+
         if (existingSpk) {
             // Use existing SPK number from database
             nomorSpk = existingSpk.nomor_spk;
         } else if (is_regenerate) {
             // New petugas in regenerate mode
             // Need to calculate position among new petugas only
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
+
             // Filter only new petugas (those without existing SPK)
-            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
-            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
-            
+            const newPetugasOnly = sortedPetugas.filter(
+                (p) => !existing_spk_map[p.petugas.id],
+            );
+            const indexAmongNew = newPetugasOnly.findIndex(
+                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
+
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
@@ -140,11 +170,13 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
             }
         } else {
             // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
-            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+
+            const petugasIndex = sortedPetugas.findIndex(
+                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
             const noUrut = next_nomor_urut + petugasIndex;
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
@@ -157,7 +189,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         form.style.display = 'none';
 
         // Add CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
         if (csrfToken) {
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -188,30 +222,36 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
     const handlePreviewMain = (alokasi: any) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setModalMessage(
+                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+            );
             setShowFormModal(true);
             return;
         }
 
         // Get year from tanggal_spk
         const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-        
+
         // Check if this petugas already has an existing SPK
         const existingSpk = existing_spk_map[alokasi.petugas.id];
         let nomorSpk: string;
-        
+
         if (existingSpk) {
             // Use existing SPK number from database
             nomorSpk = existingSpk.nomor_spk;
         } else if (is_regenerate) {
             // New petugas in regenerate mode
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
-            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
-            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
-            
+
+            const newPetugasOnly = sortedPetugas.filter(
+                (p) => !existing_spk_map[p.petugas.id],
+            );
+            const indexAmongNew = newPetugasOnly.findIndex(
+                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
+
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
@@ -223,11 +263,13 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
             }
         } else {
             // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
-            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+
+            const petugasIndex = sortedPetugas.findIndex(
+                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
             const noUrut = next_nomor_urut + petugasIndex;
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
@@ -240,7 +282,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         form.style.display = 'none';
 
         // Add CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
         if (csrfToken) {
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -271,30 +315,36 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
     const handlePreviewLampiran = (alokasi: any) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setModalMessage(
+                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+            );
             setShowFormModal(true);
             return;
         }
 
         // Get year from tanggal_spk
         const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-        
+
         // Check if this petugas already has an existing SPK
         const existingSpk = existing_spk_map[alokasi.petugas.id];
         let nomorSpk: string;
-        
+
         if (existingSpk) {
             // Use existing SPK number from database
             nomorSpk = existingSpk.nomor_spk;
         } else if (is_regenerate) {
             // New petugas in regenerate mode
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
-            const newPetugasOnly = sortedPetugas.filter(p => !existing_spk_map[p.petugas.id]);
-            const indexAmongNew = newPetugasOnly.findIndex(p => p.petugas.hashed_id === alokasi.petugas.hashed_id);
-            
+
+            const newPetugasOnly = sortedPetugas.filter(
+                (p) => !existing_spk_map[p.petugas.id],
+            );
+            const indexAmongNew = newPetugasOnly.findIndex(
+                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
+
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
@@ -306,11 +356,13 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
             }
         } else {
             // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) => 
-                a.petugas.nama.localeCompare(b.petugas.nama)
+            const sortedPetugas = [...petugas_list].sort((a, b) =>
+                a.petugas.nama.localeCompare(b.petugas.nama),
             );
-            
-            const petugasIndex = sortedPetugas.findIndex(a => a.petugas.hashed_id === alokasi.petugas.hashed_id);
+
+            const petugasIndex = sortedPetugas.findIndex(
+                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
             const noUrut = next_nomor_urut + petugasIndex;
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
@@ -323,7 +375,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         form.style.display = 'none';
 
         // Add CSRF token
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
         if (csrfToken) {
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -360,7 +414,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
         }
 
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
-            setModalMessage('Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)');
+            setModalMessage(
+                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+            );
             setShowFormModal(true);
             return;
         }
@@ -383,7 +439,9 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                     // page.props will not have the response, so use event.detail if available
                     // But inertiajs router.post with JSON response will set event.detail.response
                     // So, use a fetch fallback if needed
-                    setSuccessMessage('SPK berhasil dibuat untuk semua petugas non-organik.');
+                    setSuccessMessage(
+                        'SPK berhasil dibuat untuk semua petugas non-organik.',
+                    );
                     setShowSuccessModal(true);
                 },
                 onError: (errors) => {
@@ -391,16 +449,16 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                     setModalMessage('Terjadi error saat generate SPK.');
                     setShowFormModal(true);
                 },
-            }
+            },
         );
     };
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
-            'pcl_ppl': 'Petugas Pencacahan',
-            'pml': 'Pemeriksa Lapangan',
-            'pengolahan': 'Petugas Pengolahan',
-            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+            pcl_ppl: 'Petugas Pencacahan',
+            pml: 'Pemeriksa Lapangan',
+            pengolahan: 'Petugas Pengolahan',
+            pengawas_pengolahan: 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
     };
@@ -449,8 +507,13 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                     Tidak Dapat Generate SPK
                                 </h3>
                                 <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">
-                                    Masih terdapat periode alokasi kegiatan dengan status <strong>draft</strong> di bulan {periode.bulan_label} {periode.tahun}. 
-                                    Pastikan semua periode alokasi kegiatan sudah dikirim atau disetujui terlebih dahulu untuk menghindari ada kegiatan yang belum ditambahkan.
+                                    Masih terdapat periode alokasi kegiatan
+                                    dengan status <strong>draft</strong> di
+                                    bulan {periode.bulan_label} {periode.tahun}.
+                                    Pastikan semua periode alokasi kegiatan
+                                    sudah dikirim atau disetujui terlebih dahulu
+                                    untuk menghindari ada kegiatan yang belum
+                                    ditambahkan.
                                 </p>
                             </div>
                         </div>
@@ -467,7 +530,10 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                         {is_regenerate && (
                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
                                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                                    <strong>Mode Regenerate:</strong> Tanggal SPK dan Sampai Tanggal menggunakan data yang sudah ada di database dan tidak dapat diubah.
+                                    <strong>Mode Regenerate:</strong> Tanggal
+                                    SPK dan Sampai Tanggal menggunakan data yang
+                                    sudah ada di database dan tidak dapat
+                                    diubah.
                                 </p>
                             </div>
                         )}
@@ -479,31 +545,48 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                     id="tanggal_spk"
                                     type="date"
                                     value={formData.tanggal_spk}
-                                    onChange={(e) => setFormData({ ...formData, tanggal_spk: e.target.value })}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            tanggal_spk: e.target.value,
+                                        })
+                                    }
                                     disabled={is_regenerate}
                                     required
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="sampai_tanggal">Sampai Tanggal</Label>
+                                <Label htmlFor="sampai_tanggal">
+                                    Sampai Tanggal
+                                </Label>
                                 <Input
                                     id="sampai_tanggal"
                                     type="date"
                                     value={formData.sampai_tanggal}
-                                    onChange={(e) => setFormData({ ...formData, sampai_tanggal: e.target.value })}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            sampai_tanggal: e.target.value,
+                                        })
+                                    }
                                     disabled={is_regenerate}
                                     required
                                 />
                                 <p className="mt-1 text-xs text-neutral-500">
-                                    Tanggal akhir pelaksanaan pekerjaan (Pasal 3)
+                                    Tanggal akhir pelaksanaan pekerjaan (Pasal
+                                    3)
                                 </p>
                             </div>
                         </div>
 
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Format Nomor SPK: PPIS/13730/[No Urut]/K/[Tahun]<br />
-                            Contoh: PPIS/13730/1/K/{formData.tanggal_spk ? new Date(formData.tanggal_spk).getFullYear() : '2025'}
+                            Format Nomor SPK: PPIS/13730/[No Urut]/K/[Tahun]
+                            <br />
+                            Contoh: PPIS/13730/1/K/
+                            {formData.tanggal_spk
+                                ? new Date(formData.tanggal_spk).getFullYear()
+                                : '2025'}
                         </p>
                     </div>
                 </ContentCard>
@@ -513,10 +596,17 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Pilih Petugas ({selectedPetugas.length} dari {petugas_list.length})
+                                Pilih Petugas ({selectedPetugas.length} dari{' '}
+                                {petugas_list.length})
                             </h3>
-                            <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                                {selectedPetugas.length === petugas_list.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSelectAll}
+                            >
+                                {selectedPetugas.length === petugas_list.length
+                                    ? 'Batal Pilih Semua'
+                                    : 'Pilih Semua'}
                             </Button>
                         </div>
 
@@ -524,25 +614,30 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                             <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                 <thead className="bg-neutral-50 dark:bg-neutral-800">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             <Checkbox
-                                                checked={selectedPetugas.length === petugas_list.length}
-                                                onCheckedChange={handleSelectAll}
+                                                checked={
+                                                    selectedPetugas.length ===
+                                                    petugas_list.length
+                                                }
+                                                onCheckedChange={
+                                                    handleSelectAll
+                                                }
                                             />
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Petugas
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Peran
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Jumlah Kegiatan
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Total Honor
                                         </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                        <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Aksi
                                         </th>
                                     </tr>
@@ -550,59 +645,101 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                 <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                     {petugas_list.map((alokasi) => {
                                         return (
-                                            <tr key={alokasi.alokasi_hashed_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                            <tr
+                                                key={alokasi.alokasi_hashed_id}
+                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                            >
                                                 <td className="px-6 py-4">
                                                     <Checkbox
-                                                        checked={selectedPetugas.includes(alokasi.petugas.hashed_id)}
-                                                        onCheckedChange={() => handlePetugasToggle(alokasi.petugas.hashed_id)}
+                                                        checked={selectedPetugas.includes(
+                                                            alokasi.petugas
+                                                                .hashed_id,
+                                                        )}
+                                                        onCheckedChange={() =>
+                                                            handlePetugasToggle(
+                                                                alokasi.petugas
+                                                                    .hashed_id,
+                                                            )
+                                                        }
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <div>
                                                             <div className="font-medium text-neutral-900 dark:text-white">
-                                                                {alokasi.petugas.nama}
+                                                                {
+                                                                    alokasi
+                                                                        .petugas
+                                                                        .nama
+                                                                }
                                                             </div>
                                                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                                {alokasi.petugas.nik}
+                                                                {
+                                                                    alokasi
+                                                                        .petugas
+                                                                        .nik
+                                                                }
                                                             </div>
                                                         </div>
-                                                        {is_regenerate && !existing_spk_map[alokasi.petugas.id] && (
-                                                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-                                                                Baru
-                                                            </span>
-                                                        )}
+                                                        {is_regenerate &&
+                                                            !existing_spk_map[
+                                                                alokasi.petugas
+                                                                    .id
+                                                            ] && (
+                                                                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+                                                                    Baru
+                                                                </span>
+                                                            )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="space-y-1">
-                                                        {alokasi.kegiatan_list.map((kg, idx) => (
-                                                            <div key={idx} className="text-sm">
-                                                                <div className="font-medium text-neutral-900 dark:text-white">
-                                                                    {kg.kegiatan_kode}
+                                                        {alokasi.kegiatan_list.map(
+                                                            (kg, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="text-sm"
+                                                                >
+                                                                    <div className="font-medium text-neutral-900 dark:text-white">
+                                                                        {
+                                                                            kg.kegiatan_kode
+                                                                        }
+                                                                    </div>
+                                                                    <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        {getPeranLabel(
+                                                                            kg.peran,
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                    {getPeranLabel(kg.peran)}
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                            ),
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    {alokasi.jumlah_kegiatan} kegiatan
+                                                    {alokasi.jumlah_kegiatan}{' '}
+                                                    kegiatan
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                    Rp {alokasi.total_honor.toLocaleString('id-ID')}
+                                                    Rp{' '}
+                                                    {alokasi.total_honor.toLocaleString(
+                                                        'id-ID',
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-sm">
                                                     <div className="flex justify-end gap-2">
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handlePreview(alokasi)}
+                                                            onClick={() =>
+                                                                handlePreview(
+                                                                    alokasi,
+                                                                )
+                                                            }
                                                             className="gap-1"
                                                             title="Preview SPK + Lampiran (Merged)"
-                                                            disabled={has_draft_periode}
+                                                            disabled={
+                                                                has_draft_periode
+                                                            }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
                                                             Preview
@@ -610,10 +747,16 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handlePreviewMain(alokasi)}
+                                                            onClick={() =>
+                                                                handlePreviewMain(
+                                                                    alokasi,
+                                                                )
+                                                            }
                                                             className="gap-1"
                                                             title="Preview SPK Main Saja"
-                                                            disabled={has_draft_periode}
+                                                            disabled={
+                                                                has_draft_periode
+                                                            }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
                                                             SPK
@@ -621,10 +764,16 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handlePreviewLampiran(alokasi)}
+                                                            onClick={() =>
+                                                                handlePreviewLampiran(
+                                                                    alokasi,
+                                                                )
+                                                            }
                                                             className="gap-1"
                                                             title="Preview Lampiran Saja"
-                                                            disabled={has_draft_periode}
+                                                            disabled={
+                                                                has_draft_periode
+                                                            }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
                                                             Lampiran
@@ -648,9 +797,19 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
                         </Button>
                         <Button
                             onClick={handleGenerateAll}
-                            disabled={processing || selectedPetugas.length === 0 || !formData.tanggal_spk || !formData.sampai_tanggal || has_draft_periode}
+                            disabled={
+                                processing ||
+                                selectedPetugas.length === 0 ||
+                                !formData.tanggal_spk ||
+                                !formData.sampai_tanggal ||
+                                has_draft_periode
+                            }
                         >
-                            {processing ? 'Memproses...' : has_draft_periode ? 'Tidak dapat generate (ada periode draft)' : `Generate SPK (${selectedPetugas.length} Petugas)`}
+                            {processing
+                                ? 'Memproses...'
+                                : has_draft_periode
+                                  ? 'Tidak dapat generate (ada periode draft)'
+                                  : `Generate SPK (${selectedPetugas.length} Petugas)`}
                         </Button>
                     </div>
                 </ContentCard>
@@ -658,19 +817,41 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
             {/* Form Validation Modal */}
             {showFormModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowFormModal(false)}>
-                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                    onClick={() => setShowFormModal(false)}
+                >
+                    <div
+                        className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="mb-4 flex items-center gap-3">
                             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900">
-                                <svg className="size-6 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                <svg
+                                    className="size-6 text-yellow-600 dark:text-yellow-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Perhatian</h3>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Perhatian
+                            </h3>
                         </div>
-                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">{modalMessage}</p>
+                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">
+                            {modalMessage}
+                        </p>
                         <div className="flex justify-end">
-                            <Button onClick={() => setShowFormModal(false)}>Mengerti</Button>
+                            <Button onClick={() => setShowFormModal(false)}>
+                                Mengerti
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -678,19 +859,41 @@ export default function Generate({ periode, petugas_list, has_draft_periode, nex
 
             {/* Success Modal */}
             {showSuccessModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleCloseSuccessModal}>
-                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                    onClick={handleCloseSuccessModal}
+                >
+                    <div
+                        className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="mb-4 flex items-center gap-3">
                             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                                <svg className="size-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                <svg
+                                    className="size-6 text-green-600 dark:text-green-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                    />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Berhasil</h3>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Berhasil
+                            </h3>
                         </div>
-                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">{successMessage}</p>
+                        <p className="mb-6 text-neutral-700 dark:text-neutral-300">
+                            {successMessage}
+                        </p>
                         <div className="flex justify-end">
-                            <Button onClick={handleCloseSuccessModal}>OK</Button>
+                            <Button onClick={handleCloseSuccessModal}>
+                                OK
+                            </Button>
                         </div>
                     </div>
                 </div>

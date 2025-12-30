@@ -1,19 +1,15 @@
 // Components
-import { login } from '@/routes';
-import { email } from '@/routes/password';
 // (duplikat di bawah, hapus baris ini)
-import { LoaderCircle, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 
-
+import { store } from '@/actions/Laravel/Fortify/Http/Controllers/PasswordResetLinkController';
+import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Head, Form, Link } from '@inertiajs/react';
-import AppLogo from '@/components/app-logo';
-import { store } from '@/actions/Laravel/Fortify/Http/Controllers/PasswordResetLinkController';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { Form, Head, Link } from '@inertiajs/react';
 
 export default function ForgotPassword() {
     return (
@@ -42,21 +38,30 @@ export default function ForgotPassword() {
                                     Lupa Password
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    Masukkan email Anda untuk menerima link reset password
+                                    Masukkan email Anda untuk menerima link
+                                    reset password
                                 </p>
                             </div>
 
-                            <Form {...store.form()} resetOnSuccess={['email']} className="flex flex-col gap-6">
+                            <Form
+                                {...store.form()}
+                                resetOnSuccess={['email']}
+                                className="flex flex-col gap-6"
+                            >
                                 {({ processing, errors, wasSuccessful }) => (
                                     <>
                                         {wasSuccessful && (
                                             <div className="rounded-md bg-green-100 p-4 text-sm text-green-800 dark:bg-green-900 dark:text-green-200">
-                                                Link reset password telah dikirim ke email Anda!
+                                                Link reset password telah
+                                                dikirim ke email Anda!
                                             </div>
                                         )}
                                         <div className="grid gap-5">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="email" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="email"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Email
                                                 </Label>
                                                 <Input
@@ -69,7 +74,9 @@ export default function ForgotPassword() {
                                                     placeholder="Masukkan email"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.email} />
+                                                <InputError
+                                                    message={errors.email}
+                                                />
                                             </div>
 
                                             <Button
@@ -101,4 +108,3 @@ export default function ForgotPassword() {
         </>
     );
 }
-

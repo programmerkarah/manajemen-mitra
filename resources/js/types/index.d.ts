@@ -92,7 +92,13 @@ export interface Kegiatan {
     rate_honor_notes: string | null;
     tanggal_mulai: string;
     tanggal_selesai: string;
-    status: 'draft' | 'diajukan' | 'divalidasi' | 'aktif' | 'selesai' | 'dibatalkan';
+    status:
+        | 'draft'
+        | 'diajukan'
+        | 'divalidasi'
+        | 'aktif'
+        | 'selesai'
+        | 'dibatalkan';
     tanggal_validasi: string | null;
     created_at: string;
     updated_at: string;

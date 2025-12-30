@@ -1,13 +1,11 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Eye, Download, Upload, FileUp } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Download, Eye } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -44,15 +42,33 @@ interface ListProps {
 }
 
 const bulanLabels: Record<number, string> = {
-    1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
-    5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
-    9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
+    1: 'Januari',
+    2: 'Februari',
+    3: 'Maret',
+    4: 'April',
+    5: 'Mei',
+    6: 'Juni',
+    7: 'Juli',
+    8: 'Agustus',
+    9: 'September',
+    10: 'Oktober',
+    11: 'November',
+    12: 'Desember',
 };
 
-export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps) {
-    const [selectedSpkId, setSelectedSpkId] = useState<number | null>(spk_list[0]?.id || null);
+export default function List({
+    spk_list,
+    bulan,
+    tahun,
+    bulan_label,
+}: ListProps) {
+    const [selectedSpkId, setSelectedSpkId] = useState<number | null>(
+        spk_list[0]?.id || null,
+    );
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadingSpkHashedId, setUploadingSpkHashedId] = useState<string | null>(null);
+    const [uploadingSpkHashedId, setUploadingSpkHashedId] = useState<
+        string | null
+    >(null);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         file: File | null;
@@ -60,7 +76,7 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
         file: null,
     });
 
-    const selectedSpk = spk_list.find(spk => spk.id === selectedSpkId);
+    const selectedSpk = spk_list.find((spk) => spk.id === selectedSpkId);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'SPK', href: '/spk' },
@@ -86,10 +102,10 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
 
     const getPeranLabel = (peran: string) => {
         const labels: Record<string, string> = {
-            'pcl_ppl': 'Petugas Pencacahan',
-            'pml': 'Pemeriksa Lapangan',
-            'pengolahan': 'Petugas Pengolahan',
-            'pengawas_pengolahan': 'Pemeriksa Pengolahan',
+            pcl_ppl: 'Petugas Pencacahan',
+            pml: 'Pemeriksa Lapangan',
+            pengolahan: 'Petugas Pengolahan',
+            pengawas_pengolahan: 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
     };
@@ -147,25 +163,25 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
                         <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Nomor SPK
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Petugas
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Kegiatan & Peran
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Tanggal SPK
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Nilai Kontrak
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -173,13 +189,19 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                 {spk_list.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
+                                        <td
+                                            colSpan={7}
+                                            className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
+                                        >
                                             Tidak ada SPK untuk periode ini
                                         </td>
                                     </tr>
                                 ) : (
                                     spk_list.map((spk) => (
-                                        <tr key={spk.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                        <tr
+                                            key={spk.id}
+                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                        >
                                             <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
                                                 {spk.nomor_spk}
                                             </td>
@@ -195,23 +217,35 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="space-y-1">
-                                                    {spk.kegiatan_list.map((kegiatan, idx) => (
-                                                        <div key={idx} className="text-sm">
-                                                            <div className="font-medium text-neutral-900 dark:text-white">
-                                                                {kegiatan.kode_kegiatan}
+                                                    {spk.kegiatan_list.map(
+                                                        (kegiatan, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="text-sm"
+                                                            >
+                                                                <div className="font-medium text-neutral-900 dark:text-white">
+                                                                    {
+                                                                        kegiatan.kode_kegiatan
+                                                                    }
+                                                                </div>
+                                                                <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                    {getPeranLabel(
+                                                                        kegiatan.peran,
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                {getPeranLabel(kegiatan.peran)}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        ),
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
                                                 {spk.tanggal_spk}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                                                Rp {parseFloat(spk.nilai_kontrak.toString()).toLocaleString('id-ID')}
+                                                Rp{' '}
+                                                {parseFloat(
+                                                    spk.nilai_kontrak.toString(),
+                                                ).toLocaleString('id-ID')}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {getStatusBadge(spk.status)}
@@ -224,7 +258,9 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
                                                         asChild
                                                         className="gap-1"
                                                     >
-                                                        <Link href={`/spk/${spk.hashed_id}`}>
+                                                        <Link
+                                                            href={`/spk/${spk.hashed_id}`}
+                                                        >
                                                             <Eye className="h-3.5 w-3.5" />
                                                             Detail
                                                         </Link>
@@ -233,7 +269,11 @@ export default function List({ spk_list, bulan, tahun, bulan_label }: ListProps)
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleDownload(spk.file_path!)}
+                                                            onClick={() =>
+                                                                handleDownload(
+                                                                    spk.file_path!,
+                                                                )
+                                                            }
                                                             className="gap-1"
                                                         >
                                                             <Download className="h-3.5 w-3.5" />

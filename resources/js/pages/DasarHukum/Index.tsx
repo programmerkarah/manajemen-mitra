@@ -1,82 +1,91 @@
-import AppLayout from '@/layouts/app-layout'
-import { ContentCard } from '@/components/content-card'
-import { PageHeader } from '@/components/page-header'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
-import type { BreadcrumbItem, SharedData } from '@/types'
-import { Head, Link, router, usePage } from '@inertiajs/react'
-import { Pencil, Plus, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { StatusBadge } from '@/components/status-badge'
-import { encryptFilters } from '@/utils/encryption'
-import { useDecryptedData } from '@/hooks/useDecryptedData'
+} from '@/components/ui/select';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem, SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
-]
+];
 
 interface DasarHukum {
-    id: number
-    kategori: string
-    instansi: string | null
-    nomor: string
-    tentang: string
-    tahun: number
-    status: 'aktif' | 'nonaktif'
-    created_at: string
-    updated_at: string
+    id: number;
+    kategori: string;
+    instansi: string | null;
+    nomor: string;
+    tentang: string;
+    tahun: number;
+    status: 'aktif' | 'nonaktif';
+    created_at: string;
+    updated_at: string;
 }
 
 interface Props {
     dasarHukum: {
-        encrypted: string
+        encrypted: string;
         meta: {
-            current_page: number
-            last_page: number
-            per_page: number
-            total: number
-            from: number
-            to: number
-        }
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
         links: Array<{
-            url: string | null
-            label: string
-            active: boolean
-        }>
-    }
+            url: string | null;
+            label: string;
+            active: boolean;
+        }>;
+    };
     filters: {
-        encrypted?: string
+        encrypted?: string;
         decrypted?: {
-            search: string
-            status: string
-        }
-    }
+            search: string;
+            status: string;
+        };
+    };
 }
 
 export default function Index({ dasarHukum, filters }: Props) {
-    const { auth } = usePage<SharedData>().props
-    const isPJ = auth.activeRole?.name === 'pj'
+    const { auth } = usePage<SharedData>().props;
+    const isPJ = auth.activeRole?.name === 'pj';
 
-    const decryptedDasarHukum = useDecryptedData<DasarHukum>(dasarHukum.encrypted)
+    const decryptedDasarHukum = useDecryptedData<DasarHukum>(
+        dasarHukum.encrypted,
+    );
 
     const initialFilters = filters.decrypted || { search: '', status: 'all' };
-    const [search, setSearch] = useState(initialFilters.search || '')
-    const [status, setStatus] = useState(initialFilters.status || 'all')
+    const [search, setSearch] = useState(initialFilters.search || '');
+    const [status, setStatus] = useState(initialFilters.status || 'all');
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            handleFilter()
-        }, 300)
-        return () => clearTimeout(timer)
-    }, [search, status])
+            handleFilter();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search, status]);
 
     const handleFilter = () => {
         const filterParams = {
@@ -94,18 +103,16 @@ export default function Index({ dasarHukum, filters }: Props) {
                 preserveScroll: true,
                 replace: true,
             },
-        )
-    }
+        );
+    };
 
     const handleDelete = (id: number, nomor: string) => {
         if (
-            confirm(
-                `Apakah Anda yakin ingin menghapus dasar hukum "${nomor}"?`,
-            )
+            confirm(`Apakah Anda yakin ingin menghapus dasar hukum "${nomor}"?`)
         ) {
-            router.delete(`/dasar-hukum/${id}`)
+            router.delete(`/dasar-hukum/${id}`);
         }
-    }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -132,7 +139,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div className="md:col-span-2">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-500" />
                                 <Input
                                     type="text"
                                     placeholder="Cari nomor atau tentang..."
@@ -170,21 +177,22 @@ export default function Index({ dasarHukum, filters }: Props) {
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Dasar Hukum
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Tahun
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
                                     {!isPJ && (
-                                        <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                             Aksi
                                         </th>
                                     )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {!decryptedDasarHukum || decryptedDasarHukum.length === 0 ? (
+                                {!decryptedDasarHukum ||
+                                decryptedDasarHukum.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 3 : 4}
@@ -197,32 +205,59 @@ export default function Index({ dasarHukum, filters }: Props) {
                                     decryptedDasarHukum?.map((item) => {
                                         // Format dengan atau tanpa instansi
                                         const formatNamaLengkap = () => {
-                                            let kategoriLabel = ''
-                                            
-                                            if (item.kategori === 'undang_undang') {
-                                                kategoriLabel = 'Undang-Undang'
-                                            } else if (item.kategori === 'peraturan_pemerintah') {
-                                                kategoriLabel = 'Peraturan Pemerintah'
-                                            } else if (item.kategori === 'peraturan_presiden') {
-                                                kategoriLabel = 'Peraturan Presiden'
-                                            } else if (item.kategori === 'peraturan_menteri_badan') {
+                                            let kategoriLabel = '';
+
+                                            if (
+                                                item.kategori ===
+                                                'undang_undang'
+                                            ) {
+                                                kategoriLabel = 'Undang-Undang';
+                                            } else if (
+                                                item.kategori ===
+                                                'peraturan_pemerintah'
+                                            ) {
+                                                kategoriLabel =
+                                                    'Peraturan Pemerintah';
+                                            } else if (
+                                                item.kategori ===
+                                                'peraturan_presiden'
+                                            ) {
+                                                kategoriLabel =
+                                                    'Peraturan Presiden';
+                                            } else if (
+                                                item.kategori ===
+                                                'peraturan_menteri_badan'
+                                            ) {
                                                 // Deteksi apakah instansi adalah Badan atau Menteri
-                                                if (item.instansi && item.instansi.toLowerCase().startsWith('badan')) {
-                                                    kategoriLabel = `Peraturan ${item.instansi}`
+                                                if (
+                                                    item.instansi &&
+                                                    item.instansi
+                                                        .toLowerCase()
+                                                        .startsWith('badan')
+                                                ) {
+                                                    kategoriLabel = `Peraturan ${item.instansi}`;
                                                 } else {
-                                                    kategoriLabel = `Peraturan Menteri ${item.instansi}`
+                                                    kategoriLabel = `Peraturan Menteri ${item.instansi}`;
                                                 }
-                                            } else if (item.kategori === 'keputusan_menteri_kepala_badan') {
+                                            } else if (
+                                                item.kategori ===
+                                                'keputusan_menteri_kepala_badan'
+                                            ) {
                                                 // Deteksi apakah instansi adalah Badan atau Menteri
-                                                if (item.instansi && item.instansi.toLowerCase().startsWith('badan')) {
-                                                    kategoriLabel = `Keputusan Kepala ${item.instansi}`
+                                                if (
+                                                    item.instansi &&
+                                                    item.instansi
+                                                        .toLowerCase()
+                                                        .startsWith('badan')
+                                                ) {
+                                                    kategoriLabel = `Keputusan Kepala ${item.instansi}`;
                                                 } else {
-                                                    kategoriLabel = `Keputusan Menteri ${item.instansi}`
+                                                    kategoriLabel = `Keputusan Menteri ${item.instansi}`;
                                                 }
                                             }
-                                            
-                                            return `${kategoriLabel} Nomor ${item.nomor} Tahun ${item.tahun}`
-                                        }
+
+                                            return `${kategoriLabel} Nomor ${item.nomor} Tahun ${item.tahun}`;
+                                        };
 
                                         return (
                                             <tr
@@ -232,23 +267,30 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                 <td className="px-3 py-3">
                                                     <div className="space-y-1">
                                                         <div className="font-medium text-neutral-900 dark:text-white">
-                                                            <div className="max-w-2xl">{formatNamaLengkap()}</div>
+                                                            <div className="max-w-2xl">
+                                                                {formatNamaLengkap()}
+                                                            </div>
                                                         </div>
                                                         <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                            <div className="max-w-2xl">tentang {item.tentang}</div>
+                                                            <div className="max-w-2xl">
+                                                                tentang{' '}
+                                                                {item.tentang}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="whitespace-nowrap px-3 py-3 text-center">
+                                                <td className="px-3 py-3 text-center whitespace-nowrap">
                                                     <div className="text-sm text-neutral-900 dark:text-white">
                                                         {item.tahun}
                                                     </div>
                                                 </td>
-                                                <td className="whitespace-nowrap px-3 py-3 text-center">
-                                                    <StatusBadge status={item.status} />
+                                                <td className="px-3 py-3 text-center whitespace-nowrap">
+                                                    <StatusBadge
+                                                        status={item.status}
+                                                    />
                                                 </td>
                                                 {!isPJ && (
-                                                    <td className="whitespace-nowrap px-3 py-3">
+                                                    <td className="px-3 py-3 whitespace-nowrap">
                                                         <div className="flex items-center justify-center gap-2">
                                                             <Link
                                                                 href={`/dasar-hukum/${item.id}/edit`}
@@ -267,7 +309,10 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                                 size="sm"
                                                                 className="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
                                                                 onClick={() => {
-                                                                    handleDelete(item.id, formatNamaLengkap())
+                                                                    handleDelete(
+                                                                        item.id,
+                                                                        formatNamaLengkap(),
+                                                                    );
                                                                 }}
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -277,7 +322,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                     </td>
                                                 )}
                                             </tr>
-                                        )
+                                        );
                                     })
                                 )}
                             </tbody>
@@ -288,14 +333,15 @@ export default function Index({ dasarHukum, filters }: Props) {
                     {dasarHukum.meta.last_page > 1 && (
                         <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-800">
                             <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                Menampilkan {decryptedDasarHukum?.length || 0} dari{' '}
-                                {dasarHukum.meta.total} data
+                                Menampilkan {decryptedDasarHukum?.length || 0}{' '}
+                                dari {dasarHukum.meta.total} data
                             </div>
                             <div className="flex gap-2">
                                 {dasarHukum.links.map((link, index) => {
-                                    const isFirst = link.label.includes('Previous');
+                                    const isFirst =
+                                        link.label.includes('Previous');
                                     const isLast = link.label.includes('Next');
-                                    
+
                                     return (
                                         <Link
                                             key={index}
@@ -311,7 +357,11 @@ export default function Index({ dasarHukum, filters }: Props) {
                                             ) : isLast ? (
                                                 <ChevronRight className="h-4 w-4" />
                                             ) : (
-                                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: link.label,
+                                                    }}
+                                                />
                                             )}
                                         </Link>
                                     );
@@ -322,5 +372,5 @@ export default function Index({ dasarHukum, filters }: Props) {
                 </ContentCard>
             </div>
         </AppLayout>
-    )
+    );
 }

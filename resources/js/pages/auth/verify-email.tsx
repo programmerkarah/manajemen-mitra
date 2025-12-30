@@ -4,7 +4,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 import { Form, Head, Link } from '@inertiajs/react';
-import { Mail, LogOut, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, LogOut, Mail } from 'lucide-react';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     return (
@@ -33,20 +33,26 @@ export default function VerifyEmail({ status }: { status?: string }) {
                                     Verifikasi Email Anda
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    Silakan verifikasi alamat email Anda dengan mengklik link yang baru saja kami kirimkan kepada Anda.
+                                    Silakan verifikasi alamat email Anda dengan
+                                    mengklik link yang baru saja kami kirimkan
+                                    kepada Anda.
                                 </p>
                             </div>
 
                             {status === 'verification-link-sent' && (
                                 <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
                                     <div className="flex items-start gap-3">
-                                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                                        <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-600 dark:text-green-400" />
                                         <div className="flex-1">
                                             <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                                                Link Verifikasi Berhasil Dikirim!
+                                                Link Verifikasi Berhasil
+                                                Dikirim!
                                             </p>
                                             <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                                                Link verifikasi baru telah dikirim ke alamat email yang Anda daftarkan. Silakan cek inbox atau folder spam Anda.
+                                                Link verifikasi baru telah
+                                                dikirim ke alamat email yang
+                                                Anda daftarkan. Silakan cek
+                                                inbox atau folder spam Anda.
                                             </p>
                                         </div>
                                     </div>
@@ -56,19 +62,23 @@ export default function VerifyEmail({ status }: { status?: string }) {
                             <Form {...send.form()} className="space-y-4">
                                 {({ processing }) => (
                                     <>
-                                        <Button 
-                                            disabled={processing} 
+                                        <Button
+                                            disabled={processing}
                                             className="w-full"
                                             size="lg"
                                         >
-                                            {processing && <Spinner className="mr-2" />}
-                                            {processing ? 'Mengirim...' : 'Kirim Ulang Email Verifikasi'}
+                                            {processing && (
+                                                <Spinner className="mr-2" />
+                                            )}
+                                            {processing
+                                                ? 'Mengirim...'
+                                                : 'Kirim Ulang Email Verifikasi'}
                                         </Button>
 
-                                        <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                                        <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
                                             <Link
                                                 href={logout()}
-                                                className="flex items-center justify-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 transition-colors"
+                                                className="flex items-center justify-center gap-2 text-sm text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
                                             >
                                                 <LogOut className="h-4 w-4" />
                                                 Keluar
@@ -83,7 +93,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                         <div className="mt-6 text-center">
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Tidak menerima email?{' '}
-                                <span className="text-neutral-900 dark:text-white font-medium">
+                                <span className="font-medium text-neutral-900 dark:text-white">
                                     Cek folder spam Anda
                                 </span>
                             </p>

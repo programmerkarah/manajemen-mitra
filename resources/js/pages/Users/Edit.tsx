@@ -1,12 +1,12 @@
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Save, X, Loader2, ArrowLeft } from 'lucide-react';
-import { StatusBadge } from '@/components/status-badge';
-import { ContentCard } from '@/components/content-card';
-import { PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 interface Role {
     id: number;
@@ -48,7 +48,10 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
 
     const handleRoleToggle = (roleId: number) => {
         if (data.roles.includes(roleId)) {
-            setData('roles', data.roles.filter((id) => id !== roleId));
+            setData(
+                'roles',
+                data.roles.filter((id) => id !== roleId),
+            );
         } else {
             setData('roles', [...data.roles, roleId]);
         }
@@ -64,7 +67,12 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
                     title="Edit Role User"
                     description={`Kelola role dan hak akses untuk ${user.name}`}
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/users">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -112,7 +120,8 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
                             Pilih Role
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            User dapat memiliki lebih dari satu role. Pilih semua role yang sesuai.
+                            User dapat memiliki lebih dari satu role. Pilih
+                            semua role yang sesuai.
                         </p>
 
                         {errors.roles && (
@@ -133,8 +142,12 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
                                         <input
                                             type="checkbox"
                                             id={`role-${role.id}`}
-                                            checked={data.roles.includes(role.id)}
-                                            onChange={() => handleRoleToggle(role.id)}
+                                            checked={data.roles.includes(
+                                                role.id,
+                                            )}
+                                            onChange={() =>
+                                                handleRoleToggle(role.id)
+                                            }
                                             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
                                         />
                                     </div>
@@ -171,7 +184,11 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
                                 )}
                             </p>
                             <div className="flex gap-3">
-                                <Button variant="outline" asChild className="gap-2 min-w-[180px]">
+                                <Button
+                                    variant="outline"
+                                    asChild
+                                    className="min-w-[180px] gap-2"
+                                >
                                     <Link href="/users">
                                         <X className="h-5 w-5" />
                                         Batal
@@ -179,8 +196,10 @@ export default function Edit({ user, allRoles }: UsersEditProps) {
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={processing || data.roles.length === 0}
-                                    className="gap-2 min-w-[200px]"
+                                    disabled={
+                                        processing || data.roles.length === 0
+                                    }
+                                    className="min-w-[200px] gap-2"
                                 >
                                     {processing ? (
                                         <>

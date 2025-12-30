@@ -50,19 +50,20 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
 
             <div className="flex flex-col lg:flex-row lg:space-x-12">
                 <aside className="w-full max-w-xl lg:w-48">
-                    <nav className="flex flex-col space-y-1 space-x-0 rounded-xl border border-white/20 dark:border-neutral-700/30 bg-white/40 dark:bg-neutral-800/40 backdrop-blur-2xl p-2 shadow-2xl">
+                    <nav className="flex flex-col space-y-1 space-x-0 rounded-xl border border-white/20 bg-white/40 p-2 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/40">
                         {sidebarNavItems.map((item, index) => (
                             <Button
                                 key={`${resolveUrl(item.href)}-${index}`}
                                 size="sm"
                                 variant="ghost"
                                 asChild
-                                className={cn('w-full justify-start transition-all duration-200', {
-                                    'bg-white/80 dark:bg-neutral-700/60 backdrop-blur-md shadow-md border border-white/30 dark:border-neutral-600/40': isSameUrl(
-                                        currentPath,
-                                        item.href,
-                                    ),
-                                })}
+                                className={cn(
+                                    'w-full justify-start transition-all duration-200',
+                                    {
+                                        'border border-white/30 bg-white/80 shadow-md backdrop-blur-md dark:border-neutral-600/40 dark:bg-neutral-700/60':
+                                            isSameUrl(currentPath, item.href),
+                                    },
+                                )}
                             >
                                 <Link href={item.href}>
                                     {item.icon && (

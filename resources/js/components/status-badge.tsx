@@ -1,5 +1,26 @@
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Clock, XCircle, AlertTriangle, Send, Edit, FileCheck, Ban, FileText, RefreshCw, AlertCircle, ShieldCheck, Mail, ShieldX, Crown, Users, UserCog, Eye, ClipboardCheck, Briefcase } from 'lucide-react';
+import {
+    AlertCircle,
+    AlertTriangle,
+    Ban,
+    Briefcase,
+    CheckCircle2,
+    ClipboardCheck,
+    Clock,
+    Crown,
+    Edit,
+    Eye,
+    FileCheck,
+    FileText,
+    Mail,
+    RefreshCw,
+    Send,
+    ShieldCheck,
+    ShieldX,
+    UserCog,
+    Users,
+    XCircle,
+} from 'lucide-react';
 
 interface StatusBadgeProps {
     status: string;
@@ -8,14 +29,22 @@ interface StatusBadgeProps {
     label?: string;
 }
 
-export function StatusBadge({ status, variant = 'default', showIcon = true, label }: StatusBadgeProps) {
-    const statusConfig: Record<string, {
-        label: string;
-        bgColor: string;
-        textColor: string;
-        borderColor: string;
-        icon: typeof CheckCircle2;
-    }> = {
+export function StatusBadge({
+    status,
+    variant = 'default',
+    showIcon = true,
+    label,
+}: StatusBadgeProps) {
+    const statusConfig: Record<
+        string,
+        {
+            label: string;
+            bgColor: string;
+            textColor: string;
+            borderColor: string;
+            icon: typeof CheckCircle2;
+        }
+    > = {
         // Alokasi statuses
         draft: {
             label: 'Draft',
@@ -239,9 +268,10 @@ export function StatusBadge({ status, variant = 'default', showIcon = true, labe
 
     const Icon = config.icon;
 
-    const sizeClasses = variant === 'large' 
-        ? 'px-4 py-2 text-base gap-2.5' 
-        : 'px-3 py-1.5 text-sm gap-2';
+    const sizeClasses =
+        variant === 'large'
+            ? 'px-4 py-2 text-base gap-2.5'
+            : 'px-3 py-1.5 text-sm gap-2';
 
     const iconSize = variant === 'large' ? 'h-5 w-5' : 'h-4 w-4';
 
@@ -252,10 +282,12 @@ export function StatusBadge({ status, variant = 'default', showIcon = true, labe
                 config.bgColor,
                 config.textColor,
                 config.borderColor,
-                sizeClasses
+                sizeClasses,
             )}
         >
-            {showIcon && <Icon className={cn(iconSize, 'shrink-0')} strokeWidth={2.5} />}
+            {showIcon && (
+                <Icon className={cn(iconSize, 'shrink-0')} strokeWidth={2.5} />
+            )}
             {label || config.label}
         </span>
     );

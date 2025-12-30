@@ -6,8 +6,9 @@ window.Pusher = Pusher;
 
 // Get CSRF token from meta tag
 const csrfToken =
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-    '';
+    document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content') || '';
 
 // Detect broadcaster type - prioritize Pusher if key exists
 const usePusher = !!import.meta.env.VITE_PUSHER_APP_KEY;
@@ -60,13 +61,18 @@ const echo = new Echo(
 // Debug: Log Pusher connection status
 if (usePusher && echo.connector?.pusher) {
     echo.connector.pusher.connection.bind('state_change', (states: any) => {
-        console.log('📡 Pusher state change:', states.previous, '→', states.current);
+        console.log(
+            '📡 Pusher state change:',
+            states.previous,
+            '→',
+            states.current,
+        );
     });
-    
+
     echo.connector.pusher.connection.bind('connected', () => {
         console.log('✅ Pusher connected successfully');
     });
-    
+
     echo.connector.pusher.connection.bind('error', (err: any) => {
         console.error('❌ Pusher connection error:', err);
     });

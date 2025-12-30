@@ -1,6 +1,6 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,13 +10,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Download, Eye, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
-import { StatusBadge } from '@/components/status-badge';
-import { encryptFilters } from '@/utils/encryption';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ChevronLeft, ChevronRight, Download, Eye, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface LatestSk {
     id: number;
@@ -61,25 +61,27 @@ interface IndexProps {
         }>;
     };
     filters: {
-        encrypted?: string
+        encrypted?: string;
         decrypted?: {
-            search?: string
-            jenis_kegiatan?: 'sensus' | 'survei'
-        }
+            search?: string;
+            jenis_kegiatan?: 'sensus' | 'survei';
+        };
     };
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'SK KPA', href: '/sk-kpa' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const decryptedKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
-    
+    const decryptedKegiatan = useDecryptedData<KegiatanItem>(
+        kegiatan.encrypted,
+    );
+
     const initialFilters = filters.decrypted || {};
     const [search, setSearch] = useState(initialFilters.search || '');
-    const [jenisKegiatan, setJenisKegiatan] = useState(initialFilters.jenis_kegiatan || 'all');
+    const [jenisKegiatan, setJenisKegiatan] = useState(
+        initialFilters.jenis_kegiatan || 'all',
+    );
     const isFirstRender = useRef(true);
     const previousJenisKegiatan = useRef(jenisKegiatan);
 
@@ -91,7 +93,8 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         }
 
         // Check if jenisKegiatan changed (dropdown = no debounce)
-        const isDropdownChange = previousJenisKegiatan.current !== jenisKegiatan;
+        const isDropdownChange =
+            previousJenisKegiatan.current !== jenisKegiatan;
         previousJenisKegiatan.current = jenisKegiatan;
 
         if (isDropdownChange) {
@@ -110,7 +113,10 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const applyFilter = () => {
         const filterParams = {
             search: search || undefined,
-            jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
+            jenis_kegiatan:
+                jenisKegiatan && jenisKegiatan !== 'all'
+                    ? jenisKegiatan
+                    : undefined,
         };
 
         const encryptedFilters = encryptFilters(filterParams);
@@ -122,20 +128,26 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
     // Debug: Log kegiatan data to verify has_personnel_changes
-    console.log('SK KPA Index - Kegiatan data:', decryptedKegiatan.map(k => ({
-        kode: k.kode_kegiatan,
-        sk_count: k.sk_count,
-        has_personnel_changes: k.has_personnel_changes,
-        should_show_button: k.sk_count > 0 && k.has_personnel_changes
-    })));
+    console.log(
+        'SK KPA Index - Kegiatan data:',
+        decryptedKegiatan.map((k) => ({
+            kode: k.kode_kegiatan,
+            sk_count: k.sk_count,
+            has_personnel_changes: k.has_personnel_changes,
+            should_show_button: k.sk_count > 0 && k.has_personnel_changes,
+        })),
+    );
 
     // Check if user can create SK (admin, pj, operator)
-    const canCreateSk = auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'pj' || auth.activeRole?.name === 'operator';
+    const canCreateSk =
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'pj' ||
+        auth.activeRole?.name === 'operator';
 
     const handleReset = () => {
         setSearch('');
@@ -149,7 +161,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
@@ -179,7 +191,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
             alert('File SK tidak tersedia');
             return;
         }
-        
+
         window.open(`/${filePath}`, '_blank');
     };
 
@@ -198,7 +210,10 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                     <div className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-3">
                             <div>
-                                <label htmlFor="search" className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                <label
+                                    htmlFor="search"
+                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                                >
                                     Cari Kegiatan
                                 </label>
                                 <Input
@@ -212,26 +227,42 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                             </div>
 
                             <div>
-                                <label htmlFor="jenis_kegiatan" className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                <label
+                                    htmlFor="jenis_kegiatan"
+                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                                >
                                     Jenis Kegiatan
                                 </label>
                                 <Select
                                     value={jenisKegiatan}
-                                    onValueChange={(value) => setJenisKegiatan(value)}
+                                    onValueChange={(value) =>
+                                        setJenisKegiatan(value)
+                                    }
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Semua Jenis" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Semua</SelectItem>
-                                        <SelectItem value="sensus">Sensus</SelectItem>
-                                        <SelectItem value="survei">Survei</SelectItem>
+                                        <SelectItem value="all">
+                                            Semua
+                                        </SelectItem>
+                                        <SelectItem value="sensus">
+                                            Sensus
+                                        </SelectItem>
+                                        <SelectItem value="survei">
+                                            Survei
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div className="flex items-end">
-                                <Button type="button" variant="outline" onClick={handleReset} className="w-full">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleReset}
+                                    className="w-full"
+                                >
                                     Reset Filter
                                 </Button>
                             </div>
@@ -245,22 +276,22 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                         <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Kegiatan
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Jenis
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Tahun
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Status SK
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -268,13 +299,20 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                 {decryptedKegiatan.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
-                                            Tidak ada kegiatan yang memerlukan SK KPA
+                                        <td
+                                            colSpan={6}
+                                            className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
+                                        >
+                                            Tidak ada kegiatan yang memerlukan
+                                            SK KPA
                                         </td>
                                     </tr>
                                 ) : (
                                     decryptedKegiatan.map((keg) => (
-                                        <tr key={keg.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                                        <tr
+                                            key={keg.id}
+                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                        >
                                             <td className="px-6 py-4">
                                                 <div>
                                                     <div className="font-medium text-neutral-900 dark:text-white">
@@ -286,7 +324,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
-                                                <span className="capitalize">{keg.jenis_kegiatan}</span>
+                                                <span className="capitalize">
+                                                    {keg.jenis_kegiatan}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
                                                 {keg.tahun_anggaran}
@@ -295,22 +335,26 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                 {keg.ketua_tim}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <StatusBadge status={keg.sk_status_type} />
+                                                <StatusBadge
+                                                    status={keg.sk_status_type}
+                                                />
                                             </td>
                                             <td className="px-6 py-4 text-center text-sm">
-                                                <div className="flex items-center justify-left gap-2">
-
+                                                <div className="justify-left flex items-center gap-2">
                                                     {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (
                                                         <>
                                                             {/* Buat SK - Show only if no SK exists yet */}
-                                                            {keg.sk_count === 0 && (
+                                                            {keg.sk_count ===
+                                                                0 && (
                                                                 <Button
                                                                     size="sm"
                                                                     asChild
                                                                     className="gap-1"
                                                                 >
-                                                                    <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}>
+                                                                    <Link
+                                                                        href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
+                                                                    >
                                                                         <Plus className="h-3.5 w-3.5" />
                                                                         Buat SK
                                                                     </Link>
@@ -321,18 +365,22 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                                 1. SK exists (sk_count > 0) AND
                                                                 2. There are actual personnel changes (has_personnel_changes = true)
                                                                 If no personnel changes detected, button will be hidden */}
-                                                            {keg.sk_count > 0 && keg.has_personnel_changes && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    asChild
-                                                                    className="gap-1"
-                                                                >
-                                                                    <Link href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}>
-                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                        SK Perubahan
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
+                                                            {keg.sk_count > 0 &&
+                                                                keg.has_personnel_changes && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        asChild
+                                                                        className="gap-1"
+                                                                    >
+                                                                        <Link
+                                                                            href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
+                                                                        >
+                                                                            <Plus className="h-3.5 w-3.5" />
+                                                                            SK
+                                                                            Perubahan
+                                                                        </Link>
+                                                                    </Button>
+                                                                )}
                                                         </>
                                                     )}
                                                     {/* View Latest SK Details - All roles can view */}
@@ -343,7 +391,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                             asChild
                                                             className="gap-1"
                                                         >
-                                                            <Link href={`/sk-kpa/${keg.latest_sk.hashed_id}`}>
+                                                            <Link
+                                                                href={`/sk-kpa/${keg.latest_sk.hashed_id}`}
+                                                            >
                                                                 <Eye className="h-3.5 w-3.5" />
                                                                 Detail
                                                             </Link>
@@ -351,11 +401,16 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                     )}
 
                                                     {/* Download SK Terakhir - All roles can download */}
-                                                    {keg.latest_sk?.file_path && (
+                                                    {keg.latest_sk
+                                                        ?.file_path && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleDownload(keg)}
+                                                            onClick={() =>
+                                                                handleDownload(
+                                                                    keg,
+                                                                )
+                                                            }
                                                             className="gap-1"
                                                         >
                                                             <Download className="h-3.5 w-3.5" />
@@ -375,35 +430,50 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                     {decryptedKegiatan.length > 0 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Menampilkan {kegiatan.meta.from} hingga {kegiatan.meta.to} dari {kegiatan.meta.total} kegiatan
+                                Menampilkan {kegiatan.meta.from} hingga{' '}
+                                {kegiatan.meta.to} dari {kegiatan.meta.total}{' '}
+                                kegiatan
                             </div>
                             <div className="flex gap-2">
                                 {kegiatan.links.map((link, index) => {
-                                    const isFirst = link.label.includes('Previous');
+                                    const isFirst =
+                                        link.label.includes('Previous');
                                     const isLast = link.label.includes('Next');
                                     // Ambil nomor halaman dari link.url (misal: ?page=2)
                                     let page = 1;
                                     if (link.url) {
-                                        const match = link.url.match(/page=(\\d+)/);
-                                        if (match) page = parseInt(match[1], 10);
+                                        const match =
+                                            link.url.match(/page=(\\d+)/);
+                                        if (match)
+                                            page = parseInt(match[1], 10);
                                     }
-                                    const handlePageClick = (e: React.MouseEvent) => {
+                                    const handlePageClick = (
+                                        e: React.MouseEvent,
+                                    ) => {
                                         e.preventDefault();
                                         if (!link.url || link.active) return;
                                         const filterParams = {
                                             search: search || undefined,
-                                            jenis_kegiatan: jenisKegiatan && jenisKegiatan !== 'all' ? jenisKegiatan : undefined,
+                                            jenis_kegiatan:
+                                                jenisKegiatan &&
+                                                jenisKegiatan !== 'all'
+                                                    ? jenisKegiatan
+                                                    : undefined,
                                             page: page,
                                         };
-                                        const encryptedFilters = encryptFilters(filterParams);
+                                        const encryptedFilters =
+                                            encryptFilters(filterParams);
                                         router.post(
                                             '/sk-kpa',
-                                            { encrypted_filters: encryptedFilters },
+                                            {
+                                                encrypted_filters:
+                                                    encryptedFilters,
+                                            },
                                             {
                                                 preserveState: true,
                                                 preserveScroll: true,
                                                 replace: true,
-                                            }
+                                            },
                                         );
                                     };
                                     return (
@@ -423,7 +493,11 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             ) : isLast ? (
                                                 <ChevronRight className="h-4 w-4" />
                                             ) : (
-                                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: link.label,
+                                                    }}
+                                                />
                                             )}
                                         </button>
                                     );

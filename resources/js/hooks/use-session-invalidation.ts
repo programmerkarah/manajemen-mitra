@@ -1,4 +1,3 @@
-import { router } from '@inertiajs/react';
 import { useEffect } from 'react';
 import echo from '../lib/echo';
 
@@ -14,19 +13,29 @@ export function useSessionInvalidation(userId: number | null | undefined) {
             return;
         }
 
-        console.log('useSessionInvalidation: Setting up listener for user', userId);
+        console.log(
+            'useSessionInvalidation: Setting up listener for user',
+            userId,
+        );
 
         // Subscribe to private channel for this user
         const channel = echo.private(`session.${userId}`);
 
-        console.log('useSessionInvalidation: Subscribed to channel', `session.${userId}`);
+        console.log(
+            'useSessionInvalidation: Subscribed to channel',
+            `session.${userId}`,
+        );
 
         // Listen for session invalidation event
         channel.listen('.session.invalidated', (event: any) => {
             console.log('🔴 Session invalidated received!', event);
-            
+
             // Force immediate redirect without Inertia (to bypass any caching)
-            window.location.href = '/login?message=' + encodeURIComponent('Anda telah login dari perangkat lain. Silakan login kembali.');
+            window.location.href =
+                '/login?message=' +
+                encodeURIComponent(
+                    'Anda telah login dari perangkat lain. Silakan login kembali.',
+                );
         });
 
         // Debug: log connection status

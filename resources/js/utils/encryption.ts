@@ -1,7 +1,9 @@
 import CryptoJS from 'crypto-js';
 
 // Secret key untuk enkripsi - harus sama dengan FILTER_ENCRYPTION_KEY di .env
-const SECRET_KEY = import.meta.env.VITE_FILTER_ENCRYPTION_KEY || 'manajemen-mitra-filter-key-2025';
+const SECRET_KEY =
+    import.meta.env.VITE_FILTER_ENCRYPTION_KEY ||
+    'manajemen-mitra-filter-key-2025';
 
 /**
  * Encrypt data using AES encryption
@@ -33,9 +35,10 @@ export function decryptData(encryptedData: string): any {
 export function encryptFilters(filters: Record<string, any>): string {
     // Remove empty values
     const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => 
-            value !== null && value !== '' && value !== undefined
-        )
+        Object.entries(filters).filter(
+            ([_, value]) =>
+                value !== null && value !== '' && value !== undefined,
+        ),
     );
 
     return encryptData(cleanFilters);
@@ -47,5 +50,3 @@ export function encryptFilters(filters: Record<string, any>): string {
 export function decryptFilters(encryptedFilters: string): Record<string, any> {
     return decryptData(encryptedFilters) || {};
 }
-
-

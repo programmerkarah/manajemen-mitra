@@ -1,12 +1,14 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
 import {
     Select,
     SelectContent,
@@ -14,7 +16,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+} from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -51,7 +64,8 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [status, setStatus] = useState(filters.status || '');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [selectedKepalaBps, setSelectedKepalaBps] = useState<KepalaBps | null>(null);
+    const [selectedKepalaBps, setSelectedKepalaBps] =
+        useState<KepalaBps | null>(null);
     const [processing, setProcessing] = useState(false);
 
     const handleSearch = (e: React.FormEvent) => {
@@ -59,11 +73,11 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
         router.get(
             '/kepala-bps',
             { search, status },
-            { 
+            {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            }
+            },
         );
     };
 
@@ -91,7 +105,7 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
         return new Date(dateString).toLocaleDateString('id-ID', {
             day: '2-digit',
             month: 'short',
-            year: 'numeric'
+            year: 'numeric',
         });
     };
 
@@ -116,10 +130,13 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
 
                 <ContentCard>
                     {/* Search and Filter */}
-                    <form onSubmit={handleSearch} className="mb-6 flex flex-col gap-4 sm:flex-row">
+                    <form
+                        onSubmit={handleSearch}
+                        className="mb-6 flex flex-col gap-4 sm:flex-row"
+                    >
                         <div className="flex-1">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     type="text"
                                     placeholder="Cari nama, NIP, atau jabatan..."
@@ -130,14 +147,23 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                             </div>
                         </div>
 
-                        <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+                        <Select
+                            value={status || 'all'}
+                            onValueChange={(value) =>
+                                setStatus(value === 'all' ? '' : value)
+                            }
+                        >
                             <SelectTrigger className="h-10 w-full sm:w-[200px]">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="all">
+                                    Semua Status
+                                </SelectItem>
                                 <SelectItem value="aktif">Aktif</SelectItem>
-                                <SelectItem value="nonaktif">Non-Aktif</SelectItem>
+                                <SelectItem value="nonaktif">
+                                    Non-Aktif
+                                </SelectItem>
                             </SelectContent>
                         </Select>
 
@@ -152,14 +178,28 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                         <table className="w-full">
                             <thead className="border-b bg-muted/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">Nama</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">NIP</th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">Jabatan</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Mulai</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Periode Selesai</th>
-                                    <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Status</th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                        Nama
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        NIP
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                        Jabatan
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Periode Mulai
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Periode Selesai
+                                    </th>
+                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        Status
+                                    </th>
                                     {!isPJ && (
-                                        <th className="whitespace-nowrap px-3 py-3 text-center text-sm font-medium">Aksi</th>
+                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                            Aksi
+                                        </th>
                                     )}
                                 </tr>
                             </thead>
@@ -175,21 +215,38 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                     </tr>
                                 ) : (
                                     kepalaBpsList.data.map((kepalaBps) => (
-                                        <tr key={kepalaBps.id} className="hover:bg-muted/50">
+                                        <tr
+                                            key={kepalaBps.id}
+                                            className="hover:bg-muted/50"
+                                        >
                                             <td className="px-3 py-3 text-sm font-medium">
-                                                <div className="max-w-xs truncate" title={kepalaBps.nama}>{kepalaBps.nama}</div>
+                                                <div
+                                                    className="max-w-xs truncate"
+                                                    title={kepalaBps.nama}
+                                                >
+                                                    {kepalaBps.nama}
+                                                </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                 {kepalaBps.nip || '-'}
                                             </td>
                                             <td className="px-3 py-3 text-sm">
-                                                <div className="max-w-xs truncate" title={kepalaBps.jabatan}>{kepalaBps.jabatan}</div>
+                                                <div
+                                                    className="max-w-xs truncate"
+                                                    title={kepalaBps.jabatan}
+                                                >
+                                                    {kepalaBps.jabatan}
+                                                </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm">
-                                                {formatDate(kepalaBps.periode_mulai)}
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                                {formatDate(
+                                                    kepalaBps.periode_mulai,
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-sm">
-                                                {formatDate(kepalaBps.periode_selesai)}
+                                                {formatDate(
+                                                    kepalaBps.periode_selesai,
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <span
@@ -199,7 +256,9 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                                             : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                                                     }`}
                                                 >
-                                                    {kepalaBps.is_active ? 'Aktif' : 'Non-Aktif'}
+                                                    {kepalaBps.is_active
+                                                        ? 'Aktif'
+                                                        : 'Non-Aktif'}
                                                 </span>
                                             </td>
                                             {!isPJ && (
@@ -211,7 +270,9 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                                             asChild
                                                             className="h-8 gap-1.5"
                                                         >
-                                                            <Link href={`/kepala-bps/${kepalaBps.id}/edit`}>
+                                                            <Link
+                                                                href={`/kepala-bps/${kepalaBps.id}/edit`}
+                                                            >
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                                 <span className="sr-only sm:not-sr-only">
                                                                     Edit
@@ -221,7 +282,11 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => handleDeleteClick(kepalaBps)}
+                                                            onClick={() =>
+                                                                handleDeleteClick(
+                                                                    kepalaBps,
+                                                                )
+                                                            }
                                                             className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
@@ -242,32 +307,43 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                     {/* Pagination */}
                     {kepalaBpsList.links.length > 3 && (
                         <div className="mt-6 flex items-center justify-center gap-2">
-                            {kepalaBpsList.links.map((link: any, index: number) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
-                                
-                                return (
-                                    <Button
-                                        key={index}
-                                        variant={link.active ? 'default' : 'outline'}
-                                        size="sm"
-                                        disabled={!link.url || processing}
-                                        onClick={() => {
-                                            if (link.url) {
-                                                router.visit(link.url);
+                            {kepalaBpsList.links.map(
+                                (link: any, index: number) => {
+                                    const isFirst =
+                                        link.label.includes('Previous');
+                                    const isLast = link.label.includes('Next');
+
+                                    return (
+                                        <Button
+                                            key={index}
+                                            variant={
+                                                link.active
+                                                    ? 'default'
+                                                    : 'outline'
                                             }
-                                        }}
-                                    >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                        )}
-                                    </Button>
-                                );
-                            })}
+                                            size="sm"
+                                            disabled={!link.url || processing}
+                                            onClick={() => {
+                                                if (link.url) {
+                                                    router.visit(link.url);
+                                                }
+                                            }}
+                                        >
+                                            {isFirst ? (
+                                                <ChevronLeft className="h-4 w-4" />
+                                            ) : isLast ? (
+                                                <ChevronRight className="h-4 w-4" />
+                                            ) : (
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: link.label,
+                                                    }}
+                                                />
+                                            )}
+                                        </Button>
+                                    );
+                                },
+                            )}
                         </div>
                     )}
                 </ContentCard>
@@ -281,7 +357,10 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
                         Apakah Anda yakin ingin menghapus data Kepala BPS{' '}
-                        <span className="font-semibold">{selectedKepalaBps?.nama}</span>?
+                        <span className="font-semibold">
+                            {selectedKepalaBps?.nama}
+                        </span>
+                        ?
                     </p>
                     <DialogFooter>
                         <Button

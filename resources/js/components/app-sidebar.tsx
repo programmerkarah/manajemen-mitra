@@ -117,12 +117,13 @@ export function AppSidebar() {
             { title: 'BAST', href: '/bast', icon: FileText },
         );
     } else if (hasActiveRole('approver')) {
-        mainNavItems.push({
-            title: 'Master',
-            href: '#',
-            icon: Package,
-            items: [{ title: 'Kegiatan', href: '/kegiatan' }],
-        },
+        mainNavItems.push(
+            {
+                title: 'Master',
+                href: '#',
+                icon: Package,
+                items: [{ title: 'Kegiatan', href: '/kegiatan' }],
+            },
             { title: 'SPK', href: '/spk', icon: ClipboardList },
         );
     } else if (hasActiveRole('pj')) {
@@ -184,4 +185,3 @@ export function AppSidebar() {
         </Sidebar>
     );
 }
-

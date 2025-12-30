@@ -29,8 +29,9 @@ export default function TwoFactor({
     twoFactorEnabled = false,
 }: TwoFactorProps) {
     const { url } = usePage();
-    const isRequired = new URLSearchParams(url.split('?')[1] || '').get('required') === 'true';
-    
+    const isRequired =
+        new URLSearchParams(url.split('?')[1] || '').get('required') === 'true';
+
     const {
         qrCodeSvg,
         hasSetupData,

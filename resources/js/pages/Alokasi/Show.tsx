@@ -1,10 +1,18 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react'
-import AppLayout from '@/layouts/app-layout'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import type { AlokasiPetugas, BreadcrumbItem, Kegiatan, Petugas, RateHonor, Satuan, SharedData } from '@/types'
-import { useState } from 'react'
-import InputError from '@/components/input-error'
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import type {
+    AlokasiPetugas,
+    BreadcrumbItem,
+    Kegiatan,
+    Petugas,
+    RateHonor,
+    Satuan,
+    SharedData,
+} from '@/types';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Alokasi', href: '/alokasi' },
@@ -15,80 +23,87 @@ interface Props {
     alokasi: AlokasiPetugas & {
         kegiatan: Kegiatan & {
             penanggung_jawab: {
-                id: number
-                name: string
-                email: string
-            }
+                id: number;
+                name: string;
+                email: string;
+            };
             rate_honor: RateHonor & {
-                satuan: Satuan
-            }
-        }
-        petugas: Petugas
+                satuan: Satuan;
+            };
+        };
+        petugas: Petugas;
         submitted_by?: {
-            id: number
-            name: string
-            email: string
-        }
+            id: number;
+            name: string;
+            email: string;
+        };
         approved_by?: {
-            id: number
-            name: string
-            email: string
-        }
-    }
+            id: number;
+            name: string;
+            email: string;
+        };
+    };
 }
 
 export default function Show({ alokasi }: Props) {
-    const { auth } = usePage<SharedData>().props
-    const [showApprovalModal, setShowApprovalModal] = useState(false)
-    const [approvalAction, setApprovalAction] = useState<'approve' | 'approve-pj' | 'reject'>(
-        'approve'
-    )
+    const { auth } = usePage<SharedData>().props;
+    const [showApprovalModal, setShowApprovalModal] = useState(false);
+    const [approvalAction, setApprovalAction] = useState<
+        'approve' | 'approve-pj' | 'reject'
+    >('approve');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         catatan_approval: '',
-    })
+    });
 
     const statusColors = {
         draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-        diajukan: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-        disetujui_pj: 'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300',
-        disetujui: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        diajukan:
+            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        disetujui_pj:
+            'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300',
+        disetujui:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
         ditolak: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    }
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
-        }).format(amount)
-    }
+        }).format(amount);
+    };
 
     const formatDate = (date: string | null) => {
-        if (!date) return '-'
-        
+        if (!date) return '-';
+
         // Jika ada waktu (timestamp dengan T), handle terpisah
         if (date.includes('T')) {
             // Parse tanggal dan waktu
-            const dateObj = new Date(date)
+            const dateObj = new Date(date);
             return dateObj.toLocaleDateString('id-ID', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-            })
+            });
         }
-        
+
         // Jika hanya tanggal (Y-m-d), parse manual untuk menghindari timezone shift
-        const [year, month, day] = date.split('-')
-        const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        const [year, month, day] = date.split('-');
+        const localDate = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+        );
         return localDate.toLocaleDateString('id-ID', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-        })
-    }
+        });
+    };
 
     const monthNames = [
         'Januari',
@@ -103,47 +118,49 @@ export default function Show({ alokasi }: Props) {
         'Oktober',
         'November',
         'Desember',
-    ]
+    ];
 
     const handleSubmit = () => {
-        router.post(`/alokasi/${alokasi.hashed_id}/submit`)
-    }
+        router.post(`/alokasi/${alokasi.hashed_id}/submit`);
+    };
 
     const handleApproval = (e: React.FormEvent) => {
-        e.preventDefault()
-        let endpoint = `/alokasi/${alokasi.hashed_id}/approve`
-        
+        e.preventDefault();
+        let endpoint = `/alokasi/${alokasi.hashed_id}/approve`;
+
         if (approvalAction === 'approve-pj') {
-            endpoint = `/alokasi/${alokasi.hashed_id}/approve-pj`
+            endpoint = `/alokasi/${alokasi.hashed_id}/approve-pj`;
         } else if (approvalAction === 'reject') {
-            endpoint = `/alokasi/${alokasi.hashed_id}/reject`
+            endpoint = `/alokasi/${alokasi.hashed_id}/reject`;
         }
 
         post(endpoint, {
             onSuccess: () => {
-                setShowApprovalModal(false)
-                reset()
+                setShowApprovalModal(false);
+                reset();
             },
-        })
-    }
+        });
+    };
 
     const openApprovalModal = (action: 'approve' | 'approve-pj' | 'reject') => {
-        setApprovalAction(action)
-        setShowApprovalModal(true)
-    }
+        setApprovalAction(action);
+        setShowApprovalModal(true);
+    };
 
     // Check permissions based on active role
-    const canEditDraft = alokasi.status === 'draft' && auth.activeRole?.name !== 'guest'
-    const canSubmitDraft = alokasi.status === 'draft' && auth.activeRole?.name !== 'guest'
-    
+    const canEditDraft =
+        alokasi.status === 'draft' && auth.activeRole?.name !== 'guest';
+    const canSubmitDraft =
+        alokasi.status === 'draft' && auth.activeRole?.name !== 'guest';
+
     const canApprovePj =
         alokasi.status === 'diajukan' &&
         auth.activeRole?.name === 'pj' &&
-        auth.user.id === alokasi.kegiatan.penanggung_jawab?.id
-    
+        auth.user.id === alokasi.kegiatan.penanggung_jawab?.id;
+
     const canApprove =
         (alokasi.status === 'diajukan' || alokasi.status === 'disetujui_pj') &&
-        auth.activeRole?.name === 'approver'
+        auth.activeRole?.name === 'approver';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -164,17 +181,19 @@ export default function Show({ alokasi }: Props) {
                         <Link href="/alokasi">
                             <Button variant="outline">Kembali</Button>
                         </Link>
-                        
+
                         {canEditDraft && (
                             <Link href={`/alokasi/${alokasi.hashed_id}/edit`}>
                                 <Button variant="outline">Edit</Button>
                             </Link>
                         )}
-                        
+
                         {canSubmitDraft && (
-                            <Button onClick={handleSubmit}>Ajukan Persetujuan</Button>
+                            <Button onClick={handleSubmit}>
+                                Ajukan Persetujuan
+                            </Button>
                         )}
-                        
+
                         {canApprovePj && (
                             <>
                                 <Button
@@ -184,12 +203,16 @@ export default function Show({ alokasi }: Props) {
                                 >
                                     Tolak
                                 </Button>
-                                <Button onClick={() => openApprovalModal('approve-pj')}>
+                                <Button
+                                    onClick={() =>
+                                        openApprovalModal('approve-pj')
+                                    }
+                                >
                                     Setujui (PJ)
                                 </Button>
                             </>
                         )}
-                        
+
                         {canApprove && (
                             <>
                                 <Button
@@ -199,7 +222,9 @@ export default function Show({ alokasi }: Props) {
                                 >
                                     Tolak
                                 </Button>
-                                <Button onClick={() => openApprovalModal('approve')}>
+                                <Button
+                                    onClick={() => openApprovalModal('approve')}
+                                >
                                     Setujui Final
                                 </Button>
                             </>
@@ -213,7 +238,8 @@ export default function Show({ alokasi }: Props) {
                         className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${statusColors[alokasi.status as keyof typeof statusColors]}`}
                     >
                         {alokasi.status === 'draft' && 'Draft'}
-                        {alokasi.status === 'diajukan' && 'Menunggu Persetujuan'}
+                        {alokasi.status === 'diajukan' &&
+                            'Menunggu Persetujuan'}
                         {alokasi.status === 'disetujui_pj' && 'Disetujui PJ'}
                         {alokasi.status === 'disetujui' && 'Disetujui'}
                         {alokasi.status === 'ditolak' && 'Ditolak'}
@@ -261,10 +287,12 @@ export default function Show({ alokasi }: Props) {
                                     Penanggung Jawab Kegiatan
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {alokasi.kegiatan.penanggung_jawab?.name || '-'}
+                                    {alokasi.kegiatan.penanggung_jawab?.name ||
+                                        '-'}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {alokasi.kegiatan.penanggung_jawab?.email || ''}
+                                    {alokasi.kegiatan.penanggung_jawab?.email ||
+                                        ''}
                                 </p>
                             </div>
 
@@ -276,8 +304,10 @@ export default function Show({ alokasi }: Props) {
                                     {alokasi.kegiatan.rate_honor.posisi}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {formatCurrency(alokasi.kegiatan.rate_honor.rate)}/
-                                    {alokasi.kegiatan.rate_honor.satuan.nama}
+                                    {formatCurrency(
+                                        alokasi.kegiatan.rate_honor.rate,
+                                    )}
+                                    /{alokasi.kegiatan.rate_honor.satuan.nama}
                                 </p>
                             </div>
 
@@ -286,7 +316,8 @@ export default function Show({ alokasi }: Props) {
                                     Periode
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {monthNames[alokasi.bulan - 1]} {alokasi.tahun}
+                                    {monthNames[alokasi.bulan - 1]}{' '}
+                                    {alokasi.tahun}
                                 </p>
                             </div>
 
@@ -295,7 +326,8 @@ export default function Show({ alokasi }: Props) {
                                     Volume
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {alokasi.jumlah_satuan} {alokasi.kegiatan.rate_honor.satuan.nama}
+                                    {alokasi.jumlah_satuan}{' '}
+                                    {alokasi.kegiatan.rate_honor.satuan.nama}
                                 </p>
                             </div>
 
@@ -412,7 +444,8 @@ export default function Show({ alokasi }: Props) {
                                         </p>
                                         {alokasi.catatan_approval && (
                                             <p className="mt-2 text-sm text-gray-900 dark:text-white">
-                                                Catatan: {alokasi.catatan_approval}
+                                                Catatan:{' '}
+                                                {alokasi.catatan_approval}
                                             </p>
                                         )}
                                     </div>
@@ -425,11 +458,13 @@ export default function Show({ alokasi }: Props) {
 
             {/* Approval Modal */}
             {showApprovalModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
                     <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {approvalAction === 'approve' && 'Setujui Final Alokasi'}
-                            {approvalAction === 'approve-pj' && 'Setujui Alokasi (PJ)'}
+                            {approvalAction === 'approve' &&
+                                'Setujui Final Alokasi'}
+                            {approvalAction === 'approve-pj' &&
+                                'Setujui Alokasi (PJ)'}
                             {approvalAction === 'reject' && 'Tolak Alokasi'}
                         </h3>
                         <form onSubmit={handleApproval} className="mt-4">
@@ -438,24 +473,34 @@ export default function Show({ alokasi }: Props) {
                                     htmlFor="catatan_approval"
                                     className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >
-                                    Catatan {approvalAction === 'reject' && '(Wajib diisi)'}
+                                    Catatan{' '}
+                                    {approvalAction === 'reject' &&
+                                        '(Wajib diisi)'}
                                 </label>
                                 <Textarea
                                     id="catatan_approval"
                                     rows={4}
                                     value={data.catatan_approval}
-                                    onChange={(e) => setData('catatan_approval', e.target.value)}
+                                    onChange={(e) =>
+                                        setData(
+                                            'catatan_approval',
+                                            e.target.value,
+                                        )
+                                    }
                                     placeholder="Masukkan catatan..."
                                 />
-                                <InputError message={errors.catatan_approval} className="mt-2" />
+                                <InputError
+                                    message={errors.catatan_approval}
+                                    className="mt-2"
+                                />
                             </div>
                             <div className="mt-6 flex justify-end gap-3">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
-                                        setShowApprovalModal(false)
-                                        reset()
+                                        setShowApprovalModal(false);
+                                        reset();
                                     }}
                                 >
                                     Batal
@@ -483,6 +528,5 @@ export default function Show({ alokasi }: Props) {
                 </div>
             )}
         </AppLayout>
-    )
+    );
 }
-

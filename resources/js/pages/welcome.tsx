@@ -1,8 +1,8 @@
+import AppLogo from '@/components/app-logo';
 import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Users, Activity, CheckCircle2, Shield } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
+import { Activity, CheckCircle2, Shield, Users } from 'lucide-react';
 
 export default function Welcome({
     canRegister = true,
@@ -59,15 +59,15 @@ export default function Welcome({
                                     <span>SIMANTIK</span>
                                 </div>
                                 <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl lg:text-6xl dark:text-white">
-                                    Sistem Manajemen Petugas dan {' '}
+                                    Sistem Manajemen Petugas dan{' '}
                                     <span className="text-blue-600 dark:text-blue-400">
                                         Administrasi Kegiatan Statistik
                                     </span>
                                 </h1>
                                 <p className="mb-8 text-lg text-neutral-600 dark:text-neutral-400">
-                                    Platform terintegrasi untuk mengelola data petugas,
-                                    kegiatan, alokasi, dan kelengkapan administrasi
-                                    dengan mudah dan efisien.
+                                    Platform terintegrasi untuk mengelola data
+                                    petugas, kegiatan, alokasi, dan kelengkapan
+                                    administrasi dengan mudah dan efisien.
                                 </p>
 
                                 <div className="flex flex-wrap gap-4">
@@ -77,8 +77,18 @@ export default function Welcome({
                                             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition-all hover:bg-blue-700 hover:shadow-lg dark:bg-blue-500 dark:hover:bg-blue-600"
                                         >
                                             Buka Dashboard
-                                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                                />
                                             </svg>
                                         </Link>
                                     ) : (
@@ -88,8 +98,18 @@ export default function Welcome({
                                                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition-all hover:bg-blue-700 hover:shadow-lg dark:bg-blue-500 dark:hover:bg-blue-600"
                                             >
                                                 Masuk
-                                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                                <svg
+                                                    className="h-5 w-5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                                    />
                                                 </svg>
                                             </Link>
                                             {canRegister && (
@@ -114,7 +134,8 @@ export default function Welcome({
                                         Manajemen Petugas
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Kelola data petugas dan alokasi tugas dengan sistem yang terorganisir
+                                        Kelola data petugas dan alokasi tugas
+                                        dengan sistem yang terorganisir
                                     </p>
                                 </div>
 
@@ -126,7 +147,8 @@ export default function Welcome({
                                         Tracking Kegiatan
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Monitor dan kelola kegiatan survei secara real-time dan efisien
+                                        Monitor dan kelola kegiatan survei
+                                        secara real-time dan efisien
                                     </p>
                                 </div>
 
@@ -138,7 +160,8 @@ export default function Welcome({
                                         Sistem Approval
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Workflow approval yang jelas untuk setiap proses dan dokumentasi
+                                        Workflow approval yang jelas untuk
+                                        setiap proses dan dokumentasi
                                     </p>
                                 </div>
 
@@ -150,7 +173,8 @@ export default function Welcome({
                                         Keamanan Data
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Autentikasi berlapis dengan 2FA dan enkripsi data untuk keamanan maksimal
+                                        Autentikasi berlapis dengan 2FA dan
+                                        enkripsi data untuk keamanan maksimal
                                     </p>
                                 </div>
                             </div>
@@ -161,7 +185,8 @@ export default function Welcome({
                 <footer className="border-t border-neutral-200/50 py-6 dark:border-neutral-800">
                     <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            © {new Date().getFullYear()} Badan Pusat Statistik Kota Sawahlunto. All rights reserved.
+                            © {new Date().getFullYear()} Badan Pusat Statistik
+                            Kota Sawahlunto. All rights reserved.
                         </p>
                     </div>
                 </footer>

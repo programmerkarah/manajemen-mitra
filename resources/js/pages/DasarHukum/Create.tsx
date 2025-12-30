@@ -1,61 +1,61 @@
-import AppLayout from '@/layouts/app-layout'
-import { PageHeader } from '@/components/page-header'
-import { ContentCard } from '@/components/content-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select'
-import type { BreadcrumbItem } from '@/types'
-import { Head, Link, router } from '@inertiajs/react'
-import { FormEventHandler, useState } from 'react'
-import { ArrowLeft, Save, X, Loader2 } from 'lucide-react'
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
     { title: 'Tambah Dasar Hukum', href: '/dasar-hukum/create' },
-]
+];
 
 interface KategoriOption {
-    value: string
-    label: string
+    value: string;
+    label: string;
 }
 
 interface CreateProps {
-    kategoriOptions: KategoriOption[]
+    kategoriOptions: KategoriOption[];
 }
 
 export default function Create({ kategoriOptions }: CreateProps) {
-    const currentYear = new Date().getFullYear()
+    const currentYear = new Date().getFullYear();
 
-    const [kategori, setKategori] = useState('')
-    const [instansi, setInstansi] = useState('')
-    const [nomor, setNomor] = useState('')
-    const [tentang, setTentang] = useState('')
-    const [tahun, setTahun] = useState(currentYear.toString())
-    const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif')
+    const [kategori, setKategori] = useState('');
+    const [instansi, setInstansi] = useState('');
+    const [nomor, setNomor] = useState('');
+    const [tentang, setTentang] = useState('');
+    const [tahun, setTahun] = useState(currentYear.toString());
+    const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
-    const [processing, setProcessing] = useState(false)
-    const [errors, setErrors] = useState<any>({})
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<any>({});
 
     // Kategori yang memerlukan instansi
     const kategoriDenganInstansi = [
         'peraturan_menteri_badan',
         'keputusan_menteri_kepala_badan',
-    ]
-    const needsInstansi = kategoriDenganInstansi.includes(kategori)
+    ];
+    const needsInstansi = kategoriDenganInstansi.includes(kategori);
 
     const handleSubmit: FormEventHandler = (e) => {
-        e.preventDefault()
-        setProcessing(true)
-        setErrors({})
+        e.preventDefault();
+        setProcessing(true);
+        setErrors({});
 
         router.post(
             '/dasar-hukum/store',
@@ -69,15 +69,15 @@ export default function Create({ kategoriOptions }: CreateProps) {
             },
             {
                 onError: (errors) => {
-                    setErrors(errors)
-                    setProcessing(false)
+                    setErrors(errors);
+                    setProcessing(false);
                 },
                 onSuccess: () => {
-                    setProcessing(false)
+                    setProcessing(false);
                 },
             },
-        )
-    }
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -88,7 +88,12 @@ export default function Create({ kategoriOptions }: CreateProps) {
                     title="Tambah Dasar Hukum SK"
                     description="Tambahkan dasar hukum baru untuk digunakan pada SK KPA"
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/dasar-hukum">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -101,15 +106,22 @@ export default function Create({ kategoriOptions }: CreateProps) {
                         <div className="space-y-6">
                             {/* Kategori */}
                             <div className="space-y-2">
-                                <Label htmlFor="kategori" className="text-base font-semibold">
-                                    Kategori <span className="text-red-500">*</span>
+                                <Label
+                                    htmlFor="kategori"
+                                    className="text-base font-semibold"
+                                >
+                                    Kategori{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Select
                                     value={kategori}
                                     onValueChange={setKategori}
                                     disabled={processing}
                                 >
-                                    <SelectTrigger id="kategori" className="h-11">
+                                    <SelectTrigger
+                                        id="kategori"
+                                        className="h-11"
+                                    >
                                         <SelectValue placeholder="Pilih Kategori" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -133,7 +145,10 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             {/* Instansi - Conditional */}
                             {needsInstansi && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="instansi" className="text-base font-semibold">
+                                    <Label
+                                        htmlFor="instansi"
+                                        className="text-base font-semibold"
+                                    >
                                         Nama Instansi{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -141,7 +156,9 @@ export default function Create({ kategoriOptions }: CreateProps) {
                                         id="instansi"
                                         type="text"
                                         value={instansi}
-                                        onChange={(e) => setInstansi(e.target.value)}
+                                        onChange={(e) =>
+                                            setInstansi(e.target.value)
+                                        }
                                         placeholder="Contoh: Keuangan, Badan Pusat Statistik"
                                         disabled={processing}
                                         className="h-11 text-base"
@@ -156,8 +173,12 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                             {/* Nomor */}
                             <div className="space-y-2">
-                                <Label htmlFor="nomor" className="text-base font-semibold">
-                                    Nomor <span className="text-red-500">*</span>
+                                <Label
+                                    htmlFor="nomor"
+                                    className="text-base font-semibold"
+                                >
+                                    Nomor{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="nomor"
@@ -177,8 +198,12 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                             {/* Tentang */}
                             <div className="space-y-2">
-                                <Label htmlFor="tentang" className="text-base font-semibold">
-                                    Tentang <span className="text-red-500">*</span>
+                                <Label
+                                    htmlFor="tentang"
+                                    className="text-base font-semibold"
+                                >
+                                    Tentang{' '}
+                                    <span className="text-red-500">*</span>
                                 </Label>
                                 <Textarea
                                     id="tentang"
@@ -199,14 +224,20 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 {/* Tahun */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="tahun" className="text-base font-semibold">
-                                        Tahun <span className="text-red-500">*</span>
+                                    <Label
+                                        htmlFor="tahun"
+                                        className="text-base font-semibold"
+                                    >
+                                        Tahun{' '}
+                                        <span className="text-red-500">*</span>
                                     </Label>
                                     <Input
                                         id="tahun"
                                         type="number"
                                         value={tahun}
-                                        onChange={(e) => setTahun(e.target.value)}
+                                        onChange={(e) =>
+                                            setTahun(e.target.value)
+                                        }
                                         min="1900"
                                         max="2100"
                                         disabled={processing}
@@ -221,21 +252,32 @@ export default function Create({ kategoriOptions }: CreateProps) {
 
                                 {/* Status */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="status" className="text-base font-semibold">
-                                        Status <span className="text-red-500">*</span>
+                                    <Label
+                                        htmlFor="status"
+                                        className="text-base font-semibold"
+                                    >
+                                        Status{' '}
+                                        <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
                                         value={status}
                                         onValueChange={(value) =>
-                                            setStatus(value as 'aktif' | 'nonaktif')
+                                            setStatus(
+                                                value as 'aktif' | 'nonaktif',
+                                            )
                                         }
                                         disabled={processing}
                                     >
-                                        <SelectTrigger id="status" className="h-11">
+                                        <SelectTrigger
+                                            id="status"
+                                            className="h-11"
+                                        >
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="aktif">Aktif</SelectItem>
+                                            <SelectItem value="aktif">
+                                                Aktif
+                                            </SelectItem>
                                             <SelectItem value="nonaktif">
                                                 Nonaktif
                                             </SelectItem>
@@ -258,12 +300,16 @@ export default function Create({ kategoriOptions }: CreateProps) {
                             variant="outline"
                             onClick={() => router.visit('/dasar-hukum')}
                             disabled={processing}
-                            className="gap-2 min-w-[180px]"
+                            className="min-w-[180px] gap-2"
                         >
                             <X className="h-5 w-5" />
                             Batal
                         </Button>
-                        <Button type="submit" disabled={processing} className="gap-2 min-w-[180px]">
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            className="min-w-[180px] gap-2"
+                        >
                             {processing ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -280,5 +326,5 @@ export default function Create({ kategoriOptions }: CreateProps) {
                 </form>
             </div>
         </AppLayout>
-    )
+    );
 }

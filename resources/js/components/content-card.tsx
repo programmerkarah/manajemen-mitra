@@ -6,7 +6,11 @@ interface ContentCardProps {
     padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export function ContentCard({ children, className, padding = 'md' }: ContentCardProps) {
+export function ContentCard({
+    children,
+    className,
+    padding = 'md',
+}: ContentCardProps) {
     const paddingClasses = {
         none: '',
         sm: 'p-4',
@@ -19,7 +23,7 @@ export function ContentCard({ children, className, padding = 'md' }: ContentCard
             className={cn(
                 'rounded-2xl border border-white/20 bg-white/40 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/40',
                 paddingClasses[padding],
-                className
+                className,
             )}
         >
             {children}

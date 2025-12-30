@@ -1,25 +1,25 @@
-import AppLayout from '@/layouts/app-layout'
-import { ContentCard } from '@/components/content-card'
-import { PageHeader } from '@/components/page-header'
-import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem, Sbml, SharedData } from '@/types'
-import { Head, Link, router, usePage } from '@inertiajs/react'
-import { Pencil, Plus, Trash2, Eye } from 'lucide-react'
-import { StatusBadge } from '@/components/status-badge'
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem, SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
     { title: 'SBML', href: '/sbml' },
-]
+];
 
 interface YearGroup {
-    tahun_anggaran: number
-    status: string
-    count: number
+    tahun_anggaran: number;
+    status: string;
+    count: number;
 }
 
 interface Props {
-    year_groups: YearGroup[]
+    year_groups: YearGroup[];
 }
 
 export default function Index({ year_groups }: Props) {
@@ -27,10 +27,14 @@ export default function Index({ year_groups }: Props) {
     const isPJ = auth.activeRole?.name === 'pj';
 
     const handleDelete = (tahun: number) => {
-        if (confirm(`Apakah Anda yakin ingin menghapus semua SBML untuk tahun ${tahun}?`)) {
-            router.delete(`/sbml/year/${tahun}`)
+        if (
+            confirm(
+                `Apakah Anda yakin ingin menghapus semua SBML untuk tahun ${tahun}?`,
+            )
+        ) {
+            router.delete(`/sbml/year/${tahun}`);
         }
-    }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -58,13 +62,13 @@ export default function Index({ year_groups }: Props) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Tahun Anggaran
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Status
                                     </th>
-                                    <th className="whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
@@ -85,14 +89,16 @@ export default function Index({ year_groups }: Props) {
                                             key={group.tahun_anggaran}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            <td className="px-3 py-3 text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                 {group.tahun_anggaran}
                                                 <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
                                                     ({group.count} kategori)
                                                 </span>
                                             </td>
                                             <td className="px-3 py-3 text-center">
-                                                <StatusBadge status={group.status} />
+                                                <StatusBadge
+                                                    status={group.status}
+                                                />
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center justify-center gap-2">
@@ -102,7 +108,9 @@ export default function Index({ year_groups }: Props) {
                                                         asChild
                                                         className="h-8 w-8 p-0"
                                                     >
-                                                        <Link href={`/sbml/${group.tahun_anggaran}`}>
+                                                        <Link
+                                                            href={`/sbml/${group.tahun_anggaran}`}
+                                                        >
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
@@ -114,14 +122,20 @@ export default function Index({ year_groups }: Props) {
                                                                 asChild
                                                                 className="h-8 w-8 p-0"
                                                             >
-                                                                <Link href={`/sbml/${group.tahun_anggaran}/edit`}>
+                                                                <Link
+                                                                    href={`/sbml/${group.tahun_anggaran}/edit`}
+                                                                >
                                                                     <Pencil className="h-4 w-4" />
                                                                 </Link>
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => handleDelete(group.tahun_anggaran)}
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        group.tahun_anggaran,
+                                                                    )
+                                                                }
                                                                 className="h-8 w-8 p-0"
                                                             >
                                                                 <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -139,5 +153,5 @@ export default function Index({ year_groups }: Props) {
                 </ContentCard>
             </div>
         </AppLayout>
-    )
+    );
 }

@@ -1,14 +1,10 @@
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
+import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import InputError from '@/components/input-error';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save, X, Loader2 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -16,6 +12,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -63,7 +63,12 @@ export default function Edit({ Penandatangan }: EditProps) {
                     title="Edit Penandatangan"
                     description={`Perbarui informasi untuk ${Penandatangan.nama}`}
                 >
-                    <Button variant="outline" size="sm" asChild className="gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                    >
                         <Link href="/penandatangan">
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
@@ -77,13 +82,16 @@ export default function Edit({ Penandatangan }: EditProps) {
                             {/* Nama */}
                             <div className="space-y-2">
                                 <Label htmlFor="nama">
-                                    Nama Lengkap <span className="text-red-600">*</span>
+                                    Nama Lengkap{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
                                 <Input
                                     id="nama"
                                     type="text"
                                     value={data.nama}
-                                    onChange={(e) => setData('nama', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('nama', e.target.value)
+                                    }
                                     required
                                     className="h-10"
                                 />
@@ -97,7 +105,9 @@ export default function Edit({ Penandatangan }: EditProps) {
                                     id="nip"
                                     type="text"
                                     value={data.nip}
-                                    onChange={(e) => setData('nip', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('nip', e.target.value)
+                                    }
                                     className="h-10"
                                 />
                                 <InputError message={errors.nip} />
@@ -106,36 +116,52 @@ export default function Edit({ Penandatangan }: EditProps) {
                             {/* Jenis Penandatangan */}
                             <div className="space-y-2">
                                 <Label htmlFor="jenis_penandatangan">
-                                    Jenis Penandatangan <span className="text-red-600">*</span>
+                                    Jenis Penandatangan{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
-                                <Select 
-                                    value={data.jenis_penandatangan} 
-                                    onValueChange={(value) => setData('jenis_penandatangan', value as 'kepala' | 'ppk')}
+                                <Select
+                                    value={data.jenis_penandatangan}
+                                    onValueChange={(value) =>
+                                        setData(
+                                            'jenis_penandatangan',
+                                            value as 'kepala' | 'ppk',
+                                        )
+                                    }
                                 >
                                     <SelectTrigger className="h-10">
                                         <SelectValue placeholder="Pilih jenis penandatangan" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="kepala">Kepala (untuk SK Petugas)</SelectItem>
-                                        <SelectItem value="ppk">PPK (untuk SPK dan BAST)</SelectItem>
+                                        <SelectItem value="kepala">
+                                            Kepala (untuk SK Petugas)
+                                        </SelectItem>
+                                        <SelectItem value="ppk">
+                                            PPK (untuk SPK dan BAST)
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <InputError message={errors.jenis_penandatangan} />
+                                <InputError
+                                    message={errors.jenis_penandatangan}
+                                />
                                 <p className="text-xs text-neutral-500">
-                                    Kepala menandatangani SK, PPK menandatangani SPK dan BAST
+                                    Kepala menandatangani SK, PPK menandatangani
+                                    SPK dan BAST
                                 </p>
                             </div>
 
                             {/* Jabatan */}
                             <div className="space-y-2 md:col-span-2">
                                 <Label htmlFor="jabatan">
-                                    Jabatan <span className="text-red-600">*</span>
+                                    Jabatan{' '}
+                                    <span className="text-red-600">*</span>
                                 </Label>
                                 <Input
                                     id="jabatan"
                                     type="text"
                                     value={data.jabatan}
-                                    onChange={(e) => setData('jabatan', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('jabatan', e.target.value)
+                                    }
                                     required
                                     className="h-10"
                                 />
@@ -144,12 +170,16 @@ export default function Edit({ Penandatangan }: EditProps) {
 
                             {/* Periode Mulai */}
                             <div className="space-y-2">
-                                <Label htmlFor="periode_mulai">Periode Mulai</Label>
+                                <Label htmlFor="periode_mulai">
+                                    Periode Mulai
+                                </Label>
                                 <Input
                                     id="periode_mulai"
                                     type="date"
                                     value={data.periode_mulai}
-                                    onChange={(e) => setData('periode_mulai', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('periode_mulai', e.target.value)
+                                    }
                                     className="h-10"
                                 />
                                 <InputError message={errors.periode_mulai} />
@@ -157,12 +187,19 @@ export default function Edit({ Penandatangan }: EditProps) {
 
                             {/* Periode Selesai */}
                             <div className="space-y-2">
-                                <Label htmlFor="periode_selesai">Periode Selesai</Label>
+                                <Label htmlFor="periode_selesai">
+                                    Periode Selesai
+                                </Label>
                                 <Input
                                     id="periode_selesai"
                                     type="date"
                                     value={data.periode_selesai}
-                                    onChange={(e) => setData('periode_selesai', e.target.value)}
+                                    onChange={(e) =>
+                                        setData(
+                                            'periode_selesai',
+                                            e.target.value,
+                                        )
+                                    }
                                     className="h-10"
                                 />
                                 <InputError message={errors.periode_selesai} />
@@ -187,13 +224,22 @@ export default function Edit({ Penandatangan }: EditProps) {
                         </div>
 
                         <div className="mt-6 flex justify-end gap-3">
-                            <Button type="button" variant="outline" asChild className="gap-2 min-w-[180px]">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                                className="min-w-[180px] gap-2"
+                            >
                                 <Link href="/penandatangan">
                                     <X className="h-5 w-5" />
                                     Batal
                                 </Link>
                             </Button>
-                            <Button type="submit" disabled={processing} className="gap-2 min-w-[200px]">
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="min-w-[200px] gap-2"
+                            >
                                 {processing ? (
                                     <>
                                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -213,4 +259,3 @@ export default function Edit({ Penandatangan }: EditProps) {
         </AppLayout>
     );
 }
-

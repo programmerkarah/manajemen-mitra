@@ -1,3 +1,4 @@
+import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
 import { LogIn } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
 
 interface LoginProps {
     status?: string;
@@ -56,7 +56,8 @@ export default function Login({
                                     Masuk ke Akun Anda
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    Masukkan username dan password untuk melanjutkan
+                                    Masukkan username dan password untuk
+                                    melanjutkan
                                 </p>
                             </div>
 
@@ -75,7 +76,10 @@ export default function Login({
                                     <>
                                         <div className="grid gap-5">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="username" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="username"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Username
                                                 </Label>
                                                 <Input
@@ -89,12 +93,17 @@ export default function Login({
                                                     placeholder="Masukkan username"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.username} />
+                                                <InputError
+                                                    message={errors.username}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
                                                 <div className="flex items-center justify-between">
-                                                    <Label htmlFor="password" className="text-neutral-900 dark:text-neutral-100">
+                                                    <Label
+                                                        htmlFor="password"
+                                                        className="text-neutral-900 dark:text-neutral-100"
+                                                    >
                                                         Password
                                                     </Label>
                                                     {canResetPassword && (
@@ -117,7 +126,9 @@ export default function Login({
                                                     placeholder="Masukkan password"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password} />
+                                                <InputError
+                                                    message={errors.password}
+                                                />
                                             </div>
 
                                             <Button
@@ -135,8 +146,8 @@ export default function Login({
                                         {canRegister && (
                                             <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
                                                 Belum punya akun?{' '}
-                                                <TextLink 
-                                                    href={register()} 
+                                                <TextLink
+                                                    href={register()}
                                                     tabIndex={5}
                                                     className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                                 >

@@ -1,7 +1,4 @@
-import { router, usePage } from '@inertiajs/react'
-import { Check, ChevronDown, Shield, User, Crown, Briefcase, KeyRound, Users, Award } from 'lucide-react'
-import { useState } from 'react'
-import type { SharedData } from '@/types'
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -9,18 +6,31 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/dropdown-menu';
+import type { SharedData } from '@/types';
+import { router, usePage } from '@inertiajs/react';
+import {
+    Award,
+    Briefcase,
+    Check,
+    ChevronDown,
+    Crown,
+    KeyRound,
+    Shield,
+    User,
+    Users,
+} from 'lucide-react';
+import { useState } from 'react';
 
 export default function RoleSwitcher() {
-    const { auth } = usePage<SharedData>().props
+    const { auth } = usePage<SharedData>().props;
 
-    const [switching, setSwitching] = useState(false)
+    const [switching, setSwitching] = useState(false);
 
     const handleRoleSwitch = (roleId: number) => {
-        if (switching) return
+        if (switching) return;
 
-        setSwitching(true)
+        setSwitching(true);
         router.post(
             '/switch-role',
             { role_id: roleId },
@@ -28,13 +38,13 @@ export default function RoleSwitcher() {
                 preserveScroll: false,
                 preserveState: false,
                 onFinish: () => setSwitching(false),
-            }
-        )
-    }
+            },
+        );
+    };
 
     if (!auth.userRoles || auth.userRoles.length <= 1) {
         // User only has one role, no need to show switcher
-        return null
+        return null;
     }
 
     // Map role name to unique icon
@@ -91,7 +101,5 @@ export default function RoleSwitcher() {
                 ))}
             </DropdownMenuContent>
         </DropdownMenu>
-    )
+    );
 }
-
-
