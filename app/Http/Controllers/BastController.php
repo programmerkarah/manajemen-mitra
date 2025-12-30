@@ -628,7 +628,7 @@ class BastController extends Controller
 
             // Get periode alokasi ID - use bulan/tahun if provided
             $targetPeriode = null;
-            if (!empty($validated['bulan']) && !empty($validated['tahun'])) {
+            if (! empty($validated['bulan']) && ! empty($validated['tahun'])) {
                 $targetPeriode = PeriodeAlokasi::where('kegiatan_id', $validated['kegiatan_id'])
                     ->where('bulan', $validated['bulan'])
                     ->where('tahun', $validated['tahun'])
@@ -636,9 +636,9 @@ class BastController extends Controller
                     ->orderBy('status', 'desc') // perubahan > dikirim alphabetically
                     ->first();
             }
-            
+
             // Fallback to getTargetPeriode if not found
-            if (!$targetPeriode) {
+            if (! $targetPeriode) {
                 $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
             }
 

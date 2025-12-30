@@ -170,7 +170,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
 				<div class="signature-title">Yang melakukan pemeriksaan,</div>
@@ -243,7 +243,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
 				<div class="signature-title">Yang melakukan pemeriksaan,</div>
@@ -314,7 +314,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
 				<div class="signature-title">Yang melakukan pemeriksaan,</div>
@@ -388,7 +388,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
 				<div class="signature-title">Yang melakukan pemeriksaan,</div>
