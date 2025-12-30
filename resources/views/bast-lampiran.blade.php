@@ -172,7 +172,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; font-style: italic; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -248,7 +248,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; font-style: italic; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -322,7 +322,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; font-style: italic; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -399,7 +399,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; font-style: italic; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section">
 			<div class="signature-box">
