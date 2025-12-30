@@ -19,6 +19,12 @@
             font-weight: bold;
             font-style: normal;
         }
+        @font-face {
+			font-family: 'Bookman Old Style';
+			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+			font-weight: bold;
+			font-style: italic;
+		}
 
         @font-face {
             font-family: 'Arial';
