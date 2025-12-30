@@ -1,7 +1,7 @@
 {
     "bookman old style": {
-        "normal": "E:\\xampp\\htdocs\\manajemen-mitra\\storage\\fonts\/bookman_old_style_normal_026dc2aca069ff0c1933291d1bf1386f",
-        "bold": "E:\\xampp\\htdocs\\manajemen-mitra\\storage\\fonts\/bookman_old_style_bold_af1bc9b4fc6b9d9dbb17c493dcef9b8e",
+        "normal": "bookman_old_style_normal_026dc2aca069ff0c1933291d1bf1386f",
+        "bold": "bookman_old_style_bold_af1bc9b4fc6b9d9dbb17c493dcef9b8e",
         "italic": "bookman_old_style_italic_bdcf87bf8bce68f77bf9cd0cd808fcad"
     },
     "arial": {
