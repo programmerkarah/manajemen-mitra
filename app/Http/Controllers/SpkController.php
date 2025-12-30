@@ -26,130 +26,67 @@ class SpkController extends Controller
         $validated = $request->validated();
         $activeYear = \App\Services\ActiveYearService::get();
 
-        // Get periode alokasi yang sudah validated grouped by month
+        // Eager load all relationships and filter in DB
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
-                'alokasiPetugas:id,periode_alokasi_id,petugas_id',
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
-            ->select('periode_alokasi.*') // Only select needed columns
+            ->select('periode_alokasi.*')
             ->whereHas('kegiatan', function ($q) use ($activeYear) {
                 $q->where('tahun_anggaran', $activeYear)
-                    ->where('jenis_kegiatan', 'survei'); // Only survei activities
+                    ->where('jenis_kegiatan', 'survei');
             })
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
 
-        // Search filter
-        if (! empty($validated['search'])) {
+        if (!empty($validated['search'])) {
             $search = $validated['search'];
             $query->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
                     ->orWhere('kode_kegiatan', 'like', "%{$search}%");
             });
         }
-
-        // Filter by bulan
-        if (! empty($validated['bulan'])) {
-            $bulan = str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT);
+        if (!empty($validated['bulan'])) {
+            $bulan = str_pad((string)$validated['bulan'], 2, '0', STR_PAD_LEFT);
             $query->where('bulan', $bulan);
         }
 
         $periodes = $query->latest()->get();
 
-        // Group by month and year
-        $groupedByMonth = $periodes->groupBy(function ($periode) {
-            return $periode->tahun.'-'.$periode->bulan;
-        })->map(function ($monthPeriodes, $key) {
+        // Group and aggregate efficiently
+        $groupedByMonth = $periodes->groupBy(fn($p) => $p->tahun.'-'.$p->bulan)->map(function ($monthPeriodes, $key) {
             [$tahun, $bulan] = explode('-', $key);
-
-            // Count unique non-organik petugas across all kegiatan in this month
-            $allPetugasIds = collect();
-            foreach ($monthPeriodes as $periode) {
-                $petugasIds = $periode->alokasiPetugas
-                    ->filter(function ($alokasi) {
-                        return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
-                    })
-                    ->pluck('petugas_id');
-                $allPetugasIds = $allPetugasIds->merge($petugasIds);
-            }
+            $allPetugasIds = $monthPeriodes->flatMap(fn($periode) => $periode->alokasiPetugas->pluck('petugas_id'));
             $totalPetugasNonOrganik = $allPetugasIds->unique()->count();
-
-            // Count total SPK created
-            $totalSpk = $monthPeriodes->sum(function ($periode) {
-                return $periode->spk->count();
-            });
-
-            // Get unique kegiatan in this month (regardless of periode status)
-            $kegiatanList = $monthPeriodes->groupBy('kegiatan_id')
-                ->map(function ($periodesByKegiatan) {
-                    // Use the first periode for this kegiatan
-                    $firstPeriode = $periodesByKegiatan->first();
-
-                    // Collect unique petugas IDs (don't count duplicates from revisions)
-                    $uniquePetugasIds = collect();
-                    foreach ($periodesByKegiatan as $periode) {
-                        $petugasIds = $periode->alokasiPetugas
-                            ->filter(function ($alokasi) {
-                                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
-                            })
-                            ->pluck('petugas_id');
-                        $uniquePetugasIds = $uniquePetugasIds->merge($petugasIds);
-                    }
-                    $totalPetugasNonOrganik = $uniquePetugasIds->unique()->count();
-
-                    return [
-                        'periode_id' => $firstPeriode->id,
-                        'periode_hashed_id' => $firstPeriode->hashed_id,
-                        'kegiatan_hashed_id' => $firstPeriode->kegiatan->hashed_id,
-                        'kode_kegiatan' => $firstPeriode->kegiatan->kode_kegiatan,
-                        'nama_kegiatan' => $firstPeriode->kegiatan->nama_kegiatan,
-                        'jenis_kegiatan' => $firstPeriode->kegiatan->jenis_kegiatan,
-                        'jumlah_petugas_non_organik' => $totalPetugasNonOrganik,
-                    ];
-                })->values();
-
-            // SPK status for the month
+            $totalSpk = $monthPeriodes->sum(fn($periode) => $periode->spk->count());
+            $kegiatanList = $monthPeriodes->groupBy('kegiatan_id')->map(function ($periodesByKegiatan) {
+                $firstPeriode = $periodesByKegiatan->first();
+                $uniquePetugasIds = $periodesByKegiatan->flatMap(fn($periode) => $periode->alokasiPetugas->pluck('petugas_id'));
+                return [
+                    'periode_id' => $firstPeriode->id,
+                    'periode_hashed_id' => $firstPeriode->hashed_id,
+                    'kegiatan_hashed_id' => $firstPeriode->kegiatan->hashed_id,
+                    'kode_kegiatan' => $firstPeriode->kegiatan->kode_kegiatan,
+                    'nama_kegiatan' => $firstPeriode->kegiatan->nama_kegiatan,
+                    'jenis_kegiatan' => $firstPeriode->kegiatan->jenis_kegiatan,
+                    'jumlah_petugas_non_organik' => $uniquePetugasIds->unique()->count(),
+                ];
+            })->values();
             $spkStatus = $totalSpk > 0 ? 'Sudah Dibuat' : 'Belum Dibuat';
             $spkStatusType = $totalSpk > 0 ? 'created' : 'not_created';
-
-            // Check if there are any revision/perubahan periods
-            $hasRevision = $monthPeriodes->contains(function ($periode) {
-                return in_array($periode->status, ['direvisi', 'perubahan']);
-            });
-
-            // Check if any SPK already has addendum
-            $hasAddendum = $monthPeriodes->flatMap(function ($periode) {
-                return $periode->spk;
-            })->contains(function ($spk) {
-                return $spk->addendum_number > 0;
-            });
-
-            // Check for new kegiatan/petugas after SPK was generated
+            $hasRevision = $monthPeriodes->contains(fn($periode) => in_array($periode->status, ['direvisi', 'perubahan']));
+            $hasAddendum = $monthPeriodes->flatMap(fn($periode) => $periode->spk)->contains(fn($spk) => $spk->addendum_number > 0);
             $hasNewKegiatanAfterSpk = $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
-
-            // Check for new revisions after addendum was generated
             $hasNewRevisionAfterAddendum = $this->hasNewRevisionAfterAddendum($tahun, $bulan, $monthPeriodes);
-
-            // Check if SPK has been regenerated (regeneration_count > 0)
-            $hasBeenRegenerated = $monthPeriodes->flatMap(function ($periode) {
-                return $periode->spk;
-            })->contains(function ($spk) {
-                return ($spk->regeneration_count ?? 0) > 0;
-            });
-
-            // Check for incomplete addendum (some petugas with revision don't have addendum yet)
+            $hasBeenRegenerated = $monthPeriodes->flatMap(fn($periode) => $periode->spk)->contains(fn($spk) => ($spk->regeneration_count ?? 0) > 0);
             $hasIncompleteAddendum = $this->hasIncompleteAddendum($tahun, $bulan, $monthPeriodes);
-
-            // Check for addendum changes (petugas who already have addendum but have allocation changes)
             $hasAddendumChanges = $this->hasAddendumChanges($tahun, $bulan, $monthPeriodes);
-
             return [
-                'tahun' => (int) $tahun,
-                'bulan' => (int) $bulan,
-                'bulan_label' => $this->getBulanLabel((int) $bulan),
+                'tahun' => (int)$tahun,
+                'bulan' => (int)$bulan,
+                'bulan_label' => $this->getBulanLabel((int)$bulan),
                 'total_petugas_non_organik' => $totalPetugasNonOrganik,
                 'total_spk' => $totalSpk,
                 'spk_status' => $spkStatus,
@@ -163,18 +100,14 @@ class SpkController extends Controller
                 'has_addendum_changes' => $hasAddendumChanges,
                 'kegiatan_list' => $kegiatanList,
             ];
-        })->sortByDesc(function ($item) {
-            return $item['tahun'].str_pad($item['bulan'], 2, '0', STR_PAD_LEFT);
-        })->values();
+        })->sortByDesc(fn($item) => $item['tahun'].str_pad($item['bulan'], 2, '0', STR_PAD_LEFT))->values();
 
         // Paginate manually
         $perPage = 15;
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
-
         $paginatedItems = $groupedByMonth->slice($offset, $perPage)->values();
         $total = $groupedByMonth->count();
-
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
             $paginatedItems,
             $total,
@@ -182,10 +115,7 @@ class SpkController extends Controller
             $currentPage,
             ['path' => $request->url(), 'query' => $request->query()]
         );
-
-        // Encrypt sensitive data
         $encryptedData = encryptData($paginatedItems);
-
         return Inertia::render('Spk/Index', [
             'periodeList' => [
                 'encrypted' => $encryptedData,
