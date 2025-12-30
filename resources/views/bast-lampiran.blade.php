@@ -90,7 +90,7 @@
 			page-break-after: avoid;
 		}
 		.signature-box {
-			width: 50%;
+			width: 48%;
 			text-align: center;
 			line-height: 1.3;
 			font-size: 10pt;
