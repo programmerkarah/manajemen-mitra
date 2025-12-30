@@ -2913,49 +2913,39 @@ class SpkController extends Controller
     {
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all petugas with revisions (status: direvisi or perubahan)
-        $petugasWithRevision = collect();
-        foreach ($monthPeriodes as $periode) {
-            if (in_array($periode->status, ['direvisi', 'perubahan'])) {
-                $alokasi = $periode->alokasiPetugas()
-                    ->whereHas('petugas', function ($q) {
-                        $q->where('jenis_petugas', 'non-organik');
-                    })
-                    ->with('petugas')
-                    ->get();
+        // Only show addendum for petugas with perubahan allocation that differs from latest dikirim allocation and has no addendum
+        $perubahanPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'perubahan');
+        $dikirimPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'dikirim');
 
-                foreach ($alokasi as $item) {
-                    $petugasWithRevision->push($item->petugas_id);
+        foreach ($perubahanPeriodes as $periode) {
+            $alokasiList = $periode->alokasiPetugas()
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->get();
+            foreach ($alokasiList as $alokasi) {
+                // Find matching dikirim allocation for this petugas
+                $dikirimAlokasi = null;
+                foreach ($dikirimPeriodes as $dikirimPeriode) {
+                    $dikirimAlokasi = $dikirimPeriode->alokasiPetugas()
+                        ->where('petugas_id', $alokasi->petugas_id)
+                        ->first();
+                    if ($dikirimAlokasi) break;
+                }
+                // If no dikirim allocation, treat as changed
+                $isChanged = !$dikirimAlokasi ? false : ($dikirimAlokasi->jumlah_satuan != $alokasi->jumlah_satuan || $dikirimAlokasi->jumlah_satuan_listing != $alokasi->jumlah_satuan_listing || $dikirimAlokasi->total_honor != $alokasi->total_honor || $dikirimAlokasi->total_honor_listing != $alokasi->total_honor_listing || $dikirimAlokasi->peran != $alokasi->peran);
+                if ($isChanged) {
+                    $hasAddendum = \App\Models\Spk::where('parent_spk_id', '!=', null)
+                        ->where('alokasi_petugas_id', $alokasi->id)
+                        ->where('addendum_number', '>', 0)
+                        ->exists();
+                    if (! $hasAddendum) {
+                        return true; // Found eligible petugas for addendum
+                    }
                 }
             }
         }
-
-        $petugasWithRevision = $petugasWithRevision->unique();
-
-        // For each petugas with revision, check if they have addendum
-        foreach ($petugasWithRevision as $petugasId) {
-            // Get original SPK for this petugas in this month
-            $originalSpk = Spk::where('petugas_id', $petugasId)
-                ->where('addendum_number', 0)
-                ->whereYear('tanggal_spk', $tahun)
-                ->whereMonth('tanggal_spk', $bulan)
-                ->first();
-
-            if (! $originalSpk) {
-                continue; // Skip if no original SPK
-            }
-
-            // Check if this petugas has addendum
-            $hasAddendum = Spk::where('parent_spk_id', $originalSpk->id)
-                ->where('addendum_number', '>', 0)
-                ->exists();
-
-            if (! $hasAddendum) {
-                return true; // Found petugas without addendum
-            }
-        }
-
-        return false; // All petugas with revisions have addendum
+        return false; // No eligible petugas for addendum
     }
 
     /**

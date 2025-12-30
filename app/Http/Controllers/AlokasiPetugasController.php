@@ -1418,7 +1418,7 @@ class AlokasiPetugasController extends Controller
         $validated = $request->validate([
             'alokasi' => 'required|array|min:1',
             'alokasi.*.petugas_id' => 'required|exists:petugas,id',
-            'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Pengawas Pengolahan',
+            'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
             'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
@@ -1539,13 +1539,14 @@ class AlokasiPetugasController extends Controller
                 }
 
                 // Map peran to jenis_penugasan
-                $jenisPenugasan = match ($alokasiData['peran']) {
-                    'PCL' => 'pcl_ppl',
-                    'PML' => 'pml',
-                    'Pengolahan' => 'pengolahan',
-                    'Pengawas Pengolahan' => 'pengawas_pengolahan',
-                    default => null,
-                };
+                    $jenisPenugasan = match ($alokasiData['peran']) {
+                        'PCL' => 'pcl_ppl',
+                        'PML' => 'pml',
+                        'Pengolahan' => 'pengolahan',
+                        'Petugas Pengolahan' => 'pengolahan',
+                        'Pengawas Pengolahan' => 'pengawas_pengolahan',
+                        default => null,
+                    };
 
                 if (! $jenisPenugasan) {
                     $errors[] = $petugas->nama.': Peran tidak valid.';
