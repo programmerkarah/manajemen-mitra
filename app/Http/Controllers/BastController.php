@@ -314,7 +314,7 @@ class BastController extends Controller
                 $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
             })
             ->where(function ($q) {
-                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
             })
             ->orderByDesc('periode_mulai')
             ->first();
@@ -455,7 +455,7 @@ class BastController extends Controller
                 $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
             })
             ->where(function ($q) {
-                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
             })
             ->orderByDesc('periode_mulai')
             ->first();
@@ -475,7 +475,7 @@ class BastController extends Controller
                 $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
             })
             ->where(function ($q) {
-                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
             })
             ->orderByDesc('periode_mulai')
             ->first();
@@ -902,7 +902,7 @@ class BastController extends Controller
                 $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
             })
             ->where(function ($q) {
-                $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
             })
             ->orderByDesc('periode_mulai')
             ->first();
