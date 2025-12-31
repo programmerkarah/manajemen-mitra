@@ -70,8 +70,8 @@ class SkKpa extends Model
         return $this->belongsTo(User::class, 'signed_by');
     }
 
-    public function spk(): HasMany
-    {
-        return $this->hasMany(Spk::class);
-    }
+    // public function spk(): HasMany
+    // {
+    //     return $this->hasMany(Spk::class);
+    // }
 }
