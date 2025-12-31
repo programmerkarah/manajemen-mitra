@@ -563,20 +563,21 @@
         </div>
     </div>
 
-    <div class="content">
-        Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK</strong>.
-    </div>
-
-    <!-- Signatures -->
-    <div class="signature">
-        <div class="signature-row">
-            <div class="signature-col">
-                <div class="signature-title">PIHAK KEDUA,</div>
-                <div class="signature-name">{{ strtoupper($petugas->nama) }}</div>
-            </div>
-            <div class="signature-col">
-                <div class="signature-title">PIHAK PERTAMA,</div>
-                <div class="signature-name">{{ strtoupper($penandatangan) }}</div>
+    <div style="page-break-inside: avoid;">
+        <div class="content">
+            Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK</strong>.
+        </div>
+        <!-- Signatures -->
+        <div class="signature">
+            <div class="signature-row">
+                <div class="signature-col">
+                    <div class="signature-title">PIHAK KEDUA,</div>
+                    <div class="signature-name">{{ strtoupper($petugas->nama) }}</div>
+                </div>
+                <div class="signature-col">
+                    <div class="signature-title">PIHAK PERTAMA,</div>
+                    <div class="signature-name">{{ strtoupper($penandatangan) }}</div>
+                </div>
             </div>
         </div>
     </div>
