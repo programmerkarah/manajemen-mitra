@@ -34,28 +34,12 @@ class SpkController extends Controller
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
-            ->select('periode_alokasi.*') // Only select needed columns
+            ->select('periode_alokasi.*') // Select all columns from periode_alokasi
             ->whereHas('kegiatan', function ($q) use ($activeYear) {
-                $q->where('tahun_anggaran', $activeYear)
-                    ->where('jenis_kegiatan', 'survei'); // Only survei activities
+                $q->where('tahun_anggaran', $activeYear);
             })
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
-
-        // Search filter
-        if (! empty($validated['search'])) {
-            $search = $validated['search'];
-            $query->whereHas('kegiatan', function ($q) use ($search) {
-                $q->where('nama_kegiatan', 'like', "%{$search}%")
-                    ->orWhere('kode_kegiatan', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter by bulan
-        if (! empty($validated['bulan'])) {
-            $bulan = str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT);
-            $query->where('bulan', $bulan);
-        }
 
         $periodes = $query->latest()->get();
 
@@ -120,12 +104,14 @@ class SpkController extends Controller
                 return in_array($periode->status, ['direvisi', 'perubahan']);
             });
 
+
             // Check if any SPK already has addendum
             $hasAddendum = $monthPeriodes->flatMap(function ($periode) {
                 return $periode->spk;
             })->contains(function ($spk) {
                 return $spk->addendum_number > 0;
             });
+
 
             // Check for new kegiatan/petugas after SPK was generated
             $hasNewKegiatanAfterSpk = $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
@@ -860,7 +846,7 @@ class SpkController extends Controller
     /**
      * Show the form to generate SPKs for a periode
      */
-    public function create(string $periodeHashedId): Response
+    public function create(string $periodeHashedId): Response|RedirectResponse
     {
         $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
 
@@ -967,8 +953,6 @@ class SpkController extends Controller
                 ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
                 ->get();
 
-            // Track existing kegiatan per petugas for comparison
-            $existingKegiatanPerPetugas = [];
 
             foreach ($existingSpks as $spk) {
                 // Get baseline kegiatan: kegiatan yang ada SEBELUM SPK dibuat
@@ -1053,6 +1037,12 @@ class SpkController extends Controller
                 return $notHaveSpk;
             })->values();
         }
+
+        // Redirect if petugasList is empty
+        if ($petugasList->isEmpty()) {
+            return redirect()->route('spk.index')->with('error', 'Tidak ada petugas yang dapat dibuatkan SPK untuk periode ini');
+        }
+
 
         return Inertia::render('Spk/Generate', [
             'periode' => [
@@ -2098,7 +2088,7 @@ class SpkController extends Controller
             ->get();
 
         if ($allAlokasi->isEmpty()) {
-            abort(404, 'Tidak ada alokasi untuk petugas ini');
+            return redirect()->route('spk.index')->with('error', 'Tidak ada petugas yang dapat dibuatkan SPK untuk periode ini');
         }
 
         $petugas = $allAlokasi->first()->petugas;
@@ -2939,7 +2929,7 @@ class SpkController extends Controller
 
         // Only show addendum for petugas with perubahan allocation that differs from latest dikirim allocation and has no addendum
         $perubahanPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'perubahan');
-        $dikirimPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'dikirim');
+        $dikirimPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'dikirim' || $p->status === 'direvisi');
 
         foreach ($perubahanPeriodes as $periode) {
             $alokasiList = $periode->alokasiPetugas()
