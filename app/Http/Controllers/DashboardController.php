@@ -159,8 +159,7 @@ class DashboardController extends Controller
                     ->first();
 
                 // Count SPK if SK exists
-                $spkCount = $sk ? Spk::where('kegiatan_id', $kegiatan->id)
-                                ->whereMonth('tanggal_spk', $currentMonth)
+                $spkCount = $sk ? Spk::whereMonth('tanggal_spk', $currentMonth)
                                 ->whereYear('tanggal_spk', $currentYear)
                                 ->count()
                             : 0;
