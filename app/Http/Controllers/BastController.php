@@ -25,30 +25,6 @@ class BastController extends Controller
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
 
     /**
-     * Check if any petugas has pengolahan allocation with jumlah_satuan > 0
-     */
-    private function hasPengolahanListing($petugas): bool
-    {
-        return collect($petugas)->contains(function ($p) {
-            return in_array($p['peran'] ?? null, self::PENGOLAHAN_ROLES, true)
-                && (int) ($p['hasil_pengolahan'] ?? $p['jumlah_satuan'] ?? 0) > 0;
-        });
-    }
-
-    /**
-     * Check if any petugas has both pengolahan and pendataan allocation with valid hasil
-     */
-    private function hasPengolahanPendataan($petugas): bool
-    {
-        return collect($petugas)->contains(function ($p) {
-            return in_array($p['peran'] ?? null, self::PENGOLAHAN_ROLES, true)
-                && in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
-                && (int) ($p['hasil_pengolahan'] ?? 0) > 0
-                && (int) ($p['hasil_pendataan_lapangan'] ?? 0) > 0;
-        });
-    }
-
-    /**
      * Check if any petugas has pendataan allocation with hasil_pendataan_lapangan > 0
      */
     private function hasPendataan($petugas): bool
@@ -249,6 +225,7 @@ class BastController extends Controller
                     'hasil_listing' => $alokasi?->jumlah_satuan_listing,
                     'hasil_pendataan_lapangan' => $alokasi?->jumlah_satuan,
                     'hasil_pengolahan' => in_array($alokasi?->peran, self::PENGOLAHAN_ROLES) ? $alokasi?->jumlah_satuan : null,
+                    'hasil_pengolahan_listing' => in_array($alokasi?->peran, self::PENGOLAHAN_ROLES) ? $alokasi?->jumlah_satuan_listing : null,
                     'spk_id' => $spkTerkait?->id,
                     'nomor_spk' => $spkTerkait?->nomor_spk ?? 'Belum ada SPK',
                 ];
@@ -556,6 +533,7 @@ class BastController extends Controller
                             'hasil_listing' => $totalListing > 0 ? $totalListing : null,
                             'hasil_pendataan_lapangan' => $totalPendataan > 0 ? $totalPendataan : null,
                             'hasil_pengolahan' => $totalPengolahan > 0 ? $totalPengolahan : null,
+                            'hasil_pengolahan_listing' => $totalListing > 0 && $isPengolahanRole ? $totalListing : null,
                             'catatan' => ! empty($catatan) ? implode('; ', $catatan) : null,
                         ]);
                     }
@@ -690,7 +668,9 @@ class BastController extends Controller
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -783,8 +763,10 @@ class BastController extends Controller
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -1048,6 +1030,8 @@ class BastController extends Controller
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
+                'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -1168,7 +1152,9 @@ class BastController extends Controller
                 'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'hasil_pengolahan' => $bp->hasil_pengolahan,
+                'hasil_pengolahan_listing' => $bp->hasil_pengolahan_listing,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $bp->keterangan,
             ];
         });
@@ -1861,7 +1847,9 @@ class BastController extends Controller
                 'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
                 'satuan_pendataan_lapangan' => $bp->satuan_pendataan_lapangan,
                 'hasil_pengolahan' => $bp->hasil_pengolahan,
+                'hasil_pengolahan_listing' => $bp->hasil_pengolahan_listing,
                 'satuan_pengolahan' => $bp->satuan_pengolahan,
+                'satuan_pengolahan_listing' => $bp->satuan_pengolahan_listing,
                 'catatan' => $bp->catatan,
             ];
         })->values();
@@ -2043,6 +2031,8 @@ class BastController extends Controller
             }
             if (! in_array($peran, $pengolahanRoles, true)) {
                 $data['petugas'][$i]['hasil_pengolahan'] = null;
+                $data['petugas'][$i]['hasil_pengolahan_listing'] = null;
+                $data['petugas'][$i]['satuan_pengolahan_listing'] = null;
                 $data['petugas'][$i]['satuan_pengolahan'] = null;
             }
         }
@@ -2053,6 +2043,9 @@ class BastController extends Controller
         });
         $hasPengolahan = collect($data['petugas'])->contains(function ($p) {
             return ! empty($p['hasil_pengolahan']);
+        });
+        $hasPengolahanListing = collect($data['petugas'])->contains(function ($p) {
+            return ! empty($p['hasil_pengolahan_listing']);
         });
         $hasPendataan = collect($data['petugas'])->contains(function ($p) {
             return ! empty($p['hasil_pendataan_lapangan']);
@@ -2090,6 +2083,7 @@ class BastController extends Controller
             'has_listing' => $hasListing,
             'has_pendataan' => $hasPendataan,
             'has_pengolahan' => $hasPengolahan,
+            'has_pengolahan_listing' => $hasPengolahanListing,
             'dokumen_rekap' => $data['dokumen_rekap'] ?? [],
             'instrumen_listing' => $data['instrumen_listing'] ?? null,
             'instrumen_pendataan_lapangan' => $data['instrumen_pendataan_lapangan'] ?? null,
@@ -2130,7 +2124,7 @@ class BastController extends Controller
 
         // If no lampiran, save main PDF directly
         $hasLampiran = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
-            || $viewData['has_listing'] || $viewData['has_pengolahan'] || ($viewData['has_pendataan'] ?? false);
+            || $viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pengolahan_listing'] || ($viewData['has_pendataan'] ?? false);
 
         if (! $hasLampiran) {
             $directory = public_path('bast-export/'.now()->year.'/'.now()->month);
@@ -2148,7 +2142,7 @@ class BastController extends Controller
         // Render lampiran only (landscape) using bast-lampiran.blade.php directly
         $viewDataLamp = $viewData;
         $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
-            || $viewData['has_listing'] || $viewData['has_pengolahan'] ? 'landscape' : 'portrait';
+            || $viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pengolahan_listing'] || ($viewData['has_pendataan'] ?? false) ? 'landscape' : 'portrait';
         $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran', $viewDataLamp)
             ->setPaper('a4', $lampOrientation);
         $lampContent = $pdfLamp->output();

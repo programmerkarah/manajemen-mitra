@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -185,7 +186,7 @@ export default function Create({
                                     onChange={(e) =>
                                         setData('nama_kegiatan', e.target.value)
                                     }
-                                    className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                    className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
                                     placeholder="Masukkan nama kegiatan..."
                                 />
                                 <InputError
@@ -208,23 +209,23 @@ export default function Create({
                                         </span>
                                     )}
                                 </label>
-                                <select
-                                    id="jenis_kegiatan"
+                                <SearchableSelect
+                                    options={[
+                                        { value: 'survei', label: 'Survei' },
+                                        { value: 'sensus', label: 'Sensus' },
+                                    ]}
                                     value={data.jenis_kegiatan}
-                                    onChange={(e) =>
+                                    onValueChange={(value) =>
                                         setData(
                                             'jenis_kegiatan',
-                                            e.target.value as
-                                                | 'sensus'
-                                                | 'survei',
+                                            value as 'sensus' | 'survei',
                                         )
                                     }
+                                    placeholder="Pilih jenis kegiatan"
+                                    searchPlaceholder="Cari jenis kegiatan..."
                                     disabled={isCopyMode}
-                                    className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                >
-                                    <option value="survei">Survei</option>
-                                    <option value="sensus">Sensus</option>
-                                </select>
+                                    className="mt-2"
+                                />
                                 <InputError
                                     message={errors.jenis_kegiatan}
                                     className="mt-2"
@@ -273,24 +274,20 @@ export default function Create({
                                         </span>
                                     )}
                                 </label>
-                                <select
-                                    id="tahun_anggaran"
-                                    value={data.tahun_anggaran}
-                                    onChange={(e) =>
-                                        setData(
-                                            'tahun_anggaran',
-                                            parseInt(e.target.value),
-                                        )
+                                <SearchableSelect
+                                    options={tahunOptions.map((tahun) => ({
+                                        value: tahun.toString(),
+                                        label: tahun.toString(),
+                                    }))}
+                                    value={data.tahun_anggaran.toString()}
+                                    onValueChange={(value) =>
+                                        setData('tahun_anggaran', parseInt(value))
                                     }
+                                    placeholder="Pilih tahun anggaran"
+                                    searchPlaceholder="Cari tahun..."
                                     disabled={isCopyMode}
-                                    className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                >
-                                    {tahunOptions.map((tahun) => (
-                                        <option key={tahun} value={tahun}>
-                                            {tahun}
-                                        </option>
-                                    ))}
-                                </select>
+                                    className="mt-2"
+                                />
                                 <InputError
                                     message={errors.tahun_anggaran}
                                     className="mt-2"
@@ -317,7 +314,7 @@ export default function Create({
                                                 e.target.checked,
                                             )
                                         }
-                                        className="mt-1 h-5 w-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
+                                        className="mt-1 h-5 w-5 rounded border-2 border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:focus:ring-neutral-500/20"
                                     />
                                     <span className="text-base text-gray-700 dark:text-gray-300">
                                         Aktifkan jika ada tahapan
@@ -352,7 +349,7 @@ export default function Create({
                                             );
                                             setData('pagu_listing', raw);
                                         }}
-                                        className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
                                         placeholder="Masukkan nominal pagu listing..."
                                     />
                                     <InputError
@@ -387,7 +384,7 @@ export default function Create({
                                             );
                                             setData('pagu_pencacahan', raw);
                                         }}
-                                        className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400"
+                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
                                         placeholder="Masukkan nominal pagu pencacahan..."
                                     />
                                     <InputError
@@ -407,29 +404,23 @@ export default function Create({
                                         Ketua Tim{' '}
                                         <span className="text-red-500">*</span>
                                     </label>
-                                    <select
-                                        id="ketua_tim_user_id"
+                                    <SearchableSelect
+                                        options={[
+                                            { value: '', label: 'Pilih Ketua Tim' },
+                                            ...ketuaTimUsers.map((user) => ({
+                                                value: user.id.toString(),
+                                                label: `${user.name} - ${user.email}`,
+                                                searchKeywords: `${user.name} ${user.email}`,
+                                            })),
+                                        ]}
                                         value={data.ketua_tim_user_id}
-                                        onChange={(e) =>
-                                            setData(
-                                                'ketua_tim_user_id',
-                                                e.target.value,
-                                            )
+                                        onValueChange={(value) =>
+                                            setData('ketua_tim_user_id', value)
                                         }
-                                        className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                    >
-                                        <option value="">
-                                            Pilih Ketua Tim
-                                        </option>
-                                        {ketuaTimUsers.map((user) => (
-                                            <option
-                                                key={user.id}
-                                                value={user.id}
-                                            >
-                                                {user.name} - {user.email}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Pilih Ketua Tim"
+                                        searchPlaceholder="Cari ketua tim..."
+                                        className="mt-2"
+                                    />
                                     <InputError
                                         message={errors.ketua_tim_user_id}
                                         className="mt-2"
@@ -445,23 +436,23 @@ export default function Create({
                                 >
                                     Ketua Tim Lainnya (opsional)
                                 </label>
-                                <select
-                                    id="pj_lainnya_id"
+                                <SearchableSelect
+                                    options={[
+                                        { value: '', label: 'Pilih Ketua Tim Lainnya (opsional)' },
+                                        ...pjLainnyaUsers.map((user: User) => ({
+                                            value: user.id.toString(),
+                                            label: `${user.name} - ${user.email}`,
+                                            searchKeywords: `${user.name} ${user.email}`,
+                                        })),
+                                    ]}
                                     value={data.pj_lainnya_id}
-                                    onChange={(e) =>
-                                        setData('pj_lainnya_id', e.target.value)
+                                    onValueChange={(value) =>
+                                        setData('pj_lainnya_id', value)
                                     }
-                                    className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                >
-                                    <option value="">
-                                        Pilih Ketua Tim Lainnya (opsional)
-                                    </option>
-                                    {pjLainnyaUsers.map((user: User) => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.name} - {user.email}
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="Pilih Ketua Tim Lainnya (opsional)"
+                                    searchPlaceholder="Cari ketua tim..."
+                                    className="mt-2"
+                                />
                                 <InputError
                                     message={errors.pj_lainnya_id}
                                     className="mt-2"
@@ -488,7 +479,7 @@ export default function Create({
                                                 e.target.value,
                                             )
                                         }
-                                        className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
                                     />
                                     <InputError
                                         message={errors.tanggal_mulai}
@@ -515,7 +506,7 @@ export default function Create({
                                                 e.target.value,
                                             )
                                         }
-                                        className="mt-2 block h-11 w-full rounded-lg border-2 border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
                                     />
                                     <InputError
                                         message={errors.tanggal_selesai}

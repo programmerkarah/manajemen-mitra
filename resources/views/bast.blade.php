@@ -45,7 +45,7 @@
             color: #000;
             orphans: 3;
             widows: 3;
-            margin: 2cm 2cm 2cm 2cm;
+            margin: 1.5cm 1.5cm 1.5cm 2.5cm;
             padding: 0;
         }
 
@@ -278,7 +278,7 @@
         <table style="border: none;">
             <tr style="border: none;">
                 <td style="width: 5%; border: none; vertical-align: top;">1.</td>
-                <td style="width: 20%; border: none; vertical-align: top;">Nama</td>
+                <td style="width: 25%; border: none; vertical-align: top;">Nama</td>
                 <td style="width: 1%; border: none; vertical-align: top;">:</td>
                 <td style="border: none; vertical-align: top;">{{ $bast->nama_ppk }}</td>
             </tr>
@@ -308,12 +308,12 @@
             </tr>
         </table>
 
-        <span>bertindak untuk dan atas nama BPS {{ $bast->lokasi_kegiatan }}, selanjutnya disebut sebagai <strong>PIHAK PERTAMA.</strong></span>
+        <span>bertindak untuk dan atas nama Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}, selanjutnya disebut sebagai <strong>PIHAK PERTAMA.</strong></span>
 
         <table style="border: none; margin: 5px 0 20px 0;">
             <tr style="border: none;">
                 <td style="width: 5%; border: none; vertical-align: top;">2.</td>
-                <td style="width: 20%; border: none; vertical-align: top;">Nama</td>
+                <td style="width: 25%; border: none; vertical-align: top;">Nama</td>
                 <td style="width: 1%; border: none; vertical-align: top;">:</td>
                 <td style="border: none; vertical-align: top;">{{ $bast->petugas['nama'] }}</td>
             </tr>
@@ -382,7 +382,7 @@
             </li>
             @endif
             <li style="margin: 6px 0; text-align: justify;">
-                Untuk hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK</strong>.
+                Untuk hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada Perjanjian Kerja yang ditandatangani oleh <strong>PARA PIHAK</strong>.
             </li>
             @else
             <li style="margin: 6px 0; text-align: justify;">
@@ -416,9 +416,9 @@
             <div style="height: 10px;"></div>
             <div class="signature-section">
                 <div class="signature-box signature-left">
-                    <div>Ketua Tim,</div>
+                    <div>PIHAK KEDUA,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($bast->ketua_tim['nama'] ?? '') }}</div>
+                    <div class="signature-name">{{ strtoupper($bast->petugas['nama']?? '') }}</div>
                 </div>
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
