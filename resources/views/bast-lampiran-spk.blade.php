@@ -315,13 +315,13 @@
 						<div>Mengetahui,</div>
 						<div>Kepala Badan Pusat Statistik</div>
 						<div>Kota Sawahlunto</div>
-						<div class="signature-name">{{ strtoupper(preg_replace('/,?\s*S\.\w+\.?/i', '', $nama_kepala ?? '')) }}</div>
+						<div class="signature-name">{{ strtoupper(trim(preg_replace('/^(Dr\.?|Prof\.?|Drs\.?|Ir\.?|H\.?)\s+/i', '', explode(',', $nama_kepala ?? '')[0]))) }}</div>
 					</div>
 					<div class="signature-col">
 						<div>Menyetujui,</div>
 						<div>Pejabat Pembuat Komitmen</div>
 						<div>Badan Pusat Statistik Kota Sawahlunto</div>
-						<div class="signature-name">{{ strtoupper(preg_replace('/,?\s*S\.\w+\.?/i', '', $bast->nama_ppk ?? '')) }}</div>
+						<div class="signature-name">{{ strtoupper(trim(preg_replace('/^(Dr\.?|Prof\.?|Drs\.?|Ir\.?|H\.?)\s+/i', '', explode(',', $bast->nama_ppk ?? '')[0]))) }}</div>
 					</div>
 				</div>
 			</div>
