@@ -675,7 +675,7 @@ export default function Generate({
                                                                 >
                                                                     <div className="font-medium text-neutral-900 dark:text-white">
                                                                         {
-                                                                            kg.kegiatan_kode
+                                                                            kg.kegiatan_nama
                                                                         }
                                                                     </div>
                                                                     <div className="text-xs text-neutral-600 dark:text-neutral-400">
