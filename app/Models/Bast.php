@@ -79,4 +79,9 @@ class Bast extends Model
     {
         return $this->hasMany(BastPetugas::class);
     }
+
+    public function bastKegiatan(): HasMany
+    {
+        return $this->hasMany(BastKegiatan::class);
+    }
 }

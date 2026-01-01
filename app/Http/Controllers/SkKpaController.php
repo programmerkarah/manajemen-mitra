@@ -421,6 +421,20 @@ class SkKpaController extends Controller
             'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
         ]);
 
+        // Get tahun from tanggal_sk
+        $tahunSk = \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y');
+
+        // Check if nomor_sk already exists for this year (for preview, just warn)
+        $existingSkWithSameNumber = SkKpa::where('nomor_sk', $validated['nomor_sk'])
+            ->where('tahun', $tahunSk)
+            ->exists();
+
+        if ($existingSkWithSameNumber) {
+            return back()
+                ->withInput()
+                ->withErrors(['nomor_sk' => 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan untuk tahun '.$tahunSk.'. Silakan gunakan nomor SK yang berbeda.']);
+        }
+
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
         // Get active Kepala BPS and DIPA from database
@@ -622,6 +636,20 @@ class SkKpaController extends Controller
             'dasar_hukum_ids' => ['required', 'array', 'min:1'],
             'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
         ]);
+
+        // Get tahun from tanggal_sk
+        $tahunSk = \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y');
+
+        // Check if nomor_sk already exists for this year
+        $existingSkWithSameNumber = SkKpa::where('nomor_sk', $validated['nomor_sk'])
+            ->where('tahun', $tahunSk)
+            ->exists();
+
+        if ($existingSkWithSameNumber) {
+            return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
+                ->withInput()
+                ->with('error', 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan untuk tahun '.$tahunSk.'. Silakan gunakan nomor SK yang berbeda.');
+        }
 
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
@@ -842,7 +870,7 @@ class SkKpaController extends Controller
             if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'Duplicate entry')) {
                 return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
                     ->withInput()
-                    ->with('error', 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan. Silakan gunakan nomor SK yang berbeda.');
+                    ->with('error', 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan untuk tahun '.$periode->tahun.'. Silakan gunakan nomor SK yang berbeda.');
             }
 
             // For other database errors

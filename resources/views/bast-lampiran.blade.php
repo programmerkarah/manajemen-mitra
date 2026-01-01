@@ -97,6 +97,9 @@
 			page-break-inside: avoid !important;
 			page-break-after: avoid;
 		}
+		.header-row {
+			font-weight: normal !important;
+		}
 		.signature-box {
 			width: 48%;
 			text-align: center;
@@ -137,20 +140,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div class="lampiran-title">Lampiran</div>
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
-	<div class="lampiran-subtitle">{{ strtoupper($nama_kegiatan) }}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
+	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Listing</div>
 	<table class="lampiran-table">
 		<thead>
 			<tr>
 				<th>No</th>
 				<th>Nama Petugas</th>
-				<th>Nomor SPK</th>
-				<th>Instrumen</th>
-				<th>Jumlah</th>
+				<th>Nomor Perjanjian Kerja</th>
+				<th>Uraian Tugas</th>
+				<th>Volume</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
-			<tr>
+			<tr class="header-row">
 				<th>(1)</th>
 				<th>(2)</th>
 				<th>(3)</th>
@@ -161,8 +164,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			</tr>
 		</thead>
 		<tbody>
-			@php $counter = 1; @endphp
-			@foreach($petugas as $i => $p)
+			@php 
+				$counter = 1;
+				$sortedPetugas = collect($petugas)->sortBy('nomor_spk', SORT_NATURAL);
+			@endphp
+			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_listing']) && $p['hasil_listing'] !== null && $p['hasil_listing'] > 0))
 				<tr>
 					<td>{{ $counter++ }}</td>
@@ -178,9 +184,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -213,20 +219,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div class="lampiran-title">Lampiran</div>
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
-	<div class="lampiran-subtitle">{{ strtoupper($nama_kegiatan) }}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
+	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pendataan Lapangan</div>
 	<table class="lampiran-table">
 		<thead>
 			<tr>
 				<th>No</th>
 				<th>Nama Petugas</th>
-				<th>Nomor SPK</th>
-				<th>Instrumen</th>
-				<th>Jumlah</th>
+				<th>Nomor Perjanjian Kerja</th>
+				<th>Uraian Tugas</th>
+				<th>Volume</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
-			<tr>
+			<tr class="header-row">
 				<th>(1)</th>
 				<th>(2)</th>
 				<th>(3)</th>
@@ -237,8 +243,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			</tr>
 		</thead>
 		<tbody>
-			@php $counter = 1; @endphp
-			@foreach($petugas as $i => $p)
+			@php 
+				$counter = 1;
+				$sortedPetugas = collect($petugas)->sortBy('nomor_spk', SORT_NATURAL);
+			@endphp
+			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_pendataan_lapangan']) && $p['hasil_pendataan_lapangan'] !== null && $p['hasil_pendataan_lapangan'] > 0))
 				<tr>
 					<td>{{ $counter++ }}</td>
@@ -254,9 +263,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -287,20 +296,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div class="lampiran-title">Lampiran</div>
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pengolahan Listing {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
-	<div class="lampiran-subtitle">{{ strtoupper($nama_kegiatan) }}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
+	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Listing</div>
 	<table class="lampiran-table">
 		<thead>
 			<tr>
 				<th>No</th>
 				<th>Nama Petugas</th>
-				<th>Nomor SPK</th>
-				<th>Instrumen</th>
-				<th>Jumlah</th>
+				<th>Nomor Perjanjian Kerja</th>
+				<th>Uraian Tugas</th>
+				<th>Volume</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
-			<tr>
+			<tr class="header-row">
 				<th>(1)</th>
 				<th>(2)</th>
 				<th>(3)</th>
@@ -311,8 +320,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			</tr>
 		</thead>
 		<tbody>
-			@php $counter = 1; @endphp
-			@foreach($petugas as $i => $p)
+			@php 
+				$counter = 1;
+				$sortedPetugas = collect($petugas)->sortBy('nomor_spk', SORT_NATURAL);
+			@endphp
+			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_pengolahan_listing']) && $p['hasil_pengolahan_listing'] !== null && $p['hasil_pengolahan_listing'] > 0))
 				<tr>
 					<td>{{ $counter++ }}</td>
@@ -328,9 +340,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
 			<div class="signature-box">
@@ -364,20 +376,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div class="lampiran-title">Lampiran</div>
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pengolahan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
-	<div class="lampiran-subtitle">{{ strtoupper($nama_kegiatan) }}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
+	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Lapangan</div>
 	<table class="lampiran-table">
 		<thead>
 			<tr>
 				<th>No</th>
 				<th>Nama Petugas</th>
-				<th>Nomor SPK</th>
-				<th>Instrumen</th>
-				<th>Jumlah</th>
+				<th>Nomor Perjanjian Kerja</th>
+				<th>Uraian Tugas</th>
+				<th>Volume</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
-			<tr>
+			<tr class="header-row">
 				<th>(1)</th>
 				<th>(2)</th>
 				<th>(3)</th>
@@ -388,8 +400,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			</tr>
 		</thead>
 		<tbody>
-			@php $counter = 1; @endphp
-			@foreach($petugas as $i => $p)
+			@php 
+				$counter = 1;
+				$sortedPetugas = collect($petugas)->sortBy('nomor_spk', SORT_NATURAL);
+			@endphp
+			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_pengolahan']) && $p['hasil_pengolahan'] !== null && $p['hasil_pengolahan'] > 0))
 				<tr>
 					<td>{{ $counter++ }}</td>
@@ -405,9 +420,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		</tbody>
 	</table>
 	<div class="closing-with-signature" style="page-break-before: avoid !important; page-break-inside: avoid !important;">
-		<div style="margin-top:24px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
+		<div style="margin-top:24px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} sesuai dengan ketentuan yang sudah ditetapkan pada Perjanjian Kerja sesuai informasi di atas.</div>
 		@if($menggunakan_fasih)
-		<div style="margin-top:12px; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
+		<div style="margin-top:12px; text-align:justify; page-break-before: avoid !important; page-break-inside: avoid !important;">Petugas yang bersangkutan telah menghapus aplikasi FASIH dan data hasil pengumpulan {{$nama_kegiatan}} {{$tahun}} pelaksanaan bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }} pada perangkat <em>handphone</em> yang bersangkutan.</div>
 		@endif
 		<div class="signature-section">
 			<div class="signature-box">

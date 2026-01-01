@@ -266,7 +266,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('spk/month/kegiatan/{kegiatan}/download', [SpkController::class, 'downloadByKegiatanMonth'])->name('spk.download-by-kegiatan-month');
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
+
+        // BAST Routes - View and Create
         Route::get('bast', [BastController::class, 'index'])->name('bast.index');
+        Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
+        Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
+        Route::post('bast/preview-spk', [BastController::class, 'previewForSpk'])->name('bast.preview-spk');
+        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
+        Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
+        Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
+        Route::post('bast', [BastController::class, 'store'])->name('bast.store');
+        Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
+        Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
+        Route::patch('bast/{bast}', [BastController::class, 'update']);
+        Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
         Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
     });
 
@@ -285,11 +298,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
         Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);
         Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
-
-        // SPK routes
-
     });
 
+    // SPK Routes - Admin, Approver can generate/manage SPK
     Route::middleware(['active.role:admin,approver'])->group(function () {
         Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
         Route::get('spk/periode/{periodeHashedId}/addendum', [SpkController::class, 'createAddendum'])->name('spk.create-addendum');
@@ -305,16 +316,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');
         Route::patch('spk/{spk}', [SpkController::class, 'update']);
         Route::delete('spk/{spk}', [SpkController::class, 'destroy'])->name('spk.destroy');
-
-        // BAST Routes - Ketua Tim
-        Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
-        Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
-        Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
-        Route::post('bast', [BastController::class, 'store'])->name('bast.store');
-        Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
-        Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
-        Route::patch('bast/{bast}', [BastController::class, 'update']);
-        Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
     });
 });
 

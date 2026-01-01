@@ -1539,14 +1539,14 @@ class AlokasiPetugasController extends Controller
                 }
 
                 // Map peran to jenis_penugasan
-                    $jenisPenugasan = match ($alokasiData['peran']) {
-                        'PCL' => 'pcl_ppl',
-                        'PML' => 'pml',
-                        'Pengolahan' => 'pengolahan',
-                        'Petugas Pengolahan' => 'pengolahan',
-                        'Pengawas Pengolahan' => 'pengawas_pengolahan',
-                        default => null,
-                    };
+                $jenisPenugasan = match ($alokasiData['peran']) {
+                    'PCL' => 'pcl_ppl',
+                    'PML' => 'pml',
+                    'Pengolahan' => 'pengolahan',
+                    'Petugas Pengolahan' => 'pengolahan',
+                    'Pengawas Pengolahan' => 'pengawas_pengolahan',
+                    default => null,
+                };
 
                 if (! $jenisPenugasan) {
                     $errors[] = $petugas->nama.': Peran tidak valid.';

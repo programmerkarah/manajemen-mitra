@@ -22,6 +22,17 @@ interface KegiatanInfo {
     ketua_tim_nip?: string | null;
 }
 
+interface KegiatanAlokasi {
+    kegiatan_id: number;
+    kode_kegiatan: string;
+    nama_kegiatan: string;
+    peran: string;
+    jumlah_satuan: number;
+    jumlah_satuan_listing?: number | null;
+    bulan: string;
+    tahun: string;
+}
+
 interface PetugasItem {
     id: number;
     petugas_id: number;
@@ -38,6 +49,7 @@ interface PetugasItem {
     hasil_pengolahan_listing?: number | null;
     satuan_pengolahan_listing?: string | null;
     catatan?: string | null;
+    kegiatan_list?: KegiatanAlokasi[];
 }
 
 interface CreateForKegiatanProps {
@@ -377,6 +389,81 @@ export default function CreateForKegiatan({
                                                 value="1"
                                                 className="h-4 w-4"
                                             />
+                                        </div>
+                                    </div>
+
+                                    {/* Lampiran Kegiatan */}
+                                    <div>
+                                        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                            <FileText className="h-4 w-4" />
+                                            Lampiran — Rincian Kegiatan yang Dialokasikan
+                                        </div>
+                                        <div className="mb-6 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+                                            <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                                                <thead className="bg-neutral-50 dark:bg-neutral-800">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
+                                                            Petugas
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
+                                                            Kegiatan
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
+                                                            Peran
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
+                                                            Volume
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
+                                                            Periode
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
+                                                    {petugas_list.flatMap((petugas) =>
+                                                        (petugas.kegiatan_list || []).map((kegiatan, idx) => (
+                                                            <tr key={`${petugas.petugas_id}-${kegiatan.kegiatan_id}`}>
+                                                                <td className="px-3 py-2 text-sm">
+                                                                    {idx === 0 && (
+                                                                        <div className="font-medium text-neutral-900 dark:text-white">
+                                                                            {petugas.nama_petugas}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-sm">
+                                                                    <div className="font-medium text-neutral-900 dark:text-white">
+                                                                        {kegiatan.nama_kegiatan}
+                                                                    </div>
+                                                                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                        {kegiatan.kode_kegiatan}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300">
+                                                                    {peranLabel(kegiatan.peran)}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300">
+                                                                    {kegiatan.jumlah_satuan || 0} satuan
+                                                                    {kegiatan.jumlah_satuan_listing && (
+                                                                        <div className="text-xs text-neutral-500">
+                                                                            Listing: {kegiatan.jumlah_satuan_listing}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300">
+                                                                    {String(kegiatan.bulan).padStart(2, '0')}/{kegiatan.tahun}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                    {petugas_list.every((p) => !p.kegiatan_list || p.kegiatan_list.length === 0) && (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">
+                                                                Tidak ada kegiatan yang dialokasikan.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
 

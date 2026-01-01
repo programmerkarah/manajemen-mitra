@@ -1,47 +1,25 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { StatusBadge } from '@/components/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
-import { FileText, Plus, Search } from 'lucide-react';
-import { useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { FileCheck, FileText, Plus } from 'lucide-react';
 
-interface BastItem {
-    id: number;
-    hashed_id: string;
-    nomor_bast: string;
-    tanggal_bast: string;
-    status: string;
-    file_path: string | null;
-    jumlah_petugas: number;
-}
-
-interface KegiatanItem {
-    id: number;
-    hashed_id: string;
-    kode_kegiatan: string;
-    nama_kegiatan: string;
-    ketua_tim: string | null;
-}
-
-interface PeriodeItem {
+interface PeriodeData {
     bulan: number;
-    tahun: number;
     bulan_label: string;
-}
-
-interface DataItem {
-    kegiatan: KegiatanItem;
-    periode: PeriodeItem;
-    bast: BastItem | null;
-    has_bast: boolean;
+    tahun: number;
+    total_spk: number;
+    spk_with_bast: number;
+    spk_without_bast: number;
+    has_spk: boolean;
+    all_completed: boolean;
 }
 
 interface IndexProps {
-    data: DataItem[];
+    data: PeriodeData[];
     filters: {
         search?: string;
     };
@@ -51,18 +29,6 @@ interface IndexProps {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
 
 export default function Index({ data, filters, active_year }: IndexProps) {
-    const [search, setSearch] = useState(filters.search || '');
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get('/bast', { search }, { preserveState: true });
-    };
-
-    const getStatusBadge = (status: string) => {
-        // StatusBadge expects a `status` string and handles label/styling internally
-        return <StatusBadge status={status} />;
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="BAST" />
@@ -70,41 +36,8 @@ export default function Index({ data, filters, active_year }: IndexProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Berita Acara Serah Terima (BAST)"
-                    description="Kelola Berita Acara Serah Terima hasil pekerjaan petugas"
+                    description={`Kelola BAST hasil pekerjaan petugas tahun ${active_year}`}
                 />
-
-                {/* Search */}
-                <ContentCard>
-                    <form onSubmit={handleSearch} className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-                            <Input
-                                type="text"
-                                placeholder="Cari kegiatan..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Button type="submit">Cari</Button>
-                        {filters.search && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    setSearch('');
-                                    router.get(
-                                        '/bast',
-                                        {},
-                                        { preserveState: true },
-                                    );
-                                }}
-                            >
-                                Reset
-                            </Button>
-                        )}
-                    </form>
-                </ContentCard>
 
                 {/* Table */}
                 <ContentCard>
@@ -115,11 +48,17 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Periode
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Nama Kegiatan
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                        Total SPK
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Status BAST
+                                        BAST Dibuat
+                                    </th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                        Belum BAST
+                                    </th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                        Status
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
@@ -127,95 +66,66 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {data.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={4}
-                                            className="px-6 py-12 text-center text-neutral-500"
-                                        >
-                                            Tidak ada data BAST untuk tahun{' '}
-                                            {active_year}
+                                {data.map((item) => (
+                                    <tr
+                                        key={`${item.tahun}-${item.bulan}`}
+                                        className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                    >
+                                        <td className="px-6 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                            <div className="font-medium">
+                                                {item.bulan_label} {item.tahun}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-sm whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                            {item.total_spk}
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
+                                            <span className="text-green-600 dark:text-green-400 font-medium">
+                                                {item.spk_with_bast}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
+                                            <span className="text-orange-600 dark:text-orange-400 font-medium">
+                                                {item.spk_without_bast}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
+                                            {!item.has_spk ? (
+                                                <Badge variant="secondary">
+                                                    Tidak ada SPK
+                                                </Badge>
+                                            ) : item.all_completed ? (
+                                                <Badge variant="default">
+                                                    <FileCheck className="mr-1 h-3 w-3" />
+                                                    Selesai
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline">
+                                                    <FileText className="mr-1 h-3 w-3" />
+                                                    Perlu BAST
+                                                </Badge>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
+                                            {item.has_spk &&
+                                                !item.all_completed && (
+                                                    <Link
+                                                        href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                    >
+                                                        <Button size="sm">
+                                                            <Plus className="mr-1 h-4 w-4" />
+                                                            Generate BAST
+                                                        </Button>
+                                                    </Link>
+                                                )}
+                                            {item.has_spk && item.all_completed && (
+                                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                    Semua SPK sudah BAST
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
-                                ) : (
-                                    data.map((item, index) => (
-                                        <tr
-                                            key={`${item.kegiatan.id}-${item.periode.bulan}-${item.periode.tahun}`}
-                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                                        >
-                                            <td className="px-6 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                                <div className="font-medium">
-                                                    {item.periode.bulan_label}{' '}
-                                                    {item.periode.tahun}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-neutral-100">
-                                                <div className="font-medium">
-                                                    {
-                                                        item.kegiatan
-                                                            .nama_kegiatan
-                                                    }
-                                                </div>
-                                                <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    {
-                                                        item.kegiatan
-                                                            .kode_kegiatan
-                                                    }
-                                                    {item.kegiatan.ketua_tim &&
-                                                        ` • Ketua Tim: ${item.kegiatan.ketua_tim}`}
-                                                </div>
-                                                {item.has_bast && item.bast && (
-                                                    <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                        {item.bast.nomor_bast} •{' '}
-                                                        {
-                                                            item.bast
-                                                                .jumlah_petugas
-                                                        }{' '}
-                                                        petugas
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
-                                                {item.has_bast && item.bast ? (
-                                                    getStatusBadge(
-                                                        item.bast.status,
-                                                    )
-                                                ) : (
-                                                    <StatusBadge status="not_created" />
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    {item.has_bast &&
-                                                    item.bast ? (
-                                                        <>
-                                                            <Link
-                                                                href={`/bast/${item.bast.hashed_id}`}
-                                                            >
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                >
-                                                                    <FileText className="mr-1 h-4 w-4" />
-                                                                    Lihat BAST
-                                                                </Button>
-                                                            </Link>
-                                                        </>
-                                                    ) : (
-                                                        <Link
-                                                            href={`/bast/kegiatan/${item.kegiatan.hashed_id}/create?bulan=${item.periode.bulan}&tahun=${item.periode.tahun}`}
-                                                        >
-                                                            <Button size="sm">
-                                                                <Plus className="mr-1 h-4 w-4" />
-                                                                Buat BAST
-                                                            </Button>
-                                                        </Link>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+                                ))}
                             </tbody>
                         </table>
                     </div>

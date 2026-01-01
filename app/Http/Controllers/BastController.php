@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
+use App\Models\BastKegiatan;
 use App\Models\BastPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
@@ -70,78 +71,44 @@ class BastController extends Controller
 
     /**
      * Display a listing of the resource.
+     * Menampilkan periode bulan (Januari-Desember) dengan informasi BAST yang sudah/belum dibuat
      */
     public function index(Request $request): Response
     {
         $search = $request->input('search');
         $activeYear = \App\Services\ActiveYearService::get();
 
-        // Ambil periode yang sudah dikirim/perubahan dan memiliki SPK
-        $periodes = PeriodeAlokasi::query()
-            ->where('tahun', $activeYear)
-            ->whereIn('status', ['dikirim', 'perubahan'])
-            ->whereHas('spk')
-            ->when($search, function ($query) use ($search) {
-                $query->whereHas('kegiatan', function ($kq) use ($search) {
-                    $kq->where('nama_kegiatan', 'like', "%{$search}%")
-                        ->orWhere('kode_kegiatan', 'like', "%{$search}%");
-                });
-            })
-            ->with([
-                'kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id',
-                'kegiatan.ketuaTim:id,name',
-            ])
-            ->orderBy('tahun', 'desc')
-            ->orderBy('bulan', 'desc')
-            ->get();
-
         $data = [];
-        foreach ($periodes as $periode) {
-            $bast = Bast::where('kegiatan_id', $periode->kegiatan_id)
-                ->where('periode_alokasi_id', $periode->id)
-                ->first();
 
-            // Fetch AlokasiPetugas for this periode
-            $alokasiPetugasRaw = AlokasiPetugas::where('periode_alokasi_id', $periode->id)
-                ->with('spk')
-                ->get();
+        // Generate data untuk 12 bulan
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
-            $hasPengolahan = $alokasiPetugasRaw->contains(function ($alokasi) use ($pengolahanRoles) {
-                return in_array($alokasi->peran, $pengolahanRoles, true);
-            });
+            // Hitung total SPK di bulan ini (original SPK saja)
+            $totalSpk = Spk::where('addendum_number', 0)
+                ->whereYear('tanggal_spk', $activeYear)
+                ->whereMonth('tanggal_spk', $bulan)
+                ->count();
 
-            // New: has_pengolahan_listing for Blade
-            $has_pengolahan_listing = $alokasiPetugasRaw->contains(function ($alokasi) use ($pengolahanRoles) {
-                return in_array($alokasi->peran, $pengolahanRoles, true)
-                    && (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-            });
-            $bulanInt = (int) $periode->bulan;
+            // Hitung SPK yang sudah punya BAST
+            $spkWithBast = Spk::where('addendum_number', 0)
+                ->whereYear('tanggal_spk', $activeYear)
+                ->whereMonth('tanggal_spk', $bulan)
+                ->whereHas('bast')
+                ->count();
+
+            // Hitung SPK yang belum punya BAST
+            $spkWithoutBast = $totalSpk - $spkWithBast;
 
             $data[] = [
-                'kegiatan' => [
-                    'id' => $periode->kegiatan->id,
-                    'hashed_id' => $periode->kegiatan->hashed_id,
-                    'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
-                    'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
-                    'ketua_tim' => $periode->kegiatan->ketuaTim?->name,
-                ],
-                'periode' => [
-                    'bulan' => $bulanInt,
-                    'tahun' => (int) $periode->tahun,
-                    'bulan_label' => \Carbon\Carbon::create((int) $periode->tahun, $bulanInt)->isoFormat('MMMM'),
-                ],
-                'bast' => $bast ? [
-                    'id' => $bast->id,
-                    'hashed_id' => $bast->hashed_id,
-                    'nomor_bast' => $bast->nomor_bast,
-                    'tanggal_bast' => $bast->tanggal_bast?->format('Y-m-d'),
-                    'status' => $bast->status,
-                    'file_path' => $bast->file_path,
-                    'jumlah_petugas' => $bast->bastPetugas()->count(),
-                ] : null,
-                'has_bast' => $bast !== null,
-                'sort_key' => sprintf('%04d%02d%s', (int) $periode->tahun, $bulanInt, $periode->kegiatan->kode_kegiatan),
+                'bulan' => $bulan,
+                'bulan_label' => $this->getBulanLabel($bulan),
+                'tahun' => $activeYear,
+                'total_spk' => $totalSpk,
+                'spk_with_bast' => $spkWithBast,
+                'spk_without_bast' => $spkWithoutBast,
+                'has_spk' => $totalSpk > 0,
+                'all_completed' => $totalSpk > 0 && $spkWithoutBast === 0,
             ];
         }
 
@@ -158,50 +125,512 @@ class BastController extends Controller
      * Show the form for creating a new resource - Select Kegiatan
      * Only accessible by ketua_tim
      */
-    public function create(): Response
+    /**
+     * Show form to create BAST for a specific month
+     * List all SPK in that month that don't have BAST yet
+     */
+    public function create(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
-        // Get all kegiatan yang memiliki SPK yang sudah diterbitkan
-        $kegiatan = Kegiatan::query()
-            ->whereHas('periodeAlokasi', function ($query) {
-                $query->whereIn('status', ['dikirim', 'perubahan'])
-                    ->whereHas('alokasiPetugas', function ($q) {
-                        $q->whereHas('spk', function ($sq) {
-                            $sq->where('status', 'diterbitkan');
-                        });
-                    });
-            })
-            ->withCount([
-                'periodeAlokasi as total_petugas' => function ($query) {
-                    $query->whereIn('status', ['dikirim', 'perubahan'])
-                        ->join('alokasi_petugas', 'periode_alokasi.id', '=', 'alokasi_petugas.periode_alokasi_id')
-                        ->whereHas('alokasiPetugas.spk', function ($sq) {
-                            $sq->where('status', 'diterbitkan');
-                        });
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun', \App\Services\ActiveYearService::get());
+
+        if (! $bulan) {
+            return redirect()->route('bast.index')
+                ->with('error', 'Bulan harus diisi');
+        }
+
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Ambil SPK original yang belum punya BAST di bulan ini
+        $spks = Spk::where('addendum_number', 0)
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', $bulan)
+            ->whereDoesntHave('bast')
+            ->with([
+                'alokasiPetugas.petugas:id,nama,nik,alamat',
+                'alokasiPetugas.periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id',
+                'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim:id,name,nip',
+            ])
+            ->orderBy('nomor_spk')
+            ->get();
+
+        if ($spks->isEmpty()) {
+            return redirect()->route('bast.index')
+                ->with('info', 'Tidak ada SPK yang belum memiliki BAST di bulan ini');
+        }
+
+        // Format data SPK dengan detail kegiatan yang diikuti petugas
+        $spkList = $spks->map(function ($spk) use ($bulanFormatted, $tahun) {
+            $petugas = $spk->alokasiPetugas?->petugas;
+
+            // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
+            $allAlokasi = AlokasiPetugas::with([
+                'periodeAlokasi.kegiatan',
+                'spk' => function ($query) {
+                    $query->orderByDesc('addendum_number'); // prioritas addendum terbaru
                 },
             ])
-            ->with('ketuaTim')
-            ->orderBy('nama_kegiatan')
-            ->get()
-            ->map(function ($keg) {
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
+                })
+                ->where('petugas_id', $petugas?->id)
+                // REMOVED ->whereHas('spk') - show ALL allocations, even without SPK
+                ->get();
+
+            // Kumpulkan kegiatan unik dengan detail dari semua alokasi petugas
+            $kegiatanList = $allAlokasi->map(function ($alokasi) {
+                $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+                $spkTerkait = $alokasi->spk?->first(); // ambil SPK terbaru (bisa null)
+
                 return [
-                    'id' => $keg->id,
-                    'hashed_id' => $keg->hashed_id,
-                    'kode_kegiatan' => $keg->kode_kegiatan,
-                    'nama_kegiatan' => $keg->nama_kegiatan,
-                    'ketua_tim' => $keg->ketuaTim?->name,
-                    'total_petugas' => $keg->total_petugas,
+                    'kegiatan_id' => $kegiatan?->id,
+                    'kode_kegiatan' => $kegiatan?->kode_kegiatan,
+                    'nama_kegiatan' => $kegiatan?->nama_kegiatan,
+                    'tanggal_selesai' => $spkTerkait?->tanggal_selesai_kerja?->format('Y-m-d') ?? null,
+                    'tanggal_selesai_label' => $spkTerkait?->tanggal_selesai_kerja?->format('d/m/Y') ?? 'Belum ada SPK',
+                    'peran' => $alokasi?->peran,
+                    'hasil_listing' => $alokasi?->jumlah_satuan_listing,
+                    'hasil_pendataan_lapangan' => $alokasi?->jumlah_satuan,
+                    'hasil_pengolahan' => in_array($alokasi?->peran, self::PENGOLAHAN_ROLES) ? $alokasi?->jumlah_satuan : null,
+                    'spk_id' => $spkTerkait?->id,
+                    'nomor_spk' => $spkTerkait?->nomor_spk ?? 'Belum ada SPK',
                 ];
+            })->filter(function ($k) {
+                return $k['kegiatan_id'] !== null;
+            })->values();
+
+            // Tentukan tanggal berakhir paling akhir dari semua SPK terkait
+            $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
+                return $alokasi->spk?->first()?->tanggal_selesai_kerja;
+            })->filter()->max();
+
+            $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
+
+            return [
+                'spk_id' => $spk->id,
+                'spk_hashed_id' => $spk->hashed_id,
+                'nomor_spk' => $spk->nomor_spk,
+                'tanggal_spk' => $spk->tanggal_spk?->format('Y-m-d'),
+                'tanggal_mulai_kerja' => $spk->tanggal_mulai_kerja?->format('Y-m-d'),
+                'tanggal_selesai_kerja_asli' => $spk->tanggal_selesai_kerja?->format('Y-m-d'),
+                'tanggal_berakhir_paling_akhir' => $tanggalBerakhirPalingAkhir?->format('Y-m-d'),
+                'nama_ppk' => $spk->nama_ppk,
+                'nip_ppk' => $spk->nip_ppk,
+                'petugas' => [
+                    'id' => $petugas?->id,
+                    'nama' => $petugas?->nama,
+                    'nik' => $petugas?->nik,
+                    'alamat' => $petugas?->alamat,
+                ],
+                'ketua_tim' => [
+                    'nama' => $ketuaTim?->name,
+                    'nip' => $ketuaTim?->nip,
+                ],
+                'kegiatan_list' => $kegiatanList,
+                'jumlah_kegiatan' => $kegiatanList->count(),
+            ];
+        })->values();
+
+        return Inertia::render('Bast/CreateForMonth', [
+            'bulan' => (int) $bulan,
+            'tahun' => $tahun,
+            'bulan_label' => $this->getBulanLabel((int) $bulan),
+            'spk_list' => $spkList,
+        ]);
+    }
+
+    /**
+     * Generate BAST secara batch untuk multiple SPK
+     * Prinsip: 1 SPK = 1 BAST dengan lampiran per kegiatan
+     */
+    public function generateBatch(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $request->validate([
+            'spk_ids' => 'required|array|min:1',
+            'spk_ids.*' => 'required|integer|exists:spk,id',
+        ]);
+
+        $successCount = 0;
+        $failedSpk = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($request->spk_ids as $spkId) {
+                try {
+                    $spk = Spk::with([
+                        'alokasiPetugas.petugas',
+                        'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+                    ])->findOrFail($spkId);
+
+                    // Check if BAST already exists for this SPK
+                    if ($spk->bast()->exists()) {
+                        $failedSpk[] = [
+                            'nomor_spk' => $spk->nomor_spk,
+                            'reason' => 'BAST sudah ada',
+                        ];
+
+                        continue;
+                    }
+
+                    // Ambil semua SPK (original + addendum) untuk menentukan tanggal berakhir
+                    $allSpks = Spk::where(function ($q) use ($spk) {
+                        $q->where('id', $spk->id)
+                            ->orWhere('parent_spk_id', $spk->id);
+                    })
+                        ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
+                        ->get();
+
+                    // Tentukan tanggal berakhir paling akhir dari semua kegiatan
+                    $tanggalBerakhirPalingAkhir = $allSpks->max('tanggal_selesai_kerja');
+
+                    if (! $tanggalBerakhirPalingAkhir) {
+                        $failedSpk[] = [
+                            'nomor_spk' => $spk->nomor_spk,
+                            'reason' => 'Tidak ada tanggal selesai kerja',
+                        ];
+
+                        continue;
+                    }
+
+                    // Create BAST record
+                    $bast = Bast::create([
+                        'spk_id' => $spk->id,
+                        'nomor_bast' => $this->generateNomorBastForSpk($tanggalBerakhirPalingAkhir),
+                        'tanggal_bast' => $tanggalBerakhirPalingAkhir,
+                        'tanggal_pelaksanaan' => $spk->tanggal_mulai_kerja,
+                        'tanggal_selesai' => $tanggalBerakhirPalingAkhir,
+                        'lokasi_kegiatan' => 'Kota Sawahlunto',
+                        'keterangan' => null,
+                        'created_by_user_id' => Auth::id(),
+                    ]);
+
+                    // Create BastPetugas records untuk setiap kegiatan
+                    foreach ($allSpks as $spkKegiatan) {
+                        $alokasi = $spkKegiatan->alokasiPetugas;
+                        $kegiatan = $alokasi?->periodeAlokasi?->kegiatan;
+
+                        if (! $kegiatan) {
+                            continue;
+                        }
+
+                        $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
+                        $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
+
+                        // Cek hasil listing
+                        $hasListing = ($kegiatan->has_listing_updating ?? false)
+                            || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+
+                        BastPetugas::create([
+                            'bast_id' => $bast->id,
+                            'petugas_id' => $alokasi->petugas_id,
+                            'kegiatan_id' => $kegiatan->id,
+                            'spk_id' => $spkKegiatan->id,
+                            'nomor_spk' => $spkKegiatan->nomor_spk,
+                            'tanggal_selesai' => $spkKegiatan->tanggal_selesai_kerja,
+                            'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
+                            'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
+                            'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
+                            'keterangan' => $alokasi->catatan,
+                        ]);
+                    }
+
+                    $successCount++;
+                } catch (\Exception $e) {
+                    $failedSpk[] = [
+                        'nomor_spk' => $spk->nomor_spk ?? 'Unknown',
+                        'reason' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            DB::commit();
+
+            $message = "Berhasil generate {$successCount} BAST";
+            if (count($failedSpk) > 0) {
+                $failedList = collect($failedSpk)->map(fn ($f) => "{$f['nomor_spk']} ({$f['reason']})")->join(', ');
+                $message .= ". Gagal: {$failedList}";
+            }
+
+            return redirect()->route('bast.index')->with('success', $message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Gagal generate BAST: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Generate nomor BAST otomatis untuk SPK
+     */
+    private function generateNomorBastForSpk(\Carbon\Carbon $tanggalBast): string
+    {
+        $tahun = $tanggalBast->year;
+        $bulan = $tanggalBast->month;
+
+        // Get last BAST number for this month
+        $lastBast = Bast::whereYear('tanggal_bast', $tahun)
+            ->whereMonth('tanggal_bast', $bulan)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($lastBast && preg_match('/^(\d+)\//', $lastBast->nomor_bast, $matches)) {
+            $urut = (int) $matches[1] + 1;
+        } else {
+            $urut = 1;
+        }
+
+        $bulanRomawi = $this->getRomanMonth($bulan);
+
+        return sprintf('PPIS/13730/%d/BAST/%d', $urut, $tahun);
+    }
+
+    /**
+     * Convert month number to Roman numeral
+     */
+    private function getRomanMonth(int $month): string
+    {
+        $romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+        return $romans[$month - 1] ?? 'I';
+    }
+
+    /**
+     * Preview BAST untuk specific SPK
+     */
+    public function previewForSpk(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $request->validate([
+            'spk_id' => 'required|integer|exists:spk,id',
+        ]);
+
+        $spk = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ])->findOrFail($request->spk_id);
+
+        $petugas = $spk->alokasiPetugas?->petugas;
+        $bulan = date('m', strtotime($spk->tanggal_mulai_kerja));
+        $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
+
+        // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
+        $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
+            ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
+                $q->where('bulan', $bulan)
+                    ->where('tahun', $tahun);
+            })
+            ->with([
+                'periodeAlokasi.kegiatan.rateHonors.satuan',
+                'periodeAlokasi.kegiatan.rateHonors.satuanListing',
+                'spk',
+            ])
+            ->get();
+
+        // Tentukan tanggal berakhir paling akhir dari semua SPK
+        $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
+            return $alokasi->spk?->first()?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? null;
+        })->filter()->max();
+
+        // Fallback ke tanggal SPK original jika tidak ada yang lain
+        if (! $tanggalBerakhirPalingAkhir) {
+            $tanggalBerakhirPalingAkhir = $spk->tanggal_selesai_kerja;
+        }
+
+        if (! $tanggalBerakhirPalingAkhir) {
+            return back()->with('error', 'Tidak ada tanggal selesai kerja pada SPK ini');
+        }
+
+        $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
+
+        // Generate nomor BAST dengan urutan
+        $noUrutBAST = $this->generateNomorBastForSpk($tanggalBerakhirPalingAkhir);
+
+        // Format data untuk preview
+        $bastData = [
+            'nomor_bast' => $noUrutBAST,
+            'tanggal_bast' => $tanggalBerakhirPalingAkhir,
+            'tanggal_pelaksanaan' => $spk->tanggal_mulai_kerja,
+            'tanggal_selesai' => $tanggalBerakhirPalingAkhir,
+            'lokasi_kegiatan' => 'Kota Sawahlunto',
+            'nama_ppk' => $spk->nama_ppk,
+            'nip_ppk' => $spk->nip_ppk,
+            'petugas' => [
+                'nama' => $petugas?->nama,
+                'nik' => $petugas?->nik,
+                'alamat' => $petugas?->alamat,
+            ],
+            'ketua_tim' => [
+                'nama' => $ketuaTim?->name,
+                'nip' => $ketuaTim?->nip,
+            ],
+            'kegiatan_list' => [],
+        ];
+
+        // Build kegiatan list dengan lampiran
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+
+            if (! $kegiatan) {
+                continue;
+            }
+
+            $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
+                return $rate->status_kepegawaian === $alokasi->status_kepegawaian
+                    && $rate->jenis_penugasan === $alokasi->peran;
             });
 
-        return Inertia::render('Bast/Create', [
-            'kegiatan' => $kegiatan,
+            $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
+            $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
+            $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+
+            // Tentukan nomor SPK dan tanggal selesai
+            $spkFirst = $alokasi->spk?->first();
+            $nomorSpk = $spkFirst?->nomor_spk ?? 'Belum ada SPK';
+            $tanggalSelesai = $spkFirst?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK');
+            $uraianPekerjaan = $spkFirst?->uraian_pekerjaan ?? 'Belum ada uraian';
+
+            $bastData['kegiatan_list'][] = [
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'nomor_spk' => $nomorSpk,
+                'tanggal_selesai' => $tanggalSelesai,
+                'uraian_pekerjaan' => $uraianPekerjaan,
+                'peran' => $alokasi->peran,
+                'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
+                'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
+                'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
+                'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
+                'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'keterangan' => $alokasi->catatan,
+            ];
+        }
+
+        // Generate BAST utama dan lampiran gabungan
+        $bastObject = (object) $bastData;
+
+        // Kirim variabel tambahan yang dibutuhkan template
+        $viewData = [
+            'bast' => $bastObject,
+            'nomor_bast' => $bastData['nomor_bast'],
+            'hari' => \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('dddd'),
+            'menggunakan_fasih' => false,
+            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
+            'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
+        ];
+
+        $htmlContent = view('bast', $viewData)->render();
+        $htmlContent .= '<div style="page-break-after: always;"></div>';
+        $htmlContent .= view('bast-lampiran-spk', ['bast' => $bastObject])->render();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($htmlContent);
+        $pdf->setPaper('a4', 'portrait');
+
+        $cleanNomorBast = str_replace(['/', '\\'], '-', $bastData['nomor_bast']);
+
+        return $pdf->stream('preview-bast-'.$cleanNomorBast.'-'.$bastData['petugas']['nama'].'.pdf');
+    }
+
+    /**
+     * Download PDF BAST yang sudah tersimpan
+     */
+    public function downloadPdf(Bast $bast): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->load([
+            'spk.alokasiPetugas.petugas',
+            'spk.alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+            'bastPetugas.kegiatan',
+            'bastPetugas.petugas',
         ]);
+
+        $spk = $bast->spk;
+        $petugas = $spk->alokasiPetugas?->petugas;
+        $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
+
+        // Build kegiatan list dari BastPetugas
+        $kegiatanList = $bast->bastPetugas->map(function ($bp) {
+            $alokasi = AlokasiPetugas::where('petugas_id', $bp->petugas_id)
+                ->whereHas('periodeAlokasi', fn ($q) => $q->where('kegiatan_id', $bp->kegiatan_id))
+                ->first();
+
+            $kegiatan = $bp->kegiatan;
+            $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
+                return $alokasi && $rate->status_kepegawaian === $alokasi->status_kepegawaian
+                    && $rate->jenis_penugasan === $alokasi->peran;
+            });
+
+            $isPendataanRole = in_array($alokasi?->peran, self::PENDATAAN_ROLES, true);
+            $isPengolahanRole = in_array($alokasi?->peran, self::PENGOLAHAN_ROLES, true);
+
+            return [
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'nomor_spk' => $bp->nomor_spk,
+                'tanggal_selesai' => $bp->tanggal_selesai,
+                'peran' => $alokasi?->peran,
+                'hasil_listing' => $bp->hasil_listing,
+                'satuan_listing' => $isPendataanRole ? $rateHonor?->satuanListing?->nama : null,
+                'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
+                'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'hasil_pengolahan' => $bp->hasil_pengolahan,
+                'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
+                'keterangan' => $bp->keterangan,
+            ];
+        });
+
+        $bastData = [
+            'nomor_bast' => $bast->nomor_bast,
+            'tanggal_bast' => $bast->tanggal_bast,
+            'tanggal_pelaksanaan' => $bast->tanggal_pelaksanaan,
+            'tanggal_selesai' => $bast->tanggal_selesai,
+            'lokasi_kegiatan' => $bast->lokasi_kegiatan,
+            'nama_ppk' => $spk->nama_ppk,
+            'nip_ppk' => $spk->nip_ppk,
+            'petugas' => [
+                'nama' => $petugas?->nama,
+                'nik' => $petugas?->nik,
+                'alamat' => $petugas?->alamat,
+            ],
+            'ketua_tim' => [
+                'nama' => $ketuaTim?->name,
+                'nip' => $ketuaTim?->nip,
+            ],
+            'kegiatan_list' => $kegiatanList->toArray(),
+        ];
+
+        $bastObject = (object) $bastData;
+
+        // Kirim variabel tambahan yang dibutuhkan template
+        $viewData = [
+            'bast' => $bastObject,
+            'nomor_bast' => $bastData['nomor_bast'],
+            'hari' => \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd'),
+            'menggunakan_fasih' => false,
+            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
+            'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
+        ];
+
+        // Generate BAST + Lampiran
+        $htmlContent = view('bast', $viewData)->render();
+        $htmlContent .= '<div style="page-break-after: always;"></div>';
+        $htmlContent .= view('bast-lampiran-spk', ['bast' => $bastObject])->render();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($htmlContent);
+        $pdf->setPaper('a4', 'portrait');
+
+        $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
+        $filename = 'BAST-'.$cleanNomorBast.'.pdf';
+
+        return $pdf->download($filename);
     }
 
     /**
      * Show form to create BAST for a specific kegiatan
      */
-    public function createForKegiatan(string $kegiatanHashedId): Response
+    public function createForKegiatan(string $kegiatanHashedId): Response|\Illuminate\Http\RedirectResponse
     {
         $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
 
@@ -222,17 +651,43 @@ class BastController extends Controller
 
         $targetPeriode = $this->getTargetPeriode($kegiatanId);
 
+        // Check if BAST already exists for this kegiatan and periode
+        if ($targetPeriode) {
+            $existingBast = Bast::where('kegiatan_id', $kegiatanId)
+                ->where('periode_alokasi_id', $targetPeriode->id)
+                ->first();
+
+            if ($existingBast) {
+                return redirect()->route('bast.index')
+                    ->with('error', 'BAST untuk kegiatan dan periode ini sudah pernah dibuat.');
+            }
+        }
+
         $status = $targetPeriode?->status ?? ($periodeWithPerubahan ? 'perubahan' : 'dikirim');
 
         // Get all petugas untuk periode target, ambil SPK terbaru (original/addendum) tanpa membatasi status
+        // IMPORTANT: Get ALL kegiatan allocations for each petugas in the same month, not just this specific kegiatan
         $alokasiPetugasRaw = AlokasiPetugas::query()
             ->when($targetPeriode, function ($query) use ($targetPeriode) {
-                $query->where('periode_alokasi_id', $targetPeriode->id);
+                // For specific periode: get all kegiatan for same month/year
+                $query->whereHas('periodeAlokasi', function ($q) use ($targetPeriode) {
+                    $q->where('bulan', $targetPeriode->bulan)
+                        ->where('tahun', $targetPeriode->tahun);
+                });
             })
             ->when(! $targetPeriode, function ($query) use ($kegiatanId, $status) {
-                $query->whereHas('periodeAlokasi', function ($q) use ($kegiatanId, $status) {
-                    $q->where('kegiatan_id', $kegiatanId)->where('status', $status);
-                });
+                // For status-based: get all kegiatan for the specific kegiatan's month/year
+                $kegiatanPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
+                    ->where('status', $status)
+                    ->first();
+
+                if ($kegiatanPeriode) {
+                    $query->whereHas('periodeAlokasi', function ($q) use ($kegiatanPeriode, $status) {
+                        $q->where('bulan', $kegiatanPeriode->bulan)
+                            ->where('tahun', $kegiatanPeriode->tahun)
+                            ->where('status', $status);
+                    });
+                }
             })
             ->whereHas('spk')
             ->with([
@@ -240,7 +695,7 @@ class BastController extends Controller
                 'spk' => function ($query) {
                     $query->orderByDesc('addendum_number')->orderByDesc('id'); // pick latest SPK (original or addendum)
                 },
-                'periodeAlokasi',
+                'periodeAlokasi.kegiatan', // Load kegiatan relationship
             ])
             ->get();
 
@@ -249,40 +704,68 @@ class BastController extends Controller
 
         $hasPengolahan = $this->hasPengolahanListing($alokasiPetugasRaw);
 
-        $alokasiPetugas = $alokasiPetugasRaw
+        // Group alokasi by petugas and collect all their kegiatan
+        $petugasGrouped = $alokasiPetugasRaw
             ->filter(function ($alokasi) {
-                return $alokasi->spk && $alokasi->spk->isNotEmpty();
+                return $alokasi->spk?->isNotEmpty();
             })
-            ->map(function ($alokasi) use ($kegiatan, $hasListing) {
-                $spk = $alokasi->spk->first();
-                $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
-                    return $rate->status_kepegawaian === $alokasi->status_kepegawaian
-                        && $rate->jenis_penugasan === $alokasi->peran;
-                });
-                $satuanPendataan = $rateHonor?->satuan?->nama;
-                $satuanListing = $rateHonor?->satuanListing?->nama;
-                $satuanPengolahan = $rateHonor?->satuan?->nama;
-                $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
+            ->groupBy('petugas_id');
+
+        $alokasiPetugas = $petugasGrouped->map(function ($alokasiGroup) use ($kegiatan, $hasListing) {
+            // Use first alokasi as base (all should have same petugas and SPK)
+            $firstAlokasi = $alokasiGroup->first();
+            $spk = $firstAlokasi->spk?->first(); // ambil SPK pertama dari relasi HasMany
+
+            // Collect all kegiatan for this petugas
+            $kegiatanList = $alokasiGroup->map(function ($alokasi) {
+                $kegiatanAlokasi = $alokasi->periodeAlokasi->kegiatan;
 
                 return [
-                    'id' => $alokasi->id,
-                    'petugas_id' => $alokasi->petugas->id,
-                    'spk_id' => $spk->id,
-                    'nama_petugas' => $alokasi->petugas->nama,
-                    'nomor_spk' => $spk->nomor_spk,
+                    'kegiatan_id' => $kegiatanAlokasi->id,
+                    'kode_kegiatan' => $kegiatanAlokasi->kode_kegiatan,
+                    'nama_kegiatan' => $kegiatanAlokasi->nama_kegiatan,
                     'peran' => $alokasi->peran,
-                    'hasil_listing' => ($hasListing && $isPendataanRole) ? ($alokasi->jumlah_satuan_listing ?? null) : null,
-                    'satuan_listing' => ($hasListing && $isPendataanRole) ? ($satuanListing ?? null) : null,
-                    'hasil_pendataan_lapangan' => $isPendataanRole ? ($alokasi->jumlah_satuan ?? null) : null,
-                    'satuan_pendataan_lapangan' => $isPendataanRole ? ($satuanPendataan ?? null) : null,
-                    'hasil_pengolahan' => $isPengolahanRole ? ($alokasi->jumlah_satuan ?? null) : null,
-                    'satuan_pengolahan' => $isPengolahanRole ? ($satuanPengolahan ?? null) : null,
-                    'hasil_pengolahan_listing' => $isPengolahanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
-                    'satuan_pengolahan_listing' => $isPengolahanRole ? ($satuanListing ?? null) : null,
-                    'catatan' => $alokasi->catatan,
+                    'jumlah_satuan' => $alokasi->jumlah_satuan,
+                    'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
+                    'bulan' => $alokasi->periodeAlokasi->bulan,
+                    'tahun' => $alokasi->periodeAlokasi->tahun,
                 ];
-            })
+            })->toArray();
+
+            // Calculate aggregate data for BAST table
+            $totalSatuan = $alokasiGroup->sum('jumlah_satuan');
+            $totalSatuanListing = $alokasiGroup->sum('jumlah_satuan_listing');
+
+            // Use the main kegiatan (from the form) to get rate honor info
+            $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($firstAlokasi) {
+                return $rate->status_kepegawaian === $firstAlokasi->status_kepegawaian
+                    && $rate->jenis_penugasan === $firstAlokasi->peran;
+            });
+            $satuanPendataan = $rateHonor?->satuan?->nama;
+            $satuanListing = $rateHonor?->satuanListing?->nama;
+            $satuanPengolahan = $rateHonor?->satuan?->nama;
+            $isPendataanRole = in_array($firstAlokasi->peran, self::PENDATAAN_ROLES, true);
+            $isPengolahanRole = in_array($firstAlokasi->peran, self::PENGOLAHAN_ROLES, true);
+
+            return [
+                'id' => $firstAlokasi->id,
+                'petugas_id' => $firstAlokasi->petugas->id,
+                'spk_id' => $spk->id,
+                'nama_petugas' => $firstAlokasi->petugas->nama,
+                'nomor_spk' => $spk->nomor_spk,
+                'peran' => $firstAlokasi->peran,
+                'hasil_listing' => ($hasListing && $isPendataanRole) ? ($totalSatuanListing ?? null) : null,
+                'satuan_listing' => ($hasListing && $isPendataanRole) ? ($satuanListing ?? null) : null,
+                'hasil_pendataan_lapangan' => $isPendataanRole ? ($totalSatuan ?? null) : null,
+                'satuan_pendataan_lapangan' => $isPendataanRole ? ($satuanPendataan ?? null) : null,
+                'hasil_pengolahan' => $isPengolahanRole ? ($totalSatuan ?? null) : null,
+                'satuan_pengolahan' => $isPengolahanRole ? ($satuanPengolahan ?? null) : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? ($totalSatuanListing ?? null) : null,
+                'satuan_pengolahan_listing' => $isPengolahanRole ? ($satuanListing ?? null) : null,
+                'catatan' => $firstAlokasi->catatan,
+                'kegiatan_list' => $kegiatanList, // Add kegiatan list for each petugas
+            ];
+        })
             ->values();
 
         // Check if there's actual meaningful data in the columns to determine which columns to show
@@ -481,6 +964,18 @@ class BastController extends Controller
             ->first();
         $kepalaBps = $kepala ? $this->stripGelar($kepala->nama) : null;
 
+        // Cari NIP ketua tim dari data petugas dengan nama yang sama
+        $namaKetuaTim = $kegiatan->ketuaTim->name ?? 'N/A';
+        $nipKetuaTim = $kegiatan->ketuaTim->nip ?? null;
+
+        // Prioritas: cari dari data petugas dengan nama yang sama
+        if ($namaKetuaTim !== 'N/A') {
+            $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+            if ($petugasKetuaTim && $petugasKetuaTim->nip) {
+                $nipKetuaTim = $petugasKetuaTim->nip;
+            }
+        }
+
         // Data utama
         $viewData = [
             'nomor_bast' => $nomorBast,
@@ -491,8 +986,8 @@ class BastController extends Controller
             'tahun' => $tahunPeriode,
             'nama_ppk' => $namaPpk,
             'nip_ppk' => $penandatangan->nip ?? 'N/A',
-            'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? 'N/A',
-            'nip_ketua_tim' => $kegiatan->ketuaTim->nip ?? null,
+            'nama_ketua_tim' => $namaKetuaTim,
+            'nip_ketua_tim' => $nipKetuaTim,
             'nama_kegiatan' => $kegiatan->nama_kegiatan,
             'nama_instansi' => config('app.instansi_name', 'Badan Pusat Statistik Kota Sawahlunto'),
             'menggunakan_fasih' => $validated['menggunakan_fasih'],
@@ -531,7 +1026,7 @@ class BastController extends Controller
         // First do basic validation
         $basicValidated = $request->validate([
             'kegiatan_id' => 'required|exists:kegiatan,id',
-            'bulan' => 'nullable|string|size:2',
+            'bulan' => 'nullable|string|min:1|max:2',
             'tahun' => 'nullable|integer',
             'tanggal_bast' => 'required|date',
             'menggunakan_fasih' => 'required|boolean',
@@ -646,6 +1141,14 @@ class BastController extends Controller
                 throw new \RuntimeException('Periode alokasi tidak ditemukan untuk kegiatan ini.');
             }
 
+            if (! ($targetPeriode instanceof \App\Models\PeriodeAlokasi)) {
+                \Illuminate\Support\Facades\Log::error('Invalid targetPeriode type', [
+                    'type' => gettype($targetPeriode),
+                    'class' => is_object($targetPeriode) ? get_class($targetPeriode) : null,
+                ]);
+                throw new \RuntimeException('Periode alokasi tidak valid.');
+            }
+
             $periodeId = $targetPeriode->id;
 
             // Get PPK
@@ -653,10 +1156,10 @@ class BastController extends Controller
             $penandatangan = Penandatangan::ppk()
                 ->active()
                 ->where(function ($q) {
-                    $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
+                    $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', today());
                 })
                 ->where(function ($q) {
-                    $q->whereNull('periode_selesai')->orWhere('periode_selesai', '>=', now());
+                    $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
                 })
                 ->orderByDesc('periode_mulai')
                 ->first();
@@ -669,49 +1172,143 @@ class BastController extends Controller
                 : \Carbon\Carbon::parse($validated['tanggal_bast'])->isoFormat('MMMM');
             $tahunPeriode = $targetPeriode?->tahun ?? (int) \Carbon\Carbon::parse($validated['tanggal_bast'])->year;
 
-            // Ambil data petugas dari AlokasiPetugas untuk periode dan kegiatan ini
-            $alokasiPetugas = \App\Models\AlokasiPetugas::where('periode_alokasi_id', $periodeId)
-                ->with(['spk', 'petugas'])
+            // Ambil data petugas dari AlokasiPetugas untuk periode ini
+            // Fetch ALL allocations for each petugas in the same bulan/tahun across all kegiatan
+            $bulanTarget = $targetPeriode->bulan;
+            $tahunTarget = $targetPeriode->tahun;
+
+            // Get all periode alokasi in the same bulan/tahun
+            $allPeriodeInMonth = \App\Models\PeriodeAlokasi::where('bulan', $bulanTarget)
+                ->where('tahun', $tahunTarget)
+                ->whereIn('status', ['dikirim', 'perubahan', 'disetujui'])
+                ->pluck('id');
+
+            // Get all alokasi petugas in that period
+            $allAlokasiPetugas = \App\Models\AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+                ->with([
+                    'spk' => function ($query) {
+                        $query->orderByDesc('created_at')->limit(1);
+                    },
+                    'petugas',
+                    'periodeAlokasi.kegiatan',
+                ])
                 ->get();
 
-            $petugas = $alokasiPetugas->map(function ($alokasi) {
-                $isPendataanRole = in_array($alokasi->peran, ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'], true);
-                $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
+            // Group by petugas and aggregate their work across all activities
+            $petugasGrouped = $allAlokasiPetugas->groupBy('petugas_id');
+
+            // Collect kegiatan details for attachments
+            $kegiatanAttachments = $allAlokasiPetugas->map(function ($alokasi) {
+                return [
+                    'kegiatan_id' => $alokasi->periodeAlokasi->kegiatan->id,
+                    'periode_alokasi_id' => $alokasi->periode_alokasi_id,
+                    'kode_kegiatan' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
+                    'nama_kegiatan' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
+                    'bulan' => $alokasi->periodeAlokasi->bulan,
+                    'tahun' => $alokasi->periodeAlokasi->tahun,
+                    'jenis_kegiatan' => $alokasi->periodeAlokasi->jenis_kegiatan,
+                ];
+            })->unique(function ($item) {
+                return $item['kegiatan_id'].'_'.$item['periode_alokasi_id'];
+            })->values();
+
+            $petugas = $petugasGrouped->map(function ($alokasiGroup, $petugasId) {
+                // Get the first alokasi to get petugas info and latest SPK
+                $firstAlokasi = $alokasiGroup->first();
+                $latestSpk = $firstAlokasi->spk?->first(); // relasi HasMany, ambil yang pertama
+
+                // Aggregate results across all activities for this petugas
+                $totalHasilListing = 0;
+                $totalHasilPendataanLapangan = 0;
+                $totalHasilPengolahan = 0;
+                $totalHasilPengolahanListing = 0;
+
+                $satuanListing = null;
+                $satuanPendataanLapangan = null;
+                $satuanPengolahan = null;
+                $satuanPengolahanListing = null;
+
+                $peranList = [];
+                $catatanList = [];
+
+                foreach ($alokasiGroup as $alokasi) {
+                    $isPendataanRole = in_array($alokasi->peran, ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'], true);
+                    $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
+
+                    if ($isPendataanRole) {
+                        $totalHasilListing += $alokasi->jumlah_satuan_listing ?? 0;
+                        $totalHasilPendataanLapangan += $alokasi->jumlah_satuan ?? 0;
+                        // Get satuan from the first non-null value
+                        $satuanListing = $satuanListing ?? $alokasi->satuan_listing;
+                        $satuanPendataanLapangan = $satuanPendataanLapangan ?? $alokasi->satuan_pendataan_lapangan;
+                    }
+
+                    if ($isPengolahanRole) {
+                        $totalHasilPengolahan += $alokasi->jumlah_satuan ?? 0;
+                        $totalHasilPengolahanListing += $alokasi->jumlah_satuan_listing ?? 0;
+                        // Get satuan from the first non-null value
+                        $satuanPengolahan = $satuanPengolahan ?? $alokasi->satuan_pengolahan;
+                        $satuanPengolahanListing = $satuanPengolahanListing ?? $alokasi->satuan_listing;
+                    }
+
+                    // Collect unique peran
+                    if (! in_array($alokasi->peran, $peranList)) {
+                        $peranList[] = $alokasi->peran;
+                    }
+
+                    // Collect non-empty catatan
+                    if (! empty($alokasi->catatan)) {
+                        $catatanList[] = $alokasi->catatan;
+                    }
+                }
+
+                // Determine primary peran (use the first one or most common)
+                $primaryPeran = $peranList[0] ?? 'pcl_ppl';
+                $isPendataanRole = in_array($primaryPeran, ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'], true);
+                $isPengolahanRole = in_array($primaryPeran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
 
                 return [
-                    'petugas_id' => $alokasi->petugas_id,
-                    'spk_id' => $alokasi->spk?->id,
-                    'nomor_spk' => $alokasi->spk?->nomor_spk ?? $alokasi->nomor_spk ?? '-',
-                    'nama_petugas' => $alokasi->petugas?->nama ?? '-',
-                    'peran' => $alokasi->peran,
-                    'hasil_listing' => $isPendataanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
-                    'satuan_listing' => $isPendataanRole ? ($alokasi->satuan_listing ?? null) : null,
-                    'instrumen_listing' => $isPendataanRole ? ($alokasi->instrumen_listing ?? null) : null,
-                    'hasil_pendataan_lapangan' => $isPendataanRole ? ($alokasi->jumlah_satuan ?? null) : null,
-                    'satuan_pendataan_lapangan' => $isPendataanRole ? ($alokasi->satuan_pendataan_lapangan ?? null) : null,
-                    'instrumen_pendataan_lapangan' => $isPendataanRole ? ($alokasi->instrumen_pendataan_lapangan ?? null) : null,
-                    'hasil_pengolahan' => $isPengolahanRole ? ($alokasi->jumlah_satuan ?? null) : null,
-                    'satuan_pengolahan' => $isPengolahanRole ? ($alokasi->satuan_pengolahan ?? null) : null,
-                    'hasil_pengolahan_listing' => $isPengolahanRole ? ($alokasi->jumlah_satuan_listing ?? null) : null,
-                    'satuan_pengolahan_listing' => $isPengolahanRole ? ($alokasi->satuan_listing ?? null) : null,
-                    'catatan' => $alokasi->catatan ?? null,
+                    'petugas_id' => $petugasId,
+                    'spk_id' => $latestSpk?->id,
+                    'nomor_spk' => $latestSpk?->nomor_spk ?? '-',
+                    'nama_petugas' => $firstAlokasi->petugas?->nama ?? '-',
+                    'peran' => $primaryPeran,
+                    'hasil_listing' => $isPendataanRole && $totalHasilListing > 0 ? $totalHasilListing : null,
+                    'satuan_listing' => $isPendataanRole ? $satuanListing : null,
+                    'instrumen_listing' => $isPendataanRole ? ($firstAlokasi->instrumen_listing ?? null) : null,
+                    'hasil_pendataan_lapangan' => $isPendataanRole && $totalHasilPendataanLapangan > 0 ? $totalHasilPendataanLapangan : null,
+                    'satuan_pendataan_lapangan' => $isPendataanRole ? $satuanPendataanLapangan : null,
+                    'instrumen_pendataan_lapangan' => $isPendataanRole ? ($firstAlokasi->instrumen_pendataan_lapangan ?? null) : null,
+                    'hasil_pengolahan' => $isPengolahanRole && $totalHasilPengolahan > 0 ? $totalHasilPengolahan : null,
+                    'satuan_pengolahan' => $isPengolahanRole ? $satuanPengolahan : null,
+                    'hasil_pengolahan_listing' => $isPengolahanRole && $totalHasilPengolahanListing > 0 ? $totalHasilPengolahanListing : null,
+                    'satuan_pengolahan_listing' => $isPengolahanRole ? $satuanPengolahanListing : null,
+                    'catatan' => implode('; ', $catatanList),
                 ];
-            })->toArray();
+            })->values()->toArray();
+
+            // Filter hanya petugas yang punya SPK
+            $petugas = array_filter($petugas, function ($p) {
+                return ! empty($p['spk_id']);
+            });
+            $petugas = array_values($petugas); // Re-index array
 
             // Inject ke $validated agar generateBastPdf menggunakan data petugas dari alokasi
             $validated['petugas'] = $petugas;
 
-            // Generate PDF for BAST
-            $filePath = $this->generateBastPdf(
-                $kegiatan,
-                $validated,
-                $nomorBast,
-                $penandatangan,
-                $bulanLabel,
-                $tahunPeriode
-            );
+            // Cari NIP ketua tim dari data petugas dengan nama yang sama
+            $namaKetuaTim = $kegiatan->ketuaTim->name ?? null;
+            $nipKetuaTim = $kegiatan->ketuaTim->nip ?? null;
 
-            // Create BAST
+            // Prioritas: cari dari data petugas dengan nama yang sama
+            if ($namaKetuaTim) {
+                $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+                if ($petugasKetuaTim && $petugasKetuaTim->nip) {
+                    $nipKetuaTim = $petugasKetuaTim->nip;
+                }
+            }
+
+            // Create BAST (without file first)
             $bast = Bast::create([
                 'nomor_bast' => $nomorBast,
                 'kegiatan_id' => $validated['kegiatan_id'],
@@ -720,11 +1317,12 @@ class BastController extends Controller
                 'tanggal_bast' => $validated['tanggal_bast'],
                 'tanggal_serah_terima' => $validated['tanggal_bast'],
                 'menggunakan_fasih' => $validated['menggunakan_fasih'],
-                'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? null,
-                'nip_ketua_tim' => $kegiatan->ketuaTim->nip ?? null,
-                'nama_ppk' => $this->stripGelar($penandatangan->nama) ?? null,
-                'nip_ppk' => $penandatangan->nip ?? null,
-                'file_path' => $filePath,
+                'uraian_pekerjaan' => $kegiatan->nama_kegiatan.' Bulan '.$bulanLabel.' Tahun '.$tahunPeriode,
+                'nama_ketua_tim' => $namaKetuaTim,
+                'nip_ketua_tim' => $nipKetuaTim,
+                'nama_ppk' => $penandatangan ? $this->stripGelar($penandatangan->nama) : null,
+                'nip_ppk' => $penandatangan?->nip ?? null,
+                'file_path' => null, // Will be updated after PDF generation
                 'status' => 'draft',
                 'created_by' => Auth::id(),
             ]);
@@ -739,8 +1337,10 @@ class BastController extends Controller
                     'nama_petugas' => $petugasData['nama_petugas'],
                     'hasil_listing' => $petugasData['hasil_listing'],
                     'satuan_listing' => $petugasData['satuan_listing'],
+                    'instrumen_listing' => $petugasData['instrumen_listing'] ?? null,
                     'hasil_pendataan_lapangan' => $petugasData['hasil_pendataan_lapangan'],
                     'satuan_pendataan_lapangan' => $petugasData['satuan_pendataan_lapangan'],
+                    'instrumen_pendataan_lapangan' => $petugasData['instrumen_pendataan_lapangan'] ?? null,
                     'hasil_pengolahan_listing' => $petugasData['hasil_pengolahan_listing'],
                     'satuan_pengolahan_listing' => $petugasData['satuan_pengolahan_listing'],
                     'hasil_pengolahan' => $petugasData['hasil_pengolahan'],
@@ -749,9 +1349,36 @@ class BastController extends Controller
                 ]);
             }
 
+            // Create BAST Kegiatan records (activity attachments)
+            foreach ($kegiatanAttachments as $attachment) {
+                BastKegiatan::create([
+                    'bast_id' => $bast->id,
+                    'kegiatan_id' => $attachment['kegiatan_id'],
+                    'periode_alokasi_id' => $attachment['periode_alokasi_id'],
+                    'kode_kegiatan' => $attachment['kode_kegiatan'],
+                    'nama_kegiatan' => $attachment['nama_kegiatan'],
+                    'bulan' => $attachment['bulan'],
+                    'tahun' => $attachment['tahun'],
+                    'jenis_kegiatan' => $attachment['jenis_kegiatan'],
+                ]);
+            }
+
+            // Generate PDF after data saved to database
+            $filePath = $this->generateBastPdf(
+                $kegiatan,
+                $validated,
+                $nomorBast,
+                $penandatangan,
+                $bulanLabel,
+                $tahunPeriode
+            );
+
+            // Update BAST with file path
+            $bast->update(['file_path' => $filePath]);
+
             DB::commit();
 
-            return redirect()->route('bast.show', $bast->hashed_id)
+            return redirect()->route('bast.index')
                 ->with('success', 'BAST berhasil dibuat');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -765,9 +1392,100 @@ class BastController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Bast $bast)
+    public function show(Bast $bast): Response
     {
-        //
+        // Load relationships
+        $bast->load([
+            'kegiatan',
+            'periodeAlokasi',
+            'bastPetugas.petugas',
+            'bastPetugas.spk',
+            'createdBy:id,name',
+        ]);
+
+        // Get periode info
+        $periode = $bast->periodeAlokasi;
+        $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
+
+        // Get all BAST for this kegiatan (history)
+        $bastHistory = Bast::where('kegiatan_id', $bast->kegiatan_id)
+            ->with(['periodeAlokasi', 'createdBy:id,name'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($b) use ($bast) {
+                $periodeBast = $b->periodeAlokasi;
+                $bulanName = $this->getBulanLabel((int) $periodeBast->bulan);
+
+                return [
+                    'id' => $b->id,
+                    'hashed_id' => $b->hashed_id,
+                    'nomor_bast' => $b->nomor_bast,
+                    'tanggal_bast' => $b->tanggal_bast,
+                    'tanggal_serah_terima' => $b->tanggal_serah_terima,
+                    'periode' => "{$bulanName} {$periodeBast->tahun}",
+                    'status' => $b->status,
+                    'file_path' => $b->file_path,
+                    'created_by' => $b->createdBy?->name ?? 'System',
+                    'created_at' => $b->created_at->format('d M Y H:i'),
+                    'is_current' => $b->id === $bast->id,
+                ];
+            });
+
+        // Format bast petugas data
+        $bastPetugasList = $bast->bastPetugas->map(function ($bp) {
+            return [
+                'id' => $bp->id,
+                'petugas_id' => $bp->petugas_id,
+                'petugas_nama' => $bp->nama_petugas,
+                'nomor_spk' => $bp->nomor_spk,
+                'hasil_listing' => $bp->hasil_listing,
+                'satuan_listing' => $bp->satuan_listing,
+                'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
+                'satuan_pendataan_lapangan' => $bp->satuan_pendataan_lapangan,
+                'hasil_pengolahan' => $bp->hasil_pengolahan,
+                'satuan_pengolahan' => $bp->satuan_pengolahan,
+                'catatan' => $bp->catatan,
+            ];
+        })->values();
+
+        return Inertia::render('Bast/Show', [
+            'bast' => [
+                'id' => $bast->id,
+                'hashed_id' => $bast->hashed_id,
+                'nomor_bast' => $bast->nomor_bast,
+                'tanggal_bast' => $bast->tanggal_bast,
+                'tanggal_serah_terima' => $bast->tanggal_serah_terima,
+                'menggunakan_fasih' => $bast->menggunakan_fasih,
+                'uraian_pekerjaan' => $bast->uraian_pekerjaan,
+                'nama_ketua_tim' => $bast->nama_ketua_tim,
+                'nip_ketua_tim' => $bast->nip_ketua_tim,
+                'nama_ppk' => $bast->nama_ppk,
+                'nip_ppk' => $bast->nip_ppk,
+                'hasil_pekerjaan' => $bast->hasil_pekerjaan,
+                'file_path' => $bast->file_path,
+                'status' => $bast->status,
+                'catatan' => $bast->catatan,
+                'created_by' => $bast->createdBy?->name ?? 'System',
+                'created_at' => $bast->created_at->format('d M Y H:i'),
+            ],
+            'kegiatan' => [
+                'id' => $bast->kegiatan->id,
+                'hashed_id' => $bast->kegiatan->hashed_id,
+                'kode_kegiatan' => $bast->kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $bast->kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => $bast->kegiatan->jenis_kegiatan,
+                'tahun_anggaran' => $bast->kegiatan->tahun_anggaran,
+            ],
+            'periode' => [
+                'id' => $periode->id,
+                'hashed_id' => $periode->hashed_id,
+                'bulan' => (int) $periode->bulan,
+                'tahun' => $periode->tahun,
+                'bulan_label' => $bulanLabel,
+            ],
+            'bast_petugas' => $bastPetugasList,
+            'bast_history' => $bastHistory->values()->toArray(),
+        ]);
     }
 
     /**
@@ -872,6 +1590,21 @@ class BastController extends Controller
             return ! empty($p['hasil_pendataan_lapangan']);
         });
 
+        // Cari NIP ketua tim dari data petugas dengan nama yang sama
+        $namaKetuaTim = $kegiatan->ketuaTim->name ?? 'N/A';
+        $nipKetuaTim = null;
+
+        // Prioritas: cari dari data petugas dengan nama yang sama
+        if ($namaKetuaTim !== 'N/A') {
+            $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+            if ($petugasKetuaTim && $petugasKetuaTim->nip) {
+                $nipKetuaTim = $petugasKetuaTim->nip;
+            } else {
+                // Fallback ke profile ketua tim
+                $nipKetuaTim = $kegiatan->ketuaTim->nip ?? null;
+            }
+        }
+
         $viewData = [
             'nomor_bast' => $nomorBast,
             'hari' => $hari,
@@ -880,8 +1613,8 @@ class BastController extends Controller
             'tahun' => $tahunPeriode ?? (int) $tanggalBast->year,
             'nama_ppk' => $ppk->nama ?? 'N/A',
             'nip_ppk' => $ppk->nip ?? 'N/A',
-            'nama_ketua_tim' => $kegiatan->ketuaTim->name ?? 'N/A',
-            'nip_ketua_tim' => null,
+            'nama_ketua_tim' => $namaKetuaTim,
+            'nip_ketua_tim' => $nipKetuaTim,
             'nama_kegiatan' => $kegiatan->nama_kegiatan,
             'nama_instansi' => config('app.instansi_name', 'Badan Pusat Statistik Kota Sawahlunto'),
             'menggunakan_fasih' => $data['menggunakan_fasih'],
@@ -899,7 +1632,7 @@ class BastController extends Controller
         $kepala = Penandatangan::kepala()
             ->active()
             ->where(function ($q) {
-                $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', now());
+                $q->whereNull('periode_mulai')->orWhere('periode_mulai', '<=', today());
             })
             ->where(function ($q) {
                 $q->whereNull('periode_selesai')->orWhereDate('periode_selesai', '>=', today());
@@ -1073,5 +1806,19 @@ class BastController extends Controller
             ->where('status', 'dikirim')
             ->orderByDesc('id')
             ->first();
+    }
+
+    /**
+     * Get bulan label (Indonesian month name)
+     */
+    private function getBulanLabel(int $bulan): string
+    {
+        $bulanLabels = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+
+        return $bulanLabels[$bulan] ?? '';
     }
 }

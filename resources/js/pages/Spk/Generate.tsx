@@ -57,7 +57,6 @@ interface GenerateProps {
     next_nomor_urut: number;
     is_regenerate: boolean;
     default_tanggal_spk: string | null;
-    default_sampai_tanggal: string | null;
     existing_spk_map: Record<number, { nomor_spk: string; nomor_urut: number }>;
     last_nomor_urut_in_month: number;
     uses_suffix_for_new_petugas: boolean;
@@ -85,14 +84,12 @@ export default function Generate({
     next_nomor_urut,
     is_regenerate,
     default_tanggal_spk,
-    default_sampai_tanggal,
     existing_spk_map,
     last_nomor_urut_in_month,
     uses_suffix_for_new_petugas,
 }: GenerateProps) {
     const [formData, setFormData] = useState({
         tanggal_spk: default_tanggal_spk || '',
-        sampai_tanggal: default_sampai_tanggal || '',
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
@@ -126,9 +123,9 @@ export default function Generate({
     };
 
     const handlePreview = (alokasi: AlokasiPetugas) => {
-        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+        if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form Tanggal SPK dan Sampai Tanggal terlebih dahulu',
+                'Lengkapi form Tanggal SPK terlebih dahulu',
             );
             setShowFormModal(true);
             return;
@@ -204,7 +201,6 @@ export default function Generate({
         const formDataToSubmit = {
             nomor_spk: nomorSpk,
             tanggal_spk: formData.tanggal_spk,
-            sampai_tanggal: formData.sampai_tanggal,
         };
 
         Object.entries(formDataToSubmit).forEach(([key, value]) => {
@@ -221,9 +217,9 @@ export default function Generate({
     };
 
     const handlePreviewMain = (alokasi: any) => {
-        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+        if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -297,7 +293,6 @@ export default function Generate({
         const formDataToSubmit = {
             nomor_spk: nomorSpk,
             tanggal_spk: formData.tanggal_spk,
-            sampai_tanggal: formData.sampai_tanggal,
         };
 
         Object.entries(formDataToSubmit).forEach(([key, value]) => {
@@ -314,9 +309,9 @@ export default function Generate({
     };
 
     const handlePreviewLampiran = (alokasi: any) => {
-        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+        if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -390,7 +385,6 @@ export default function Generate({
         const formDataToSubmit = {
             nomor_spk: nomorSpk,
             tanggal_spk: formData.tanggal_spk,
-            sampai_tanggal: formData.sampai_tanggal,
         };
 
         Object.entries(formDataToSubmit).forEach(([key, value]) => {
@@ -413,9 +407,9 @@ export default function Generate({
             return;
         }
 
-        if (!formData.tanggal_spk || !formData.sampai_tanggal) {
+        if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK dan Sampai Tanggal wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -428,7 +422,6 @@ export default function Generate({
             `/spk/periode/${periode.hashed_id}/generate-all`,
             {
                 tanggal_spk: formData.tanggal_spk,
-                sampai_tanggal: formData.sampai_tanggal,
                 petugas_ids: selectedPetugas, // Send selected petugas
             },
             {
@@ -554,28 +547,8 @@ export default function Generate({
                                     disabled={is_regenerate}
                                     required
                                 />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="sampai_tanggal">
-                                    Sampai Tanggal
-                                </Label>
-                                <Input
-                                    id="sampai_tanggal"
-                                    type="date"
-                                    value={formData.sampai_tanggal}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            sampai_tanggal: e.target.value,
-                                        })
-                                    }
-                                    disabled={is_regenerate}
-                                    required
-                                />
                                 <p className="mt-1 text-xs text-neutral-500">
-                                    Tanggal akhir pelaksanaan pekerjaan (Pasal
-                                    3)
+                                    Tanggal mulai pelaksanaan SPK (Pasal 3). Tanggal akhir akan otomatis dihitung dari periode kegiatan.
                                 </p>
                             </div>
                         </div>
@@ -801,7 +774,6 @@ export default function Generate({
                                 processing ||
                                 selectedPetugas.length === 0 ||
                                 !formData.tanggal_spk ||
-                                !formData.sampai_tanggal ||
                                 has_draft_periode
                             }
                         >

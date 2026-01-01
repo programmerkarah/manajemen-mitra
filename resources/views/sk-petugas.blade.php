@@ -337,7 +337,7 @@
             <td>:</td>
             <td>
                 Segala biaya yang berhubungan dengan terbitnya keputusan ini dibebankan kepada DIPA BPS Kota Sawahlunto
-                SP {{ $dipa }} tanggal {{ \Carbon\Carbon::parse($tanggalDipa)->isoFormat('D MMMM Y') }}.
+                Nomor {{ $dipa }} tanggal {{ \Carbon\Carbon::parse($tanggalDipa)->isoFormat('D MMMM Y') }}.
             </td>
         </tr>
     </table>

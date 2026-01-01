@@ -160,8 +160,8 @@ class DashboardController extends Controller
 
                 // Count SPK if SK exists
                 $spkCount = $sk ? Spk::whereMonth('tanggal_spk', $currentMonth)
-                                ->whereYear('tanggal_spk', $currentYear)
-                                ->count()
+                    ->whereYear('tanggal_spk', $currentYear)
+                    ->count()
                             : 0;
                 $totalPetugasAlokasi = $periodeAlokasi ? $periodeAlokasi->alokasiPetugas()->count() : 0;
 
@@ -277,8 +277,8 @@ class DashboardController extends Controller
             // Group by petugas_id + kegiatan_id, prefer perubahan
             $grouped = [];
             foreach ($rawAlokasi as $row) {
-                $key = $row->petugas_id . '-' . $row->kegiatan_id;
-                if (!isset($grouped[$key])) {
+                $key = $row->petugas_id.'-'.$row->kegiatan_id;
+                if (! isset($grouped[$key])) {
                     $grouped[$key] = $row;
                 } else {
                     // Prefer perubahan over dikirim
@@ -293,7 +293,7 @@ class DashboardController extends Controller
             foreach ($grouped as $row) {
                 $pid = $row->petugas_id;
                 $honor = ($row->total_honor ?? 0) + ($row->total_honor_listing ?? 0);
-                if (!isset($petugasHonor[$pid])) {
+                if (! isset($petugasHonor[$pid])) {
                     $petugasHonor[$pid] = 0;
                 }
                 $petugasHonor[$pid] += $honor;
@@ -303,7 +303,7 @@ class DashboardController extends Controller
             $honorData = collect();
             foreach ($petugasHonor as $pid => $total) {
                 if ($total > 0) {
-                    $honorData->push((object)[
+                    $honorData->push((object) [
                         'petugas_id' => $pid,
                         'total_honor_bulan' => $total,
                     ]);

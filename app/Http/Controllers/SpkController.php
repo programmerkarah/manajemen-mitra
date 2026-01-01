@@ -104,14 +104,12 @@ class SpkController extends Controller
                 return in_array($periode->status, ['direvisi', 'perubahan']);
             });
 
-
             // Check if any SPK already has addendum
             $hasAddendum = $monthPeriodes->flatMap(function ($periode) {
                 return $periode->spk;
             })->contains(function ($spk) {
                 return $spk->addendum_number > 0;
             });
-
 
             // Check for new kegiatan/petugas after SPK was generated
             $hasNewKegiatanAfterSpk = $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
@@ -937,7 +935,6 @@ class SpkController extends Controller
         // If existing SPK found, use its dates and set readonly mode
         $isRegenerate = $existingSpk !== null;
         $defaultTanggalSpk = $isRegenerate ? $existingSpk->tanggal_spk->format('Y-m-d') : null;
-        $defaultSampaiTanggal = $isRegenerate ? $existingSpk->tanggal_selesai_kerja->format('Y-m-d') : null;
 
         // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)
         $existingSpkMap = [];
@@ -952,7 +949,6 @@ class SpkController extends Controller
                 ->whereMonth('tanggal_spk', $periode->bulan)
                 ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
                 ->get();
-
 
             foreach ($existingSpks as $spk) {
                 // Get baseline kegiatan: kegiatan yang ada SEBELUM SPK dibuat
@@ -1043,7 +1039,6 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('error', 'Tidak ada petugas yang dapat dibuatkan SPK untuk periode ini');
         }
 
-
         return Inertia::render('Spk/Generate', [
             'periode' => [
                 'id' => $periode->id,
@@ -1064,7 +1059,6 @@ class SpkController extends Controller
             'next_nomor_urut' => $nextNomorUrut,
             'is_regenerate' => $isRegenerate,
             'default_tanggal_spk' => $defaultTanggalSpk,
-            'default_sampai_tanggal' => $defaultSampaiTanggal,
             'existing_spk_map' => $existingSpkMap,
             'last_nomor_urut_in_month' => $lastNomorUrutInMonth,
             'uses_suffix_for_new_petugas' => $usesSuffixForNewPetugas,
@@ -1272,6 +1266,7 @@ class SpkController extends Controller
         if ($petugasList->isEmpty()) {
             abort(404, 'Tidak ada petugas yang dapat dibuatkan addendum SPK.');
         }
+
         return Inertia::render('Spk/Addendum', [
             'periode' => [
                 'id' => $periode->id,
@@ -1793,10 +1788,49 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
-            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Get all alokasi for this petugas in the same month
+        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'direvisi']);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        // Auto-calculate sampai_tanggal from this petugas' activity end dates
+        $latestEndDate = null;
+        foreach ($allAlokasi as $alokasi) {
+            $periodeItem = $alokasi->periodeAlokasi;
+            $endDates = array_filter([
+                $periodeItem->tanggal_selesai,
+                $periodeItem->tanggal_selesai_listing,
+            ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        // Fallback to end of month if no specific dates found
+        if ($latestEndDate === null) {
+            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
@@ -1916,10 +1950,49 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
-            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Get all alokasi for this petugas in the same month
+        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'direvisi']);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        // Auto-calculate sampai_tanggal from this petugas' activity end dates
+        $latestEndDate = null;
+        foreach ($allAlokasi as $alokasi) {
+            $periodeItem = $alokasi->periodeAlokasi;
+            $endDates = array_filter([
+                $periodeItem->tanggal_selesai,
+                $periodeItem->tanggal_selesai_listing,
+            ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        // Fallback to end of month if no specific dates found
+        if ($latestEndDate === null) {
+            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
@@ -1992,10 +2065,49 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
-            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+
+        // Get all alokasi for this petugas in the same month
+        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'direvisi']);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            abort(404, 'Tidak ada alokasi untuk petugas ini');
+        }
+
+        // Auto-calculate sampai_tanggal from this petugas' activity end dates
+        $latestEndDate = null;
+        foreach ($allAlokasi as $alokasi) {
+            $periodeItem = $alokasi->periodeAlokasi;
+            $endDates = array_filter([
+                $periodeItem->tanggal_selesai,
+                $periodeItem->tanggal_selesai_listing,
+            ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        // Fallback to end of month if no specific dates found
+        if ($latestEndDate === null) {
+            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
@@ -2067,7 +2179,6 @@ class SpkController extends Controller
 
         $validated = $request->validate([
             'tanggal_spk' => ['required', 'date'],
-            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -2082,10 +2193,36 @@ class SpkController extends Controller
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun);
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
+
+        // Calculate sampai_tanggal automatically from petugas-specific activity end dates
+        $latestEndDate = null;
+        foreach ($allAlokasi as $alokasiItem) {
+            $periodeItem = $alokasiItem->periodeAlokasi;
+            $endDates = array_filter([
+                $periodeItem->tanggal_selesai,
+                $periodeItem->tanggal_selesai_listing,
+            ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        // Fallback to end of month if no specific dates found
+        if ($latestEndDate === null) {
+            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         if ($allAlokasi->isEmpty()) {
             return redirect()->route('spk.index')->with('error', 'Tidak ada petugas yang dapat dibuatkan SPK untuk periode ini');
@@ -2198,7 +2335,7 @@ class SpkController extends Controller
                 'alokasi_petugas_id' => $allAlokasi->first()->id,
                 'tanggal_spk' => $validated['tanggal_spk'],
                 'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
-                'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                'tanggal_selesai_kerja' => \Carbon\Carbon::parse($calculatedSampaiTanggal),
                 'nilai_kontrak' => $totalHonor,
                 'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                 'nip_ppk' => $penandatangan->nip ?? null,
@@ -2448,7 +2585,6 @@ class SpkController extends Controller
 
         $validated = $request->validate([
             'tanggal_spk' => ['required', 'date'],
-            'sampai_tanggal' => ['required', 'date', 'after_or_equal:tanggal_spk'],
             'petugas_ids' => ['nullable', 'array'], // Array of petugas hashed IDs
         ]);
 
@@ -2631,6 +2767,22 @@ class SpkController extends Controller
                 }
             }
 
+            // Calculate sampai_tanggal from activity end dates
+            $latestEndDate = null;
+            foreach ($allAlokasiPetugas as $alokasi) {
+                $endDate = $alokasi->periodeAlokasi->tanggal_selesai ?? $alokasi->periodeAlokasi->tanggal_selesai_listing;
+                if ($endDate && ($latestEndDate === null || $endDate > $latestEndDate)) {
+                    $latestEndDate = $endDate;
+                }
+            }
+
+            // Fallback to end of month if no activity end dates found
+            if ($latestEndDate === null) {
+                $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+            }
+
+            $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate);
+
             $data = [
                 'periode' => $periode,
                 'alokasi' => $allAlokasiPetugas->first(),
@@ -2638,7 +2790,7 @@ class SpkController extends Controller
                 'kegiatan' => $periode->kegiatan,
                 'nomorSpk' => $nomorSpk,
                 'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-                'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+                'sampaiTanggal' => $calculatedSampaiTanggal,
                 'tanggalPerpanjangan' => null,
                 'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
                 'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
@@ -2703,7 +2855,7 @@ class SpkController extends Controller
                         'nomor_urut_base' => $noUrut, // Populate base number if NULL
                         'tanggal_spk' => $validated['tanggal_spk'],
                         'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
-                        'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                        'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                         'nip_ppk' => $penandatangan->nip ?? null,
@@ -2735,7 +2887,7 @@ class SpkController extends Controller
                         'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
                         'tanggal_spk' => $validated['tanggal_spk'],
                         'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
-                        'tanggal_selesai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth(),
+                        'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                         'nip_ppk' => $penandatangan->nip ?? null,
@@ -2928,8 +3080,8 @@ class SpkController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Only show addendum for petugas with perubahan allocation that differs from latest dikirim allocation and has no addendum
-        $perubahanPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'perubahan');
-        $dikirimPeriodes = $monthPeriodes->filter(fn($p) => $p->status === 'dikirim' || $p->status === 'direvisi');
+        $perubahanPeriodes = $monthPeriodes->filter(fn ($p) => $p->status === 'perubahan');
+        $dikirimPeriodes = $monthPeriodes->filter(fn ($p) => $p->status === 'dikirim' || $p->status === 'direvisi');
 
         foreach ($perubahanPeriodes as $periode) {
             $alokasiList = $periode->alokasiPetugas()
@@ -2944,10 +3096,12 @@ class SpkController extends Controller
                     $dikirimAlokasi = $dikirimPeriode->alokasiPetugas()
                         ->where('petugas_id', $alokasi->petugas_id)
                         ->first();
-                    if ($dikirimAlokasi) break;
+                    if ($dikirimAlokasi) {
+                        break;
+                    }
                 }
                 // If no dikirim allocation, treat as changed
-                $isChanged = !$dikirimAlokasi ? false : ($dikirimAlokasi->jumlah_satuan != $alokasi->jumlah_satuan || $dikirimAlokasi->jumlah_satuan_listing != $alokasi->jumlah_satuan_listing || $dikirimAlokasi->total_honor != $alokasi->total_honor || $dikirimAlokasi->total_honor_listing != $alokasi->total_honor_listing || $dikirimAlokasi->peran != $alokasi->peran);
+                $isChanged = ! $dikirimAlokasi ? false : ($dikirimAlokasi->jumlah_satuan != $alokasi->jumlah_satuan || $dikirimAlokasi->jumlah_satuan_listing != $alokasi->jumlah_satuan_listing || $dikirimAlokasi->total_honor != $alokasi->total_honor || $dikirimAlokasi->total_honor_listing != $alokasi->total_honor_listing || $dikirimAlokasi->peran != $alokasi->peran);
                 if ($isChanged) {
                     $hasAddendum = \App\Models\Spk::where('parent_spk_id', '!=', null)
                         ->where('alokasi_petugas_id', $alokasi->id)
@@ -2959,6 +3113,7 @@ class SpkController extends Controller
                 }
             }
         }
+
         return false; // No eligible petugas for addendum
     }
 

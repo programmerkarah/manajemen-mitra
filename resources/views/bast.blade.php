@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> {{ $nomor_bast }} - BAST Petugas - {{ $nama_kegiatan }}</title>
+    <title>{{ $nomor_bast ?? ($bast->nomor_bast ?? 'BAST') }} - {{$bast->petugas['nama']}} BAST Petugas Kegiatan Survei </title>
     <style>
         @page {
             size: A4 portrait;
-            margin: 3cm 3cm 3cm 4cm;
+            margin: 2cm 2cm 2cm 3cm;
         }
 
         @page landscape {
@@ -50,7 +50,6 @@
             color: #000;
             orphans: 3;
             widows: 3;
-            margin: 2cm 2.5cm 2cm 2.5cm;
         }
 
         .header {
@@ -204,18 +203,75 @@
 
 <body>
     @if(!($render_lampiran ?? false))
+    @php
+    // Generate judul dinamis berdasarkan jenis kegiatan dan peran
+    $jenisPetugasList = [];
+    $isSurvei = false;
+    $bulanBast = \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('MMMM');
+    $tahunBast = \Carbon\Carbon::parse($bast->tanggal_bast)->format('Y');
+    
+    if(isset($bast->kegiatan_list) && count($bast->kegiatan_list) > 0) {
+        foreach($bast->kegiatan_list as $keg) {
+            $jenisKegiatan = strtolower($keg['jenis_kegiatan'] ?? '');
+            $peran = strtolower($keg['peran'] ?? '');
+            $jenisPetugas = '';
+            
+            if ($jenisKegiatan === 'sensus') {
+                if ($peran === 'pcl' || $peran === 'ppl' || $peran === 'pcl_ppl') {
+                    $jenisPetugas = 'PETUGAS LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                    $jenisPetugas = 'PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                } elseif (str_contains($peran, 'olah')) {
+                    $jenisPetugas = 'PETUGAS PENGOLAHAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                } else {
+                    $jenisPetugas = 'PETUGAS LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                }
+            } else {
+                // Untuk survei
+                $isSurvei = true;
+                if ($peran === 'pcl' || $peran === 'ppl' || $peran === 'pcl_ppl') {
+                    $jenisPetugas = 'PETUGAS LAPANGAN SURVEI';
+                } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                    $jenisPetugas = 'PETUGAS PEMERIKSA LAPANGAN SURVEI';
+                } elseif (str_contains($peran, 'olah') || str_contains($peran, 'pengawas')) {
+                    $jenisPetugas = 'PETUGAS PENGOLAHAN SURVEI';
+                } else {
+                    $jenisPetugas = 'PETUGAS LAPANGAN SURVEI';
+                }
+            }
+            
+            if (!in_array($jenisPetugas, $jenisPetugasList)) {
+                $jenisPetugasList[] = $jenisPetugas;
+            }
+        }
+    } elseif(isset($nama_kegiatan)) {
+        $jenisPetugasList[] = strtoupper($nama_kegiatan);
+    }
+    @endphp
+    
     <div class="header">
         <div class="title">BERITA ACARA SERAH TERIMA</div>
-        <div class="title">HASIL PEKERJAAN PETUGAS PENDATAAN LAPANGAN</div>
-        <div class="title">{{ strtoupper($nama_kegiatan) }}</div>
-        <div class="title">BULAN {{ strtoupper($bulan_label ?? '') }} TAHUN {{ $tahun ?? date('Y') }}</div>
-        <div class="title">PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
+        @if($isSurvei)
+            @foreach($jenisPetugasList as $jenisPetugas)
+                <div class="title">{{ $jenisPetugas }}</div>
+            @endforeach
+            <div class="title">BADAN PUSAT STATISTIK {{ strtoupper($bast->lokasi_kegiatan) }}</div>
+            <div class="title">BULAN {{ strtoupper($bulanBast) }} {{ $tahunBast }}</div>
+            <div class="title">PADA BADAN PUSAT STATISTIK {{ strtoupper($bast->lokasi_kegiatan) }}</div>
+        @else
+            <div class="title">HASIL PEKERJAAN</div>
+            @foreach($jenisPetugasList as $jenisPetugas)
+                <div class="title">{{ $jenisPetugas }}</div>
+            @endforeach
+            <div class="title">TAHUN {{ $tahunBast }}</div>
+            <div class="title">PADA BADAN PUSAT STATISTIK {{ strtoupper($bast->lokasi_kegiatan) }}</div>
+        @endif
     </div>
-    <div class="nomor" style="margin-top: 15px; text-align: center;">Nomor: {{ $nomor_bast }}</div>
+    <div class="nomor" style="margin-top: 15px; text-align: center;">Nomor: {{ $bast->nomor_bast }}</div>
 
     <div class="content">
         <p>
-            Pada hari ini {{ $hari ?? 'Jum\'at' }}, tanggal {{ tanggalTerbilang($tanggal_angka ?? date('d')) }}, bulan {{ $bulan_label ?? '-' }} tahun {{ tahunTerbilang($tahun ?? date('Y')) }} bertempat di Kantor Badan Pusat Statistik Kota Sawahlunto, kami yang bertanda tangan di bawah ini:
+            Pada hari ini {{ $hari ?? \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd') }}, tanggal {{ tanggalTerbilang(\Carbon\Carbon::parse($bast->tanggal_bast)->format('d')) }}, bulan {{ \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('MMMM') }} tahun {{ tahunTerbilang(\Carbon\Carbon::parse($bast->tanggal_bast)->format('Y')) }} bertempat di Kantor Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}, kami yang bertanda tangan di bawah ini:
         </p>
 
         <table style="border: none;">
@@ -223,90 +279,120 @@
                 <td style="width: 5%; border: none; vertical-align: top;">1.</td>
                 <td style="width: 20%; border: none; vertical-align: top;">Nama</td>
                 <td style="width: 1%; border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">{{ $nama_ppk }}</td>
+                <td style="border: none; vertical-align: top;">{{ $bast->nama_ppk }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">NIP</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">{{ $nip_ppk ?? '-' }}</td>
+                <td style="border: none; vertical-align: top;">{{ $bast->nip_ppk ?? '-' }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Jabatan</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">{{ $jabatan_ppk ?? 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik' }}</td>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ $jabatan_ppk ?? 'Pejabat Pembuat Komitmen Badan Pusat Statistik ' . $bast->lokasi_kegiatan . ' untuk Program Penyediaan dan Pelayanan Informasi Statistik' }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Unit Kerja</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">Badan Pusat Statistik Kota Sawahlunto</td>
+                <td style="border: none; vertical-align: top;">Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Alamat Unit Kerja</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto</td>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ $alamat_unit_kerja ?? 'Jl. Jend. Ahmad Yani No.7, ' . $bast->lokasi_kegiatan }}</td>
             </tr>
         </table>
 
-        <span>bertindak untuk dan atas nama BPS Kota Sawahlunto, selanjutnya disebut sebagai <strong>PIHAK PERTAMA.</strong></span>
+        <span>bertindak untuk dan atas nama BPS {{ $bast->lokasi_kegiatan }}, selanjutnya disebut sebagai <strong>PIHAK PERTAMA.</strong></span>
 
         <table style="border: none; margin: 5px 0 20px 0;">
             <tr style="border: none;">
                 <td style="width: 5%; border: none; vertical-align: top;">2.</td>
                 <td style="width: 20%; border: none; vertical-align: top;">Nama</td>
                 <td style="width: 1%; border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">{{ $nama_ketua_tim }}</td>
+                <td style="border: none; vertical-align: top;">{{ $bast->petugas['nama'] }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
-                <td style="border: none; vertical-align: top;">NIP</td>
+                <td style="border: none; vertical-align: top;">NIK</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">{{ $nip_ketua_tim ?? '-' }}</td>
-            </tr>
-            <tr style="border: none;">
-                <td style="border: none;"></td>
-                <td style="border: none; vertical-align: top;">Jabatan</td>
-                <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">Ketua Tim Kegiatan {{ $nama_kegiatan }} Tahun {{ $tahun ?? date('Y') }}</td>
+                <td style="border: none; vertical-align: top;">{{ $bast->petugas['nik'] ?? '-' }}</td>
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Alamat</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto</td>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ $bast->petugas['alamat'] ?? '-' }}</td>
             </tr>
         </table>
-        <div style="page-break-inside: avoid;">bertindak sebagai Ketua Tim {{$nama_kegiatan}} Tahun {{ $tahun ?? date('Y') }} serta atas nama petugas kegiatan yang selanjutnya disebut sebagai <strong>PARA PETUGAS</strong> sebagaimana terlampir dalam Lampiran Berita Acara ini, selanjutnya disebut <strong>PIHAK KEDUA</strong></div>
+        <div style="page-break-inside: avoid;">
+            bertindak untuk dan atas namanya sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.
+        </div>
 
 
         <p style="margin-top: 10px; text-align: justify;">
             Dengan ini menyatakan:
         </p>
 
+        @php
+        $kegiatanText = '';
+        $nomorSpkText = '';
+        if(isset($bast->kegiatan_list) && count($bast->kegiatan_list) > 0) {
+            foreach($bast->kegiatan_list as $idx => $keg) {
+                $kegiatanText .= ($idx > 0 ? 'dan ' : '') . $keg['nama_kegiatan'] . ' ';
+                $nomorSpkText .= ($idx > 0 ? 'dan ' : '') . 'Nomor: ' . $keg['nomor_spk'] . ' ';
+            }
+        }
+        @endphp
+
         <ol style="margin: 10px 0 0 20px;">
+            @if($isSurvei)
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> selaku Ketua Tim {{$nama_kegiatan}} Tahun {{$tahun}} telah melakukan fungsi pengendalian dan pengawasan atas pelaksanaan kegiatan {{$nama_kegiatan}} Tahun {{$tahun}} pelaksanaan bulan {{ $bulan_label ?? '' }} Tahun {{ $tahun }} yang dilaksanakan oleh petugas, sesuai dengan tugas dan kewenangan yang diberikan oleh <strong>PIHAK PERTAMA</strong>.
+                <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> menyatakan bahwa pelaksanaan kegiatan sebagaimana dimaksud pada angka 1 telah diselesaikan sesuai dengan ketentuan dalam Perjanjian Kerja yang ditandatangani oleh <strong>PIHAK PERTAMA</strong> dan <strong>PARA PETUGAS</strong>, dan hasil kegiatan tersebut sudah diverifikasi sesuai prosedur yang berlaku.
+                <strong>PIHAK KEDUA</strong> telah menyelesaikan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam Lampiran Berita Acara ini.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Berdasarkan ketentuan pada angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut.
+                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan berupa jenis dokumen, jumlah dan rincian hasil kegiatan sebagaimana dimaksud pada angka 3 tercantum dalam Lampiran Berita Acara ini sebagai bagian yang tidak terpisahkan dari Berita Acara ini.
+                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik Kota Sawahlunto {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
             </li>
-            @if($menggunakan_fasih)
+            @if($menggunakan_fasih ?? false)
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> menyatakan bahwa sudah menyaksikan <strong>PARA PETUGAS</strong> dalam menghapus Aplikasi FASIH dan data hasil Pendataan Lapangan pada perangkat handphone <strong>PARA PETUGAS.</strong>
+                <strong>PIHAK KEDUA</strong> menghapus Aplikasi FASIH dan data hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA</strong>.
             </li>
             @endif
             <li style="margin: 6px 0; text-align: justify;">
-                Dalam hal terdapat hasil pendataan lapangan yang memerlukan pemeriksaan lanjutan, maka akan dilakukan pengecekan, perbaikan, dan/atau kunjungan kembali ke lapangan sesuai dengan ketentuan yang berlaku dengan tetap berpedoman pada ketentuan dalam Perjanjain Kerja yang telah ditandatangani oleh <strong>PIHAK PERTAMA</strong> dan <strong>PARA PETUGAS</strong>.
+                Untuk hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK</strong>.
             </li>
+            @else
+            <li style="margin: 6px 0; text-align: justify;">
+                <strong>PIHAK KEDUA</strong> telah melaksanakan pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}.
+            </li>
+            <li style="margin: 6px 0; text-align: justify;">
+                <strong>PIHAK KEDUA</strong> telah menyelesaikan pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam lampiran.
+            </li>
+            <li style="margin: 6px 0; text-align: justify;">
+                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
+            </li>
+            <li style="margin: 6px 0; text-align: justify;">
+                Hasil pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil {{ $kegiatanText }}yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
+            </li>
+            @if($menggunakan_fasih ?? false)
+            <li style="margin: 6px 0; text-align: justify;">
+                <strong>PIHAK KEDUA</strong> menghapus Aplikasi FASIH dan data hasil {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA</strong>.
+            </li>
+            @endif
+            <li style="margin: 6px 0; text-align: justify;">
+                Untuk hasil {{ $kegiatanText }}sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK</strong>.
+            </li>
+            @endif
         </ol>
 
         <div style="page-break-inside: avoid;">
@@ -316,21 +402,22 @@
             <div style="height: 10px;"></div>
             <div class="signature-section">
                 <div class="signature-box signature-left">
-                    <div>PIHAK KEDUA,</div>
+                    <div>Ketua Tim,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($nama_ketua_tim) }}</div>
+                    <div class="signature-name">{{ strtoupper($bast->ketua_tim['nama'] ?? '') }}</div>
+                    @if(isset($bast->ketua_tim['nip']))
+                    <div class="signature-nip">NIP. {{ $bast->ketua_tim['nip'] }}</div>
+                    @endif
                 </div>
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($nama_ppk ?? '') }}</div>
+                    <div class="signature-name">{{ strtoupper($bast->nama_ppk ?? '') }}</div>
                 </div>
             </div>
         </div>
-        @endif
     </div>
-
-    </div>
+    @endif
 </body>
 
 </html>
