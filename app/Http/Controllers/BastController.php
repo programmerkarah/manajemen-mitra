@@ -465,8 +465,8 @@ class BastController extends Controller
                             // Generate filename
                             $cleanNomorBast = str_replace(['/', '\\', ' '], '_', $nomorBast);
                             $filename = $cleanNomorBast.'_'.$spk->alokasiPetugas->petugas->nama.'.pdf';
-                            $filePath = 'bast-export/'.$filename;
-                            $fullPath = storage_path('app/public/'.$filePath);
+                            $filePath = 'storage/bast-export/'.$filename;
+                            $fullPath = storage_path('app/public/bast-export/'.$filename);
 
                             // Copy merged PDF to final destination
                             copy($mergedPath, $fullPath);
@@ -1939,12 +1939,12 @@ class BastController extends Controller
             $path = $file->storeAs('bast-export', $filename, 'public');
 
             // Delete old signed file if exists
-            if ($bast->signed_file_path && \Storage::disk('public')->exists($bast->signed_file_path)) {
-                \Storage::disk('public')->delete($bast->signed_file_path);
+            if ($bast->signed_file_path && \Storage::disk('public')->exists(str_replace('storage/', '', $bast->signed_file_path))) {
+                \Storage::disk('public')->delete(str_replace('storage/', '', $bast->signed_file_path));
             }
 
             $bast->update([
-                'signed_file_path' => $path,
+                'signed_file_path' => 'storage/'.$path,
             ]);
 
             return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
@@ -2135,7 +2135,7 @@ class BastController extends Controller
                 mkdir($directory, 0755, true);
             }
             $fileName = 'BAST_'.$kegiatan->nama_kegiatan.'_'.($targetPeriode?->bulan ?? 'unknown').'_'.time().'.pdf';
-            $filePath = 'bast-export/'.now()->year.'/'.now()->month.'/'.$fileName;
+            $filePath = 'storage/bast-export/'.now()->year.'/'.now()->month.'/'.$fileName;
             $fullPath = public_path($filePath);
             file_put_contents($fullPath, $mainContent);
 
@@ -2164,7 +2164,7 @@ class BastController extends Controller
         $fullPath = public_path($filePath);
         file_put_contents($fullPath, $merged);
 
-        return $filePath;
+        return 'storage/'.$filePath;
     }
 
     /**
