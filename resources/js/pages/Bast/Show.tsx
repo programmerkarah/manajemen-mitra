@@ -315,22 +315,6 @@ export default function Show({
                                         {bast.tanggal_bast}
                                     </p>
                                 </div>
-                                <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Tanggal Serah Terima
-                                    </Label>
-                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {bast.tanggal_serah_terima}
-                                    </p>
-                                </div>
-                                <div className="min-w-0">
-                                    <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Kegiatan
-                                    </Label>
-                                    <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {kegiatan.nama_kegiatan}
-                                    </p>
-                                </div>
                             </div>
 
                             {spk && (

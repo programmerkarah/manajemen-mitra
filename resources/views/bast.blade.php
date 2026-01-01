@@ -345,7 +345,7 @@
                 // Tampilkan hanya kegiatan yang memiliki SPK
                 foreach($kegiatanWithSpk as $idx => $keg) {
                     $kegiatanText .= ($idx > 0 ? 'dan ' : '') . $keg['nama_kegiatan'] . ' ';
-                    $nomorSpkText .= ($idx > 0 ? 'dan ' : '') . 'Nomor: ' . $keg['nomor_spk'] . ' ';
+                    $nomorSpkText .= ($idx > 0 ? 'dan ' : '') . 'Nomor: ' . $keg['nomor_spk'];
                 }
             } else {
                 // Jika semua kegiatan belum ada SPK
@@ -365,7 +365,7 @@
             <ol style="margin: 10px 0 0 20px;">
             @if($isSurvei)
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}.
+                <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{$nomorSpkText}}.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
                 <strong>PIHAK KEDUA</strong> telah menyelesaikan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam Lampiran Berita Acara ini.
