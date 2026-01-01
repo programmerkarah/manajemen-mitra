@@ -910,7 +910,7 @@ export default function ShowByMonth({
                                             Tanggal BAST
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {bast.tanggal_bast}
+                                            {formatIndonesianDate(bast.tanggal_bast)}
                                         </p>
                                     </div>
                                 </div>

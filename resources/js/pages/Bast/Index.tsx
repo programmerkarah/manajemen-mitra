@@ -16,6 +16,7 @@ interface PeriodeData {
     spk_without_bast: number;
     has_spk: boolean;
     all_completed: boolean;
+    first_bast_hashed_id: string | null;
 }
 
 interface IndexProps {
@@ -107,22 +108,41 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
-                                            {item.has_spk &&
-                                                !item.all_completed && (
-                                                    <Link
-                                                        href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
-                                                    >
-                                                        <Button size="sm">
-                                                            <Plus className="mr-1 h-4 w-4" />
-                                                            Generate BAST
+                                            <div className="flex items-center justify-center gap-2">
+                                                {item.has_spk &&
+                                                    !item.all_completed && (
+                                                        <Link
+                                                            href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                        >
+                                                            <Button size="sm">
+                                                                <Plus className="mr-1 h-4 w-4" />
+                                                                Generate BAST
+                                                            </Button>
+                                                        </Link>
+                                                    )}
+                                                {item.spk_with_bast > 0 &&
+                                                    item.first_bast_hashed_id && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={`/bast/${item.first_bast_hashed_id}`}
+                                                            >
+                                                                <FileText className="mr-1 h-4 w-4" />
+                                                                Detail BAST
+                                                            </Link>
                                                         </Button>
-                                                    </Link>
-                                                )}
-                                            {item.has_spk && item.all_completed && (
-                                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    Semua SPK sudah BAST
-                                                </span>
-                                            )}
+                                                    )}
+                                                {item.has_spk &&
+                                                    item.all_completed &&
+                                                    item.spk_with_bast === 0 && (
+                                                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                            Tidak ada BAST
+                                                        </span>
+                                                    )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

@@ -42,6 +42,7 @@ class Bast extends Model
         'nip_ppk',
         'hasil_pekerjaan',
         'file_path',
+        'signed_file_path',
         'status',
         'catatan',
         'created_by',

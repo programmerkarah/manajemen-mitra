@@ -249,7 +249,6 @@ if (! function_exists('decryptFilters')) {
             }
 
             if ($decrypted === false) {
-                \Log::warning('Filter decryption failed: OpenSSL error');
 
                 return [];
             }
@@ -258,7 +257,6 @@ if (! function_exists('decryptFilters')) {
 
             return is_array($filters) ? $filters : [];
         } catch (\Exception $e) {
-            \Log::warning('Filter decryption failed: '.$e->getMessage());
 
             return [];
         }
@@ -284,5 +282,113 @@ if (! function_exists('evpBytesToKey')) {
             substr($key, 0, $keyLen),
             substr($key, $keyLen, $ivLen),
         ];
+    }
+}
+
+if (! function_exists('getLiburNasionalIndonesia')) {
+    /**
+     * Get Indonesian national holidays for a given year
+     * Returns array of dates in Y-m-d format
+     */
+    function getLiburNasionalIndonesia($tahun)
+    {
+        // Libur nasional tetap (tidak berubah setiap tahun)
+        $liburTetap = [
+            $tahun.'-01-01', // Tahun Baru Masehi
+            $tahun.'-05-01', // Hari Buruh Internasional
+            $tahun.'-06-01', // Hari Lahir Pancasila
+            $tahun.'-08-17', // Hari Kemerdekaan RI
+            $tahun.'-12-25', // Hari Raya Natal
+        ];
+
+        // Libur nasional dan cuti bersama dinamis (berubah setiap tahun)
+        // Data resmi dari SKB 3 Menteri
+        $liburDinamis = [];
+
+        if ($tahun == 2025) {
+            $liburDinamis = [
+                '2025-03-29', // Wafat Isa Almasih
+                '2025-03-30', // Cuti Bersama
+                '2025-03-31', // Idul Fitri
+                '2025-04-01', // Idul Fitri
+                '2025-04-02', // Cuti Bersama
+                '2025-04-03', // Cuti Bersama
+                '2025-04-04', // Cuti Bersama
+                '2025-05-29', // Kenaikan Isa Almasih
+                '2025-06-06', // Idul Adha
+                '2025-06-27', // Tahun Baru Islam
+                '2025-09-05', // Maulid Nabi Muhammad
+                '2025-12-26', // Cuti Bersama
+            ];
+        } elseif ($tahun == 2026) {
+            // Data resmi hari libur nasional dan cuti bersama tahun 2026
+            $liburDinamis = [
+                // Libur Nasional
+                '2026-01-16', // Isra Mikraj Nabi Muhammad S.A.W.
+                '2026-02-17', // Tahun Baru Imlek 2577 Kongzili
+                '2026-03-19', // Hari Suci Nyepi (Tahun Baru Saka 1948)
+                '2026-03-21', // Idul Fitri 1447 Hijriah (Hari ke-1)
+                '2026-03-22', // Idul Fitri 1447 Hijriah (Hari ke-2)
+                '2026-04-03', // Wafat Yesus Kristus
+                '2026-04-05', // Kebangkitan Yesus Kristus (Paskah)
+                '2026-05-14', // Kenaikan Yesus Kristus
+                '2026-05-27', // Idul Adha 1447 Hijriah
+                '2026-05-31', // Hari Raya Waisak 2570 BE
+                '2026-06-16', // 1 Muharam - Tahun Baru Islam 1448 Hijriah
+                '2026-08-25', // Maulid Nabi Muhammad S.A.W.
+
+                // Cuti Bersama
+                '2026-02-16', // Cuti Bersama Tahun Baru Imlek
+                '2026-03-18', // Cuti Bersama Hari Suci Nyepi
+                '2026-03-20', // Cuti Bersama Idul Fitri
+                '2026-03-23', // Cuti Bersama Idul Fitri
+                '2026-03-24', // Cuti Bersama Idul Fitri
+                '2026-05-15', // Cuti Bersama Kenaikan Yesus Kristus
+                '2026-05-28', // Cuti Bersama Idul Adha
+                '2026-12-24', // Cuti Bersama Natal
+            ];
+        }
+
+        return array_merge($liburTetap, $liburDinamis);
+    }
+}
+
+if (! function_exists('isHariLibur')) {
+    /**
+     * Check if a date is a holiday (weekend or national holiday)
+     */
+    function isHariLibur($date)
+    {
+        $carbon = \Carbon\Carbon::parse($date);
+
+        // Check if weekend (Saturday or Sunday)
+        if ($carbon->isWeekend()) {
+            return true;
+        }
+
+        // Check if national holiday
+        $liburNasional = getLiburNasionalIndonesia($carbon->year);
+        $dateString = $carbon->format('Y-m-d');
+
+        return in_array($dateString, $liburNasional);
+    }
+}
+
+if (! function_exists('getHariKerjaTerakhir')) {
+    /**
+     * Get the last working day before or on the given date
+     * If the date is a working day, return it as is
+     * If the date is a holiday, return the last working day before it
+     */
+    function getHariKerjaTerakhir($date)
+    {
+        $carbon = \Carbon\Carbon::parse($date);
+
+        // Loop backwards until we find a working day
+        while (isHariLibur($carbon)) {
+            $carbon->subDay();
+        }
+
+        return $carbon;
     }
 }

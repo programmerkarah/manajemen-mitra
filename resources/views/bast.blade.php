@@ -8,12 +8,7 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 2cm 2cm 2cm 3cm;
-        }
-
-        @page landscape {
-            size: A4 landscape;
-            margin: 2cm 2cm 2cm 2cm;
+            margin: 0;
         }
 
         @font-face {
@@ -50,6 +45,8 @@
             color: #000;
             orphans: 3;
             widows: 3;
+            margin: 2cm 2cm 2cm 2cm;
+            padding: 0;
         }
 
         .header {
@@ -270,8 +267,12 @@
     <div class="nomor" style="margin-top: 15px; text-align: center;">Nomor: {{ $bast->nomor_bast }}</div>
 
     <div class="content">
+        @php
+        // Gunakan hari kerja terakhir jika tanggal BAST jatuh di hari libur
+        $tanggalBastAdjusted = getHariKerjaTerakhir($bast->tanggal_bast);
+        @endphp
         <p>
-            Pada hari ini {{ $hari ?? \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd') }}, tanggal {{ tanggalTerbilang(\Carbon\Carbon::parse($bast->tanggal_bast)->format('d')) }}, bulan {{ \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('MMMM') }} tahun {{ tahunTerbilang(\Carbon\Carbon::parse($bast->tanggal_bast)->format('Y')) }} bertempat di Kantor Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}, kami yang bertanda tangan di bawah ini:
+            Pada hari ini {{ $tanggalBastAdjusted->locale('id')->isoFormat('dddd') }}, tanggal {{ tanggalTerbilang($tanggalBastAdjusted->format('d')) }}, bulan {{ $tanggalBastAdjusted->locale('id')->isoFormat('MMMM') }} tahun {{ tahunTerbilang($tanggalBastAdjusted->format('Y')) }} bertempat di Kantor Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}, kami yang bertanda tangan di bawah ini:
         </p>
 
         <table style="border: none;">
@@ -361,7 +362,7 @@
                 Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik Kota Sawahlunto {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
+                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
             </li>
             @if($menggunakan_fasih ?? false)
             <li style="margin: 6px 0; text-align: justify;">

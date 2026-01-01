@@ -2,11 +2,11 @@
 <html lang="id">
 <head>
 	<meta charset="UTF-8">
-	<title>Lampiran BAST per SPK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ $nomor_bast ?? ($bast->nomor_bast ?? 'BAST') }} - {{$bast->petugas['nama']}} BAST Petugas Kegiatan Survei </title>
 	<style>
 		@page {
 			size: A4;
-			margin: 10px 10px 10px 10px;
 		}
 		@font-face {
             font-family: 'Bookman Old Style';
@@ -31,7 +31,7 @@
 			font-size: 10pt;
 			line-height: 1.6;
 			color: #000;
-			margin: 1cm 1.5cm 1cm 1.5cm;
+			margin: 0.1cm 0.5cm 1cm 0.5cm;
 		}
 		.lampiran-header {
 			text-align: justify;
@@ -56,6 +56,7 @@
 		.kegiatan-section {
 			margin: 20px 0;
 			page-break-inside: avoid;
+			font-size: 9pt;
 		}
 		.lampiran-table {
 			width: 100%;
@@ -66,9 +67,10 @@
 		.lampiran-table th,
 		.lampiran-table td {
 			border: 1px solid #000;
-			padding: 6px 8px;
 			text-align: center;
 			vertical-align: middle;
+			padding: 5px;
+			font-size: 9pt;
 		}
 		.lampiran-table th {
 			font-weight: bold;
@@ -80,25 +82,25 @@
 		.lampiran-table td.right {
 			text-align: right;
 		}
-		.signature-section {
-			margin-top: 30px;
+		.signature-row {
+			display: table;
+			width: 100%;
 			page-break-inside: avoid;
 		}
-		.signature-box {
-			width: 48%;
-			text-align: center;
-			line-height: 1.3;
-			font-size: 10pt;
-			display: inline-block;
+		.signature-col {
+			display: table-cell;
+			width: 50%;
 			vertical-align: top;
+			text-align: center;
+			font-size: 9pt;
+			line-height: 1.4;
 		}
-		.signature-space {
-			height: 70px;
-			margin: 10px 0 5px 0;
+		.signature-col div {
+			margin-bottom: 3px;
 		}
 		.signature-name {
 			font-weight: bold;
-			font-size: 10pt;
+			margin-top: 50px;
 		}
 		.page-break {
 			page-break-after: always;
@@ -114,6 +116,8 @@ $tahunBast = \Carbon\Carbon::parse($bast->tanggal_bast)->format('Y');
 $jenisKegiatan = strtolower($kegiatan['jenis_kegiatan'] ?? '');
 $peran = strtolower($kegiatan['peran'] ?? '');
 $jenisPetugas = '';
+$totalLampiran = count($bast->kegiatan_list);
+$nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 
 if ($jenisKegiatan === 'sensus') {
     if ($peran === 'pcl' || $peran === 'ppl' || $peran === 'pcl_ppl') {
@@ -137,11 +141,14 @@ if ($jenisKegiatan === 'sensus') {
         $jenisPetugas = 'PETUGAS LAPANGAN SURVEI';
     }
 }
+
+$totalLampiran = count($bast->kegiatan_list);
+$nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 @endphp
 
 <div class="lampiran-page">
 <div class="lampiran-header">
-	<div>Lampiran</div>
+	<div>Lampiran{{ $nomorLampiran }}</div>
 	<div>BERITA ACARA SERAH TERIMA HASIL PEKERJAAN 
 	@if($jenisKegiatan === 'sensus')
 	{{ $jenisPetugas }}
@@ -165,10 +172,10 @@ if ($jenisKegiatan === 'sensus') {
 		<thead>
 			<tr>
 				<th style="width: 5%;">No</th>
-				<th style="width: 40%;">Uraian Tugas</th>
-				<th style="width: 15%;">Volume</th>
-				<th style="width: 15%;">Satuan</th>
-				<th style="width: 25%;">Keterangan</th>
+				<th style="width: 60%;">Uraian Tugas</th>
+				<th style="width: 10%;">Volume</th>
+				<th style="width: 10%;">Satuan</th>
+				<th style="width: 15%;">Keterangan</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -200,30 +207,30 @@ if ($jenisKegiatan === 'sensus') {
 			@if($kegiatan['hasil_listing'])
 			<tr>
 				<td>{{ $rowNum++ }}</td>
-				<td class="left">Hasil Listing</td>
+				<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Listing' }}</td>
 				<td class="right">{{ number_format($kegiatan['hasil_listing'], 0, ',', '.') }}</td>
 				<td>{{ $kegiatan['satuan_listing'] ?? 'Dokumen' }}</td>
-				<td class="left">Peran: {{ $getLabelPeran($kegiatan['peran'], $tahapan) }}</td>
+				<td class="left">-</td>
 			</tr>
 			@endif
 
 			@if($kegiatan['hasil_pendataan_lapangan'])
 			<tr>
 				<td>{{ $rowNum++ }}</td>
-				<td class="left">Hasil Pendataan Lapangan</td>
+				<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pendataan Lapangan' }}</td>
 				<td class="right">{{ number_format($kegiatan['hasil_pendataan_lapangan'], 0, ',', '.') }}</td>
 				<td>{{ $kegiatan['satuan_pendataan'] ?? 'Dokumen' }}</td>
-				<td class="left">Peran: {{ $getLabelPeran($kegiatan['peran'], $tahapan) }}</td>
+				<td class="left">-</td>
 			</tr>
 			@endif
 
 			@if($kegiatan['hasil_pengolahan'])
 			<tr>
 				<td>{{ $rowNum++ }}</td>
-				<td class="left">Hasil Pengolahan</td>
+				<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan' }}</td>
 				<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
 				<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
-				<td class="left">Peran: {{ $getLabelPeran($kegiatan['peran'], $tahapan) }}</td>
+				<td class="left">-</td>
 			</tr>
 			@endif
 
@@ -244,29 +251,31 @@ if ($jenisKegiatan === 'sensus') {
 	</table>
 </div>
 <div class="signature-section">
-	<div style="text-align: center; margin-bottom: 40px;">
-		<strong>Mengesahkan,</strong>
+	<div class="signature-row" style="margin-bottom: 20px;">
+		<div class="signature-col" style="width: 50%;">&nbsp;</div>
+		<div class="signature-col" style="width: 50%;">
+			<div>Sawahlunto, {{ $kegiatan['tanggal_selesai_formatted'] ?? '' }}</div>
+			<div>Yang melakukan pemeriksaan,</div>
+			<div>Penanggung Jawab Teknis</div>
+			<div>BPS Kota Sawahlunto</div>
+			<div class="signature-name">{{ strtoupper($kegiatan['ketua_tim']['nama'] ?? '') }}</div>
+		</div>
 	</div>
-	<table style="width: 100%; border: none;">
-		<tr style="border: none;">
-			<td style="width: 50%; border: none; vertical-align: top;">
-				<div class="signature-box">
-					<div class="signature-title">Ketua Tim,</div>
-					<div class="signature-title" style="font-weight: normal; font-size: 9pt;">Penanggung Jawab Teknis</div>
-					<div class="signature-space"></div>
-					<div class="signature-name">{{ strtoupper($bast->ketua_tim['nama'] ?? '') }}</div>
-				</div>
-			</td>
-			<td style="width: 50%; border: none; vertical-align: top;">
-				<div class="signature-box">
-					<div class="signature-title">Pejabat Pembuat Komitmen,</div>
-					<div class="signature-title" style="font-weight: normal; font-size: 9pt;">Badan Pusat Statistik Kota Sawahlunto</div>
-					<div class="signature-space"></div>
-					<div class="signature-name">{{ strtoupper($bast->nama_ppk ?? '') }}</div>
-				</div>
-			</td>
-		</tr>
-	</table>
+
+	<div class="signature-row">
+		<div class="signature-col">
+			<div>Mengetahui,</div>
+			<div>Kepala Badan Pusat Statistik</div>
+			<div>Kota Sawahlunto</div>
+			<div class="signature-name">{{ strtoupper(preg_replace('/,?\s*S\.\w+\.?/i', '', $nama_kepala ?? '')) }}</div>
+		</div>
+		<div class="signature-col">
+			<div>Menyetujui,</div>
+			<div>Pejabat Pembuat Komitmen</div>
+			<div>Badan Pusat Statistik Kota Sawahlunto</div>
+			<div class="signature-name">{{ strtoupper(preg_replace('/,?\s*S\.\w+\.?/i', '', $bast->nama_ppk ?? '')) }}</div>
+		</div>
+	</div>
 </div>
 </div>
 @if($index < count($bast->kegiatan_list) - 1)

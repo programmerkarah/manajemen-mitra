@@ -43,6 +43,7 @@ interface SpkItem {
     spk_id: number;
     spk_hashed_id: string;
     nomor_spk: string;
+    nomor_bast_preview: string | null;
     tanggal_spk: string;
     tanggal_mulai_kerja: string;
     tanggal_selesai_kerja_asli: string;
@@ -112,7 +113,7 @@ export default function CreateForMonth({
         );
     };
 
-    const handlePreviewSpk = (spkId: number) => {
+    const handlePreviewSpk = (spkId: number, nomorBast: string | null) => {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/bast/preview-spk';
@@ -134,6 +135,14 @@ export default function CreateForMonth({
         spkInput.name = 'spk_id';
         spkInput.value = spkId.toString();
         form.appendChild(spkInput);
+
+        if (nomorBast) {
+            const nomorBastInput = document.createElement('input');
+            nomorBastInput.type = 'hidden';
+            nomorBastInput.name = 'nomor_bast';
+            nomorBastInput.value = nomorBast;
+            form.appendChild(nomorBastInput);
+        }
 
         document.body.appendChild(form);
         form.submit();
@@ -304,6 +313,7 @@ export default function CreateForMonth({
                                                 onClick={() =>
                                                     handlePreviewSpk(
                                                         spk.spk_id,
+                                                        spk.nomor_bast_preview,
                                                     )
                                                 }
                                             >

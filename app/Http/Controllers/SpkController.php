@@ -525,7 +525,7 @@ class SpkController extends Controller
                 'hashed_id' => $bast->hashed_id,
                 'nomor_bast' => $bast->nomor_bast,
                 'tanggal_bast' => $bast->tanggal_bast,
-                'file_path' => $bast->file_path,
+                'file_path' => $bast->signed_file_path ?? $bast->file_path,
             ] : null,
             'petugas_list' => $petugasList,
             'unique_kegiatan_list' => $uniqueKegiatanList,

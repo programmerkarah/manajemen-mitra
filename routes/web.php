@@ -269,14 +269,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // BAST Routes - View and Create
         Route::get('bast', [BastController::class, 'index'])->name('bast.index');
+        Route::get('bast/list', [BastController::class, 'listByMonth'])->name('bast.list');
         Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
         Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
         Route::post('bast/preview-spk', [BastController::class, 'previewForSpk'])->name('bast.preview-spk');
-        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
         Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
         Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
         Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
+        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
+        Route::post('bast/{bast}/upload-signed', [BastController::class, 'uploadSigned'])->name('bast.upload-signed');
+        Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
         Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
         Route::patch('bast/{bast}', [BastController::class, 'update']);
         Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');

@@ -4,6 +4,7 @@
 # /public/build
 /public/sk
 /public/spk-export
+/public/bast-export
 /public/hot
 /public/storage
 /resources/js/actions
