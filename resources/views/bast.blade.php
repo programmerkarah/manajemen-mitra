@@ -330,14 +330,7 @@
                 <td style="border: none; vertical-align: top; text-align: justify;">{{ $bast->petugas['alamat'] ?? '-' }}</td>
             </tr>
         </table>
-        <div style="page-break-inside: avoid;">
-            bertindak untuk dan atas namanya sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.
-        </div>
-
-
-        <p style="margin-top: 10px; text-align: justify;">
-            Dengan ini menyatakan:
-        </p>
+        bertindak untuk dan atas namanya sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.
 
         @php
         $kegiatanText = '';
@@ -350,7 +343,12 @@
         }
         @endphp
 
-        <ol style="margin: 10px 0 0 20px;">
+        <div style="page-break-inside: avoid; margin-top: 10px;">
+            <p style="text-align: justify;">
+                Dengan ini menyatakan:
+            </p>
+
+            <ol style="margin: 10px 0 0 20px;">
             @if($isSurvei)
             <li style="margin: 6px 0; text-align: justify;">
                 <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}.
@@ -394,7 +392,8 @@
                 Untuk hasil {{ $kegiatanText }}sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK</strong>.
             </li>
             @endif
-        </ol>
+            </ol>
+        </div>
 
         <div style="page-break-inside: avoid;">
             <p style="margin-top: 20px; text-align: justify;">

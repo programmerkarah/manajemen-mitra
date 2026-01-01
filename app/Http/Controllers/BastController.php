@@ -660,9 +660,10 @@ class BastController extends Controller
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
             $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
-            $spkFirst = $alokasi->spk?->first();
-            $nomorSpk = $spkFirst?->nomor_spk ?? 'Belum ada SPK';
-            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkFirst?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
+            // Cari SPK dari petugas ini saja, bukan per kegiatan
+            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
+            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
             $uraianPekerjaan = $this->generateUraianPekerjaan(
@@ -752,10 +753,11 @@ class BastController extends Controller
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
             $hasListing = ($keg->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
-            $spkFirst = $alokasi->spk?->first();
-            $nomorSpk = $spkFirst?->nomor_spk ?? 'Belum ada SPK';
+            // Cari SPK dari petugas ini saja, bukan per kegiatan
+            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
-            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkFirst?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
+            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $keg->ketuaTim;
 
             $uraian = $this->generateUraianPekerjaan(
@@ -1010,12 +1012,12 @@ class BastController extends Controller
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
             $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
-            // Tentukan nomor SPK dan tanggal selesai dari kegiatan ini
-            $spkFirst = $alokasi->spk?->first();
-            $nomorSpk = $spkFirst?->nomor_spk ?? 'Belum ada SPK';
+            // Cari SPK dari petugas ini saja, bukan per kegiatan
+            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
             // Ambil tanggal selesai dari periode alokasi (tanggal kegiatan sebenarnya)
-            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkFirst?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
+            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
 
             // Ambil ketua tim dari kegiatan ini
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
