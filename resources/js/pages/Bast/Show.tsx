@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Check, Download, FileText, Upload, User } from 'lucide-react';
+import { ArrowLeft, Check, Download, FileText, FolderDown, Upload, User } from 'lucide-react';
 import { useState } from 'react';
 
 interface Bast {
@@ -178,6 +178,15 @@ export default function Show({
                 description={`Berita Acara Serah Terima - ${kegiatan.nama_kegiatan}`}
             >
                 <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            window.location.href = `/bast/download-all?bulan=${bulan}&tahun=${tahun}`;
+                        }}
+                    >
+                        <FolderDown className="mr-2 h-4 w-4" />
+                        Download Semua
+                    </Button>
                     <Button variant="outline" asChild>
                         <Link href={`/bast/list?bulan=${bulan}&tahun=${tahun}`}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -333,32 +342,6 @@ export default function Show({
                                     </p>
                                 </div>
                             )}
-
-                            
-                            <div className="grid gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-700 md:grid-cols-2">
-                                <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Ketua Tim
-                                    </Label>
-                                    <p className="font-medium text-neutral-900 dark:text-white">
-                                        {bast.nama_ketua_tim}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-neutral-600 dark:text-neutral-400">
-                                        PPK
-                                    </Label>
-                                    <p className="font-medium text-neutral-900 dark:text-white">
-                                        {bast.nama_ppk}
-                                    </p>
-                                    {bast.nip_ppk && (
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                            NIP: {bast.nip_ppk}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
                             <div className="flex items-center gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-700">
                                 {bast.file_path && (
                                     <Button

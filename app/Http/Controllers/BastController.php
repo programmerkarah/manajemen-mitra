@@ -1206,6 +1206,72 @@ class BastController extends Controller
     }
 
     /**
+     * Download all BAST files in a month as ZIP
+     */
+    public function downloadAll(Request $request)
+    {
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun');
+
+        if (! $bulan || ! $tahun) {
+            return redirect()->route('bast.index')->with('error', 'Bulan dan tahun harus diisi');
+        }
+
+        // Format bulan with leading zero
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Get all BAST in this month that have files (either file_path or signed_file_path)
+        $allBast = Bast::where(function ($query) {
+            $query->whereNotNull('file_path')
+                ->orWhereNotNull('signed_file_path');
+        })
+            ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanFormatted) {
+                $query->where('tahun', $tahun)
+                    ->where('bulan', $bulanFormatted);
+            })
+            ->orderBy('nomor_bast')
+            ->get();
+
+        if ($allBast->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada BAST dengan file untuk diunduh');
+        }
+
+        // Create ZIP file
+        $zip = new \ZipArchive;
+        $bulanLabel = $this->getBulanLabel((int) $bulan);
+        $zipFileName = "BAST_{$bulanLabel}_{$tahun}_".time().'.zip';
+        $zipPath = storage_path('app/temp/'.$zipFileName);
+
+        // Create temp directory if not exists
+        if (! file_exists(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP');
+        }
+
+        // Add each BAST file to ZIP - prioritize signed_file_path if available
+        foreach ($allBast as $bast) {
+            // Prioritize signed file if exists, otherwise use regular file
+            $fileToDownload = $bast->signed_file_path ?: $bast->file_path;
+            
+            if ($fileToDownload) {
+                $filePath = public_path($fileToDownload);
+                if (file_exists($filePath)) {
+                    $fileName = basename($fileToDownload);
+                    $zip->addFile($filePath, $fileName);
+                }
+            }
+        }
+
+        $zip->close();
+
+        // Download and delete temp file
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    /**
      * Generate preview PDF for BAST
      */
     public function preview(Request $request)

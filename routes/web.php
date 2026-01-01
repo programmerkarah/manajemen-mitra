@@ -273,6 +273,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
         Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
         Route::post('bast/preview-spk', [BastController::class, 'previewForSpk'])->name('bast.preview-spk');
+        Route::get('bast/download-all', [BastController::class, 'downloadAll'])->name('bast.download-all');
         Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
         Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
