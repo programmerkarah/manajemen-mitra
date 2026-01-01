@@ -92,7 +92,7 @@
 			width: 50%;
 			vertical-align: top;
 			text-align: center;
-			font-size: 9pt;
+			font-size: 10pt;
 			line-height: 1;
 		}
 		.signature-col div {
