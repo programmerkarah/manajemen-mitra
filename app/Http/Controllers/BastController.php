@@ -13,6 +13,7 @@ use App\Models\Spk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -1941,8 +1942,8 @@ class BastController extends Controller
             $path = $file->storeAs('bast-export', $filename, 'public');
 
             // Delete old signed file if exists
-            if ($bast->signed_file_path && \Storage::disk('public')->exists(str_replace('storage/', '', $bast->signed_file_path))) {
-                \Storage::disk('public')->delete(str_replace('storage/', '', $bast->signed_file_path));
+            if ($bast->signed_file_path && Storage::disk('public')->exists(str_replace('storage/', '', $bast->signed_file_path))) {
+                Storage::disk('public')->delete(str_replace('storage/', '', $bast->signed_file_path));
             }
 
             $bast->update([

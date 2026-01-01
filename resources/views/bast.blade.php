@@ -336,9 +336,23 @@
         $kegiatanText = '';
         $nomorSpkText = '';
         if(isset($bast->kegiatan_list) && count($bast->kegiatan_list) > 0) {
-            foreach($bast->kegiatan_list as $idx => $keg) {
-                $kegiatanText .= ($idx > 0 ? 'dan ' : '') . $keg['nama_kegiatan'] . ' ';
-                $nomorSpkText .= ($idx > 0 ? 'dan ' : '') . 'Nomor: ' . $keg['nomor_spk'] . ' ';
+            // Filter hanya kegiatan yang memiliki nomor SPK (bukan "Belum ada SPK")
+            $kegiatanWithSpk = collect($bast->kegiatan_list)->filter(function($keg) {
+                return isset($keg['nomor_spk']) && $keg['nomor_spk'] !== 'Belum ada SPK';
+            });
+            
+            if($kegiatanWithSpk->isNotEmpty()) {
+                // Tampilkan hanya kegiatan yang memiliki SPK
+                foreach($kegiatanWithSpk as $idx => $keg) {
+                    $kegiatanText .= ($idx > 0 ? 'dan ' : '') . $keg['nama_kegiatan'] . ' ';
+                    $nomorSpkText .= ($idx > 0 ? 'dan ' : '') . 'Nomor: ' . $keg['nomor_spk'] . ' ';
+                }
+            } else {
+                // Jika semua kegiatan belum ada SPK
+                foreach($bast->kegiatan_list as $idx => $keg) {
+                    $kegiatanText .= ($idx > 0 ? 'dan ' : '') . $keg['nama_kegiatan'] . ' ';
+                }
+                $nomorSpkText = 'Belum ada SPK';
             }
         }
         @endphp
