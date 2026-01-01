@@ -254,7 +254,7 @@ $nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 	</table>
 </div>
 <div class="pengesahan">
-<div>
+<div style="margin-bottom: 10px;">
 	<span>Petugas yang bersangkutan telah menyelesaikan pekerjaan {{ $kegiatan['nama_kegiatan'] ?? '' }} {{ $tahunBast }} pelaksanaan bulan {{ $bulanLabel }} Tahun {{ $tahunBast ?? '-' }} sesuai dengan keterangan di atas dan  ketentuan yang sudah ditetapkan pada Perjanjian Kerja.</span>
 </div>
 <div class="signature-section">
