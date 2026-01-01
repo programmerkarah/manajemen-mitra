@@ -243,13 +243,6 @@ if ($jenisKegiatan === 'sensus') {
 		</tbody>
 	</table>
 </div>
-
-</div>
-@if($index < count($bast->kegiatan_list) - 1)
-<div style="page-break-after: always;"></div>
-@endif
-@endforeach
-
 <div class="signature-section">
 	<div style="text-align: center; margin-bottom: 40px;">
 		<strong>Mengesahkan,</strong>
@@ -275,6 +268,13 @@ if ($jenisKegiatan === 'sensus') {
 		</tr>
 	</table>
 </div>
+</div>
+@if($index < count($bast->kegiatan_list) - 1)
+<div style="page-break-after: always;"></div>
+@endif
+@endforeach
+
+
 
 </body>
 </html>
