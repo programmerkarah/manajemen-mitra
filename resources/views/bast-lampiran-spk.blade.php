@@ -105,6 +105,9 @@
 		.page-break {
 			page-break-after: always;
 		}
+		.pengesaahan{
+			page-break-inside: avoid !important;
+		}
 	</style>
 </head>
 <body>
@@ -250,6 +253,10 @@ $nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 		</tbody>
 	</table>
 </div>
+<div class="pengesahan">
+<div>
+	<span>Petugas yang bersangkutan telah menyelesaikan pekerjaan {{ $kegiatan['nama_kegiatan'] ?? '' }} {{ $tahunBast }} pelaksanaan bulan {{ $bulanLabel }} Tahun {{ $tahunBast ?? '-' }} sesuai dengan keterangan di atas dan  ketentuan yang sudah ditetapkan pada Perjanjian Kerja.</span>
+</div>
 <div class="signature-section">
 	<div class="signature-row" style="margin-bottom: 20px;">
 		<div class="signature-col" style="width: 50%;">&nbsp;</div>
@@ -276,6 +283,7 @@ $nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 			<div class="signature-name">{{ strtoupper(preg_replace('/,?\s*S\.\w+\.?/i', '', $bast->nama_ppk ?? '')) }}</div>
 		</div>
 	</div>
+</div>
 </div>
 </div>
 @if($index < count($bast->kegiatan_list) - 1)
