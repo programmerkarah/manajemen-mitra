@@ -262,9 +262,6 @@ if ($jenisKegiatan === 'sensus') {
 					<div class="signature-title" style="font-weight: normal; font-size: 9pt;">Penanggung Jawab Teknis</div>
 					<div class="signature-space"></div>
 					<div class="signature-name">{{ strtoupper($bast->ketua_tim['nama'] ?? '') }}</div>
-					@if(isset($bast->ketua_tim['nip']))
-					<div style="font-size: 9pt;">NIP. {{ $bast->ketua_tim['nip'] }}</div>
-					@endif
 				</div>
 			</td>
 			<td style="width: 50%; border: none; vertical-align: top;">

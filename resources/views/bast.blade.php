@@ -405,9 +405,6 @@
                     <div>Ketua Tim,</div>
                     <div style="height:10px;"></div>
                     <div class="signature-name">{{ strtoupper($bast->ketua_tim['nama'] ?? '') }}</div>
-                    @if(isset($bast->ketua_tim['nip']))
-                    <div class="signature-nip">NIP. {{ $bast->ketua_tim['nip'] }}</div>
-                    @endif
                 </div>
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
