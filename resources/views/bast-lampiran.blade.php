@@ -46,7 +46,7 @@
 		.lampiran-header {
 			text-align: left;
 			margin-left: 60%;
-			font-size: 10pt;
+			font-size: 8pt;
 			margin-bottom: 10px;
 		}
 		.lampiran-title {
@@ -217,7 +217,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 <div class="lampiran-page">
 	<div class="lampiran-header">
 		<div class="lampiran-title">Lampiran</div>
-		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
+		<div class="lampiran-title">Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pendataan Lapangan</div>

@@ -36,7 +36,7 @@
 		.lampiran-header {
 			text-align: justify;
 			margin-left: 50%;
-			font-size: 10pt;
+			font-size: 8pt;
 			margin-bottom: 10px;
 		}
 		.lampiran-title {
@@ -46,7 +46,7 @@
 			text-align: center;
 			font-weight: bold;
 			margin: 15px 0;
-			font-size: 11pt;
+			font-size: 10pt;
 		}
 		.lampiran-page {
 			background: #fff;
@@ -93,14 +93,14 @@
 			vertical-align: top;
 			text-align: center;
 			font-size: 9pt;
-			line-height: 1.4;
+			line-height: 1;
 		}
 		.signature-col div {
 			margin-bottom: 3px;
 		}
 		.signature-name {
 			font-weight: bold;
-			margin-top: 50px;
+			margin-top: 60px;
 		}
 		.page-break {
 			page-break-after: always;
