@@ -645,7 +645,64 @@ class BastController extends Controller
             $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
-            $uraianPekerjaan = $this->generateUraianPekerjaan(
+            // Generate uraian terpisah untuk listing dan pencacahan
+            $uraianListing = null;
+            $uraianPencacahan = null;
+
+            if ($hasListing && $isPendataanRole) {
+                // Untuk listing: paksa jumlah_satuan = 0 agar generate uraian listing
+                $uraianListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0 // Force 0 untuk listing
+                );
+            }
+
+            if ($isPendataanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pencacahan: paksa jumlah_satuan_listing = 0 agar generate uraian pencacahan
+                $uraianPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0, // Force 0 untuk pencacahan
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Generate uraian terpisah untuk pengolahan listing dan pengolahan pencacahan
+            $uraianPengolahanListing = null;
+            $uraianPengolahanPencacahan = null;
+
+            if ($hasListing && $isPengolahanRole) {
+                // Untuk pengolahan listing: paksa jumlah_satuan = 0
+                $uraianPengolahanListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0
+                );
+            }
+
+            if ($isPengolahanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pengolahan pencacahan: paksa jumlah_satuan_listing = 0
+                $uraianPengolahanPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0,
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Fallback: use first available uraian
+            $uraianPekerjaan = $uraianListing ?? $uraianPencacahan ?? $this->generateUraianPekerjaan(
                 $alokasi->peran,
                 $kegiatan->nama_kegiatan,
                 (int) $periode->bulan,
@@ -662,6 +719,10 @@ class BastController extends Controller
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
                 'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
                 'uraian_pekerjaan' => $uraianPekerjaan,
+                'uraian_listing' => $uraianListing,
+                'uraian_pencacahan' => $uraianPencacahan,
+                'uraian_pengolahan_listing' => $uraianPengolahanListing,
+                'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
@@ -743,7 +804,64 @@ class BastController extends Controller
             $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $keg->ketuaTim;
 
-            $uraian = $this->generateUraianPekerjaan(
+            // Generate uraian terpisah untuk listing dan pencacahan
+            $uraianListing = null;
+            $uraianPencacahan = null;
+
+            if ($hasListing && $isPendataanRole) {
+                // Untuk listing: paksa jumlah_satuan = 0 agar generate uraian listing
+                $uraianListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $keg->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0 // Force 0 untuk listing
+                );
+            }
+
+            if ($isPendataanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pencacahan: paksa jumlah_satuan_listing = 0 agar generate uraian pencacahan
+                $uraianPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $keg->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0, // Force 0 untuk pencacahan
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Generate uraian terpisah untuk pengolahan listing dan pengolahan pencacahan
+            $uraianPengolahanListing = null;
+            $uraianPengolahanPencacahan = null;
+
+            if ($hasListing && $isPengolahanRole) {
+                // Untuk pengolahan listing: paksa jumlah_satuan = 0
+                $uraianPengolahanListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $keg->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0
+                );
+            }
+
+            if ($isPengolahanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pengolahan pencacahan: paksa jumlah_satuan_listing = 0
+                $uraianPengolahanPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $keg->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0,
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Fallback: use first available uraian
+            $uraian = $uraianListing ?? $uraianPencacahan ?? $this->generateUraianPekerjaan(
                 $alokasi->peran,
                 $keg->nama_kegiatan,
                 (int) $periode->bulan,
@@ -760,6 +878,10 @@ class BastController extends Controller
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
                 'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
                 'uraian_pekerjaan' => $uraian,
+                'uraian_listing' => $uraianListing,
+                'uraian_pencacahan' => $uraianPencacahan,
+                'uraian_pengolahan_listing' => $uraianPengolahanListing,
+                'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
@@ -887,13 +1009,12 @@ class BastController extends Controller
                     : "Melakukan pemeriksaan pencacahan {$namaKegiatan} bulan {$bulanLabel} {$tahun}"),
 
             'pengolahan' => $isListing
-                ? "Melakukan pengolahan pemutakhiran {$namaKegiatan} bulan {$bulanLabel} {$tahun}"
-                : "Melakukan pengolahan lapangan {$namaKegiatan} bulan {$bulanLabel} {$tahun}",
+                ? "Melakukan pengolahan dokumen pemutakhiran {$namaKegiatan} bulan {$bulanLabel} {$tahun}"
+                : "Melakukan pengolahan dokumen pencacahan lapangan {$namaKegiatan} bulan {$bulanLabel} {$tahun}",
 
             'pengawas_pengolahan' => $isListing
-                ? "Melakukan pemeriksaan pengolahan pemutakhiran {$namaKegiatan} bulan {$bulanLabel} {$tahun}"
-                : "Melakukan pemeriksaan pengolahan lapangan {$namaKegiatan} bulan {$bulanLabel} {$tahun}",
-
+                ? "Melakukan pemeriksaan pengolahan dokumen pemutakhiran {$namaKegiatan} bulan {$bulanLabel} {$tahun}"
+                : "Melakukan pemeriksaan pengolahan dokumen pencacahan lapangan {$namaKegiatan} bulan {$bulanLabel} {$tahun}",
             default => "Melakukan tugas {$namaKegiatan} bulan {$bulanLabel} {$tahun}",
         };
     }
@@ -1009,8 +1130,64 @@ class BastController extends Controller
             // Ambil ketua tim dari kegiatan ini
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
-            // Generate uraian pekerjaan berdasarkan jenis penugasan dan tahapan
-            $uraianPekerjaan = $this->generateUraianPekerjaan(
+            // Generate uraian terpisah untuk listing dan pencacahan
+            $uraianListing = null;
+            $uraianPencacahan = null;
+
+            if ($hasListing && $isPendataanRole) {
+                // Untuk listing: paksa jumlah_satuan = 0 agar generate uraian listing
+                $uraianListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0 // Force 0 untuk listing
+                );
+            }
+
+            if ($isPendataanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pencacahan: paksa jumlah_satuan_listing = 0 agar generate uraian pencacahan
+                $uraianPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0, // Force 0 untuk pencacahan
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Generate uraian terpisah untuk pengolahan listing dan pengolahan pencacahan
+            $uraianPengolahanListing = null;
+            $uraianPengolahanPencacahan = null;
+
+            if ($hasListing && $isPengolahanRole) {
+                // Untuk pengolahan listing: paksa jumlah_satuan = 0
+                $uraianPengolahanListing = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    $alokasi->jumlah_satuan_listing ?? 0,
+                    0
+                );
+            }
+
+            if ($isPengolahanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+                // Untuk pengolahan pencacahan: paksa jumlah_satuan_listing = 0
+                $uraianPengolahanPencacahan = $this->generateUraianPekerjaan(
+                    $alokasi->peran,
+                    $kegiatan->nama_kegiatan,
+                    (int) $periode->bulan,
+                    $periode->tahun,
+                    0,
+                    $alokasi->jumlah_satuan ?? 0
+                );
+            }
+
+            // Fallback: use first available uraian
+            $uraianPekerjaan = $uraianListing ?? $uraianPencacahan ?? $this->generateUraianPekerjaan(
                 $alokasi->peran,
                 $kegiatan->nama_kegiatan,
                 (int) $periode->bulan,
@@ -1027,6 +1204,10 @@ class BastController extends Controller
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
                 'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
                 'uraian_pekerjaan' => $uraianPekerjaan,
+                'uraian_listing' => $uraianListing,
+                'uraian_pencacahan' => $uraianPencacahan,
+                'uraian_pengolahan_listing' => $uraianPengolahanListing,
+                'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,

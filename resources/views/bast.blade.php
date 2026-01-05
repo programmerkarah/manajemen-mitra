@@ -374,7 +374,7 @@
                 Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
+                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik {{$bast->lokasi_kegiatan}} bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
             </li>
             @if($menggunakan_fasih ?? false)
             <li style="margin: 6px 0; text-align: justify;">

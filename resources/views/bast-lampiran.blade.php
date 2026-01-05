@@ -157,8 +157,8 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Berhasil Dikunjungi</th>
 				@if($hasNonResponseListing)
 				<th>Non Response</th>
-				<th>Target</th>
 				@endif
+				<th>Target</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -176,6 +176,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				@else
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
 				@endif
 			</tr>
 		</thead>
@@ -198,8 +199,8 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 					<td class="right">{{ isset($p['hasil_listing']) && $p['hasil_listing'] !== null ? number_format($p['hasil_listing'],0,',','.') : '-' }}</td>
 					@if($hasNonResponseListing)
 					<td class="right">{{ $nonResponseListing > 0 ? number_format($nonResponseListing,0,',','.') : '-' }}</td>
-					<td class="right">{{ number_format($targetListing,0,',','.') }}</td>
 					@endif
+					<td class="right">{{ number_format($targetListing,0,',','.') }}</td>
 					<td class="left">{{ $p['satuan_listing'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>
 				</tr>
@@ -260,8 +261,8 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Berhasil Dikunjungi</th>
 				@if($hasNonResponse)
 				<th>Non Response</th>
-				<th>Target</th>
 				@endif
+				<th>Target</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -279,6 +280,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				@else
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
 				@endif
 			</tr>
 		</thead>
@@ -301,8 +303,8 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 					<td class="right">{{ isset($p['hasil_pendataan_lapangan']) ? number_format($p['hasil_pendataan_lapangan'],0,',','.') : '-' }}</td>
 					@if($hasNonResponse)
 					<td class="right">{{ $nonResponse > 0 ? number_format($nonResponse,0,',','.') : '-' }}</td>
-					<td class="right">{{ number_format($target,0,',','.') }}</td>
 					@endif
+					<td class="right">{{ number_format($target,0,',','.') }}</td>
 					<td class="left">{{ $p['satuan_pendataan_lapangan'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>
 				</tr>
@@ -346,6 +348,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Listing</div>
+	@php
+		$hasNonResponsePengolahan = $hasNonResponseListing || $hasNonResponse;
+	@endphp
 	<table class="lampiran-table">
 		<thead>
 			<tr>
@@ -353,7 +358,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Nama Petugas</th>
 				<th>Nomor Perjanjian Kerja</th>
 				<th>Uraian Tugas</th>
-				<th>Volume</th>
+				<th>Berhasil Dikunjungi</th>
+				@if($hasNonResponsePengolahan)
+				<th>Non Response</th>
+				@endif
+				<th>Target</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -363,8 +372,16 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>(3)</th>
 				<th>(4)</th>
 				<th>(5)</th>
+				@if($hasNonResponsePengolahan)
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
+				<th>(9)</th>
+				@else
+				<th>(6)</th>
+				<th>(7)</th>
+				<th>(8)</th>
+				@endif
 			</tr>
 		</thead>
 		<tbody>
@@ -379,6 +396,10 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 					<td class="left">{{ $p['nama_petugas'] ?? '-' }}</td>
 					<td>{{ $p['nomor_spk'] ?? '-' }}</td>
 					<td>{{ $instrumen_listing ?? $p['instrumen_listing'] ?? '-' }}</td>
+					<td class="right">{{ isset($p['hasil_pengolahan_listing']) ? number_format($p['hasil_pengolahan_listing'],0,',','.') : '-' }}</td>
+					@if($hasNonResponsePengolahan)
+					<td class="right">0</td>
+					@endif
 					<td class="right">{{ isset($p['hasil_pengolahan_listing']) ? number_format($p['hasil_pengolahan_listing'],0,',','.') : '-' }}</td>
 					<td class="left">{{ $p['satuan_pengolahan_listing'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>
@@ -426,6 +447,9 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Lapangan</div>
+	@php
+		$hasNonResponsePengolahan = $hasNonResponseListing || $hasNonResponse;
+	@endphp
 	<table class="lampiran-table">
 		<thead>
 			<tr>
@@ -433,7 +457,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Nama Petugas</th>
 				<th>Nomor Perjanjian Kerja</th>
 				<th>Uraian Tugas</th>
-				<th>Volume</th>
+				<th>Berhasil Dikunjungi</th>
+				@if($hasNonResponsePengolahan)
+				<th>Non Response</th>
+				@endif
+				<th>Target</th>
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -443,8 +471,16 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>(3)</th>
 				<th>(4)</th>
 				<th>(5)</th>
+				@if($hasNonResponsePengolahan)
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
+				<th>(9)</th>
+				@else
+				<th>(6)</th>
+				<th>(7)</th>
+				<th>(8)</th>
+				@endif
 			</tr>
 		</thead>
 		<tbody>
@@ -459,6 +495,10 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 					<td class="left">{{ $p['nama_petugas'] ?? '-' }}</td>
 					<td>{{ $p['nomor_spk'] ?? '-' }}</td>
 					<td>{{ $instrumen_pendataan_lapangan ?? $p['instrumen_pendataan_lapangan'] ?? '-' }}</td>
+					<td class="right">{{ isset($p['hasil_pengolahan']) ? number_format($p['hasil_pengolahan'],0,',','.') : '-' }}</td>
+					@if($hasNonResponsePengolahan)
+					<td class="right">0</td>
+					@endif
 					<td class="right">{{ isset($p['hasil_pengolahan']) ? number_format($p['hasil_pengolahan'],0,',','.') : '-' }}</td>
 					<td class="left">{{ $p['satuan_pengolahan'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>

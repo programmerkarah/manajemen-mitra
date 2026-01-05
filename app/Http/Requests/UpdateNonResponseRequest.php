@@ -11,8 +11,12 @@ class UpdateNonResponseRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Hanya ketua tim yang bisa update non response
-        return $this->user()?->hasRole('ketua_tim', 'admin', 'operator');
+        // Ketua tim, admin, dan operator bisa update non response
+        $effectiveUser = effectiveUser($this);
+
+        return $effectiveUser->hasActiveRole('ketua_tim') ||
+               $effectiveUser->hasActiveRole('admin') ||
+               $effectiveUser->hasActiveRole('operator');
     }
 
     /**

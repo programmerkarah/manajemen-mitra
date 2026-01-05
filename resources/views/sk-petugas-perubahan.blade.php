@@ -221,6 +221,32 @@
             page-break-inside: avoid !important;
         }
 
+        /* Keep last petugas with signature */
+        table.petugas tbody tr.keep-with-signature {
+            page-break-after: avoid !important;
+        }
+
+        /* Prevent lampiran header from being orphaned */
+        .lampiran-header {
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        .title {
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        /* Ensure table starts on same page as title */
+        table.petugas {
+            page-break-before: avoid !important;
+        }
+
+        table.petugas thead {
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
         /* First header row - double top border, single bottom */
         table.petugas thead tr:first-child th {
             border-top: 3px double black;
@@ -618,7 +644,7 @@
         </tbody>
     </table>
 
-    <div class="signature" style="margin-top: 60px;">
+    <div class="signature" style="margin-top: 60px; page-break-before: avoid !important; page-break-inside: avoid !important;">
         <div class="signature-content">
             <div>
                 KEPALA BADAN PUSAT STATISTIK<br>

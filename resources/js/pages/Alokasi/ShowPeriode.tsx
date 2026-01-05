@@ -513,7 +513,13 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                                         .value,
                                                                                 )
                                                                             }
-                                                                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+                                                                            disabled={
+                                                                                alokasi.peran ===
+                                                                                    'pengolahan' ||
+                                                                                alokasi.peran ===
+                                                                                    'pengawas_pengolahan'
+                                                                            }
+                                                                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-700"
                                                                         />
                                                                     ) : (
                                                                         <span className="text-neutral-900 dark:text-white">
@@ -593,6 +599,48 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                 <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                     {alokasi.jumlah_satuan}
                                                 </td>
+                                                {isKetuaTim &&
+                                                    hasPendataanRole && (
+                                                        <td className="px-3 py-3 text-right whitespace-nowrap">
+                                                            {isEditMode ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={
+                                                                        editedData[
+                                                                            alokasi
+                                                                                .id
+                                                                        ]
+                                                                            ?.non_response ||
+                                                                        0
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        handleInputChange(
+                                                                            alokasi.id,
+                                                                            'non_response',
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        alokasi.peran ===
+                                                                            'pengolahan' ||
+                                                                        alokasi.peran ===
+                                                                            'pengawas_pengolahan'
+                                                                    }
+                                                                    className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-700"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-neutral-900 dark:text-white">
+                                                                    {alokasi.non_response ||
+                                                                        0}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                     {formatCurrency(
                                                         alokasi.rate_pencacahan ||
@@ -625,7 +673,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
                                             <td
-                                                colSpan={7}
+                                                colSpan={
+                                                    isKetuaTim &&
+                                                    hasPendataanRole
+                                                        ? 8
+                                                        : 7
+                                                }
                                                 className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
                                             >
                                                 Total Listing:
@@ -640,7 +693,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         </tr>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
                                             <td
-                                                colSpan={7}
+                                                colSpan={
+                                                    isKetuaTim &&
+                                                    hasPendataanRole
+                                                        ? 8
+                                                        : 7
+                                                }
                                                 className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
                                             >
                                                 Total Pencacahan:
@@ -660,8 +718,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         colSpan={
                                             periode.kegiatan
                                                 .has_listing_updating
-                                                ? 7
-                                                : 6
+                                                ? isKetuaTim && hasPendataanRole
+                                                    ? 8
+                                                    : 7
+                                                : isKetuaTim && hasPendataanRole
+                                                  ? 7
+                                                  : 6
                                         }
                                         className="px-3 py-3 text-right font-semibold whitespace-nowrap text-neutral-900 dark:text-white"
                                     >

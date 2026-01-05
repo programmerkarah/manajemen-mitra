@@ -195,12 +195,23 @@
 		</div>
 
 		<div class="kegiatan-section">
+			@php
+				// Cek apakah ada non response di listing atau pencacahan
+				$hasNonResponse = false;
+				if (($kegiatan['non_response_listing'] ?? 0) > 0) {
+					$hasNonResponse = true;
+				}
+				if (($kegiatan['non_response'] ?? 0) > 0) {
+					$hasNonResponse = true;
+				}
+			@endphp
 			<table class="lampiran-table">
 				<thead>
+					@if($hasNonResponse)
 					<tr>
 						<th style="width: 5%;" rowspan="3">No</th>
-						<th style="width: 60%;" rowspan="3">Uraian Tugas</th>
-						<th style="width: 10%;" colspan="3">Volume</th>
+						<th style="width: 55%;" rowspan="3">Uraian Tugas</th>
+						<th style="width: 15%;" colspan="3">Volume</th>
 						<th style="width: 15%;" rowspan="3">Satuan</th>
 						<th style="width: 10%;" rowspan="3">Keterangan</th>
 					</tr>
@@ -212,6 +223,20 @@
 						<th style="width: 5%;">Berhasil dikunjungi</th>
 						<th style="width: 5%;">Non Response</th>
 					</tr>
+					@else
+					<tr>
+						<th style="width: 5%;" rowspan="2">No</th>
+						<th style="width: 55%;" rowspan="2">Uraian Tugas</th>
+						<th style="width: 15%;" colspan="2">Volume</th>
+						<th style="width: 15%;" rowspan="2">Satuan</th>
+						<th style="width: 10%;" rowspan="2">Keterangan</th>
+					</tr>
+					<tr>
+						<th style="width: 10%;">Target</th>
+						<th style="width: 10%;">Realisasi</th>
+					</tr>
+					<tr></tr>
+					@endif
 				</thead>
 				<tbody>
 					@php
@@ -242,14 +267,17 @@
 					@if($kegiatan['hasil_listing'])
 					@php
 						$nonResponseListing = $kegiatan['non_response_listing'] ?? 0;
-						$targetListing = $kegiatan['hasil_listing'] + $nonResponseListing;
+						$realisasiListing = $kegiatan['hasil_listing'] - $nonResponseListing;
+						$targetListing = $kegiatan['hasil_listing'];
 					@endphp
 					<tr>
 						<td>{{ $rowNum++ }}</td>
-						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Listing' }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_listing'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($nonResponseListing, 0, ',', '.') }}</td>
+						<td class="left">{{ $kegiatan['uraian_listing'] ?? $kegiatan['uraian_pekerjaan'] ?? 'Hasil Listing' }}</td>
 						<td class="right">{{ number_format($targetListing, 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($realisasiListing, 0, ',', '.') }}</td>
+						@if($hasNonResponse)
+						<td class="right">{{ number_format($nonResponseListing, 0, ',', '.') }}</td>
+						@endif
 						<td>{{ $kegiatan['satuan_listing'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
@@ -258,15 +286,36 @@
 					@if($kegiatan['hasil_pendataan_lapangan'])
 					@php
 						$nonResponse = $kegiatan['non_response'] ?? 0;
-						$target = $kegiatan['hasil_pendataan_lapangan'] + $nonResponse;
+						$realisasiPendataan = $kegiatan['hasil_pendataan_lapangan'] - $nonResponse;
+						$targetPendataan = $kegiatan['hasil_pendataan_lapangan'];
 					@endphp
 					<tr>
 						<td>{{ $rowNum++ }}</td>
-						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pendataan Lapangan' }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pendataan_lapangan'], 0, ',', '.') }}</td>
+						<td class="left">{{ $kegiatan['uraian_pencacahan'] ?? $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pendataan Lapangan' }}</td>
+						<td class="right">{{ number_format($targetPendataan, 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($realisasiPendataan, 0, ',', '.') }}</td>
+						@if($hasNonResponse)
 						<td class="right">{{ number_format($nonResponse, 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($target, 0, ',', '.') }}</td>
+						@endif
 						<td>{{ $kegiatan['satuan_pendataan'] ?? 'Dokumen' }}</td>
+						<td class="left">-</td>
+					</tr>
+					@endif
+
+					
+					@if($kegiatan['hasil_pengolahan_listing'])
+					<tr>
+						<td>{{ $rowNum++ }}</td>
+						<td class="left">{{ $kegiatan['uraian_pengolahan_listing'] ?? $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan Listing' }}</td>
+						@if($hasNonResponse)
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
+						<td class="right">0</td>
+						@else
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
+						@endif
+						<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
 					@endif
@@ -274,21 +323,12 @@
 					@if($kegiatan['hasil_pengolahan'])
 					<tr>
 						<td>{{ $rowNum++ }}</td>
-						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan' }}</td>
+						<td class="left">{{ $kegiatan['uraian_pengolahan_pencacahan'] ?? $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan Pencacahan' }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
-						<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
-						<td class="left">-</td>
-					</tr>
-					@endif
-					@if($kegiatan['hasil_pengolahan_listing'])
-					<tr>
-						<td>{{ $rowNum++ }}</td>
-						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan' }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
+						@if($hasNonResponse)
+						<td class="right">0</td>
+						@endif
 						<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
@@ -296,13 +336,13 @@
 
 					@if(!$kegiatan['hasil_listing'] && !$kegiatan['hasil_pendataan_lapangan'] && !$kegiatan['hasil_pengolahan'])
 					<tr>
-						<td colspan="5" class="left">Tidak ada data hasil pekerjaan</td>
+						<td colspan="{{ $hasNonResponse ? '7' : '5' }}" class="left">Tidak ada data hasil pekerjaan</td>
 					</tr>
 					@endif
 
 					@if($kegiatan['keterangan'])
 					<tr>
-						<td colspan="5" class="left">
+						<td colspan="{{ $hasNonResponse ? '7' : '5' }}" class="left">
 							<strong>Catatan:</strong> {{ $kegiatan['keterangan'] }}
 						</td>
 					</tr>

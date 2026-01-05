@@ -1187,6 +1187,8 @@ class AlokasiPetugasController extends Controller
                         ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
                         : 0,
                     'catatan' => $alokasi->catatan,
+                    'non_response' => $alokasi->non_response,
+                    'non_response_listing' => $alokasi->non_response_listing,
                 ];
             }),
             'total_estimasi' => $totalEstimasi,
@@ -1243,6 +1245,8 @@ class AlokasiPetugasController extends Controller
                                 ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
                                 : 0,
                             'catatan' => $alokasi->catatan,
+                            'non_response' => $alokasi->non_response,
+                            'non_response_listing' => $alokasi->non_response_listing,
                         ];
                     }),
                     'total_estimasi' => $totalPencacahan + $totalListing,
@@ -1973,7 +1977,7 @@ class AlokasiPetugasController extends Controller
 
     /**
      * Update non response untuk hasil pelaksanaan kegiatan
-     * Hanya bisa dilakukan oleh ketua tim
+     * Bisa dilakukan oleh ketua tim, admin, atau operator
      */
     public function updateNonResponse(UpdateNonResponseRequest $request): RedirectResponse
     {
@@ -1982,14 +1986,19 @@ class AlokasiPetugasController extends Controller
         DB::beginTransaction();
 
         try {
+            $effectiveUser = effectiveUser($request);
+
             foreach ($validated['alokasi_petugas'] as $alokasiData) {
                 $alokasi = AlokasiPetugas::findOrFail($alokasiData['id']);
 
-                // Validasi bahwa user adalah ketua tim dari kegiatan ini
+                // Validasi bahwa user adalah ketua tim dari kegiatan ini, atau admin/operator
                 $periode = $alokasi->periodeAlokasi;
                 $kegiatan = $periode->kegiatan;
 
-                if (effectiveUser($request)->id !== $kegiatan->ketua_tim_user_id) {
+                $isKetuaTim = $effectiveUser->id === $kegiatan->ketua_tim_user_id;
+                $isAdminOrOperator = $effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator');
+
+                if (! $isKetuaTim && ! $isAdminOrOperator) {
                     throw new \Exception('Anda tidak memiliki akses untuk mengupdate non response kegiatan ini.');
                 }
 

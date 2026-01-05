@@ -109,7 +109,7 @@
         table.dictum {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 5px 0;
             border: none;
             page-break-inside: auto;
         }
@@ -146,7 +146,7 @@
         }
 
         .signature {
-            margin-top: 40px;
+            margin-top: 20px;
             text-align: right;
             page-break-before: avoid;
             page-break-inside: avoid;
@@ -218,6 +218,32 @@
         table.petugas tbody tr.petugas-group-end {
             page-break-before: avoid !important;
             page-break-after: auto;
+            page-break-inside: avoid !important;
+        }
+
+        /* Keep last petugas with signature */
+        table.petugas tbody tr.keep-with-signature {
+            page-break-after: avoid !important;
+        }
+
+        /* Prevent lampiran header from being orphaned */
+        .lampiran-header {
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        .title {
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        /* Ensure table starts on same page as title */
+        table.petugas {
+            page-break-before: avoid !important;
+        }
+
+        table.petugas thead {
+            page-break-after: avoid !important;
             page-break-inside: avoid !important;
         }
 
@@ -384,7 +410,7 @@
         <div class="signature-content">
             <div>Ditetapkan di : Sawahlunto</div>
             <div>Pada tanggal : {{ \Carbon\Carbon::parse($tanggalSk)->locale('id')->translatedFormat('d F Y') }}</div>
-            <div style="margin-top: 10px;">
+            <div>
                 KUASA PENGGUNA ANGGARAN<br>
                 BADAN PUSAT STATISTIKKOTA SAWAHLUNTO,
             </div>
@@ -488,7 +514,7 @@
         </tbody>
     </table>
 
-    <div class="signature" style="margin-top: 60px;">
+    <div class="signature" style="margin-top: 30px; page-break-before: avoid !important; page-break-inside: avoid !important;">
         <div class="signature-content">
             <div>
                 KEPALA BADAN PUSAT STATISTIK<br>
