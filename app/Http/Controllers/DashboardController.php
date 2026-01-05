@@ -122,8 +122,8 @@ class DashboardController extends Controller
                     'bulan' => $periode->bulan,
                     'tahun' => $periode->tahun,
                     'kegiatan' => [
-                        'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
-                        'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
+                        'nama_kegiatan' => $periode->kegiatan->nama_kegiatan ?? '',
+                        'kode_kegiatan' => $periode->kegiatan->kode_kegiatan ?? '',
                     ],
                     'jumlah_organik' => $organikCount,
                     'jumlah_non_organik' => $nonOrganikCount,
