@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\FilterRequest;
 use App\Http\Requests\UpdateUserRolesRequest;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,22 +18,27 @@ class UserRoleController extends Controller
     /**
      * Display a listing of users with their roles.
      */
-    public function index(Request $request): Response
+    public function index(FilterRequest $request): Response
     {
         $this->authorize('viewAny', User::class);
 
+        $validated = $request->validated();
+
         $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.email_verified_at', 'users.two_factor_secret', 'users.created_at')
             ->with('roles:id,name')
-            ->when($request->search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('username', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where(function ($q) use ($validated) {
+                    $q->where('name', 'like', "%{$validated['search']}%")
+                        ->orWhere('username', 'like', "%{$validated['search']}%")
+                        ->orWhere('email', 'like', "%{$validated['search']}%");
                 });
             })
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+            ->orderBy('name');
+
+        // Get page from validated data
+        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
+
+        $users = $users->paginate(15, ['*'], 'page', $page)->withQueryString();
 
         // Transform data to add computed properties
         $transformedUsers = collect($users->items())->map(function ($user) {
@@ -64,8 +69,8 @@ class UserRoleController extends Controller
                 'links' => $users->linkCollection()->toArray(),
             ],
             'filters' => [
-                'encrypted' => encryptFilters($request->only(['search'])),
-                'decrypted' => $request->only(['search']),
+                'encrypted' => encryptFilters($validated),
+                'decrypted' => $validated,
             ],
         ]);
     }

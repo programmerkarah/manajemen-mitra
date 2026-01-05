@@ -142,6 +142,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Listing</div>
+	@php
+		$hasNonResponseListing = collect($petugas)->contains(function($p) {
+			return isset($p['non_response_listing']) && $p['non_response_listing'] > 0;
+		});
+	@endphp
 	<table class="lampiran-table">
 		<thead>
 			<tr>
@@ -149,7 +154,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Nama Petugas</th>
 				<th>Nomor Perjanjian Kerja</th>
 				<th>Uraian Tugas</th>
-				<th>Volume</th>
+				<th>Berhasil Dikunjungi</th>
+				@if($hasNonResponseListing)
+				<th>Non Response</th>
+				<th>Target</th>
+				@endif
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -159,8 +168,15 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>(3)</th>
 				<th>(4)</th>
 				<th>(5)</th>
+				@if($hasNonResponseListing)
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
+				<th>(9)</th>
+				@else
+				<th>(6)</th>
+				<th>(7)</th>
+				@endif
 			</tr>
 		</thead>
 		<tbody>
@@ -170,12 +186,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			@endphp
 			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_listing']) && $p['hasil_listing'] !== null && $p['hasil_listing'] > 0))
+				@php
+					$nonResponseListing = $p['non_response_listing'] ?? 0;
+					$targetListing = $p['hasil_listing'] + $nonResponseListing;
+				@endphp
 				<tr>
 					<td>{{ $counter++ }}</td>
 					<td class="left">{{ $p['nama_petugas'] ?? '-' }}</td>
 					<td>{{ $p['nomor_spk'] ?? '-' }}</td>
 					<td>{{ $instrumen_listing ?? $p['instrumen_listing'] ?? '-' }}</td>
 					<td class="right">{{ isset($p['hasil_listing']) && $p['hasil_listing'] !== null ? number_format($p['hasil_listing'],0,',','.') : '-' }}</td>
+					@if($hasNonResponseListing)
+					<td class="right">{{ $nonResponseListing > 0 ? number_format($nonResponseListing,0,',','.') : '-' }}</td>
+					<td class="right">{{ number_format($targetListing,0,',','.') }}</td>
+					@endif
 					<td class="left">{{ $p['satuan_listing'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>
 				</tr>
@@ -221,6 +245,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
 	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pendataan Lapangan</div>
+	@php
+		$hasNonResponse = collect($petugas)->contains(function($p) {
+			return isset($p['non_response']) && $p['non_response'] > 0;
+		});
+	@endphp
 	<table class="lampiran-table">
 		<thead>
 			<tr>
@@ -228,7 +257,11 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>Nama Petugas</th>
 				<th>Nomor Perjanjian Kerja</th>
 				<th>Uraian Tugas</th>
-				<th>Volume</th>
+				<th>Berhasil Dikunjungi</th>
+				@if($hasNonResponse)
+				<th>Non Response</th>
+				<th>Target</th>
+				@endif
 				<th>Satuan</th>
 				<th>Keterangan</th>
 			</tr>
@@ -238,8 +271,15 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 				<th>(3)</th>
 				<th>(4)</th>
 				<th>(5)</th>
+				@if($hasNonResponse)
 				<th>(6)</th>
 				<th>(7)</th>
+				<th>(8)</th>
+				<th>(9)</th>
+				@else
+				<th>(6)</th>
+				<th>(7)</th>
+				@endif
 			</tr>
 		</thead>
 		<tbody>
@@ -249,12 +289,20 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 			@endphp
 			@foreach($sortedPetugas as $i => $p)
 				@if((isset($p['hasil_pendataan_lapangan']) && $p['hasil_pendataan_lapangan'] !== null && $p['hasil_pendataan_lapangan'] > 0))
+				@php
+					$nonResponse = $p['non_response'] ?? 0;
+					$target = $p['hasil_pendataan_lapangan'] + $nonResponse;
+				@endphp
 				<tr>
 					<td>{{ $counter++ }}</td>
 					<td class="left">{{ $p['nama_petugas'] ?? '-' }}</td>
 					<td>{{ $p['nomor_spk'] ?? '-' }}</td>
 					<td>{{ $instrumen_pendataan_lapangan ?? $p['instrumen_pendataan_lapangan'] ?? '-' }}</td>
 					<td class="right">{{ isset($p['hasil_pendataan_lapangan']) ? number_format($p['hasil_pendataan_lapangan'],0,',','.') : '-' }}</td>
+					@if($hasNonResponse)
+					<td class="right">{{ $nonResponse > 0 ? number_format($nonResponse,0,',','.') : '-' }}</td>
+					<td class="right">{{ number_format($target,0,',','.') }}</td>
+					@endif
 					<td class="left">{{ $p['satuan_pendataan_lapangan'] ?? '-' }}</td>
 					<td class="left">{{ $p['catatan'] ?? '-' }}</td>
 				</tr>

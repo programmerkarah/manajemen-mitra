@@ -60,7 +60,10 @@ class KegiatanController extends Controller
             $query->where('ketua_tim_user_id', $effectiveUser->id)->orWhere('pj_lainnya_id', $effectiveUser->id);
         }
 
-        $kegiatans = $query->latest()->paginate(15)->withQueryString();
+        // Get page from validated data
+        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
+
+        $kegiatans = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
 
         // Encrypt sensitive data
         $kegiatansData = $kegiatans->items();

@@ -2,16 +2,20 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem, Kegiatan } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Calendar,
     DollarSign,
+    Edit,
     FileText,
     History,
+    Save,
     Users,
+    X,
 } from 'lucide-react';
+import { useState } from 'react';
 
 interface Petugas {
     id: number;
@@ -30,6 +34,8 @@ interface AlokasiPetugas {
     rate_pencacahan?: number;
     rate_listing?: number;
     catatan: string | null;
+    non_response?: number | null;
+    non_response_listing?: number | null;
 }
 
 interface PeriodeAlokasi {
@@ -132,6 +138,76 @@ function formatDateTime(dateString: string | null): string {
 
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
+    const { auth } = usePage<SharedData>().props;
+    const isKetuaTim = auth.activeRole?.name === 'ketua_tim' || auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'operator';
+
+    // State untuk edit mode
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editedData, setEditedData] = useState<
+        Record<
+            number,
+            { non_response?: number; non_response_listing?: number }
+        >
+    >({});
+
+    // Check if ada alokasi dengan peran pendataan
+    const hasPendataanRole = periode.alokasi_petugas.some((alokasi) =>
+        ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'].includes(alokasi.peran),
+    );
+
+    const handleEditToggle = () => {
+        if (!isEditMode) {
+            // Masuk edit mode - inisialisasi data
+            const initialData: Record<
+                number,
+                { non_response?: number; non_response_listing?: number }
+            > = {};
+            periode.alokasi_petugas.forEach((alokasi) => {
+                initialData[alokasi.id] = {
+                    non_response: alokasi.non_response || 0,
+                    non_response_listing: alokasi.non_response_listing || 0,
+                };
+            });
+            setEditedData(initialData);
+        }
+        setIsEditMode(!isEditMode);
+    };
+
+    const handleSave = () => {
+        const payload = Object.keys(editedData).map((id) => ({
+            id: Number(id),
+            non_response: editedData[Number(id)].non_response || 0,
+            non_response_listing:
+                editedData[Number(id)].non_response_listing || 0,
+        }));
+
+        router.post(
+            '/alokasi/update-non-response',
+            {
+                alokasi_petugas: payload,
+            },
+            {
+                onSuccess: () => {
+                    setIsEditMode(false);
+                },
+            },
+        );
+    };
+
+    const handleInputChange = (
+        alokasiId: number,
+        field: 'non_response' | 'non_response_listing',
+        value: string,
+    ) => {
+        const numValue = value === '' ? 0 : parseInt(value, 10);
+        setEditedData((prev) => ({
+            ...prev,
+            [alokasiId]: {
+                ...prev[alokasiId],
+                [field]: isNaN(numValue) ? 0 : numValue,
+            },
+        }));
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -274,9 +350,43 @@ export default function ShowPeriode({ periode, revisions }: Props) {
             {/* Tabel Alokasi Petugas */}
             <ContentCard>
                 <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                        Daftar Alokasi Petugas
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                            Daftar Alokasi Petugas
+                        </h3>
+                        {isKetuaTim && hasPendataanRole && (
+                            <div className="flex gap-2">
+                                {isEditMode ? (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleEditToggle}
+                                        >
+                                            <X className="mr-2 h-4 w-4" />
+                                            Batal
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={handleSave}
+                                        >
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Simpan Non Response
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleEditToggle}
+                                    >
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Non Response
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <div className="w-full">
                         <table className="w-full text-left text-sm">
@@ -302,6 +412,11 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                         Beban Tugas
                                     </th>
+                                    {isKetuaTim && hasPendataanRole && (
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Non Response
+                                        </th>
+                                    )}
                                     <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                         Harga Satuan
                                     </th>
@@ -372,6 +487,42 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                 alokasi.jumlah_satuan_listing
                                                             }
                                                         </td>
+                                                        {isKetuaTim &&
+                                                            hasPendataanRole && (
+                                                                <td className="px-3 py-3 text-right whitespace-nowrap">
+                                                                    {isEditMode ? (
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            value={
+                                                                                editedData[
+                                                                                    alokasi
+                                                                                        .id
+                                                                                ]
+                                                                                    ?.non_response_listing ||
+                                                                                0
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                handleInputChange(
+                                                                                    alokasi.id,
+                                                                                    'non_response_listing',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-neutral-900 dark:text-white">
+                                                                            {alokasi.non_response_listing ||
+                                                                                0}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                            )}
                                                         <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {formatCurrency(
                                                                 alokasi.rate_listing ||

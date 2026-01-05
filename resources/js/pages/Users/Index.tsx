@@ -74,12 +74,16 @@ export default function Index({ users, filters }: UsersIndexProps) {
 
     const initialFilters = filters.decrypted || {};
     const [search, setSearch] = useState(initialFilters.search || '');
+    const [currentPage, setCurrentPage] = useState(users.meta.current_page);
 
     // Auto-filter with debounce
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             const filterParams = { search };
             const encryptedFilters = encryptFilters(filterParams);
+
+            // Reset to page 1 when filters change
+            setCurrentPage(1);
 
             router.post(
                 '/users',
@@ -88,6 +92,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
+                    only: ['users', 'filters'],
                 },
             );
         }, 300);
@@ -375,13 +380,33 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                         const isLast =
                                             link.label.includes('Next');
 
+                                        const handlePagination = () => {
+                                            if (!link.url) return;
+
+                                            const url = new URL(link.url, window.location.origin);
+                                            const page = url.searchParams.get('page') || '1';
+
+                                            setCurrentPage(parseInt(page));
+
+                                            const filterParams = { search, page };
+                                            const encryptedFilters = encryptFilters(filterParams);
+
+                                            router.post(
+                                                '/users',
+                                                { encrypted_filters: encryptedFilters },
+                                                {
+                                                    preserveState: true,
+                                                    preserveScroll: false,
+                                                    replace: true,
+                                                    only: ['users', 'filters'],
+                                                },
+                                            );
+                                        };
+
                                         return (
                                             <button
                                                 key={index}
-                                                onClick={() =>
-                                                    link.url &&
-                                                    router.get(link.url)
-                                                }
+                                                onClick={handlePagination}
                                                 disabled={!link.url}
                                                 className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                                     link.active

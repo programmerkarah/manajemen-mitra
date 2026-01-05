@@ -24,6 +24,8 @@ class AlokasiPetugas extends Model
             'total_honor' => 'decimal:2',
             'jumlah_satuan_listing' => 'integer',
             'total_honor_listing' => 'decimal:2',
+            'non_response' => 'integer',
+            'non_response_listing' => 'integer',
         ];
     }
 
@@ -37,6 +39,8 @@ class AlokasiPetugas extends Model
         'peran',
         'status_kepegawaian',
         'catatan',
+        'non_response',
+        'non_response_listing',
     ];
 
     public function periodeAlokasi(): BelongsTo

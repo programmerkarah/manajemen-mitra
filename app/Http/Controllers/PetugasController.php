@@ -50,7 +50,10 @@ class PetugasController extends Controller
             $query->where('jenis_petugas', $validated['jenis_petugas']);
         }
 
-        $petugas = $query->latest()->paginate(15)->withQueryString();
+        // Get page from validated data
+        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
+
+        $petugas = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
 
         // Encrypt sensitive data
         $petugasData = $petugas->items();

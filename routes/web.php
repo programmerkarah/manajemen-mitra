@@ -181,6 +181,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('alokasi.periode.revisi');
     });
 
+    // Update non response - Khusus ketua tim
+    Route::post('alokasi/update-non-response', [AlokasiPetugasController::class, 'updateNonResponse'])
+        ->name('alokasi.update-non-response')
+        ->middleware('active.role:ketua_tim,admin,operator');
+
     // Alokasi Approval Workflow
     Route::post('alokasi/{alokasi}/submit', [AlokasiPetugasController::class, 'submit'])
         ->name('alokasi.submit')

@@ -665,8 +665,10 @@ class BastController extends Controller
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
+                'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'non_response' => $isPendataanRole ? $alokasi->non_response : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
@@ -761,8 +763,10 @@ class BastController extends Controller
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
+                'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'non_response' => $isPendataanRole ? $alokasi->non_response : null,
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
@@ -1026,8 +1030,10 @@ class BastController extends Controller
                 'peran' => $alokasi->peran,
                 'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
+                'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
+                'non_response' => $isPendataanRole ? $alokasi->non_response : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
@@ -1255,7 +1261,7 @@ class BastController extends Controller
         foreach ($allBast as $bast) {
             // Prioritize signed file if exists, otherwise use regular file
             $fileToDownload = $bast->signed_file_path ?: $bast->file_path;
-            
+
             if ($fileToDownload) {
                 $filePath = public_path($fileToDownload);
                 if (file_exists($filePath)) {

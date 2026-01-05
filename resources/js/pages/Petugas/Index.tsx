@@ -73,6 +73,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
     const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState(initialFilters.search || '');
     const [status, setStatus] = useState(initialFilters.status || '');
+    const [currentPage, setCurrentPage] = useState(petugas.meta.current_page);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
 
@@ -94,6 +95,9 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
             const filterParams = { search, status };
             const encryptedFilters = encryptFilters(filterParams);
 
+            // Reset to page 1 when filters change
+            setCurrentPage(1);
+
             router.post(
                 '/petugas',
                 { encrypted_filters: encryptedFilters },
@@ -101,6 +105,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
+                    only: ['petugas', 'filters'],
                 },
             );
         }, 300);
@@ -318,12 +323,36 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 const isFirst = link.label.includes('Previous');
                                 const isLast = link.label.includes('Next');
 
+                                const handlePagination = () => {
+                                    if (!link.url) return;
+
+                                    // Extract page number from URL
+                                    const url = new URL(link.url, window.location.origin);
+                                    const page = url.searchParams.get('page') || '1';
+
+                                    // Update current page state
+                                    setCurrentPage(parseInt(page));
+
+                                    // Send POST request with current filters and page
+                                    const filterParams = { search, status, page };
+                                    const encryptedFilters = encryptFilters(filterParams);
+
+                                    router.post(
+                                        '/petugas',
+                                        { encrypted_filters: encryptedFilters },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: false,
+                                            replace: true,
+                                            only: ['petugas', 'filters'],
+                                        },
+                                    );
+                                };
+
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() =>
-                                            link.url && router.get(link.url)
-                                        }
+                                        onClick={handlePagination}
                                         disabled={!link.url}
                                         className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                             link.active

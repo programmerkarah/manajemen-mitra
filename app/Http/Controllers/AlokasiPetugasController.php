@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreAlokasiPetugasRequest;
 use App\Http\Requests\UpdateAlokasiPetugasRequest;
+use App\Http\Requests\UpdateNonResponseRequest;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
@@ -1968,5 +1969,47 @@ class AlokasiPetugasController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Update non response untuk hasil pelaksanaan kegiatan
+     * Hanya bisa dilakukan oleh ketua tim
+     */
+    public function updateNonResponse(UpdateNonResponseRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($validated['alokasi_petugas'] as $alokasiData) {
+                $alokasi = AlokasiPetugas::findOrFail($alokasiData['id']);
+
+                // Validasi bahwa user adalah ketua tim dari kegiatan ini
+                $periode = $alokasi->periodeAlokasi;
+                $kegiatan = $periode->kegiatan;
+
+                if (effectiveUser($request)->id !== $kegiatan->ketua_tim_user_id) {
+                    throw new \Exception('Anda tidak memiliki akses untuk mengupdate non response kegiatan ini.');
+                }
+
+                // Update non response
+                $alokasi->update([
+                    'non_response' => $alokasiData['non_response'] ?? null,
+                    'non_response_listing' => $alokasiData['non_response_listing'] ?? null,
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Data non response berhasil diperbarui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()
+                ->with('error', 'Gagal memperbarui data non response: '.$e->getMessage())
+                ->withInput();
+        }
     }
 }

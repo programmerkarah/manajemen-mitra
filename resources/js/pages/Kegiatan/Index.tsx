@@ -89,6 +89,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
     const [search, setSearch] = useState(filters.decrypted?.search || '');
     const [status, setStatus] = useState(filters.decrypted?.status || '');
+    const [currentPage, setCurrentPage] = useState(kegiatans.meta.current_page);
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -115,6 +116,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
             const encryptedFilters = encryptFilters(filterParams);
 
+            // Reset to page 1 when filters change
+            setCurrentPage(1);
+
             router.post(
                 '/kegiatan',
                 { encrypted_filters: encryptedFilters },
@@ -122,6 +126,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
+                    only: ['kegiatans', 'filters'],
                 },
             );
         }, 300);
@@ -567,12 +572,36 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 const isFirst = link.label.includes('Previous');
                                 const isLast = link.label.includes('Next');
 
+                                const handlePagination = () => {
+                                    if (!link.url) return;
+
+                                    const url = new URL(link.url, window.location.origin);
+                                    const page = url.searchParams.get('page') || '1';
+
+                                    setCurrentPage(parseInt(page));
+
+                                    const filterParams: Record<string, string> = { page };
+                                    if (search) filterParams.search = search;
+                                    if (status) filterParams.status = status;
+
+                                    const encryptedFilters = encryptFilters(filterParams);
+
+                                    router.post(
+                                        '/kegiatan',
+                                        { encrypted_filters: encryptedFilters },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: false,
+                                            replace: true,
+                                            only: ['kegiatans', 'filters'],
+                                        },
+                                    );
+                                };
+
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() =>
-                                            link.url && router.get(link.url)
-                                        }
+                                        onClick={handlePagination}
                                         disabled={!link.url}
                                         className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                             link.active

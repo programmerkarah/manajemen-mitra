@@ -198,15 +198,19 @@
 			<table class="lampiran-table">
 				<thead>
 					<tr>
-						<th style="width: 5%;" rowspan="2">No</th>
-						<th style="width: 60%;" rowspan="2">Uraian Tugas</th>
-						<th style="width: 10%;" colspan="2">Volume</th>
-						<th style="width: 10%;" rowspan="2">Satuan</th>
-						<th style="width: 15%;" rowspan="2">Keterangan</th>
+						<th style="width: 5%;" rowspan="3">No</th>
+						<th style="width: 60%;" rowspan="3">Uraian Tugas</th>
+						<th style="width: 10%;" colspan="3">Volume</th>
+						<th style="width: 15%;" rowspan="3">Satuan</th>
+						<th style="width: 10%;" rowspan="3">Keterangan</th>
 					</tr>
 					<tr>
-						<th>Target</th>
-						<th>Realisasi</th>
+						<th style="width: 5%;" rowspan="2">Target</th>
+						<th style="width: 10%;" colspan="2">Realisasi</th>
+					</tr>
+					<tr>
+						<th style="width: 5%;">Berhasil dikunjungi</th>
+						<th style="width: 5%;">Non Response</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -236,22 +240,32 @@
 					@endphp
 
 					@if($kegiatan['hasil_listing'])
+					@php
+						$nonResponseListing = $kegiatan['non_response_listing'] ?? 0;
+						$targetListing = $kegiatan['hasil_listing'] + $nonResponseListing;
+					@endphp
 					<tr>
 						<td>{{ $rowNum++ }}</td>
 						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Listing' }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_listing'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_listing'], 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($nonResponseListing, 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($targetListing, 0, ',', '.') }}</td>
 						<td>{{ $kegiatan['satuan_listing'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
 					@endif
 
 					@if($kegiatan['hasil_pendataan_lapangan'])
+					@php
+						$nonResponse = $kegiatan['non_response'] ?? 0;
+						$target = $kegiatan['hasil_pendataan_lapangan'] + $nonResponse;
+					@endphp
 					<tr>
 						<td>{{ $rowNum++ }}</td>
 						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pendataan Lapangan' }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pendataan_lapangan'], 0, ',', '.') }}</td>
-						<td class="right">{{ number_format($kegiatan['hasil_pendataan_lapangan'], 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($nonResponse, 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($target, 0, ',', '.') }}</td>
 						<td>{{ $kegiatan['satuan_pendataan'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
@@ -263,6 +277,7 @@
 						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan' }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan'], 0, ',', '.') }}</td>
 						<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
 						<td class="left">-</td>
 					</tr>
@@ -271,6 +286,7 @@
 					<tr>
 						<td>{{ $rowNum++ }}</td>
 						<td class="left">{{ $kegiatan['uraian_pekerjaan'] ?? 'Hasil Pengolahan' }}</td>
+						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
 						<td class="right">{{ number_format($kegiatan['hasil_pengolahan_listing'], 0, ',', '.') }}</td>
 						<td>{{ $kegiatan['satuan_pengolahan'] ?? 'Dokumen' }}</td>
@@ -295,8 +311,8 @@
 			</table>
 		</div>
 		<div class="pengesahan">
-			<div style="margin-bottom: 10px;">
-				<span>Petugas yang bersangkutan telah menyelesaikan pekerjaan {{ $kegiatan['nama_kegiatan'] ?? '' }} {{ $tahunBast }} pelaksanaan bulan {{ $bulanLabel }} Tahun {{ $tahunBast ?? '-' }} sesuai dengan keterangan di atas dan ketentuan yang sudah ditetapkan pada Perjanjian Kerja.</span>
+			<div style="margin-bottom: 25px; text-align: justify;">
+				<span style="text-align: justify;">Petugas yang bersangkutan telah menyelesaikan pekerjaan {{ $kegiatan['nama_kegiatan'] ?? '' }} {{ $tahunBast }} pelaksanaan bulan {{ $bulanLabel }} Tahun {{ $tahunBast ?? '-' }} sesuai dengan keterangan di atas dan ketentuan yang sudah ditetapkan pada Perjanjian Kerja.</span>
 			</div>
 			<div class="signature-section">
 				<div class="signature-row" style="margin-bottom: 20px;">

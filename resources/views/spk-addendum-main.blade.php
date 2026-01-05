@@ -292,7 +292,7 @@
 
         <p class="dasar" style="margin-bottom: 10px;">
             Dasar Perubahan/{{ $addendumLabel }} Perjanjian ini yaitu:<br>
-            Terjadi perubahan realisasi pelaksanaan kegiatan yang dilakukan oleh <strong>PIHAK KEDUA</strong> sebagaimana tercantum dalam lampiran {{$addendumLabel}} yang disebabkan adanya {{ $hasUbinanKegiatan? '':  ' Non Response dari responden'}}{{ $hasUbinanKegiatan ? ', dan/atau terjadi lewat panen pada kegiatan Ubinan Padi/Palawija' : '' }}, dan/atau terjadi perubahan wilayah kerja pada kegiatan survei yang mengakibatkan perubahan beban kerja dan/atau honorarium yang diterima oleh <strong>PIHAK KEDUA</strong>.
+            Terjadi perubahan realisasi pelaksanaan kegiatan yang dilakukan oleh <strong>PIHAK KEDUA</strong> sebagaimana tercantum dalam lampiran {{$addendumLabel}} yang disebabkan adanya {{ $hasUbinanKegiatan ? ', dan/atau terjadi lewat panen pada kegiatan Ubinan Padi/Palawija' : '' }}, dan/atau terjadi perubahan wilayah kerja pada kegiatan survei yang mengakibatkan perubahan beban kerja dan/atau honorarium yang diterima oleh <strong>PIHAK KEDUA</strong>.
         </p>
 
 
