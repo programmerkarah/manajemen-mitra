@@ -58,7 +58,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'bulan.min' => 'Bulan minimal 1 (Januari).',
             'bulan.max' => 'Bulan maksimal 12 (Desember).',
             'tahun.required' => 'Tahun wajib diisi.',
-            'tahun.min' => 'Tahun minimal 2000.',
+            'tahun.min' => 'Tahun minimal 1980.',
             'tahun.max' => 'Tahun maksimal 1 tahun ke depan.',
             'jumlah_satuan.required' => 'Jumlah satuan wajib diisi.',
             'jumlah_satuan.min' => 'Jumlah satuan minimal 1.',
