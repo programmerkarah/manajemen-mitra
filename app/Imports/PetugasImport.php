@@ -70,7 +70,7 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'jenis_petugas' => ['nullable', Rule::in(['organik', 'non-organik'])],
                 'jabatan' => ['nullable', 'string', 'max:255'],
                 'golongan' => ['nullable', 'string', 'max:50'],
-                'npwp' => ['nullable', 'string', 'max:20'],
+                'npwp' => ['nullable', 'string', 'max:24'],
                 'bank' => ['nullable', 'string', 'max:255'],
                 'no_rekening' => ['nullable', 'string', 'max:255'],
                 'nama_rekening' => ['nullable', 'string', 'max:255'],
@@ -90,7 +90,7 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'tahun_bergabung.max' => 'Tahun bergabung tidak valid',
                 'status.in' => 'Status harus aktif atau nonaktif',
                 'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik',
-                'npwp.max' => 'NPWP maksimal 20 karakter',
+                'npwp.max' => 'NPWP maksimal 24 karakter',
             ]);
 
             if ($validator->fails()) {

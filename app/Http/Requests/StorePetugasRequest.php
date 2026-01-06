@@ -62,7 +62,7 @@ class StorePetugasRequest extends FormRequest
             'tahun_bergabung.max' => 'Tahun bergabung tidak boleh melebihi tahun saat ini.',
             'jenis_petugas.required' => 'Jenis petugas wajib dipilih.',
             'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik.',
-            'npwp.size' => 'NPWP harus 15 digit.',
+            'npwp.size' => 'NPWP maksimal 24 digit.',
             'npwp.unique' => 'NPWP sudah terdaftar.',
             'status.required' => 'Status wajib dipilih.',
             'status.in' => 'Status harus aktif atau nonaktif.',
