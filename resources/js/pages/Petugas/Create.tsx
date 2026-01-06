@@ -327,7 +327,7 @@ export default function Create() {
                                     onChange={(e) =>
                                         setData('npwp', e.target.value)
                                     }
-                                    maxLength={16}
+                                    maxLength={24}
                                     className="h-10"
                                 />
                                 <InputError message={errors.npwp} />
