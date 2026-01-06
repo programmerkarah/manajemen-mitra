@@ -60,7 +60,7 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
             // Validate the row
             $validator = Validator::make($data, [
                 'nama' => ['required', 'string', 'max:255'],
-                'nik' => ['required', 'string', 'unique:petugas,nik'],
+                'nik' => ['required', 'string', 'max:18', 'unique:petugas,nik'],
                 'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
                 'telepon' => ['nullable', 'string', 'max:15'],
                 'alamat' => ['nullable', 'string'],

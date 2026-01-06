@@ -38,7 +38,7 @@ class UpdatePetugasRequest extends FormRequest
 
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'nik' => ['required', 'string', 'size:18', Rule::unique('petugas', 'nik')->ignore($petugasId)],
+            'nik' => ['required', 'string', 'max:18', Rule::unique('petugas', 'nik')->ignore($petugasId)],
             'email' => ['required', 'email', 'max:255', Rule::unique('petugas', 'email')->ignore($petugasId)],
             'telepon' => ['required', 'string', 'max:20'],
             'alamat' => ['required', 'string'],
