@@ -60,6 +60,7 @@ interface PetugasIndexProps {
         decrypted?: {
             search?: string;
             status?: string;
+            jenis_petugas?: string;
             tahun?: string;
         };
     };
@@ -73,6 +74,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
     const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState(initialFilters.search || '');
     const [status, setStatus] = useState(initialFilters.status || '');
+    const [jenisPetugas, setJenisPetugas] = useState(initialFilters.jenis_petugas || '');
     const [currentPage, setCurrentPage] = useState(petugas.meta.current_page);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
@@ -92,7 +94,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         if (isFirstRender.current) return;
 
         const timeoutId = setTimeout(() => {
-            const filterParams = { search, status };
+            const filterParams = { search, status, jenis_petugas: jenisPetugas };
             const encryptedFilters = encryptFilters(filterParams);
 
             // Reset to page 1 when filters change
@@ -111,7 +113,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [search, status]);
+    }, [search, status, jenisPetugas]);
 
     const handleImport = (e: React.FormEvent) => {
         e.preventDefault();
@@ -193,6 +195,23 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 />
                             </div>
                         </div>
+                        <Select
+                            value={jenisPetugas}
+                            onValueChange={(value) => setJenisPetugas(value)}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Jenis Petugas" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    Semua Jenis
+                                </SelectItem>
+                                <SelectItem value="organik">Organik</SelectItem>
+                                <SelectItem value="non-organik">
+                                    Non-Organik
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                         <Select
                             value={status}
                             onValueChange={(value) => setStatus(value)}
@@ -334,7 +353,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                     setCurrentPage(parseInt(page));
 
                                     // Send POST request with current filters and page
-                                    const filterParams = { search, status, page };
+                                    const filterParams = { search, status, jenis_petugas: jenisPetugas, page };
                                     const encryptedFilters = encryptFilters(filterParams);
 
                                     router.post(
