@@ -29,9 +29,9 @@ class DashboardController extends Controller
         // Basic stats
         $stats = [
             'total_petugas' => Petugas::where('status', 'aktif')->count(),
-            'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count(),
-            'alokasi_pending' => PeriodeAlokasi::where('status', 'draft')->count(),
-            'bast_pending' => Bast::where('status', 'draft')->count(),
+            'total_kegiatan' => Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->where('tahun_anggaran', $currentYear)->count(),
+            'draft_kegiatan' => Kegiatan::where('status', 'draft')->where('tahun_anggaran', $currentYear)->count(),
+            'bast_pending' => Bast::where('status', 'draft')->whereYear('created_at', $currentYear)->count(),
         ];
 
         // Additional comprehensive stats
@@ -62,14 +62,14 @@ class DashboardController extends Controller
             ],
             // SK Stats
             'sk' => [
-                'total' => SkKpa::count(),
-                'draft' => SkKpa::where('status', 'draft')->count(),
-                'diterbitkan' => SkKpa::where('status', 'diterbitkan')->count(),
-                'dibatalkan' => SkKpa::where('status', 'dibatalkan')->count(),
+                'total' => SkKpa::where('tahun', $currentYear)->count(),
+                'draft' => SkKpa::where('status', 'draft')->where('tahun', $currentYear)->count(),
+                'diterbitkan' => SkKpa::where('status', 'diterbitkan')->where('tahun', $currentYear)->count(),
+                'dibatalkan' => SkKpa::where('status', 'dibatalkan')->where('tahun', $currentYear)->count(),
             ],
             // SPK Stats
             'spk' => [
-                'total' => Spk::count(),
+                'total' => Spk::whereYear('tanggal_spk', $currentYear)->count(),
             ],
             // Petugas by Type
             'petugas_detail' => [
@@ -78,14 +78,14 @@ class DashboardController extends Controller
             ],
             // Kegiatan by Type
             'kegiatan_detail' => [
-                'sensus' => Kegiatan::where('jenis_kegiatan', 'sensus')->whereIn('status', ['aktif', 'divalidasi'])->count(),
-                'survei' => Kegiatan::where('jenis_kegiatan', 'survei')->whereIn('status', ['aktif', 'divalidasi'])->count(),
+                'sensus' => Kegiatan::where('jenis_kegiatan', 'sensus')->whereIn('status', ['aktif', 'divalidasi'])->where('tahun_anggaran', $currentYear)->count(),
+                'survei' => Kegiatan::where('jenis_kegiatan', 'survei')->whereIn('status', ['aktif', 'divalidasi'])->where('tahun_anggaran', $currentYear)->count(),
             ],
             // Alokasi by Status
             'alokasi_detail' => [
-                'draft' => PeriodeAlokasi::where('status', 'draft')->count(),
-                'dikirim' => PeriodeAlokasi::where('status', 'dikirim')->count(),
-                'direvisi' => PeriodeAlokasi::where('status', 'direvisi')->count(),
+                'draft' => PeriodeAlokasi::where('status', 'draft')->where('tahun', $currentYear)->count(),
+                'dikirim' => PeriodeAlokasi::where('status', 'dikirim')->where('tahun', $currentYear)->count(),
+                'direvisi' => PeriodeAlokasi::where('status', 'direvisi')->where('tahun', $currentYear)->count(),
             ],
         ];
 
@@ -97,6 +97,7 @@ class DashboardController extends Controller
                 'alokasiPetugas:id,periode_alokasi_id,petugas_id',
                 'alokasiPetugas.petugas:id,jenis_petugas',
             ])
+            ->where('tahun', $currentYear)
             ->when($user->isOperator(), function ($query) use ($user) {
                 $query->where('submitted_by', $user->id);
             })
@@ -135,6 +136,7 @@ class DashboardController extends Controller
         $kegiatanBulanIni = Kegiatan::query()
             ->with(['ketuaTim'])
             ->whereIn('status', ['aktif', 'divalidasi'])
+            ->where('tahun_anggaran', $currentYear)
             ->where(function ($query) use ($currentMonth, $currentYear) {
                 $query->whereYear('tanggal_mulai', '<=', $currentYear)
                     ->whereMonth('tanggal_mulai', '<=', $currentMonth)

@@ -46,7 +46,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface DashboardStats {
     total_petugas: number;
     total_kegiatan: number;
-    alokasi_pending: number;
+    draft_kegiatan: number;
     bast_pending: number;
 }
 
@@ -276,7 +276,7 @@ export default function Dashboard({
                                     Draft Kegiatan
                                 </p>
                                 <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
-                                    {stats.alokasi_pending}
+                                    {stats.draft_kegiatan}
                                 </p>
                             </div>
                             <div className="flex-shrink-0 rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
