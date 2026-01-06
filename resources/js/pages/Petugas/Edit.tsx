@@ -437,7 +437,7 @@ export default function Edit({ petugas }: EditProps) {
                                         onChange={(e) =>
                                             setData('npwp', e.target.value)
                                         }
-                                        maxLength={15}
+                                        maxLength={24}
                                         className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                     />
                                     {errors.npwp && (
