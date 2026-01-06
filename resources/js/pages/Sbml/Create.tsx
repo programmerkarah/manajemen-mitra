@@ -239,20 +239,26 @@ export default function Create({ tahun_options }: CreateProps) {
                                     Tahun Anggaran{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="tahun_anggaran"
-                                    value={tahun}
-                                    onChange={(e) =>
-                                        setTahun(parseInt(e.target.value))
+                                <Select
+                                    value={tahun.toString()}
+                                    onValueChange={(value) =>
+                                        setTahun(parseInt(value))
                                     }
-                                    className="mt-1 block h-11 w-full rounded-lg border border-neutral-300 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-white"
                                 >
-                                    {tahun_options.map((year) => (
-                                        <option key={year} value={year}>
-                                            {year}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger className="mt-1 h-11">
+                                        <SelectValue placeholder="Pilih Tahun" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {tahun_options.map((year) => (
+                                            <SelectItem
+                                                key={year}
+                                                value={year.toString()}
+                                            >
+                                                {year}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 {errors.tahun_anggaran && (
                                     <p className="mt-2 text-sm text-red-600">
                                         {errors.tahun_anggaran}

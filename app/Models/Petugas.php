@@ -122,6 +122,8 @@ class Petugas extends Model
             'pendidikan' => $this->getAttribute('pendidikan'),
             'tahun_bergabung' => $this->getAttribute('tahun_bergabung'),
             'jenis_petugas' => $this->getAttribute('jenis_petugas'),
+            'jabatan' => $this->getAttribute('jabatan'),
+            'golongan' => $this->getAttribute('golongan'),
             'npwp' => $this->getAttribute('npwp'),
             'bank' => $this->getAttribute('bank'),
             'no_rekening' => $this->getAttribute('no_rekening'),

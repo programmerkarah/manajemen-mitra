@@ -1,6 +1,14 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -217,24 +225,27 @@ export default function Edit({ petugas }: EditProps) {
 
                             {/* Pendidikan */}
                             <div>
-                                <label className="block text-sm font-medium">
+                                <Label className="block text-sm font-medium">
                                     Pendidikan{' '}
                                     <span className="text-red-600">*</span>
-                                </label>
-                                <select
+                                </Label>
+                                <Select
                                     value={data.pendidikan}
-                                    onChange={(e) =>
-                                        setData('pendidikan', e.target.value)
+                                    onValueChange={(value) =>
+                                        setData('pendidikan', value)
                                     }
-                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                 >
-                                    <option value="">Pilih Pendidikan</option>
-                                    {pendidikanOptions.map((option) => (
-                                        <option key={option} value={option}>
-                                            {option}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Pendidikan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {pendidikanOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 {errors.pendidikan && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.pendidikan}
@@ -244,36 +255,42 @@ export default function Edit({ petugas }: EditProps) {
 
                             {/* Tahun Bergabung */}
                             <div>
-                                <label className="block text-sm font-medium">
+                                <Label className="block text-sm font-medium">
                                     Tahun Bergabung{' '}
                                     <span className="text-red-600">*</span>
-                                </label>
-                                <select
-                                    value={data.tahun_bergabung}
-                                    onChange={(e) =>
+                                </Label>
+                                <Select
+                                    value={data.tahun_bergabung.toString()}
+                                    onValueChange={(value) =>
                                         setData(
                                             'tahun_bergabung',
-                                            parseInt(e.target.value),
+                                            parseInt(value),
                                         )
                                     }
-                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                 >
-                                    <option value="">Pilih Tahun</option>
-                                    {Array.from(
-                                        {
-                                            length:
-                                                new Date().getFullYear() -
-                                                2000 +
-                                                2,
-                                        },
-                                        (_, i) =>
-                                            new Date().getFullYear() + 1 - i,
-                                    ).map((year) => (
-                                        <option key={year} value={year}>
-                                            {year}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Tahun" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from(
+                                            {
+                                                length:
+                                                    new Date().getFullYear() -
+                                                    1980 +
+                                                    2,
+                                            },
+                                            (_, i) =>
+                                                new Date().getFullYear() + 1 - i,
+                                        ).map((year) => (
+                                            <SelectItem
+                                                key={year}
+                                                value={year.toString()}
+                                            >
+                                                {year}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 {errors.tahun_bergabung && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.tahun_bergabung}
@@ -283,20 +300,24 @@ export default function Edit({ petugas }: EditProps) {
 
                             {/* Status */}
                             <div>
-                                <label className="block text-sm font-medium">
+                                <Label className="block text-sm font-medium">
                                     Status{' '}
                                     <span className="text-red-600">*</span>
-                                </label>
-                                <select
+                                </Label>
+                                <Select
                                     value={data.status}
-                                    onChange={(e) =>
-                                        setData('status', e.target.value)
+                                    onValueChange={(value) =>
+                                        setData('status', value)
                                     }
-                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                 >
-                                    <option value="aktif">Aktif</option>
-                                    <option value="nonaktif">Nonaktif</option>
-                                </select>
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="aktif">Aktif</SelectItem>
+                                        <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 {errors.status && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.status}
@@ -306,26 +327,30 @@ export default function Edit({ petugas }: EditProps) {
 
                             {/* Jenis Petugas */}
                             <div>
-                                <label className="block text-sm font-medium">
+                                <Label className="block text-sm font-medium">
                                     Jenis Petugas{' '}
                                     <span className="text-red-600">*</span>
-                                </label>
-                                <select
+                                </Label>
+                                <Select
                                     value={data.jenis_petugas}
-                                    onChange={(e) =>
+                                    onValueChange={(value) =>
                                         handleJenisPetugasChange(
-                                            e.target.value as
+                                            value as
                                                 | 'organik'
                                                 | 'non-organik',
                                         )
                                     }
-                                    className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                                 >
-                                    <option value="organik">Organik</option>
-                                    <option value="non-organik">
-                                        Non-Organik
-                                    </option>
-                                </select>
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Jenis Petugas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="organik">Organik</SelectItem>
+                                        <SelectItem value="non-organik">
+                                            Non-Organik
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 {errors.jenis_petugas && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.jenis_petugas}
