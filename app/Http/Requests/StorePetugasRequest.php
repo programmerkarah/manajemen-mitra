@@ -23,7 +23,7 @@ class StorePetugasRequest extends FormRequest
     {
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'nik' => ['required', 'string', 'size:16', 'unique:petugas,nik'],
+            'nik' => ['required', 'string', 'size:18', 'unique:petugas,nik'],
             'email' => ['required', 'email', 'max:255', 'unique:petugas,email'],
             'telepon' => ['required', 'string', 'max:20'],
             'alamat' => ['required', 'string'],
