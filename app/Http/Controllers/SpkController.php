@@ -2415,7 +2415,7 @@ class SpkController extends Controller
             if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'listing');
                 $uraian[] = [
-                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} {$periode->tahun} Tahun {$kegiatan->tahun_anggaran} (Listing)",
+                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran} (Listing)",
                     'volume' => $alokasi->jumlah_satuan_listing,
                     'satuan' => $rateHonor->satuanListing->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate_listing,
@@ -2430,7 +2430,7 @@ class SpkController extends Controller
             if ($rateHonor->rate && $alokasi->jumlah_satuan) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'pencacahan');
                 $uraian[] = [
-                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} {$periode->tahun} Tahun {$kegiatan->tahun_anggaran}",
+                    'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran}",
                     'volume' => $alokasi->jumlah_satuan,
                     'satuan' => $rateHonor->satuan->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate,

@@ -322,6 +322,13 @@
 </head>
 
 <body>
+    @php
+        // Check if nama_kegiatan already contains a 4-digit year
+        $namaKegiatanContainsYear = preg_match('/\b(19|20)\d{2}\b/', $kegiatan->nama_kegiatan);
+        $namaKegiatanWithYear = $namaKegiatanContainsYear 
+            ? $kegiatan->nama_kegiatan 
+            : $kegiatan->nama_kegiatan . ' ' . $kegiatan->tahun_anggaran;
+    @endphp
     <!-- Halaman Pertama: SK -->
     <div class="header" style="margin-bottom: 15px;">
         <div style="text-align: center; margin-bottom: 0px;">
@@ -351,11 +358,11 @@
         @if($firstSkYear)
         TAHUN {{ $firstSkYear }}
         @endif
-        TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
+        TENTANG PETUGAS {{ strtoupper($namaKegiatanWithYear) }}
         BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
         TAHUN ANGGARAN {{ $periode->tahun }}
         @else
-        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} <br>
+        PETUGAS {{ strtoupper($namaKegiatanWithYear) }} <br>
         BADAN PUSAT STATISTIK KOTA SAWAHLUNTO <br>
         TAHUN ANGGARAN {{ $periode->tahun }}
         @endif
@@ -369,7 +376,7 @@
         <tr>
             <td style="width: 120px; font-weight: bold; vertical-align: top; border: none; padding: 0;">Menimbang</td>
             <td style="width: 20px; text-align: center; vertical-align: top; border: none; padding: 0;">:</td>
-            <td style="text-align: justify; vertical-align: top; border: none; padding: 0;">Bahwa untuk kelancaran pelaksanaan kegiatan Badan Pusat Statistik Tahun {{ $periode->tahun }} di wilayah Kota Sawahlunto, maka perlu menetapkan Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}.</td>
+            <td style="text-align: justify; vertical-align: top; border: none; padding: 0;">Bahwa untuk kelancaran pelaksanaan kegiatan Badan Pusat Statistik Tahun {{ $periode->tahun }} di wilayah Kota Sawahlunto, maka perlu menetapkan Petugas {{ $namaKegiatanWithYear }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }}.</td>
         </tr>
     </table>
 
@@ -407,11 +414,11 @@
                 @endphp
                 {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
                 TENTANG {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
-                NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}
+                NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($namaKegiatanWithYear) }}
                 BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
                 @else
                 {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TENTANG
-                PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
+                PETUGAS {{ strtoupper($namaKegiatanWithYear) }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
                 @endif
             </td>
         </tr>
@@ -433,7 +440,7 @@
             <td>KESATU</td>
             <td>:</td>
             <td>
-                Mengubah Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, dengan 
+                Mengubah Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $namaKegiatanWithYear }}, dengan 
                 @if(count($deletedPetugas) > 0)
                 memberhentikan  
                 @foreach($deletedPetugas as $index => $nama)
@@ -468,7 +475,7 @@
             <td>KEDUA</td>
             <td>:</td>
             <td>
-                Bahwa Petugas Survei {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }} setelah perubahan secara lengkap sebagaimana tercantum dalam Lampiran Keputusan ini.
+                Bahwa Petugas Survei {{ $namaKegiatanWithYear }} Badan Pusat Statistik Kota Sawahlunto Tahun Anggaran {{ $periode->tahun }} setelah perubahan secara lengkap sebagaimana tercantum dalam Lampiran Keputusan ini.
             </td>
         </tr>
     </table>
@@ -500,7 +507,7 @@
         @endif
         <p class="pasal-title"><strong>Pasal I</strong></p>
         <p style="text-align: justify;">
-            Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $kegiatan->nama_kegiatan . " " . $kegiatan->tahun_anggaran }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
+            Mengubah Lampiran pada Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} tentang Petugas {{ $namaKegiatanWithYear }}, sebagaimana tercantum dalam Lampiran Keputusan Kepala Badan Pusat Statistik Kota Sawahlunto Nomor {{ $nomorSk }} Tahun {{ $tahunSk }} tentang {{ $revisionTextDisplay}} Keputusan Badan Pusat Statistik Nomor {{ $firstSkNumber }} Tahun {{ $firstSkYear }} ini.
         </p>
     </div>
     <div class="pasal-section">
@@ -564,11 +571,11 @@
         $revisionText = 'PERUBAHAN ' . ($numberWords[$revisionNumber] ?? $revisionNumber) . '';
         }
         @endphp
-        {{ $revisionText }} PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+        {{ $revisionText }} PETUGAS {{ strtoupper($namaKegiatanWithYear) }}<br>
         BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
         TAHUN ANGGARAN {{ $periode->tahun }}
         @else
-        PETUGAS {{ strtoupper($kegiatan->nama_kegiatan) . " " . $kegiatan->tahun_anggaran }}<br>
+        PETUGAS {{ strtoupper($namaKegiatanWithYear) }}<br>
         BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
         TAHUN ANGGARAN {{ $periode->tahun }}
         @endif

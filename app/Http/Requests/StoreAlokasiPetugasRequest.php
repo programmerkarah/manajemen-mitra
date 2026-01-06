@@ -26,7 +26,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'petugas_id' => ['required', 'exists:petugas,id'],
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
             'bulan' => ['required', 'integer', 'min:1', 'max:12'],
-            'tahun' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 1)],
+            'tahun' => ['required', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
             'jumlah_satuan' => ['required', 'integer', 'min:1'],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
