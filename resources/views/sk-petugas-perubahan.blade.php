@@ -175,16 +175,22 @@
         }
 
         .lampiran-header {
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             font-size: small;
+        }
+
+        .title {
+            text-align: center;
+            margin: 20px 0;
         }
 
         table.petugas {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 10px 0;
             font-size: 11pt;
             table-layout: fixed;
+            page-break-before: avoid;
         }
 
         table.petugas th,
@@ -192,59 +198,16 @@
             border-left: none;
             border-right: none;
             padding: 8px;
-            page-break-inside: avoid !important;
         }
 
+        /* thead will repeat on each page */
         table.petugas thead {
             display: table-header-group;
         }
 
-        table.petugas tbody tr {
-            page-break-inside: avoid !important;
-        }
-
-        table.petugas tbody tr.petugas-group-start {
-            page-break-before: auto;
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-        }
-
-        table.petugas tbody tr.petugas-group-middle {
-            page-break-before: avoid !important;
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-        }
-
-        table.petugas tbody tr.petugas-group-end {
-            page-break-before: avoid !important;
-            page-break-after: auto;
-            page-break-inside: avoid !important;
-        }
-
-        /* Keep last petugas with signature */
-        table.petugas tbody tr.keep-with-signature {
-            page-break-after: avoid !important;
-        }
-
-        /* Prevent lampiran header from being orphaned */
-        .lampiran-header {
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-        }
-
-        .title {
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-        }
-
-        /* Ensure table starts on same page as title */
-        table.petugas {
-            page-break-before: avoid !important;
-        }
-
-        table.petugas thead {
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
+        /* Keep first 4-5 rows on first page */
+        table.petugas tbody tr.first-page-row {
+            page-break-after: avoid;
         }
 
         /* First header row - double top border, single bottom */
@@ -268,6 +231,17 @@
             border-top: 1px solid black;
             border-bottom: 1px solid black;
             vertical-align: top;
+        }
+
+        /* Prevent breaking rows with rowspan */
+        table.petugas tbody tr td[rowspan] {
+            page-break-inside: avoid;
+        }
+
+        /* Keep last 1-2 rows with signature */
+        table.petugas tbody tr.keep-with-signature,
+        table.petugas tbody tr.keep-with-signature-last-2 {
+            page-break-after: avoid;
         }
 
         .page-break {
@@ -560,7 +534,7 @@
         <div>Tanggal <span style="margin-left: 20px;">: {{ \Carbon\Carbon::parse($tanggalSk)->isoFormat('D MMMM Y') }}</span></div>
     </div>
 
-    <div class="title">
+    <div class="title" style="margin: 10px 0;">
         @if($revisionNumber > 0)
         @php
         $revisionText = '';
@@ -601,29 +575,26 @@
         <tbody>
             @php
             $counter = 1;
-            $totalAlokasi = count($alokasiList);
+            $globalRowCounter = 0;
+            $totalRows = 0;
+            foreach($alokasiList as $alok) {
+                $totalRows += count($alok->roles);
+            }
             @endphp
             @foreach($alokasiList as $alokasiIndex => $alokasi)
             @php
             $roleCount = count($alokasi->roles);
-            $isLastAlokasi = ($alokasiIndex === $totalAlokasi - 1);
             @endphp
             @foreach($alokasi->roles as $roleIndex => $role)
             @php
+            $globalRowCounter++;
             $groupClass = '';
-            if ($roleCount === 1) {
-            $groupClass = 'petugas-group-start petugas-group-end';
-            } elseif ($roleIndex === 0) {
-            $groupClass = 'petugas-group-start';
-            } elseif ($roleIndex === $roleCount - 1) {
-            $groupClass = 'petugas-group-end';
-            } else {
-            $groupClass = 'petugas-group-middle';
-            }
-
-            // Add keep-with-signature class to last row of last petugas
-            if ($isLastAlokasi && $roleIndex === $roleCount - 1) {
-            $groupClass .= ' keep-with-signature';
+            
+            // Keep last 1-2 rows with signature
+            if ($globalRowCounter >= $totalRows - 1) {
+                $groupClass = 'keep-with-signature';
+            } elseif ($globalRowCounter >= $totalRows - 2) {
+                $groupClass = 'keep-with-signature-last-2';
             }
             @endphp
             <tr class="{{ $groupClass }}">
@@ -651,7 +622,7 @@
         </tbody>
     </table>
 
-    <div class="signature" style="margin-top: 60px; page-break-before: avoid !important; page-break-inside: avoid !important;">
+    <div class="signature" style="margin-top: 60px;">
         <div class="signature-content">
             <div>
                 KEPALA BADAN PUSAT STATISTIK<br>
