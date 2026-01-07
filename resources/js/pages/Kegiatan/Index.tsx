@@ -50,6 +50,8 @@ interface Kegiatan {
     nama_kegiatan: string;
     tahun_anggaran: number;
     pagu_pencacahan: number | null;
+    pagu_listing: number | null;
+    has_listing_updating: boolean;
     status: string;
     ketua_tim: User;
 }
@@ -436,7 +438,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-3 py-3 text-right text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {formatCurrency(
-                                                    kegiatan.pagu_pencacahan,
+                                                    (Number(kegiatan.pagu_pencacahan) || 0) + (Number(kegiatan.pagu_listing) || 0),
                                                 )}
                                             </td>
                                             <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
