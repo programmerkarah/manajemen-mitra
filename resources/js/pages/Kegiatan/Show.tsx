@@ -375,7 +375,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                     Sisa:{' '}
                                     {formatCurrency(
-                                        (kegiatan.pagu_pencacahan || 0) -
+                                        (Number(kegiatan.pagu_pencacahan) || 0) + (Number(kegiatan.pagu_listing) || 0) -
                                             totalAlokasi,
                                     )}
                                 </p>
