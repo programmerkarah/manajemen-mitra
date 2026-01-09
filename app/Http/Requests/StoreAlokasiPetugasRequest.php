@@ -27,14 +27,14 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
             'bulan' => ['required', 'integer', 'min:1', 'max:12'],
             'tahun' => ['required', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
-            'jumlah_satuan' => ['required', 'integer', 'min:1'],
+            'jumlah_satuan' => ['required', 'integer', 'min:0'],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
         // Dual-phase: require jumlah_satuan_listing if kegiatan has listing
         $kegiatan = \App\Models\Kegiatan::find($this->kegiatan_id);
         if ($kegiatan && $kegiatan->has_listing_updating) {
-            $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:1'];
+            $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:0'];
         } else {
             $rules['jumlah_satuan_listing'] = ['nullable'];
         }
@@ -61,7 +61,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'tahun.min' => 'Tahun minimal 1980.',
             'tahun.max' => 'Tahun maksimal 1 tahun ke depan.',
             'jumlah_satuan.required' => 'Jumlah satuan wajib diisi.',
-            'jumlah_satuan.min' => 'Jumlah satuan minimal 1.',
+            'jumlah_satuan.min' => 'Jumlah satuan minimal 0.',
             'jenis_kegiatan.required' => 'Jenis kegiatan wajib dipilih.',
             'jenis_kegiatan.in' => 'Jenis kegiatan harus Sensus atau Survei.',
             'status.in' => 'Status tidak valid.',

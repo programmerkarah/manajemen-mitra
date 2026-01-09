@@ -86,9 +86,6 @@ export default function Create({
     );
     const [processing, setProcessing] = useState(false);
 
-    // Debug: Log personnelChangeInfo
-    console.log('Personnel Change Info:', personnelChangeInfo);
-
     const handleSelectAllDasarHukum = () => {
         if (selectedDasarHukum.length === dasarHukumList.length) {
             setSelectedDasarHukum([]);

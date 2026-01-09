@@ -314,6 +314,21 @@ class AlokasiPetugasController extends Controller
             }
         }
 
+        // Validate jadwal pengolahan fields (optional, based on rate honor configuration)
+        $request->validate([
+            'jadwal_pengolahan_listing_mulai' => 'nullable|date',
+            'jadwal_pengolahan_listing_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_listing_mulai',
+            'jadwal_pengolahan_pencacahan_mulai' => 'nullable|date',
+            'jadwal_pengolahan_pencacahan_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_pencacahan_mulai',
+        ], [
+            'jadwal_pengolahan_listing_selesai.after_or_equal' => 'Tanggal selesai pengolahan listing harus setelah atau sama dengan tanggal mulai.',
+            'jadwal_pengolahan_pencacahan_selesai.after_or_equal' => 'Tanggal selesai pengolahan pencacahan harus setelah atau sama dengan tanggal mulai.',
+        ]);
+        $validated['jadwal_pengolahan_listing_mulai'] = $request->jadwal_pengolahan_listing_mulai;
+        $validated['jadwal_pengolahan_listing_selesai'] = $request->jadwal_pengolahan_listing_selesai;
+        $validated['jadwal_pengolahan_pencacahan_mulai'] = $request->jadwal_pengolahan_pencacahan_mulai;
+        $validated['jadwal_pengolahan_pencacahan_selesai'] = $request->jadwal_pengolahan_pencacahan_selesai;
+
         DB::beginTransaction();
         $created = 0;
         $errors = [];
@@ -537,6 +552,10 @@ class AlokasiPetugasController extends Controller
                         'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
                         'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
                         'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
+                        'jadwal_pengolahan_listing_mulai' => $validated['jadwal_pengolahan_listing_mulai'] ?? null,
+                        'jadwal_pengolahan_listing_selesai' => $validated['jadwal_pengolahan_listing_selesai'] ?? null,
+                        'jadwal_pengolahan_pencacahan_mulai' => $validated['jadwal_pengolahan_pencacahan_mulai'] ?? null,
+                        'jadwal_pengolahan_pencacahan_selesai' => $validated['jadwal_pengolahan_pencacahan_selesai'] ?? null,
                     ]);
                 } elseif (! $periode) {
                     // Create new periode
@@ -553,6 +572,10 @@ class AlokasiPetugasController extends Controller
                         'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
                         'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
                         'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
+                        'jadwal_pengolahan_listing_mulai' => $validated['jadwal_pengolahan_listing_mulai'] ?? null,
+                        'jadwal_pengolahan_listing_selesai' => $validated['jadwal_pengolahan_listing_selesai'] ?? null,
+                        'jadwal_pengolahan_pencacahan_mulai' => $validated['jadwal_pengolahan_pencacahan_mulai'] ?? null,
+                        'jadwal_pengolahan_pencacahan_selesai' => $validated['jadwal_pengolahan_pencacahan_selesai'] ?? null,
                     ]);
                 }
 

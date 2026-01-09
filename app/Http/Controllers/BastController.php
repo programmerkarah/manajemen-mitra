@@ -207,6 +207,13 @@ class BastController extends Controller
                         ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
                 })
                 ->where('petugas_id', $petugas?->id)
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
+                })
                 // REMOVED ->whereHas('spk') - show ALL allocations, even without SPK
                 ->get();
 
@@ -589,6 +596,13 @@ class BastController extends Controller
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
                 $q->where('bulan', $bulan)
                     ->where('tahun', $tahun);
+            })
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
             })
             ->with([
                 'periodeAlokasi.kegiatan.rateHonors.satuan',
@@ -1043,6 +1057,13 @@ class BastController extends Controller
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
                 $q->where('bulan', $bulan)
                     ->where('tahun', $tahun);
+            })
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
             })
             ->with([
                 'periodeAlokasi.kegiatan.rateHonors.satuan',
@@ -1817,6 +1838,13 @@ class BastController extends Controller
 
             // Get all alokasi petugas in that period
             $allAlokasiPetugas = \App\Models\AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
+                })
                 ->with([
                     'spk' => function ($query) {
                         $query->orderByDesc('created_at')->limit(1);

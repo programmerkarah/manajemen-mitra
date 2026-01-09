@@ -30,7 +30,7 @@ class SpkController extends Controller
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
-                'alokasiPetugas:id,periode_alokasi_id,petugas_id',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing',
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
@@ -50,11 +50,14 @@ class SpkController extends Controller
             [$tahun, $bulan] = explode('-', $key);
 
             // Count unique non-organik petugas across all kegiatan in this month
+            // Only count petugas with honor > 0
             $allPetugasIds = collect();
             foreach ($monthPeriodes as $periode) {
                 $petugasIds = $periode->alokasiPetugas
                     ->filter(function ($alokasi) {
-                        return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+                        return $alokasi->petugas &&
+                               $alokasi->petugas->jenis_petugas === 'non-organik' &&
+                               (($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0);
                     })
                     ->pluck('petugas_id');
                 $allPetugasIds = $allPetugasIds->merge($petugasIds);
@@ -73,11 +76,14 @@ class SpkController extends Controller
                     $firstPeriode = $periodesByKegiatan->first();
 
                     // Collect unique petugas IDs (don't count duplicates from revisions)
+                    // Only count petugas with honor > 0
                     $uniquePetugasIds = collect();
                     foreach ($periodesByKegiatan as $periode) {
                         $petugasIds = $periode->alokasiPetugas
                             ->filter(function ($alokasi) {
-                                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+                                return $alokasi->petugas &&
+                                       $alokasi->petugas->jenis_petugas === 'non-organik' &&
+                                       (($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0);
                             })
                             ->pluck('petugas_id');
                         $uniquePetugasIds = $uniquePetugasIds->merge($petugasIds);
@@ -871,10 +877,15 @@ class SpkController extends Controller
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
+        // Only include alokasi with total_honor > 0 (either pencacahan or listing)
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
             ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
             })
             ->with([
                 'petugas:id,nama,nik,jenis_petugas',
@@ -947,6 +958,12 @@ class SpkController extends Controller
                 ->where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $periode->tahun)
                 ->whereMonth('tanggal_spk', $periode->bulan)
+                ->whereHas('alokasiPetugas', function ($q) {
+                    $q->where(function ($query) {
+                        $query->where('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    });
+                })
                 ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
                 ->get();
 
@@ -1092,7 +1109,12 @@ class SpkController extends Controller
         }
 
         // Get all petugas with revisions (those who have alokasi in revision periods)
+        // Only include petugas with honor > 0
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
             ->with(['petugas', 'periodeAlokasi.kegiatan'])
             ->get()
             ->filter(function ($alokasi) {
@@ -1809,12 +1831,20 @@ class SpkController extends Controller
 
         // Auto-calculate sampai_tanggal from this petugas' activity end dates
         $latestEndDate = null;
-        foreach ($allAlokasi as $alokasi) {
-            $periodeItem = $alokasi->periodeAlokasi;
-            $endDates = array_filter([
-                $periodeItem->tanggal_selesai,
-                $periodeItem->tanggal_selesai_listing,
-            ]);
+        foreach ($allAlokasi as $alokasiItem) {
+            $periodeItem = $alokasiItem->periodeAlokasi;
+            $isPengolahanRole = in_array($alokasiItem->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            // For pengolahan roles, use processing schedules; otherwise use regular schedules
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
 
             if (! empty($endDates)) {
                 $maxEndDate = max($endDates);
@@ -1973,10 +2003,20 @@ class SpkController extends Controller
         $latestEndDate = null;
         foreach ($allAlokasi as $alokasi) {
             $periodeItem = $alokasi->periodeAlokasi;
-            $endDates = array_filter([
-                $periodeItem->tanggal_selesai,
-                $periodeItem->tanggal_selesai_listing,
-            ]);
+
+            // Check if this is pengolahan/pengawas_pengolahan role
+            $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            // Use appropriate schedules based on role
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
 
             if (! empty($endDates)) {
                 $maxEndDate = max($endDates);
@@ -2088,10 +2128,18 @@ class SpkController extends Controller
         $latestEndDate = null;
         foreach ($allAlokasi as $alokasi) {
             $periodeItem = $alokasi->periodeAlokasi;
-            $endDates = array_filter([
-                $periodeItem->tanggal_selesai,
-                $periodeItem->tanggal_selesai_listing,
-            ]);
+            $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            // For pengolahan roles, use processing schedules; otherwise use regular schedules
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
 
             if (! empty($endDates)) {
                 $maxEndDate = max($endDates);
@@ -2203,10 +2251,18 @@ class SpkController extends Controller
         $latestEndDate = null;
         foreach ($allAlokasi as $alokasiItem) {
             $periodeItem = $alokasiItem->periodeAlokasi;
-            $endDates = array_filter([
-                $periodeItem->tanggal_selesai,
-                $periodeItem->tanggal_selesai_listing,
-            ]);
+            $isPengolahanRole = in_array($alokasiItem->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            // For pengolahan roles, use processing schedules; otherwise use regular schedules
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
 
             if (! empty($endDates)) {
                 $maxEndDate = max($endDates);
@@ -2411,17 +2467,29 @@ class SpkController extends Controller
         $periode = $alokasi->periodeAlokasi;
 
         if ($rateHonor) {
+            // Check if this is a pengolahan role
+            $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+
             // Add listing task if exists
             if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'listing');
+
+                // Use processing schedule for pengolahan roles, otherwise use regular schedule
+                $tanggalMulai = $isPengolahanRole && $periode->jadwal_pengolahan_listing_mulai
+                    ? $periode->jadwal_pengolahan_listing_mulai->format('Y-m-d')
+                    : $periode->tanggal_mulai_listing?->format('Y-m-d');
+                $tanggalSelesai = $isPengolahanRole && $periode->jadwal_pengolahan_listing_selesai
+                    ? $periode->jadwal_pengolahan_listing_selesai->format('Y-m-d')
+                    : $periode->tanggal_selesai_listing?->format('Y-m-d');
+
                 $uraian[] = [
                     'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran} (Listing)",
                     'volume' => $alokasi->jumlah_satuan_listing,
                     'satuan' => $rateHonor->satuanListing->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate_listing,
                     'jumlah' => $rateHonor->rate_listing * $alokasi->jumlah_satuan_listing,
-                    'tanggal_mulai' => $periode->tanggal_mulai_listing?->format('Y-m-d'),
-                    'tanggal_selesai' => $periode->tanggal_selesai_listing?->format('Y-m-d'),
+                    'tanggal_mulai' => $tanggalMulai,
+                    'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'listing',
                 ];
             }
@@ -2429,14 +2497,23 @@ class SpkController extends Controller
             // Add regular task (pencacahan)
             if ($rateHonor->rate && $alokasi->jumlah_satuan) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'pencacahan');
+
+                // Use processing schedule for pengolahan roles, otherwise use regular schedule
+                $tanggalMulai = $isPengolahanRole && $periode->jadwal_pengolahan_pencacahan_mulai
+                    ? $periode->jadwal_pengolahan_pencacahan_mulai->format('Y-m-d')
+                    : $periode->tanggal_mulai?->format('Y-m-d');
+                $tanggalSelesai = $isPengolahanRole && $periode->jadwal_pengolahan_pencacahan_selesai
+                    ? $periode->jadwal_pengolahan_pencacahan_selesai->format('Y-m-d')
+                    : $periode->tanggal_selesai?->format('Y-m-d');
+
                 $uraian[] = [
                     'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran}",
                     'volume' => $alokasi->jumlah_satuan,
                     'satuan' => $rateHonor->satuan->kode ?? 'DOK',
                     'harga_satuan' => $rateHonor->rate,
                     'jumlah' => $rateHonor->rate * $alokasi->jumlah_satuan,
-                    'tanggal_mulai' => $periode->tanggal_mulai?->format('Y-m-d'),
-                    'tanggal_selesai' => $periode->tanggal_selesai?->format('Y-m-d'),
+                    'tanggal_mulai' => $tanggalMulai,
+                    'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'pencacahan',
                 ];
             }
@@ -2609,10 +2686,15 @@ class SpkController extends Controller
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
+        // Only include those with honor > 0
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
             ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
             })
             ->with([
                 'petugas:id,nama,nik,jenis_petugas',
@@ -2770,9 +2852,25 @@ class SpkController extends Controller
             // Calculate sampai_tanggal from activity end dates
             $latestEndDate = null;
             foreach ($allAlokasiPetugas as $alokasi) {
-                $endDate = $alokasi->periodeAlokasi->tanggal_selesai ?? $alokasi->periodeAlokasi->tanggal_selesai_listing;
-                if ($endDate && ($latestEndDate === null || $endDate > $latestEndDate)) {
-                    $latestEndDate = $endDate;
+                $periodeItem = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+                // For pengolahan roles, use processing schedules; otherwise use regular schedules
+                $endDates = $isPengolahanRole
+                    ? array_filter([
+                        $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                        $periodeItem->jadwal_pengolahan_listing_selesai,
+                    ])
+                    : array_filter([
+                        $periodeItem->tanggal_selesai,
+                        $periodeItem->tanggal_selesai_listing,
+                    ]);
+
+                if (! empty($endDates)) {
+                    $maxEndDate = max($endDates);
+                    if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                        $latestEndDate = $maxEndDate;
+                    }
                 }
             }
 
@@ -2992,10 +3090,14 @@ class SpkController extends Controller
                 continue;
             }
 
-            // Get non-organik petugas from this periode
+            // Get non-organik petugas from this periode with honor > 0
             $nonOrganikAlokasi = $periode->alokasiPetugas()
                 ->whereHas('petugas', function ($q) {
                     $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
                 })
                 ->get();
 
@@ -3048,10 +3150,14 @@ class SpkController extends Controller
                 continue;
             }
 
-            // Get non-organik petugas from this revision periode
+            // Get non-organik petugas from this revision periode with honor > 0
             $nonOrganikAlokasi = $periode->alokasiPetugas()
                 ->whereHas('petugas', function ($q) {
                     $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
                 })
                 ->get();
 
@@ -3087,6 +3193,10 @@ class SpkController extends Controller
             $alokasiList = $periode->alokasiPetugas()
                 ->whereHas('petugas', function ($q) {
                     $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
                 })
                 ->get();
             foreach ($alokasiList as $alokasi) {
@@ -3166,6 +3276,13 @@ class SpkController extends Controller
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
                         ->where('status', 'perubahan');
+                })
+                ->whereHas('petugas', function ($q) {
+                    $q->where('jenis_petugas', 'non-organik');
+                })
+                ->where(function ($query) {
+                    $query->where('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
                 })
                 ->where('created_at', '>', $latestAddendumCreatedAt)
                 ->exists();

@@ -71,8 +71,6 @@ export default function Edit({
     rateHonors,
 }: AlokasiEditProps) {
     // Debug: log petugas data
-    console.log('🔍 Petugas data in Edit:', petugas.slice(0, 3));
-
     const { data, setData, put, processing, errors } = useForm({
         kegiatan_id: alokasi.kegiatan_id || '',
         petugas_id: alokasi.petugas_id || '',
