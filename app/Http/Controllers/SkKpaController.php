@@ -619,7 +619,7 @@ class SkKpaController extends Controller
 
         return response($pdf->output())
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SK_'.$kegiatan->nama_kegiatan.'.pdf'));
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
     }
 
     /**

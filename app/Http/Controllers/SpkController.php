@@ -1429,7 +1429,7 @@ class SpkController extends Controller
 
             return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('preview-addendum-spk-'.$petugas->nama.'.pdf'),
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
             ]);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal generate preview addendum SPK: '.$e->getMessage());
@@ -1957,7 +1957,7 @@ class SpkController extends Controller
 
             return response($pdfContent)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_'.$petugas->nama.'.pdf'));
+                ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
         }
 
         // Cleanup temporary files
@@ -1974,7 +1974,7 @@ class SpkController extends Controller
 
         return response($pdf->output())
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_'.$petugas->nama.'.pdf'));
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
     }
 
     /**
@@ -2105,7 +2105,7 @@ class SpkController extends Controller
 
         return response($pdf->output())
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_Main_'.$petugas->nama.'.pdf'));
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
     }
 
     /**
@@ -2234,7 +2234,7 @@ class SpkController extends Controller
 
         return response($pdf->output())
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_Lampiran_'.$petugas->nama.'.pdf'));
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
     }
 
     /**
