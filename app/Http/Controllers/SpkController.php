@@ -3294,4 +3294,52 @@ class SpkController extends Controller
 
         return false;
     }
+
+    /**
+     * Get list of petugas names for a specific month (sorted alphabetically)
+     */
+    public function getPetugasNames(Request $request)
+    {
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun');
+
+        if (!$bulan || !$tahun) {
+            return response()->json(['error' => 'Bulan dan tahun harus diisi'], 400);
+        }
+
+        // Format bulan with leading zero
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // Get all periodes in this month
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereHas('kegiatan', function ($q) use ($tahun) {
+                $q->where('tahun_anggaran', $tahun);
+            })
+            ->pluck('id');
+
+        // Get unique petugas IDs that will get SPK (non-organik with honor > 0)
+        $petugasIds = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->distinct()
+            ->pluck('petugas_id');
+
+        // Get petugas names and sort alphabetically
+        $petugasNames = Petugas::whereIn('id', $petugasIds)
+            ->orderBy('nama')
+            ->pluck('nama')
+            ->toArray();
+
+        return response()->json([
+            'names' => $petugasNames,
+            'count' => count($petugasNames),
+        ]);
+    }
 }

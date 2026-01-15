@@ -2,11 +2,20 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Eye, FileEdit, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Eye, FileEdit, Plus } from 'lucide-react';
+import { useState } from 'react';
 
 interface KegiatanItem {
     periode_id: number;
@@ -66,11 +75,75 @@ export default function Index({ periodeList, filters }: IndexProps) {
     const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem>(
         periodeList.encrypted,
     );
+    const [copyingMonth, setCopyingMonth] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState<{
+        type: 'success' | 'error';
+        title: string;
+        message: string;
+    }>({ type: 'success', title: '', message: '' });
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk =
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
+
+    const handleCopyPetugasNames = async (bulan: number, tahun: number, bulanLabel: string) => {
+        const monthKey = `${tahun}-${bulan}`;
+        setCopyingMonth(monthKey);
+
+        try {
+            const response = await fetch('/spk/petugas-names', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({ bulan, tahun }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Gagal mengambil data petugas');
+            }
+
+            const data = await response.json();
+            const names = data.names as string[];
+
+            if (names.length === 0) {
+                setModalContent({
+                    type: 'error',
+                    title: 'Gagal',
+                    message: 'Tidak ada petugas untuk periode ini',
+                });
+                setModalOpen(true);
+                return;
+            }
+
+            // Format: 1. Nama1\n2. Nama2\n...\n20. NamaX
+            const formattedNames = names
+                .map((name, index) => `${index + 1}. ${name}`)
+                .join('\n');
+
+            // Copy to clipboard
+            await navigator.clipboard.writeText(formattedNames);
+            setModalContent({
+                type: 'success',
+                title: 'Berhasil',
+                message: `${data.count} nama petugas ${bulanLabel} ${tahun} berhasil disalin ke clipboard`,
+            });
+            setModalOpen(true);
+        } catch (error) {
+            console.error('Error copying petugas names:', error);
+            setModalContent({
+                type: 'error',
+                title: 'Gagal',
+                message: 'Gagal menyalin nama petugas',
+            });
+            setModalOpen(true);
+        } finally {
+            setCopyingMonth(null);
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -183,6 +256,20 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <div className="flex flex-col items-end gap-1.5">
+                                                        {/* Copy Petugas Names - Show if there are petugas */}
+                                                        {monthData.total_petugas_non_organik > 0 && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => handleCopyPetugasNames(monthData.bulan, monthData.tahun, monthData.bulan_label)}
+                                                                disabled={copyingMonth === `${monthData.tahun}-${monthData.bulan}`}
+                                                                className="w-full justify-start gap-1"
+                                                            >
+                                                                <Copy className="h-3.5 w-3.5" />
+                                                                {copyingMonth === `${monthData.tahun}-${monthData.bulan}` ? 'Menyalin...' : 'Salin Nama Petugas'}
+                                                            </Button>
+                                                        )}
+
                                                         {/* Generate SPK - Show if:
                                                         1. No SPK exists at all (total_spk === 0), OR
                                                         2. Some petugas don't have SPK yet (total_spk < total_petugas_non_organik)
@@ -367,6 +454,30 @@ export default function Index({ periodeList, filters }: IndexProps) {
                             </div>
                         )}
                 </ContentCard>
+
+                {/* Modal for copy result */}
+                <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle
+                                className={modalContent.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}
+                            >
+                                {modalContent.title}
+                            </DialogTitle>
+                            <DialogDescription className="text-base">
+                                {modalContent.message}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button
+                                onClick={() => setModalOpen(false)}
+                                className="w-full sm:w-auto"
+                            >
+                                Tutup
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

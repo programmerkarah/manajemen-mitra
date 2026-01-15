@@ -263,6 +263,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}', [SkKpaController::class, 'listByKegiatan'])->name('sk-kpa.list-by-kegiatan');
         Route::get('sk-kpa/{skKpa}', [SkKpaController::class, 'show'])->name('sk-kpa.show');
         Route::match(['get', 'post'], 'spk', [SpkController::class, 'index'])->name('spk.index');
+        Route::post('spk/petugas-names', [SpkController::class, 'getPetugasNames'])->name('spk.petugas-names');
         Route::get('spk/list-by-month', [SpkController::class, 'listByMonth'])->name('spk.list-by-month');
         Route::get('spk/download-all', [SpkController::class, 'downloadAll'])->name('spk.download-all');
         Route::get('spk/periode/{periode}/kegiatan/{kegiatan}/download-all', [SpkController::class, 'downloadAllByKegiatan'])->name('spk.download-all-by-kegiatan');
