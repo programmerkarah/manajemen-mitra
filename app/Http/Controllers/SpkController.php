@@ -463,6 +463,9 @@ class SpkController extends Controller
                     'jumlah_spk' => $spkCount,
                 ];
             })
+            ->filter(function ($kegiatan) {
+                return $kegiatan['jumlah_spk'] > 0;
+            })
             ->values()
             ->sortBy('kode_kegiatan')
             ->values()
@@ -1745,16 +1748,31 @@ class SpkController extends Controller
             ->values()
             ->all();
 
+        // Get all SPKs in this month/year to count per kegiatan
+        $allSpksInMonth = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($periode) {
+            $q->where('bulan', $periode->bulan)
+                ->where('tahun', $periode->tahun);
+        })->with('alokasiPetugas.periodeAlokasi.kegiatan')->get();
+
         $uniqueKegiatanList = Kegiatan::whereIn('id', $allPeriodeInMonthIds)
             ->select('id', 'kode_kegiatan', 'nama_kegiatan')
             ->get()
-            ->map(function ($kegiatan) {
+            ->map(function ($kegiatan) use ($allSpksInMonth) {
+                // Count SPKs for this kegiatan
+                $spkCount = $allSpksInMonth->filter(function ($spk) use ($kegiatan) {
+                    return $spk->alokasiPetugas->periodeAlokasi->kegiatan_id === $kegiatan->id;
+                })->count();
+
                 return [
                     'id' => $kegiatan->id,
                     'hashed_id' => $kegiatan->hashed_id, // This is an appended attribute from HasHashedRouteKey trait
                     'kode_kegiatan' => $kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                    'jumlah_spk' => $spkCount,
                 ];
+            })
+            ->filter(function ($kegiatan) {
+                return $kegiatan['jumlah_spk'] > 0;
             })
             ->values()
             ->all();
