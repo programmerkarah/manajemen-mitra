@@ -263,7 +263,7 @@
             <div class="party-name"><strong>{{ strtoupper($petugas->nama) }}</strong></div>
             <div class="party-colon">:</div>
             <div class="party-detail">
-                Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA</strong>.
+                Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA.</strong>
             </div>
         </div>
     </div>
@@ -277,7 +277,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 1</div>
             <div class="pasal-content">
-                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
@@ -287,7 +287,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 2</div>
             <div class="pasal-content">
-                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, pedoman {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, pedoman {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
@@ -365,7 +365,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> setelah menyelesaikan seluruh pekerjaan yang ditargetkan sebagaimana tercantum dalam Lampiran Perjanjian, dituangkan dalam Berita Acara Serah Terima Hasil Pekerjaan, dan diserahkan paling lambat di tanggal terakhir pada pelaksanaan masing-masing kegiatan yang tercantum pada <strong>kolom 3 Lampiran Perjanjian ini</strong>.
+                    Honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> setelah menyelesaikan seluruh pekerjaan yang ditargetkan sebagaimana tercantum dalam Lampiran Perjanjian, dituangkan dalam Berita Acara Serah Terima Hasil Pekerjaan, dan diserahkan paling lambat di tanggal terakhir pada pelaksanaan masing-masing kegiatan yang tercantum pada <strong>kolom 3 Lampiran Perjanjian ini.</strong>
                 </div>
             </div>
             <div class="pasal-item">
@@ -385,7 +385,7 @@
                 <div class="pasal-item">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA</strong>.
+                        Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA.</strong>
                     </div>
                 </div>
             </div>
@@ -462,7 +462,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Dikecualikan tidak dikenakan sanksi sebagaimana dimaksud pada ayat (1) oleh <strong>PIHAK PERTAMA</strong>, apabila <strong>PIHAK KEDUA</strong> meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, dan/atau telah diberikan Surat Pemutusan Perjanjian Kerja dari <strong>PIHAK PERTAMA</strong>.
+                    Dikecualikan tidak dikenakan sanksi sebagaimana dimaksud pada ayat (1) oleh <strong>PIHAK PERTAMA</strong>, apabila <strong>PIHAK KEDUA</strong> meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, dan/atau telah diberikan Surat Pemutusan Perjanjian Kerja dari <strong>PIHAK PERTAMA.</strong>
                 </div>
             </div>
             <div class="pasal-item">
@@ -527,7 +527,7 @@
                 <div class="pasal-item">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        Segala perselisihan atau perbedaan pendapat yang mungkin timbul sebagai akibat dari Perjanjian ini, diselesaikan secara musyawarah untuk mufakat oleh <strong>PARA PIHAK</strong>.
+                        Segala perselisihan atau perbedaan pendapat yang mungkin timbul sebagai akibat dari Perjanjian ini, diselesaikan secara musyawarah untuk mufakat oleh <strong>PARA PIHAK.</strong>
                     </div>
                 </div>
             </div>
@@ -551,7 +551,7 @@
 
     <div style="page-break-inside: avoid;">
         <div class="content">
-            Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK</strong>.
+            Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK.</strong>
         </div>
         <!-- Signatures -->
         <div class="signature">
