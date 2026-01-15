@@ -617,9 +617,10 @@ class SkKpaController extends Controller
         $sanitizedNamaKegiatan = preg_replace('/[^A-Za-z0-9_\-]/', '_', $kegiatan->nama_kegiatan);
         $filename = 'Preview_SK_'.$sanitizedNamaKegiatan.'.pdf';
 
-        return response($pdf->output())
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
+        // Set PDF title metadata
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->stream($filename);
     }
 
     /**

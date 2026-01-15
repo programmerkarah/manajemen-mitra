@@ -1972,9 +1972,10 @@ class SpkController extends Controller
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
         $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
 
-        return response($pdf->output())
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
+        // Set PDF title metadata
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->stream($filename);
     }
 
     /**
@@ -2103,9 +2104,10 @@ class SpkController extends Controller
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
         $filename = 'Preview_SPK_Main_'.$sanitizedName.'.pdf';
 
-        return response($pdf->output())
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
+        // Set PDF title metadata
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->stream($filename);
     }
 
     /**
@@ -2232,9 +2234,10 @@ class SpkController extends Controller
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
         $filename = 'Preview_SPK_Lampiran_'.$sanitizedName.'.pdf';
 
-        return response($pdf->output())
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
+        // Set PDF title metadata
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->stream($filename);
     }
 
     /**
