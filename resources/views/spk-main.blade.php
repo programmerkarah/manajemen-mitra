@@ -503,7 +503,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(4)</div>
                 <div class="pasal-item-content">
-                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2) tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA</strong>.
+                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2) tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA.</strong>
                 </div>
             </div>
         </div>
