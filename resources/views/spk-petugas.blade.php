@@ -276,7 +276,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 1</div>
             <div class="pasal-content">
-                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
@@ -517,7 +517,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(4)</div>
                 <div class="pasal-item-content">
-                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2) tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA.</strong>
+                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2) tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA</strong>.
                 </div>
             </div>
         </div>
