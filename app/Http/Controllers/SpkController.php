@@ -2126,7 +2126,13 @@ class SpkController extends Controller
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
-        return $pdf->stream($filename);
+        $pdfContent = $pdf->output();
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
+            ->header('Content-Length', strlen($pdfContent))
+            ->header('Accept-Ranges', 'bytes');
     }
 
     /**
@@ -2256,7 +2262,13 @@ class SpkController extends Controller
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
-        return $pdf->stream($filename);
+        $pdfContent = $pdf->output();
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
+            ->header('Content-Length', strlen($pdfContent))
+            ->header('Accept-Ranges', 'bytes');
     }
 
     /**
