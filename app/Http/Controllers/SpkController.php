@@ -2128,11 +2128,12 @@ class SpkController extends Controller
 
         $pdfContent = $pdf->output();
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode($filename))
-            ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes');
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => strlen($pdfContent),
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
     }
 
     /**
@@ -2264,11 +2265,12 @@ class SpkController extends Controller
 
         $pdfContent = $pdf->output();
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode($filename))
-            ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes');
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => strlen($pdfContent),
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
     }
 
     /**
