@@ -511,7 +511,7 @@
             <div class="pasal-item">
                 <div class="pasal-item-number">(3)</div>
                 <div class="pasal-item-content">
-                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2), pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah peristiwa tersebut berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA</strong>.
+                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2), pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah peristiwa tersebut berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
                 </div>
             </div>
             <div class="pasal-item">
