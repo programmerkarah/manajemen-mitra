@@ -86,6 +86,7 @@
   
   <FilesMatch "\.(pdf)$">
     Header set Cache-Control "public, max-age=2592000"
+    Header set Content-Type "application/pdf"
   </FilesMatch>
   
   # Don't cache HTML/PHP files - let Laravel middleware handle it

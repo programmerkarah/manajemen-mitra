@@ -624,9 +624,13 @@ class SkKpaController extends Controller
 
         return response($pdfContent, 200)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode($filename))
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
             ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes');
+            ->header('Accept-Ranges', 'bytes')
+            ->header('Cache-Control', 'no-cache, must-revalidate')
+            ->header('Expires', '0')
+            ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Content-Transfer-Encoding', 'binary');
     }
 
     /**
