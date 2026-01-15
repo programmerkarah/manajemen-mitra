@@ -120,8 +120,6 @@ export default function Create({
     isViewMode = false,
 }: AlokasiCreateProps) {
     // Debug: Log petugas data
-    console.log('🔍 Petugas data in Create:', petugas);
-
     const { auth, errors: backendErrors } = usePage<SharedData>().props;
     const errorAlertRef = useRef<HTMLDivElement>(null);
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
@@ -231,6 +229,11 @@ export default function Create({
     const [tanggalSelesaiListing, setTanggalSelesaiListing] = useState(
         sourcePeriode?.tanggal_selesai_listing || '',
     );
+    // Jadwal Pengolahan states
+    const [jadwalPengolahanListingMulai, setJadwalPengolahanListingMulai] = useState('');
+    const [jadwalPengolahanListingSelesai, setJadwalPengolahanListingSelesai] = useState('');
+    const [jadwalPengolahanPencacahanMulai, setJadwalPengolahanPencacahanMulai] = useState('');
+    const [jadwalPengolahanPencacahanSelesai, setJadwalPengolahanPencacahanSelesai] = useState('');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
@@ -264,28 +267,8 @@ export default function Create({
                         ? 0
                         : Number(k.pj_lainnya_id);
                 const pjLainnyaMatch = pjLainnyaId === Number(auth.user.id);
-                console.log(
-                    '[DEBUG] k:',
-                    k,
-                    'ketuaMatch:',
-                    ketuaMatch,
-                    'pjLainnyaId:',
-                    pjLainnyaId,
-                    'pjLainnyaMatch:',
-                    pjLainnyaMatch,
-                    'auth.user.id:',
-                    auth.user.id,
-                );
                 return ketuaMatch || pjLainnyaMatch;
             });
-            console.log('[DEBUG] filteredKegiatans:', filtered);
-            console.log('[DEBUG] all kegiatans:', kegiatans);
-            console.log(
-                '[DEBUG] auth.user.id:',
-                auth.user.id,
-                'activeRole:',
-                auth.activeRole,
-            );
         }
 
         // Second, filter out kegiatan where ALL months are already used
@@ -399,11 +382,6 @@ export default function Create({
                 return true;
             });
         }
-
-        console.log(
-            '[DEBUG] final filtered kegiatans (after available months check):',
-            filtered,
-        );
         return filtered;
     }, [
         kegiatans,
@@ -466,8 +444,6 @@ export default function Create({
     // Initialize with copied data if available
     useEffect(() => {
         if (copiedAlokasi && copiedAlokasi.length > 0) {
-            console.log('🔍 copiedAlokasi data:', copiedAlokasi);
-
             // Store original values first for restoration
             const originalValues = copiedAlokasi.map((alokasi) => ({
                 jumlah_satuan: String(alokasi.jumlah_satuan || 0),
@@ -484,10 +460,6 @@ export default function Create({
                 // Map backend peran format to frontend display format
                 let peranDisplay = '';
                 const peranLower = (alokasi.peran || '').toLowerCase();
-
-                console.log(
-                    `🔍 Mapping peran: "${alokasi.peran}" (lowercase: "${peranLower}")`,
-                );
 
                 if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
                     peranDisplay = 'PCL';
@@ -508,8 +480,6 @@ export default function Create({
                     peranDisplay = alokasi.peran;
                 }
 
-                console.log(`✅ Mapped to: "${peranDisplay}"`);
-
                 // Ensure numeric values are properly parsed
                 const estimasiHonor = parseFloat(alokasi.total_honor) || 0;
                 const estimasiHonorListing =
@@ -528,8 +498,6 @@ export default function Create({
                 };
             });
 
-            console.log('✅ Final initialItems:', initialItems);
-            console.log('📝 [1] Setting alokasiItems from copiedAlokasi');
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
 
@@ -558,11 +526,6 @@ export default function Create({
 
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
     useEffect(() => {
-        console.log('🔄 Recalculate useEffect triggered', {
-            hasSelectedKegiatan: !!selectedKegiatan,
-            selectedKegiatanId,
-        });
-
         if (!selectedKegiatan) return;
 
         // Update jenis kegiatan from selected kegiatan
@@ -571,14 +534,11 @@ export default function Create({
 
         // Recalculate estimasi for all items using the calculateEstimasi function
         setAlokasiItems((prevItems) => {
-            console.log('🔄 Recalculating with prevItems:', prevItems);
-
             // If prevItems is empty or all items have empty petugas_id, don't process
             if (
                 prevItems.length === 0 ||
                 prevItems.every((item) => !item.petugas_id)
             ) {
-                console.log('⚠️ Skipping recalculation - no valid items');
                 return prevItems;
             }
 
@@ -614,24 +574,14 @@ export default function Create({
                 return { ...item, ...updates };
             });
 
-            console.log('✅ Recalculated newItems:', newItems);
-            console.log(
-                '📝 [2] Setting alokasiItems from recalculate useEffect',
-            );
             return newItems;
         });
     }, [selectedKegiatanId, selectedKegiatan]);
 
     // Handle tahapan change - clear/restore values based on tahapan
     useEffect(() => {
-        console.log('🔄 Tahapan useEffect triggered', {
-            tahapan,
-            originalAlokasiValuesLength: originalAlokasiValues.length,
-        });
-
         if (originalAlokasiValues.length === 0) return; // Wait until original values are loaded
 
-        console.log('📝 [3] Setting alokasiItems from tahapan useEffect');
         setAlokasiItems((prevItems) => {
             return prevItems.map((item, index) => {
                 const updates: Partial<AlokasiItem> = {};
@@ -801,9 +751,6 @@ export default function Create({
             // Remove excess items
             currentItems.splice(newValue);
         }
-        console.log(
-            '📝 [4] Setting alokasiItems from handleJumlahPetugasChange',
-        );
         setAlokasiItems(currentItems);
     };
 
@@ -816,9 +763,6 @@ export default function Create({
     ) => {
         // Guard: Don't update peran with empty value if item already has a peran
         if (field === 'peran' && !value && alokasiItems[index]?.peran) {
-            console.log(
-                '⚠️ Prevented empty peran from overwriting existing value',
-            );
             return;
         }
 
@@ -849,11 +793,6 @@ export default function Create({
                 newItems[index].jumlah_satuan_listing || '',
             );
         }
-        console.log('📝 [5] Setting alokasiItems from updateAlokasiItem', {
-            index,
-            field,
-            value,
-        });
         setAlokasiItems(newItems);
     };
 
@@ -971,6 +910,10 @@ export default function Create({
                 tahapan === 'both' || tahapan === 'listing_only'
                     ? tanggalSelesaiListing || undefined
                     : undefined,
+            jadwal_pengolahan_listing_mulai: jadwalPengolahanListingMulai || undefined,
+            jadwal_pengolahan_listing_selesai: jadwalPengolahanListingSelesai || undefined,
+            jadwal_pengolahan_pencacahan_mulai: jadwalPengolahanPencacahanMulai || undefined,
+            jadwal_pengolahan_pencacahan_selesai: jadwalPengolahanPencacahanSelesai || undefined,
             alokasi: alokasiItems.map((item) => {
                 const base = {
                     petugas_id: item.petugas_id,
@@ -1671,6 +1614,141 @@ export default function Create({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Jadwal Pengolahan Section - Show conditionally based on rate honor having pengolahan role */}
+                                {selectedKegiatan?.rate_honors?.some(r => 
+                                    r.jenis_penugasan === 'pengolahan' || r.jenis_penugasan === 'pengawas_pengolahan'
+                                ) && (
+                                    <>
+                                        {/* Jadwal Pengolahan Listing */}
+                                        {(tahapan === 'both' || tahapan === 'listing_only') && selectedKegiatan?.has_listing_updating && (
+                                            <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+                                                <h5 className="mb-3 text-sm font-semibold text-purple-900 dark:text-purple-300">
+                                                    Jadwal Pengolahan Listing (Opsional)
+                                                </h5>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="jadwal_pengolahan_listing_mulai">
+                                                            Tanggal Mulai Pengolahan Listing
+                                                        </Label>
+                                                        <Input
+                                                            type="date"
+                                                            id="jadwal_pengolahan_listing_mulai"
+                                                            value={jadwalPengolahanListingMulai}
+                                                            onChange={(e) =>
+                                                                setJadwalPengolahanListingMulai(
+                                                                    e.target.value,
+                                                                )
+                                                            }
+                                                            disabled={isViewMode}
+                                                            className={
+                                                                isViewMode
+                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                    : ''
+                                                            }
+                                                        />
+                                                        {allErrors.jadwal_pengolahan_listing_mulai && (
+                                                            <p className="text-sm text-red-500">
+                                                                {allErrors.jadwal_pengolahan_listing_mulai}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="jadwal_pengolahan_listing_selesai">
+                                                            Tanggal Selesai Pengolahan Listing
+                                                        </Label>
+                                                        <Input
+                                                            type="date"
+                                                            id="jadwal_pengolahan_listing_selesai"
+                                                            value={jadwalPengolahanListingSelesai}
+                                                            onChange={(e) =>
+                                                                setJadwalPengolahanListingSelesai(
+                                                                    e.target.value,
+                                                                )
+                                                            }
+                                                            min={jadwalPengolahanListingMulai}
+                                                            disabled={isViewMode}
+                                                            className={
+                                                                isViewMode
+                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                    : ''
+                                                            }
+                                                        />
+                                                        {allErrors.jadwal_pengolahan_listing_selesai && (
+                                                            <p className="text-sm text-red-500">
+                                                                {allErrors.jadwal_pengolahan_listing_selesai}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Jadwal Pengolahan Pencacahan */}
+                                        {(tahapan === 'both' || tahapan === 'pencacahan_only') && (
+                                            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
+                                                <h5 className="mb-3 text-sm font-semibold text-orange-900 dark:text-orange-300">
+                                                    Jadwal Pengolahan Pencacahan Lapangan (Opsional)
+                                                </h5>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="jadwal_pengolahan_pencacahan_mulai">
+                                                            Tanggal Mulai Pengolahan
+                                                        </Label>
+                                                        <Input
+                                                            type="date"
+                                                            id="jadwal_pengolahan_pencacahan_mulai"
+                                                            value={jadwalPengolahanPencacahanMulai}
+                                                            onChange={(e) =>
+                                                                setJadwalPengolahanPencacahanMulai(
+                                                                    e.target.value,
+                                                                )
+                                                            }
+                                                            disabled={isViewMode}
+                                                            className={
+                                                                isViewMode
+                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                    : ''
+                                                            }
+                                                        />
+                                                        {allErrors.jadwal_pengolahan_pencacahan_mulai && (
+                                                            <p className="text-sm text-red-500">
+                                                                {allErrors.jadwal_pengolahan_pencacahan_mulai}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="jadwal_pengolahan_pencacahan_selesai">
+                                                            Tanggal Selesai Pengolahan
+                                                        </Label>
+                                                        <Input
+                                                            type="date"
+                                                            id="jadwal_pengolahan_pencacahan_selesai"
+                                                            value={jadwalPengolahanPencacahanSelesai}
+                                                            onChange={(e) =>
+                                                                setJadwalPengolahanPencacahanSelesai(
+                                                                    e.target.value,
+                                                                )
+                                                            }
+                                                            min={jadwalPengolahanPencacahanMulai}
+                                                            disabled={isViewMode}
+                                                            className={
+                                                                isViewMode
+                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                    : ''
+                                                            }
+                                                        />
+                                                        {allErrors.jadwal_pengolahan_pencacahan_selesai && (
+                                                            <p className="text-sm text-red-500">
+                                                                {allErrors.jadwal_pengolahan_pencacahan_selesai}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1933,26 +2011,6 @@ export default function Create({
                                                                         ),
                                                                 );
 
-                                                            console.log(
-                                                                `🔍 Rendering Select for item ${index}:`,
-                                                                {
-                                                                    itemPeran:
-                                                                        item.peran,
-                                                                    petugasId:
-                                                                        item.petugas_id,
-                                                                    hasSelectedKegiatan:
-                                                                        !!selectedKegiatan,
-                                                                    hasSelectedPetugas:
-                                                                        !!selectedPetugas,
-                                                                    kegiatanId:
-                                                                        selectedKegiatan?.id,
-                                                                    rateHonorsCount:
-                                                                        selectedKegiatan
-                                                                            ?.rate_honors
-                                                                            ?.length,
-                                                                },
-                                                            );
-
                                                             if (
                                                                 !selectedKegiatan ||
                                                                 !selectedPetugas
@@ -2011,11 +2069,6 @@ export default function Create({
                                                                     }),
                                                                 );
 
-                                                            console.log(
-                                                                `✅ Available options:`,
-                                                                options,
-                                                            );
-
                                                             return options.map(
                                                                 (opt) => (
                                                                     <SelectItem
@@ -2067,7 +2120,7 @@ export default function Create({
                                                                             .value,
                                                                     )
                                                                 }
-                                                                min="1"
+                                                                min="0"
                                                                 placeholder="0"
                                                                 disabled={
                                                                     isViewMode
@@ -2127,7 +2180,7 @@ export default function Create({
                                                                         .value,
                                                                 )
                                                             }
-                                                            min="1"
+                                                            min="0"
                                                             placeholder="0"
                                                             disabled={
                                                                 isViewMode

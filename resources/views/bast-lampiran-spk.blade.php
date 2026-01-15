@@ -334,7 +334,7 @@
 					</tr>
 					@endif
 
-					@if(!$kegiatan['hasil_listing'] && !$kegiatan['hasil_pendataan_lapangan'] && !$kegiatan['hasil_pengolahan'])
+					@if(!$kegiatan['hasil_listing'] && !$kegiatan['hasil_pendataan_lapangan'] && !$kegiatan['hasil_pengolahan'] && !$kegiatan['hasil_pengolahan_listing'])
 					<tr>
 						<td colspan="{{ $hasNonResponse ? '7' : '5' }}" class="left">Tidak ada data hasil pekerjaan</td>
 					</tr>

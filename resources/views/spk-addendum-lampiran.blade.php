@@ -93,6 +93,22 @@
             text-align: left;
             padding-left: 10px;
         }
+
+        /* Prevent page break between last row and footer */
+        tbody tr:last-of-type {
+            page-break-after: avoid;
+        }
+
+        /* Keep footer row with previous content */
+        tbody tr:has(.table-footer) {
+            page-break-before: avoid;
+            page-break-inside: avoid;
+        }
+
+        /* Ensure at least one data row stays with footer */
+        tbody tr:nth-last-child(2) {
+            page-break-after: avoid;
+        }
     </style>
 </head>
 <body>

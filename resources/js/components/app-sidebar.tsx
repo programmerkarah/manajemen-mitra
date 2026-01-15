@@ -110,7 +110,10 @@ export function AppSidebar() {
                 title: 'Petugas',
                 href: '#',
                 icon: Users,
-                items: [{ title: 'Alokasi Petugas', href: '/alokasi' }],
+                items: [
+                    { title: 'Alokasi Petugas', href: '/alokasi' },
+                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
             { title: 'SPK', href: '/spk', icon: ClipboardList },

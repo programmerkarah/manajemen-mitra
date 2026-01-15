@@ -252,10 +252,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
     });
 
-    // SBML Report (Admin, Operator, PJ can view)
+    // SBML Report (Admin, Operator, PJ, Ketua Tim can view)
     Route::match(['get', 'post'], 'rekap-honor', [SbmlReportController::class, 'index'])
         ->name('sbml.report')
-        ->middleware('active.role:admin,operator,pj');
+        ->middleware('active.role:admin,operator,pj,ketua_tim');
 
     // Document Management - View routes (Admin, Operator, PJ, Ketua Tim can view)
     Route::middleware(['active.role:admin,operator,pj,approver,ketua_tim'])->group(function () {
