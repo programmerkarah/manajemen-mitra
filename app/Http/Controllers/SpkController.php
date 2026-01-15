@@ -1423,9 +1423,13 @@ class SpkController extends Controller
         try {
             $pdfContent = $this->generateAddendumPdfContent($data);
 
+            // Sanitize filename untuk menghindari masalah karakter khusus
+            $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+            $filename = 'preview-addendum-spk-'.$sanitizedName.'.pdf';
+
             return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="preview-addendum-spk-'.$petugas->nama.'.pdf"',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('preview-addendum-spk-'.$petugas->nama.'.pdf'),
             ]);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal generate preview addendum SPK: '.$e->getMessage());
@@ -1947,9 +1951,13 @@ class SpkController extends Controller
             @unlink($lampiranPath);
             @unlink($mergedPath);
 
+            // Sanitize filename untuk menghindari masalah karakter khusus
+            $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+            $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+
             return response($pdfContent)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$petugas->nama.'.pdf"');
+                ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_'.$petugas->nama.'.pdf'));
         }
 
         // Cleanup temporary files
@@ -1960,9 +1968,13 @@ class SpkController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
             ->setPaper('a4', 'portrait');
 
+        // Sanitize filename untuk menghindari masalah karakter khusus
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+
         return response($pdf->output())
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="Preview_SPK_'.$petugas->nama.'.pdf"');
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_'.$petugas->nama.'.pdf'));
     }
 
     /**
@@ -2087,7 +2099,13 @@ class SpkController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
 
-        return $pdf->stream('Preview_SPK_Main_'.$petugas->nama.'.pdf');
+        // Sanitize filename untuk menghindari masalah karakter khusus
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Preview_SPK_Main_'.$sanitizedName.'.pdf';
+
+        return response($pdf->output())
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_Main_'.$petugas->nama.'.pdf'));
     }
 
     /**
@@ -2210,7 +2228,13 @@ class SpkController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
 
-        return $pdf->stream('Preview_SPK_Lampiran_'.$petugas->nama.'.pdf');
+        // Sanitize filename untuk menghindari masalah karakter khusus
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Preview_SPK_Lampiran_'.$sanitizedName.'.pdf';
+
+        return response($pdf->output())
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'"; filename*=UTF-8\'\''.rawurlencode('Preview_SPK_Lampiran_'.$petugas->nama.'.pdf'));
     }
 
     /**
