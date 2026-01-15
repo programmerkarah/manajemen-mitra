@@ -1427,10 +1427,15 @@ class SpkController extends Controller
             $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
             $filename = 'preview-addendum-spk-'.$sanitizedName.'.pdf';
 
-            return response($pdfContent, 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$filename.'"',
-            ]);
+            // Return with proper headers for inline display
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
+                ->header('Content-Length', strlen($pdfContent))
+                ->header('Accept-Ranges', 'bytes')
+                ->header('Cache-Control', 'public, must-revalidate, max-age=0')
+                ->header('Pragma', 'public')
+                ->header('X-Content-Type-Options', 'nosniff');
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal generate preview addendum SPK: '.$e->getMessage());
         }
@@ -1900,6 +1905,10 @@ class SpkController extends Controller
             }
         }
 
+        // Sanitize filename untuk menghindari masalah karakter khusus
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+
         $data = [
             'periode' => $periode,
             'alokasi' => $allAlokasi->first(),
@@ -1914,14 +1923,21 @@ class SpkController extends Controller
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
+            'pdfTitle' => $filename,
         ];
 
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
         $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
+        
+        // Set PDF title metadata untuk main
+        $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
 
         $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
+        
+        // Set PDF title metadata untuk lampiran
+        $pdfLampiran->getDomPDF()->set_option('pdfTitle', $filename);
 
         // Save temporary PDFs
         $tempPath = storage_path('app/temp');
@@ -1937,10 +1953,11 @@ class SpkController extends Controller
         file_put_contents($mainPath, $pdfMain->output());
         file_put_contents($lampiranPath, $pdfLampiran->output());
 
-        // Try to merge PDFs
+        // Try to merge PDFs with title metadata
         $merged = \App\Services\PdfMergerService::mergePdfFiles(
             [$mainPath, $lampiranPath],
-            $mergedPath
+            $mergedPath,
+            $filename
         );
 
         if ($merged && file_exists($mergedPath)) {
@@ -1951,13 +1968,15 @@ class SpkController extends Controller
             @unlink($lampiranPath);
             @unlink($mergedPath);
 
-            // Sanitize filename untuk menghindari masalah karakter khusus
-            $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-            $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
-
-            return response($pdfContent)
+            // Return with proper headers for inline display
+            return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$filename.'"');
+                ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
+                ->header('Content-Length', strlen($pdfContent))
+                ->header('Accept-Ranges', 'bytes')
+                ->header('Cache-Control', 'public, must-revalidate, max-age=0')
+                ->header('Pragma', 'public')
+                ->header('X-Content-Type-Options', 'nosniff');
         }
 
         // Cleanup temporary files

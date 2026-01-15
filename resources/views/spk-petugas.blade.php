@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>SPK - {{ $petugas->nama }}</title>
+    <title>SPK {{ $nomorSpk }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} - {{ $petugas->nama }}</title>
     <style>
         @page {
             size: A4;

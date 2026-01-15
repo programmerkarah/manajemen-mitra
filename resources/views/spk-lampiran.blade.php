@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Lampiran SPK - {{ $petugas->nama }}</title>
+    <title>{{ $pdfTitle ?? 'Lampiran SPK - ' . $petugas->nama }}</title>
     <style>
         @page {
             size: A4 landscape;

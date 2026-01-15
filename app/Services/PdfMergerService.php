@@ -10,7 +10,7 @@ class PdfMergerService
      * Merge multiple PDF files into one using FPDI with TCPDF
      * Supports mixed orientations (portrait and landscape)
      */
-    public static function mergePdfFiles(array $pdfPaths, string $outputPath): bool
+    public static function mergePdfFiles(array $pdfPaths, string $outputPath, ?string $title = null): bool
     {
         try {
             // Normalize output path to use forward slashes
@@ -22,6 +22,12 @@ class PdfMergerService
             // TCPDF specific settings
             $pdf->SetCreator('BPS');
             $pdf->SetAuthor('BPS');
+            
+            // Set title if provided
+            if ($title) {
+                $pdf->SetTitle($title);
+            }
+            
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
             $pdf->SetAutoPageBreak(false);
