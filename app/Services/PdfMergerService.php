@@ -68,9 +68,6 @@ class PdfMergerService
 
             return file_exists($outputPath);
         } catch (\Exception $e) {
-            // Log error for debugging
-            \Log::error('PDF Merge Error: '.$e->getMessage());
-
             // If FPDI fails, try external tools
             return self::mergePdfFilesWithExternalTools($pdfPaths, $outputPath);
         }
