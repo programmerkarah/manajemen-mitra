@@ -175,39 +175,45 @@
         }
 
         .lampiran-header {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-size: small;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
         }
 
         .title {
             text-align: center;
-            margin: 20px 0;
+            margin: 5px 0;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
         }
 
         table.petugas {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
+            margin: 5px 0 10px 0;
             font-size: 11pt;
             table-layout: fixed;
-            page-break-before: avoid;
+            page-break-before: avoid !important;
         }
 
         table.petugas th,
         table.petugas td {
             border-left: none;
             border-right: none;
-            padding: 8px;
+            padding: 4px 8px;
         }
 
         /* thead will repeat on each page */
         table.petugas thead {
             display: table-header-group;
+            page-break-after: avoid !important;
         }
 
-        /* Keep first 4-5 rows on first page */
+        /* Keep first 3-5 rows on first page */
         table.petugas tbody tr.first-page-row {
-            page-break-after: avoid;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
         }
 
         /* First header row - double top border, single bottom */
@@ -238,10 +244,30 @@
             page-break-inside: avoid;
         }
 
+        /* Keep rows of same petugas together */
+        table.petugas tbody tr.petugas-start {
+            page-break-after: avoid !important;
+        }
+
+        table.petugas tbody tr.petugas-middle {
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+        }
+
+        table.petugas tbody tr.petugas-end {
+            page-break-before: avoid !important;
+        }
+
         /* Keep last 1-2 rows with signature */
         table.petugas tbody tr.keep-with-signature,
         table.petugas tbody tr.keep-with-signature-last-2 {
-            page-break-after: avoid;
+            page-break-after: avoid !important;
+        }
+
+        /* Signature must stay with last rows */
+        .signature {
+            page-break-before: avoid !important;
+            page-break-inside: avoid !important;
         }
 
         .page-break {
@@ -560,8 +586,8 @@
             <tr>
                 <th style="width: 5%;">No.</th>
                 <th style="width: 30%;">Nama/Jabatan</th>
-                <th style="width: 20%;">NIP/Golongan</th>
-                <th style="width: 25%;">Ditetapkan Sebagai</th>
+                <th style="width: 25%;">NIP/Golongan</th>
+                <th style="width: 20%;">Ditetapkan Sebagai</th>
                 <th style="width: 20%;">Biaya Satuan (Rp)</th>
             </tr>
             <tr>
@@ -590,11 +616,27 @@
             $globalRowCounter++;
             $groupClass = '';
             
+            // Keep rows of same petugas together
+            if ($roleCount > 1) {
+                if ($roleIndex === 0) {
+                    $groupClass .= ' petugas-start';
+                } elseif ($roleIndex === $roleCount - 1) {
+                    $groupClass .= ' petugas-end';
+                } else {
+                    $groupClass .= ' petugas-middle';
+                }
+            }
+            
+            // Keep first 4-5 rows on first page
+            if ($globalRowCounter <= 5) {
+                $groupClass .= ' first-page-row';
+            }
+            
             // Keep last 1-2 rows with signature
             if ($globalRowCounter >= $totalRows - 1) {
-                $groupClass = 'keep-with-signature';
+                $groupClass .= ' keep-with-signature';
             } elseif ($globalRowCounter >= $totalRows - 2) {
-                $groupClass = 'keep-with-signature-last-2';
+                $groupClass .= ' keep-with-signature-last-2';
             }
             @endphp
             <tr class="{{ $groupClass }}">
