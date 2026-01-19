@@ -9,22 +9,12 @@ import echo from '../lib/echo';
 export function useSessionInvalidation(userId: number | null | undefined) {
     useEffect(() => {
         if (!userId) {
-            console.log('useSessionInvalidation: No userId provided');
             return;
         }
 
-        console.log(
-            'useSessionInvalidation: Setting up listener for user',
-            userId,
-        );
 
         // Subscribe to private channel for this user
         const channel = echo.private(`session.${userId}`);
-
-        console.log(
-            'useSessionInvalidation: Subscribed to channel',
-            `session.${userId}`,
-        );
 
         // Listen for session invalidation event
         channel.listen('.session.invalidated', (event: any) => {

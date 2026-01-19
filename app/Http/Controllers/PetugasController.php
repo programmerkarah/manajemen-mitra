@@ -92,10 +92,21 @@ class PetugasController extends Controller
      */
     public function store(StorePetugasRequest $request): RedirectResponse
     {
-        Petugas::create($request->validated());
+        \Log::info('StorePetugasRequest received', [
+            'validated' => $request->validated(),
+        ]);
+
+        $petugas = Petugas::create($request->validated());
+
+        \Log::info('Petugas created', [
+            'id' => $petugas->id,
+            'nama' => $petugas->nama,
+        ]);
 
         return redirect()->route('petugas.index')
-            ->with('success', 'Data petugas baru sudah berhasil disimpan ke sistem.');
+            ->with([
+                'success' => 'Data petugas baru sudah berhasil disimpan ke sistem.',
+            ]);
     }
 
     /**

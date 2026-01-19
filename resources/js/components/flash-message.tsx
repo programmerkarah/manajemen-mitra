@@ -21,6 +21,7 @@ export function FlashMessage() {
     const previousUrlRef = useRef<string>('');
 
     useEffect(() => {
+        
         // Reset tracking when URL changes (navigation)
         const currentUrl = window.location.href;
         if (currentUrl !== previousUrlRef.current) {

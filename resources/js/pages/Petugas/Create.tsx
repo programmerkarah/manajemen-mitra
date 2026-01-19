@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -25,6 +26,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Create() {
     const [jenisPetugas, setJenisPetugas] = useState('non-organik');
+    const [showError, setShowError] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         nama: '',
@@ -54,10 +56,22 @@ export default function Create() {
             golongan: value === 'non-organik' ? 'Non PNS' : '',
         });
     };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/petugas');
+        e.stopPropagation();
+        setShowError(false);
+        
+        post('/petugas', {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                console.log('✅ Form submitted successfully', page);
+            },
+            onError: (errors) => {
+                console.log('❌ Form submission error:', errors);
+                setShowError(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+        });
     };
 
     return (
@@ -81,6 +95,27 @@ export default function Create() {
                         </Link>
                     </Button>
                 </PageHeader>
+
+                {/* Success Alert */}
+                {showError && Object.keys(errors).length > 0 && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-5 w-5" />
+                        <AlertTitle>Terjadi Kesalahan</AlertTitle>
+                        <AlertDescription>
+                            Mohon periksa kembali form Anda. Ada beberapa field yang perlu diperbaiki:
+                            <ul className="list-disc list-inside mt-2 space-y-1">
+                                {Object.entries(errors).map(([field, message]) => (
+                                    <li key={field} className="text-sm">
+                                        <span className="font-medium capitalize">
+                                            {field.replace(/_/g, ' ')}:
+                                        </span>{' '}
+                                        {message}
+                                    </li>
+                                ))}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <ContentCard>
                     <form onSubmit={handleSubmit}>
@@ -183,6 +218,7 @@ export default function Create() {
                                         <SelectItem value="SMP">SMP</SelectItem>
                                         <SelectItem value="SMA">SMA</SelectItem>
                                         <SelectItem value="D3">D3</SelectItem>
+                                        <SelectItem value="D4">D4</SelectItem>
                                         <SelectItem value="S1">S1</SelectItem>
                                         <SelectItem value="S2">S2</SelectItem>
                                         <SelectItem value="S3">S3</SelectItem>

@@ -15,6 +15,21 @@ class StorePetugasRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'tahun_bergabung' => (int) $this->tahun_bergabung,
+            'npwp' => $this->npwp ?: null,
+            'bank' => $this->bank ?: null,
+            'no_rekening' => $this->no_rekening ?: null,
+            'nama_rekening' => $this->nama_rekening ?: null,
+            'catatan' => $this->catatan ?: null,
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -37,6 +52,7 @@ class StorePetugasRequest extends FormRequest
             'no_rekening' => ['nullable', 'string', 'max:50'],
             'nama_rekening' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:aktif,nonaktif'],
+            'catatan' => ['nullable', 'string'],
         ];
     }
 

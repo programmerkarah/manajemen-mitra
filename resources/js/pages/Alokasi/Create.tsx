@@ -691,7 +691,7 @@ export default function Create({
 
     // Handle jumlah petugas change
     const handleJumlahPetugasChange = (value: number) => {
-        const newValue = Math.max(1, Math.min(50, value));
+        const newValue = Math.max(1, Math.min(100, value));
         setJumlahPetugas(newValue);
 
         const currentItems = [...alokasiItems];

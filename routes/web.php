@@ -94,7 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // View routes (Admin, PJ, and Administrator for read-only access)
     Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
-        Route::match(['get', 'post'], 'petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
         Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 
