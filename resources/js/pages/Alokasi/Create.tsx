@@ -648,7 +648,10 @@ export default function Create({
                 r.jenis_penugasan === jenisPenugasan,
         );
         if (!matchingRateHonor) return 0;
-        return matchingRateHonor.rate * Number(jumlahSatuan);
+        
+        // Parse safely with fallback to 0
+        const parsedJumlah = parseFloat(jumlahSatuan) || 0;
+        return matchingRateHonor.rate * parsedJumlah;
     };
 
     // Calculate estimasi honor for listing phase
@@ -686,7 +689,10 @@ export default function Create({
                 r.jenis_penugasan === jenisPenugasan,
         );
         if (!matchingRateHonor || !matchingRateHonor.rate_listing) return 0;
-        return matchingRateHonor.rate_listing * Number(jumlahSatuanListing);
+        
+        // Parse safely with fallback to 0
+        const parsedJumlahListing = parseFloat(jumlahSatuanListing) || 0;
+        return matchingRateHonor.rate_listing * parsedJumlahListing;
     };
 
     // Handle jumlah petugas change
@@ -724,16 +730,30 @@ export default function Create({
                         peranDisplay = alokasi.peran;
                     }
 
+                    const petugasId = String(alokasi.petugas_id || '');
+                    const jumlahSatuan = String(alokasi.jumlah_satuan || 0);
+                    const jumlahSatuanListing = String(alokasi.jumlah_satuan_listing || 0);
+                    
+                    // Recalculate estimasi honor instead of using stored values
+                    const recalculatedEstimasi = calculateEstimasi(
+                        petugasId,
+                        peranDisplay,
+                        jumlahSatuan,
+                    );
+                    
+                    const recalculatedEstimasiListing = calculateEstimasiListing(
+                        petugasId,
+                        peranDisplay,
+                        jumlahSatuanListing,
+                    );
+                    
                     currentItems.push({
-                        petugas_id: String(alokasi.petugas_id || ''),
+                        petugas_id: petugasId,
                         peran: peranDisplay,
-                        jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                        jumlah_satuan_listing: String(
-                            alokasi.jumlah_satuan_listing || 0,
-                        ),
-                        estimasi_honor: alokasi.total_honor || 0,
-                        estimasi_honor_listing:
-                            alokasi.total_honor_listing || 0,
+                        jumlah_satuan: jumlahSatuan,
+                        jumlah_satuan_listing: jumlahSatuanListing,
+                        estimasi_honor: recalculatedEstimasi,
+                        estimasi_honor_listing: recalculatedEstimasiListing,
                         catatan: alokasi.catatan || '',
                     });
                 } else {

@@ -89,9 +89,13 @@ export default function Edit({
         const selectedKegiatan = kegiatans.find(
             (k) => k.id === data.kegiatan_id,
         );
-        if (selectedKegiatan?.rate_honor && data.jumlah_satuan) {
+        
+        // Parse jumlah_satuan safely, defaulting to 0 if invalid
+        const jumlahSatuan = parseFloat(data.jumlah_satuan) || 0;
+        
+        if (selectedKegiatan?.rate_honor && jumlahSatuan > 0) {
             setEstimatedTotal(
-                selectedKegiatan.rate_honor.rate * Number(data.jumlah_satuan),
+                selectedKegiatan.rate_honor.rate * jumlahSatuan,
             );
         } else {
             setEstimatedTotal(0);
