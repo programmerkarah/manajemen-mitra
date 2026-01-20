@@ -1166,18 +1166,23 @@ class SpkController extends Controller
 
                 $isBerubah = false;
                 foreach ($alokasiPerubahanList as $alokasiPerubahan) {
-                    // Cari alokasi sebelumnya untuk kegiatan yang sama dari periode status dikirim
+                    // Cari alokasi sebelumnya untuk kegiatan yang sama dari periode status dikirim/direvisi
                     $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
                         ->where('periode_alokasi_id', '!=', $alokasiPerubahan->periode_alokasi_id)
-                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $alokasiPerubahan) {
                             $q->where('bulan', $bulanFormatted)
                                 ->where('tahun', $tahun)
-                                ->whereIn('status', ['dikirim', 'perubahan']);
+                                ->where('kegiatan_id', $alokasiPerubahan->periodeAlokasi->kegiatan_id)
+                                ->whereIn('status', ['dikirim', 'direvisi']);
                         })
-                        ->where('peran', $alokasiPerubahan->peran)
-                        ->where('jumlah_satuan', '!=', null)
                         ->orderByDesc('id')
                         ->first();
+
+                    // Jika tidak ada alokasi sebelumnya untuk kegiatan ini, berarti kegiatan baru (tambahan)
+                    if (!$alokasiSebelumnya) {
+                        $isBerubah = true;
+                        break;
+                    }
 
                     $selisih_jumlah_satuan = (int) ($alokasiPerubahan->jumlah_satuan ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan ?? 0);
                     $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
