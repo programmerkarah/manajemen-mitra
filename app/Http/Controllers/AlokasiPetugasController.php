@@ -167,14 +167,36 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Calculate total honor terpakai dari Januari SAMPAI DAN TERMASUK bulan ini
-            // Hanya hitung periode validated (exclude draft)
-            $totalHonorSampaiDenganBulanIni = AlokasiPetugas::join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
-                ->where('periode_alokasi.kegiatan_id', $periode->kegiatan_id)
-                ->where('periode_alokasi.tahun', $activeYear)
-                ->where('periode_alokasi.bulan', '<=', $periode->bulan)
-                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
-                ->sum(DB::raw('alokasi_petugas.total_honor + alokasi_petugas.total_honor_listing'));
+            // Get all periodes for this kegiatan from Januari sampai bulan ini
+            // Then deduplicate (jika ada 'perubahan' dan 'draft' di bulan yang sama, ambil 'perubahan')
+            $periodeSampaiDenganBulanIni = PeriodeAlokasi::where('kegiatan_id', $periode->kegiatan_id)
+                ->where('tahun', $activeYear)
+                ->where('bulan', '<=', $periode->bulan)
+                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
+                ->with('alokasiPetugas')
+                ->get()
+                ->groupBy('bulan')
+                ->map(function ($group) {
+                    // Jika ada 'perubahan', gunakan itu (paling terbaru)
+                    $perubahan = $group->firstWhere('status', 'perubahan');
+                    if ($perubahan) {
+                        return $perubahan;
+                    }
+                    // Jika tidak ada perubahan, gunakan yang pertama (by created_at desc)
+                    return $group->sortByDesc('created_at')->first();
+                });
+
+            // Calculate total honor dari periode yang sudah di-deduplicate
+            // Exclude draft kecuali itu adalah periode saat ini
+            $totalHonorSampaiDenganBulanIni = $periodeSampaiDenganBulanIni->sum(function ($p) {
+                // Hanya hitung jika status validated (bukan draft)
+                if (in_array($p->status, ['dikirim', 'perubahan', 'direvisi'])) {
+                    return $p->alokasiPetugas->sum(function ($alokasi) {
+                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                    });
+                }
+                return 0;
+            });
 
             // Sisa pagu = pagu total - akumulasi honor dari Januari sampai bulan ini (termasuk bulan ini)
             // Untuk Januari (bulan 01): sisa pagu = pagu total - honor Januari
