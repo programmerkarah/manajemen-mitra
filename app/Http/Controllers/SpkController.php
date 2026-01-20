@@ -3148,35 +3148,51 @@ class SpkController extends Controller
      */
     private function hasNewKegiatanAfterSpk(int $tahun, int $bulan, $monthPeriodes): bool
     {
-        // Get the latest SPK creation timestamp for non-addendum SPKs in this month
-        $latestSpkCreatedAt = null;
-        foreach ($monthPeriodes as $periode) {
-            $latestSpk = $periode->spk()
-                ->where('addendum_number', 0)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($latestSpk && (! $latestSpkCreatedAt || $latestSpk->created_at > $latestSpkCreatedAt)) {
-                $latestSpkCreatedAt = $latestSpk->created_at;
-            }
-        }
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        
+        // Check if any SPK exists in this month
+        $hasAnySPK = Spk::where('addendum_number', 0)
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', $bulan)
+            ->exists();
 
         // If no SPK exists, return false (should use normal "Generate SPK" button)
-        if (! $latestSpkCreatedAt) {
+        if (!$hasAnySPK) {
             return false;
         }
 
-        // Check if there are any alokasi petugas (non-organik) that don't have SPK yet
-        // OR were updated/created after the latest SPK generation
-        $hasNewKegiatan = false;
-        foreach ($monthPeriodes as $periode) {
-            // Only check dikirim or perubahan status
-            if (! in_array($periode->status, ['dikirim', 'perubahan'])) {
-                continue;
-            }
+        // Get all existing SPKs in this month to build a map of petugas who already have SPK
+        $existingSpkPetugasIds = Spk::where('addendum_number', 0)
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', $bulan)
+            ->pluck('petugas_id')
+            ->unique()
+            ->toArray();
 
-            // Get non-organik petugas from this periode with honor > 0
-            $nonOrganikAlokasi = $periode->alokasiPetugas()
+        // Get all periode alokasi in this month with validated status
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['dikirim', 'direvisi'])
+            ->pluck('id');
+
+        // Check if there are any non-organik petugas who don't have SPK yet
+        $petugasWithoutSpk = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->whereNotIn('petugas_id', $existingSpkPetugasIds)
+            ->exists();
+
+        // Also check for petugas with new kegiatan (kegiatan additions)
+        $hasNewKegiatan = false;
+        if (!$petugasWithoutSpk) {
+            // Get all petugas who have SPK in this month
+            $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+                ->whereIn('petugas_id', $existingSpkPetugasIds)
                 ->whereHas('petugas', function ($q) {
                     $q->where('jenis_petugas', 'non-organik');
                 })
@@ -3184,23 +3200,52 @@ class SpkController extends Controller
                     $query->where('total_honor', '>', 0)
                         ->orWhere('total_honor_listing', '>', 0);
                 })
+                ->with('periodeAlokasi.kegiatan')
                 ->get();
 
-            foreach ($nonOrganikAlokasi as $alokasi) {
-                // Check if this alokasi has SPK
-                $hasSpk = Spk::where('alokasi_petugas_id', $alokasi->id)
-                    ->where('addendum_number', 0)
-                    ->exists();
+            // Group by petugas and check if they have more kegiatan than recorded in their SPK
+            $petugasKegiatanCount = $allAlokasi->groupBy('petugas_id')
+                ->map(function ($alokasiGroup) {
+                    return $alokasiGroup->pluck('periodeAlokasi.kegiatan.id')->unique()->count();
+                });
 
-                // If no SPK or periode was updated after latest SPK
-                if (! $hasSpk || $periode->updated_at > $latestSpkCreatedAt) {
-                    $hasNewKegiatan = true;
-                    break 2;
+            foreach ($existingSpkPetugasIds as $petugasId) {
+                $currentKegiatanCount = $petugasKegiatanCount->get($petugasId, 0);
+                
+                // Get kegiatan count from existing SPK baseline
+                $existingSpk = Spk::where('petugas_id', $petugasId)
+                    ->where('addendum_number', 0)
+                    ->whereYear('tanggal_spk', $tahun)
+                    ->whereMonth('tanggal_spk', $bulan)
+                    ->first();
+
+                if ($existingSpk) {
+                    // Get baseline kegiatan for this SPK
+                    $baselineKegiatanCount = AlokasiPetugas::where('petugas_id', $petugasId)
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                            $q->where('bulan', $bulanFormatted)
+                                ->where('tahun', $tahun)
+                                ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                        })
+                        ->where(function ($query) {
+                            $query->where('total_honor', '>', 0)
+                                ->orWhere('total_honor_listing', '>', 0);
+                        })
+                        ->with('periodeAlokasi.kegiatan')
+                        ->get()
+                        ->pluck('periodeAlokasi.kegiatan.id')
+                        ->unique()
+                        ->count();
+
+                    if ($currentKegiatanCount > $baselineKegiatanCount) {
+                        $hasNewKegiatan = true;
+                        break;
+                    }
                 }
             }
         }
 
-        return $hasNewKegiatan;
+        return $petugasWithoutSpk || $hasNewKegiatan;
     }
 
     /**
