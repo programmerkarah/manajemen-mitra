@@ -121,14 +121,25 @@ class AlokasiPetugasController extends Controller
 
         // Pre-calculate total honor terpakai per kegiatan per bulan (using ALL deduplicated data before pagination)
         // This ensures we have complete data for cumulative calculation
-        $honorPerKegiatanPerBulan = $deduplicatedPeriodes
+        // Create two versions: one for validated only, one for all (including draft)
+        $honorPerKegiatanPerBulanValidated = $deduplicatedPeriodes
             ->filter(function ($periode) {
                 // Only count validated periods
                 return in_array($periode->status, ['dikirim', 'perubahan', 'direvisi']);
             })
             ->groupBy('kegiatan_id')
             ->map(function ($periodesByKegiatan) {
-                // Group by bulan and calculate honor for each month
+                return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
+                    $periode = $periodeInMonth->first();
+                    return $periode->alokasiPetugas->sum(function ($alokasi) {
+                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                    });
+                })->sortKeys();
+            });
+            
+        $honorPerKegiatanPerBulanAll = $deduplicatedPeriodes
+            ->groupBy('kegiatan_id')
+            ->map(function ($periodesByKegiatan) {
                 return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
                     $periode = $periodeInMonth->first();
                     return $periode->alokasiPetugas->sum(function ($alokasi) {
@@ -175,7 +186,7 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear, $honorPerKegiatanPerBulan) {
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -185,38 +196,34 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Calculate total honor dari Januari sampai bulan ini (inclusive) using pre-calculated data
-            $honorByMonth = $honorPerKegiatanPerBulan->get($periode->kegiatan_id, collect());
-            
-            // Sum honor from month 01 to current month (inclusive)
-            // Convert bulan to integer for proper comparison
             $currentBulan = (int) $periode->bulan;
-            $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
-                return (int) $bulan <= $currentBulan;
-            })->sum();
             
-            // For draft: calculate what the sisa pagu WOULD BE if this draft gets submitted
-            // Include the current period's honor in the calculation
+            // For draft: use ALL periods (including other drafts) to calculate sisa pagu
+            // For validated: use only validated periods
             if ($periode->status === 'draft') {
-                // Sisa pagu = total pagu - (honor validated sampai bulan ini + honor draft ini)
-                $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni - $estimasiHonor;
-            } else {
-                // For validated periods, sisa pagu already includes this period's honor
-                // because it's in $totalHonorSampaiDenganBulanIni
+                // Calculate honor from all periods (validated + draft) up to current month (inclusive)
+                $honorByMonth = $honorPerKegiatanPerBulanAll->get($periode->kegiatan_id, collect());
+                $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
+                    return (int) $bulan <= $currentBulan;
+                })->sum();
+                
+                // Sisa pagu = total pagu - all honor (validated + draft) sampai bulan ini
                 $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
+                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
+            } else {
+                // For validated: only count validated periods
+                $honorByMonth = $honorPerKegiatanPerBulanValidated->get($periode->kegiatan_id, collect());
+                $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
+                    return (int) $bulan <= $currentBulan;
+                })->sum();
+                
+                // Sisa pagu = total pagu - validated honor sampai bulan ini
+                $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
+                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
             }
 
             // Pagu terpakai = total honor untuk periode ini saja
             $paguTerpakai = $estimasiHonor;
-            
-            // Total terpakai untuk budget info
-            if ($periode->status === 'draft') {
-                // For draft, show what would be terpakai if submitted
-                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni + $estimasiHonor;
-            } else {
-                // For validated, show actual terpakai
-                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
-            }
 
             $isLatestPeriode = $periode->status === 'dikirim' &&
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
