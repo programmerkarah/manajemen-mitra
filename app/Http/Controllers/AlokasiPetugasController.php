@@ -119,8 +119,8 @@ class AlokasiPetugasController extends Controller
             return $group->first();
         })->values();
 
-        // Pre-calculate total honor terpakai per kegiatan per bulan (using deduplicated data)
-        // Group by kegiatan_id and bulan for cumulative calculation
+        // Pre-calculate total honor terpakai per kegiatan per bulan (using ALL deduplicated data before pagination)
+        // This ensures we have complete data for cumulative calculation
         $honorPerKegiatanPerBulan = $deduplicatedPeriodes
             ->filter(function ($periode) {
                 // Only count validated periods
@@ -189,8 +189,10 @@ class AlokasiPetugasController extends Controller
             $honorByMonth = $honorPerKegiatanPerBulan->get($periode->kegiatan_id, collect());
             
             // Sum honor from month 01 to current month (inclusive)
-            $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($periode) {
-                return $bulan <= $periode->bulan;
+            // Convert bulan to integer for proper comparison
+            $currentBulan = (int) $periode->bulan;
+            $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
+                return (int) $bulan <= $currentBulan;
             })->sum();
 
             // Sisa pagu = pagu total - akumulasi honor dari Januari sampai bulan ini (termasuk bulan ini)
