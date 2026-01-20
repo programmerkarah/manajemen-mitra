@@ -1802,7 +1802,7 @@ export default function Create({
                                     )
                                 }
                                 min="1"
-                                max="50"
+                                max="100"
                                 placeholder="Masukkan jumlah petugas"
                                 disabled={isRevisiMode || isViewMode}
                                 className={

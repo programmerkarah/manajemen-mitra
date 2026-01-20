@@ -46,10 +46,10 @@ class UpdatePetugasRequest extends FormRequest
             'tahun_bergabung' => ['required', 'integer', 'min:1980', 'max:'.date('Y')],
             'jenis_petugas' => ['required', 'in:organik,non-organik'],
             'jabatan' => ['nullable', 'string', 'max:255'],
-            'golongan' => ['nullable', 'string', 'max:50'],
+            'golongan' => ['nullable', 'string', 'max:100'],
             'npwp' => ['nullable', 'string', 'max:24', Rule::unique('petugas', 'npwp')->ignore($petugasId)->whereNotNull('npwp')],
             'bank' => ['nullable', 'string', 'max:100'],
-            'no_rekening' => ['nullable', 'string', 'max:50'],
+            'no_rekening' => ['nullable', 'string', 'max:100'],
             'nama_rekening' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:aktif,nonaktif'],
         ];
