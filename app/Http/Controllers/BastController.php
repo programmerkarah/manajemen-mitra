@@ -592,10 +592,12 @@ class BastController extends Controller
         $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
 
         // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
+        // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
         $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
                 $q->where('bulan', $bulan)
-                    ->where('tahun', $tahun);
+                    ->where('tahun', $tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']); // Exclude 'direvisi'
             })
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
@@ -1053,10 +1055,12 @@ class BastController extends Controller
         $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
 
         // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
+        // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
         $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
                 $q->where('bulan', $bulan)
-                    ->where('tahun', $tahun);
+                    ->where('tahun', $tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']); // Exclude 'direvisi'
             })
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
@@ -1141,12 +1145,43 @@ class BastController extends Controller
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
             $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
-            // Cari SPK dari petugas ini saja, bukan per kegiatan
-            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            // Cari SPK dari petugas ini untuk kegiatan yang sama di bulan yang sama
+            // Tidak harus dari alokasi_id yang sama karena bisa jadi SPK dibuat dari periode lain yang sudah direvisi
+            $spkPetugas = \App\Models\Spk::whereHas('alokasiPetugas', function ($q) use ($petugas, $kegiatan, $periode) {
+                $q->where('petugas_id', $petugas->id)
+                    ->whereHas('periodeAlokasi', function ($qq) use ($kegiatan, $periode) {
+                        $qq->where('kegiatan_id', $kegiatan->id)
+                            ->where('bulan', $periode->bulan)
+                            ->where('tahun', $periode->tahun);
+                    });
+            })->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
-            // Ambil tanggal selesai dari periode alokasi (tanggal kegiatan sebenarnya)
-            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
+            // Ambil tanggal selesai berdasarkan jenis peran
+            // 1. Listing (pendataan + listing) → tanggal_selesai_listing
+            // 2. Pencacahan (pendataan tanpa listing) → tanggal_selesai
+            // 3. Pengolahan listing → jadwal_pengolahan_listing_selesai
+            // 4. Pengolahan pencacahan → jadwal_pengolahan_pencacahan_selesai
+            $tanggalSelesaiKegiatan = null;
+            
+            if ($isPendataanRole && $hasListing) {
+                // Untuk peran pendataan dengan listing
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+            } elseif ($isPendataanRole && !$hasListing) {
+                // Untuk peran pendataan (pencacahan) tanpa listing
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
+            } elseif ($isPengolahanRole && $hasListing) {
+                // Untuk peran pengolahan listing
+                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+            } elseif ($isPengolahanRole && !$hasListing) {
+                // Untuk peran pengolahan pencacahan
+                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+            }
+            
+            // Fallback ke tanggal_selesai umum, lalu tanggal dari SPK, terakhir 'Belum ada SPK'
+            if (!$tanggalSelesaiKegiatan) {
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $spkPetugas?->tanggal_selesai_kerja ?? 'Belum ada SPK';
+            }
 
             // Ambil ketua tim dari kegiatan ini
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
@@ -1223,7 +1258,9 @@ class BastController extends Controller
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
-                'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
+                'tanggal_selesai_formatted' => ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK') 
+                    ? \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY')
+                    : '-',
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
                 'uraian_pencacahan' => $uraianPencacahan,

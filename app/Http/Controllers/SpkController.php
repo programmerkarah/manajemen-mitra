@@ -447,12 +447,24 @@ class SpkController extends Controller
             ->with('kegiatan')
             ->get()
             ->groupBy('kegiatan_id')
-            ->map(function ($periodeGroup) use ($allSpks) {
+            ->map(function ($periodeGroup) use ($allSpks, $allPeriodeInMonth, $bulanFormatted, $tahun) {
                 $kegiatan = $periodeGroup->first()->kegiatan;
 
-                // Count how many SPKs (petugas) are in this kegiatan
-                $spkCount = $allSpks->filter(function ($spk) use ($kegiatan) {
-                    return $spk->alokasiPetugas->periodeAlokasi->kegiatan_id === $kegiatan->id;
+                // Get all petugas who are allocated to this kegiatan in this month/year
+                // This matches the download logic
+                $petugasIdsInKegiatan = DB::table('alokasi_petugas')
+                    ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                    ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
+                    ->where('periode_alokasi.bulan', $bulanFormatted)
+                    ->where('periode_alokasi.tahun', $tahun)
+                    ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+                    ->distinct()
+                    ->pluck('alokasi_petugas.petugas_id');
+
+                // Count how many SPKs exist for these petugas in this month
+                // This matches the actual files that will be downloaded
+                $spkCount = $allSpks->filter(function ($spk) use ($petugasIdsInKegiatan) {
+                    return $petugasIdsInKegiatan->contains($spk->petugas_id);
                 })->unique('petugas_id')->count();
 
                 return [
