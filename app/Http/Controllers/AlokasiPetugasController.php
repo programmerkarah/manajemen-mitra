@@ -119,6 +119,24 @@ class AlokasiPetugasController extends Controller
             return $group->first();
         })->values();
 
+        // Pre-calculate total honor terpakai per kegiatan per bulan (using deduplicated data)
+        // Group by kegiatan_id and bulan for cumulative calculation
+        $honorPerKegiatanPerBulan = $deduplicatedPeriodes
+            ->filter(function ($periode) {
+                // Only count validated periods
+                return in_array($periode->status, ['dikirim', 'perubahan', 'direvisi']);
+            })
+            ->groupBy('kegiatan_id')
+            ->map(function ($periodesByKegiatan) {
+                // Group by bulan and calculate honor for each month
+                return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
+                    $periode = $periodeInMonth->first();
+                    return $periode->alokasiPetugas->sum(function ($alokasi) {
+                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                    });
+                })->sortKeys();
+            });
+
         // Manual pagination
         $perPage = 15;
         $currentPage = $request->input('page', 1);
@@ -157,7 +175,7 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear) {
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear, $honorPerKegiatanPerBulan) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -167,41 +185,15 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Get all periodes for this kegiatan from Januari sampai bulan ini
-            // Then deduplicate (jika ada 'perubahan' dan 'draft' di bulan yang sama, ambil 'perubahan')
-            $periodeSampaiDenganBulanIni = PeriodeAlokasi::where('kegiatan_id', $periode->kegiatan_id)
-                ->where('tahun', $activeYear)
-                ->where('bulan', '<=', $periode->bulan)
-                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
-                ->with('alokasiPetugas')
-                ->get()
-                ->groupBy('bulan')
-                ->map(function ($group) {
-                    // Jika ada 'perubahan', gunakan itu (paling terbaru)
-                    $perubahan = $group->firstWhere('status', 'perubahan');
-                    if ($perubahan) {
-                        return $perubahan;
-                    }
-                    // Jika tidak ada perubahan, gunakan yang pertama (by created_at desc)
-                    return $group->sortByDesc('created_at')->first();
-                });
-
-            // Calculate total honor dari periode yang sudah di-deduplicate
-            // Exclude draft kecuali itu adalah periode saat ini
-            $totalHonorSampaiDenganBulanIni = $periodeSampaiDenganBulanIni->sum(function ($p) {
-                // Hanya hitung jika status validated (bukan draft)
-                if (in_array($p->status, ['dikirim', 'perubahan', 'direvisi'])) {
-                    return $p->alokasiPetugas->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
-                }
-                return 0;
-            });
+            // Calculate total honor dari Januari sampai bulan ini (inclusive) using pre-calculated data
+            $honorByMonth = $honorPerKegiatanPerBulan->get($periode->kegiatan_id, collect());
+            
+            // Sum honor from month 01 to current month (inclusive)
+            $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($periode) {
+                return $bulan <= $periode->bulan;
+            })->sum();
 
             // Sisa pagu = pagu total - akumulasi honor dari Januari sampai bulan ini (termasuk bulan ini)
-            // Untuk Januari (bulan 01): sisa pagu = pagu total - honor Januari
-            // Untuk Februari (bulan 02): sisa pagu = pagu total - (honor Januari + Februari)
-            // Untuk Maret (bulan 03): sisa pagu = pagu total - (honor Januari + Februari + Maret)
             $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
 
             // Pagu terpakai = total honor untuk periode ini saja
