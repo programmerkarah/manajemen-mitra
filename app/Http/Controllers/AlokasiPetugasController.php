@@ -83,6 +83,7 @@ class AlokasiPetugasController extends Controller
             ->get();
 
         // Pre-calculate total honor terpakai for all kegiatan in one query
+        // Only count validated periods (exclude draft)
         $totalHonorTerpakaiByKegiatan = AlokasiPetugas::select(
             'periode_alokasi.kegiatan_id',
             DB::raw('SUM(alokasi_petugas.total_honor) as total_pencacahan'),
@@ -90,7 +91,7 @@ class AlokasiPetugasController extends Controller
         )
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->where('periode_alokasi.tahun', $activeYear)
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi']) // Exclude draft
             ->groupBy('periode_alokasi.kegiatan_id')
             ->pluck('total_pencacahan', 'kegiatan_id');
 
@@ -100,7 +101,7 @@ class AlokasiPetugasController extends Controller
         )
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->where('periode_alokasi.tahun', $activeYear)
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi', 'draft'])
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi']) // Exclude draft
             ->groupBy('periode_alokasi.kegiatan_id')
             ->pluck('total_listing', 'kegiatan_id');
 
@@ -157,7 +158,7 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan) {
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -167,17 +168,28 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Use pre-calculated total honor instead of querying
+            // Calculate total honor terpakai SEBELUM periode ini (untuk budget info)
+            $totalHonorSebelumPeriodeIni = AlokasiPetugas::join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->where('periode_alokasi.kegiatan_id', $periode->kegiatan_id)
+                ->where('periode_alokasi.tahun', $activeYear)
+                ->where('periode_alokasi.bulan', '<', $periode->bulan)
+                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+                ->sum(DB::raw('alokasi_petugas.total_honor + alokasi_petugas.total_honor_listing'));
+
+            // Use pre-calculated total honor for all periods (untuk sisa pagu)
             $totalHonorTerpakaiPencacahan = $totalHonorTerpakaiByKegiatan->get($periode->kegiatan_id, 0);
             $totalHonorTerpakaiListing = $totalHonorTerpakaiListingByKegiatan->get($periode->kegiatan_id, 0);
 
-            // Sisa pagu = pagu total - total honor terpakai (akumulasi semua periode)
+            // Sisa pagu = pagu total - total honor terpakai (akumulasi semua periode validated)
             $sisaPaguPencacahan = $paguPencacahan - $totalHonorTerpakaiPencacahan;
             $sisaPaguListing = $paguListing - $totalHonorTerpakaiListing;
             $sisaPagu = $sisaPaguPencacahan + $sisaPaguListing;
 
             // Pagu terpakai = total honor untuk periode ini saja
             $paguTerpakai = $estimasiHonor;
+            
+            // Total terpakai untuk budget info = honor sebelum periode ini + honor periode ini
+            $totalTerpakaiUntukBudgetInfo = $totalHonorSebelumPeriodeIni + ($periode->status !== 'draft' ? $estimasiHonor : 0);
 
             $isLatestPeriode = $periode->status === 'dikirim' &&
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
@@ -196,6 +208,7 @@ class AlokasiPetugasController extends Controller
                 'pagu_pencacahan' => $paguPencacahan,
                 'pagu_listing' => $paguListing,
                 'pagu_terpakai' => $paguTerpakai,
+                'total_terpakai_untuk_budget_info' => $totalTerpakaiUntukBudgetInfo,
                 'latest_created_at' => $periode->created_at,
                 'is_latest_periode' => $isLatestPeriode,
                 'kegiatan' => [
