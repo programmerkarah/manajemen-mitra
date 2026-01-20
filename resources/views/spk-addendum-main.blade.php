@@ -199,7 +199,6 @@
 
         .signature-name {
             font-weight: bold;
-            text-decoration: underline;
         }
 
         table {

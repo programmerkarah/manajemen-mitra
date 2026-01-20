@@ -628,16 +628,26 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
-        // Get all periodes in the same month and year for this specific kegiatan
+        // Get all petugas who are allocated to this kegiatan in this month/year
+        $petugasIdsInKegiatan = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->where('periode_alokasi.kegiatan_id', $kegiatanId)
+            ->where('periode_alokasi.bulan', $periode->bulan)
+            ->where('periode_alokasi.tahun', $periode->tahun)
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+            ->distinct()
+            ->pluck('alokasi_petugas.petugas_id');
+
+        // Get all periodes in the same month and year (for any kegiatan)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->where('kegiatan_id', $kegiatanId)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->pluck('id');
 
-        // Get all SPKs that have files and are related to these periodes
+        // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->whereNotNull('file_path')
+            ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
                     ->from('alokasi_petugas')
@@ -699,16 +709,26 @@ class SpkController extends Controller
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all periodes in the same month and year for this specific kegiatan
+        // Get all petugas who are allocated to this kegiatan in this month/year
+        $petugasIdsInKegiatan = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->where('periode_alokasi.kegiatan_id', $kegiatanId)
+            ->where('periode_alokasi.bulan', $bulanFormatted)
+            ->where('periode_alokasi.tahun', $tahun)
+            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+            ->distinct()
+            ->pluck('alokasi_petugas.petugas_id');
+
+        // Get all periodes in the same month and year (for any kegiatan)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->where('kegiatan_id', $kegiatanId)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->pluck('id');
 
-        // Get all SPKs that have files and are related to these periodes
+        // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->whereNotNull('file_path')
+            ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
                     ->from('alokasi_petugas')

@@ -24,7 +24,7 @@ class SkKpaController extends Controller
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
 
-        // Get kegiatan that have validated periods (dikirim status)
+        // Get kegiatan that have periods with alokasi petugas (dikirim, perubahan, or direvisi status)
         $query = Kegiatan::query()
             ->select('kegiatan.*') // Only select needed columns
             ->with([
@@ -32,7 +32,7 @@ class SkKpaController extends Controller
                 'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at,bulan,tahun',
                 'periodeAlokasi' => function ($q) use ($activeYear) {
                     $q->where('tahun', $activeYear)
-                        ->whereIn('status', ['dikirim', 'disetujui'])
+                        ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
                         ->with('alokasiPetugas:id,periode_alokasi_id,petugas_id')
                         ->orderBy('bulan');
                 },
@@ -42,7 +42,7 @@ class SkKpaController extends Controller
             }])
             ->whereHas('periodeAlokasi', function ($q) use ($activeYear) {
                 $q->where('tahun', $activeYear)
-                    ->whereIn('status', ['dikirim', 'disetujui']);
+                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi']);
             })
             ->where('tahun_anggaran', $activeYear);
 
@@ -191,9 +191,9 @@ class SkKpaController extends Controller
 
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
-        // Check if there are any approved periodes
+        // Check if there are any approved periodes (dikirim, perubahan, or direvisi)
         $hasApprovedPeriodes = $kegiatan->periodeAlokasi()
-            ->where('status', 'dikirim')
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->exists();
 
         if (! $hasApprovedPeriodes) {
@@ -499,7 +499,7 @@ class SkKpaController extends Controller
             ->with(['alokasiPetugas' => function ($query) {
                 $query->with('petugas');
             }])
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
             ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
 
@@ -516,7 +516,7 @@ class SkKpaController extends Controller
                 ->with(['alokasiPetugas' => function ($query) {
                     $query->with('petugas');
                 }])
-                ->whereIn('status', ['dikirim', 'disetujui'])
+                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
                 ->where('id', '!=', $periode->id) // Exclude current periode
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -729,7 +729,7 @@ class SkKpaController extends Controller
             ->with(['alokasiPetugas' => function ($query) {
                 $query->with('petugas');
             }])
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
             ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
 
@@ -746,7 +746,7 @@ class SkKpaController extends Controller
                 ->with(['alokasiPetugas' => function ($query) {
                     $query->with('petugas');
                 }])
-                ->whereIn('status', ['dikirim', 'disetujui'])
+                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
                 ->where('id', '!=', $periode->id) // Exclude current periode
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -930,7 +930,7 @@ class SkKpaController extends Controller
         // Get all approved/submitted periods for this kegiatan
         $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
             ->where('tahun', $activeYear)
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->with('alokasiPetugas')
             ->orderBy('bulan')
             ->get();
@@ -1025,7 +1025,7 @@ class SkKpaController extends Controller
         // Get all approved/submitted periods for this kegiatan
         $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
             ->where('tahun', $activeYear)
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->with('alokasiPetugas.petugas:id,nama,jenis_petugas')
             ->orderBy('bulan')
             ->get();

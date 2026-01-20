@@ -421,7 +421,7 @@
                 KUASA PENGGUNA ANGGARAN<br>
                 BADAN PUSAT STATISTIKKOTA SAWAHLUNTO,
             </div>
-            <div style="margin-top: 80px; font-weight: bold; text-decoration: underline;">
+            <div style="margin-top: 80px; font-weight: bold;">
                 {{ strtoupper($kepalaBps) }}
             </div>
         </div>
@@ -540,7 +540,7 @@
                 KEPALA BADAN PUSAT STATISTIK<br>
                 KOTA SAWAHLUNTO,
             </div>
-            <div style="margin-top: 80px; font-weight: bold; text-decoration: underline;">
+            <div style="margin-top: 80px; font-weight: bold;">
                 {{ strtoupper($kepalaBps) }}
             </div>
         </div>
