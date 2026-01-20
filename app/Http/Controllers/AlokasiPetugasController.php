@@ -83,7 +83,6 @@ class AlokasiPetugasController extends Controller
             ->get();
 
         // Pre-calculate total honor terpakai for all kegiatan in one query
-        // Only count validated periods (exclude draft)
         $totalHonorTerpakaiByKegiatan = AlokasiPetugas::select(
             'periode_alokasi.kegiatan_id',
             DB::raw('SUM(alokasi_petugas.total_honor) as total_pencacahan'),
