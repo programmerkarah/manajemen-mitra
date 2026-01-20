@@ -73,8 +73,8 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
 
     const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || '');
-    const [jenisPetugas, setJenisPetugas] = useState(initialFilters.jenis_petugas || '');
+    const [status, setStatus] = useState(initialFilters.status || 'all');
+    const [jenisPetugas, setJenisPetugas] = useState(initialFilters.jenis_petugas || 'all');
     const [currentPage, setCurrentPage] = useState(petugas.meta.current_page);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
@@ -94,7 +94,12 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         if (isFirstRender.current) return;
 
         const timeoutId = setTimeout(() => {
-            const filterParams = { search, status, jenis_petugas: jenisPetugas };
+            const filterParams: Record<string, string> = {};
+            
+            if (search) filterParams.search = search;
+            if (status && status !== 'all') filterParams.status = status;
+            if (jenisPetugas && jenisPetugas !== 'all') filterParams.jenis_petugas = jenisPetugas;
+            
             const encryptedFilters = encryptFilters(filterParams);
 
             // Reset to page 1 when filters change
@@ -353,7 +358,12 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                     setCurrentPage(parseInt(page));
 
                                     // Send POST request with current filters and page
-                                    const filterParams = { search, status, jenis_petugas: jenisPetugas, page };
+                                    const filterParams: Record<string, string> = { page };
+                                    
+                                    if (search) filterParams.search = search;
+                                    if (status && status !== 'all') filterParams.status = status;
+                                    if (jenisPetugas && jenisPetugas !== 'all') filterParams.jenis_petugas = jenisPetugas;
+                                    
                                     const encryptedFilters = encryptFilters(filterParams);
 
                                     router.post(
