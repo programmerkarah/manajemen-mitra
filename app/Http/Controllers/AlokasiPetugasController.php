@@ -167,26 +167,26 @@ class AlokasiPetugasController extends Controller
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
-            // Calculate total honor terpakai SEBELUM bulan ini (Januari sampai bulan sebelumnya)
+            // Calculate total honor terpakai dari Januari SAMPAI DAN TERMASUK bulan ini
             // Hanya hitung periode validated (exclude draft)
-            $totalHonorSebelumBulanIni = AlokasiPetugas::join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            $totalHonorSampaiDenganBulanIni = AlokasiPetugas::join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->where('periode_alokasi.kegiatan_id', $periode->kegiatan_id)
                 ->where('periode_alokasi.tahun', $activeYear)
-                ->where('periode_alokasi.bulan', '<', $periode->bulan)
+                ->where('periode_alokasi.bulan', '<=', $periode->bulan)
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
                 ->sum(DB::raw('alokasi_petugas.total_honor + alokasi_petugas.total_honor_listing'));
 
-            // Sisa pagu untuk bulan ini = pagu total - akumulasi honor dari bulan sebelumnya
-            // Untuk Januari (bulan 01): sisa pagu = pagu total (karena tidak ada bulan sebelumnya)
-            // Untuk Februari (bulan 02): sisa pagu = pagu total - honor Januari
-            // Untuk Maret (bulan 03): sisa pagu = pagu total - (honor Januari + Februari)
-            $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSebelumBulanIni;
+            // Sisa pagu = pagu total - akumulasi honor dari Januari sampai bulan ini (termasuk bulan ini)
+            // Untuk Januari (bulan 01): sisa pagu = pagu total - honor Januari
+            // Untuk Februari (bulan 02): sisa pagu = pagu total - (honor Januari + Februari)
+            // Untuk Maret (bulan 03): sisa pagu = pagu total - (honor Januari + Februari + Maret)
+            $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
 
             // Pagu terpakai = total honor untuk periode ini saja
             $paguTerpakai = $estimasiHonor;
             
-            // Total terpakai untuk budget info = honor sebelum bulan ini + honor bulan ini (jika validated)
-            $totalTerpakaiUntukBudgetInfo = $totalHonorSebelumBulanIni + ($periode->status !== 'draft' ? $estimasiHonor : 0);
+            // Total terpakai untuk budget info = akumulasi honor sampai dan termasuk bulan ini
+            $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
 
             $isLatestPeriode = $periode->status === 'dikirim' &&
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
