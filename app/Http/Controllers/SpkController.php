@@ -971,14 +971,20 @@ class SpkController extends Controller
                 ->get();
 
             foreach ($existingSpks as $spk) {
-                // Get baseline kegiatan: kegiatan yang ada SEBELUM SPK dibuat
-                // Compare using SPK created_at timestamp to ensure we only get kegiatan that existed before
+                // Get baseline kegiatan: All kegiatan that the petugas was assigned to in this month in the original SPK
+                // We check based on the alokasi that was linked to this SPK (not by created_at)
+                // This ensures that if there's a revision (new periode) but same kegiatan, it's not counted as "new"
                 $kegiatanIds = AlokasiPetugas::where('petugas_id', $spk->petugas_id)
                     ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                         $q->where('bulan', $periode->bulan)
-                            ->where('tahun', $periode->tahun);
+                            ->where('tahun', $periode->tahun)
+                            // Include all statuses that are validated (dikirim, direvisi, perubahan)
+                            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
                     })
-                    ->where('created_at', '<=', $spk->created_at) // Only alokasi created BEFORE SPK
+                    ->where(function ($query) {
+                        $query->where('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    })
                     ->with('periodeAlokasi.kegiatan')
                     ->get()
                     ->pluck('periodeAlokasi.kegiatan.id')
