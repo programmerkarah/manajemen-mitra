@@ -1919,16 +1919,25 @@ class SpkController extends Controller
         // Get total honor for this petugas across all kegiatan
         $totalHonor = 0;
         $uraianTugas = [];
-        $bebanAnggaran = '';
+        $kegiatanData = []; // Store per-kegiatan data including COA
 
         foreach ($allAlokasi as $alokasi) {
             $kegiatan = $alokasi->periodeAlokasi->kegiatan;
             $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
             $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
-            if (empty($bebanAnggaran)) {
-                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
-            }
+            
+            // Store kegiatan data with its COA
+            $kegiatanData[] = [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_coa' => $kegiatan->kode_coa,
+                'alokasi_id' => $alokasi->id,
+            ];
         }
+
+        // Get first kegiatan's COA as fallback for main document
+        $bebanAnggaran = $allAlokasi->isNotEmpty() ? $this->getBebanAnggaran($allAlokasi->first()->periodeAlokasi->kegiatan) : '';
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
@@ -1937,8 +1946,10 @@ class SpkController extends Controller
         $data = [
             'periode' => $periode,
             'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi, // Pass all alokasi for lampiran
             'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
+            'kegiatanData' => $kegiatanData, // Pass kegiatan data with COA
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
@@ -2583,6 +2594,7 @@ class SpkController extends Controller
                     'tanggal_mulai' => $tanggalMulai,
                     'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'listing',
+                    'kode_coa' => $kegiatan->kode_coa, // Add COA per kegiatan
                 ];
             }
 
@@ -2607,6 +2619,7 @@ class SpkController extends Controller
                     'tanggal_mulai' => $tanggalMulai,
                     'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'pencacahan',
+                    'kode_coa' => $kegiatan->kode_coa, // Add COA per kegiatan
                 ];
             }
         }

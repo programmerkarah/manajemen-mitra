@@ -186,7 +186,7 @@
                 <td>{{ $tugas['satuan'] }}</td>
                 <td class="right">{{ number_format($tugas['harga_satuan'], 0, ',', '.') }}</td>
                 <td class="right">{{ number_format($tugas['jumlah'], 0, ',', '.') }}</td>
-                <td>{{ $bebanAnggaran }}</td>
+                <td>{{ $tugas['kode_coa'] ?? $bebanAnggaran }}</td>
             </tr>
             @endforeach
             <tr>
