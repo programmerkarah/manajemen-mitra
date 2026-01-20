@@ -194,15 +194,29 @@ class AlokasiPetugasController extends Controller
             $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
                 return (int) $bulan <= $currentBulan;
             })->sum();
-
-            // Sisa pagu = pagu total - akumulasi honor dari Januari sampai bulan ini (termasuk bulan ini)
-            $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
+            
+            // For draft: calculate what the sisa pagu WOULD BE if this draft gets submitted
+            // Include the current period's honor in the calculation
+            if ($periode->status === 'draft') {
+                // Sisa pagu = total pagu - (honor validated sampai bulan ini + honor draft ini)
+                $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni - $estimasiHonor;
+            } else {
+                // For validated periods, sisa pagu already includes this period's honor
+                // because it's in $totalHonorSampaiDenganBulanIni
+                $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
+            }
 
             // Pagu terpakai = total honor untuk periode ini saja
             $paguTerpakai = $estimasiHonor;
             
-            // Total terpakai untuk budget info = akumulasi honor sampai dan termasuk bulan ini
-            $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
+            // Total terpakai untuk budget info
+            if ($periode->status === 'draft') {
+                // For draft, show what would be terpakai if submitted
+                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni + $estimasiHonor;
+            } else {
+                // For validated, show actual terpakai
+                $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
+            }
 
             $isLatestPeriode = $periode->status === 'dikirim' &&
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
