@@ -956,17 +956,11 @@ class SpkController extends Controller
         $usesSuffixForNewPetugas = false;
 
         if ($isRegenerate) {
-            $petugasIds = $petugasList->pluck('petugas.id')->unique();
-            $existingSpks = Spk::whereIn('petugas_id', $petugasIds)
-                ->where('addendum_number', 0)
+            // Get ALL existing SPKs in this month first (not limited to current petugasList)
+            // This ensures we capture all petugas who already have SPK, even if they're not in current list
+            $existingSpks = Spk::where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $periode->tahun)
                 ->whereMonth('tanggal_spk', $periode->bulan)
-                ->whereHas('alokasiPetugas', function ($q) {
-                    $q->where(function ($query) {
-                        $query->where('total_honor', '>', 0)
-                            ->orWhere('total_honor_listing', '>', 0);
-                    });
-                })
                 ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
                 ->get();
 
