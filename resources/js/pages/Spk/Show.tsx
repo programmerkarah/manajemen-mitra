@@ -616,44 +616,42 @@ export default function Show({
                             </h3>
 
                             <div className="space-y-3">
-                                {/* SPK Terbaru (Regenerated) */}
+                                {/* SPK - Download signed version if available, otherwise latest */}
                                 {spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            SPK Terbaru{' '}
-                                            {spk.signed_file_path &&
-                                                '(Belum Ditandatangani)'}
+                                            {spk.signed_file_path ? 'SPK Bertandatangan' : 'SPK Terbaru'}
                                         </Label>
                                         <Button
                                             variant="default"
                                             onClick={() =>
-                                                handleDownload(spk.file_path!)
+                                                handleDownload(spk.signed_file_path || spk.file_path!)
                                             }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SPK Terbaru
+                                            Download SPK
                                         </Button>
                                     </div>
                                 )}
 
-                                {/* SPK Signed (if available) */}
-                                {spk.signed_file_path && (
+                                {/* SPK Terbaru (Belum Ditandatangani) - shown only if signed version exists */}
+                                {spk.signed_file_path && spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            SPK Bertandatangan
+                                            SPK Terbaru (Belum Ditandatangani)
                                         </Label>
                                         <Button
                                             variant="outline"
                                             onClick={() =>
                                                 handleDownload(
-                                                    spk.signed_file_path!,
+                                                    spk.file_path!,
                                                 )
                                             }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SPK Signed
+                                            Download SPK Belum Signed
                                         </Button>
                                     </div>
                                 )}

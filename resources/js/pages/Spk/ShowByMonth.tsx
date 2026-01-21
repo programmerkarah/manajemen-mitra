@@ -21,6 +21,7 @@ interface Spk {
     nip_ppk: string | null;
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
+    signed_file_path: string | null;
     addendum_number: number;
     parent_spk_id: number | null;
     created_by: string;
@@ -35,6 +36,7 @@ interface SpkDocument {
     tanggal_spk: string;
     addendum_number: number;
     file_path: string | null;
+    signed_file_path: string | null;
     status: string;
     created_by: string;
     created_at: string;
@@ -834,12 +836,12 @@ export default function ShowByMonth({
                                                             variant="default"
                                                             onClick={() =>
                                                                 handleDownload(
-                                                                    doc.file_path!,
+                                                                    doc.signed_file_path || doc.file_path!,
                                                                 )
                                                             }
                                                         >
                                                             <Download className="mr-2 h-3.5 w-3.5" />
-                                                            Download
+                                                            Download {doc.signed_file_path ? '(Signed)' : ''}
                                                         </Button>
                                                         {canEdit &&
                                                             doc.status ===

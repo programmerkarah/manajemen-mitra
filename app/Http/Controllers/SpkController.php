@@ -436,7 +436,7 @@ class SpkController extends Controller
                 'petugas_nik' => $s->alokasiPetugas->petugas->nik,
                 'status' => $s->status,
             ];
-        })->values()->all();
+        })->sortBy('petugas_nama')->values()->all();
 
         // Get all unique kegiatan in this month with SPK count
         $allKegiatanIds = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
@@ -447,7 +447,7 @@ class SpkController extends Controller
             ->with('kegiatan')
             ->get()
             ->groupBy('kegiatan_id')
-            ->map(function ($periodeGroup) use ($allSpks, $allPeriodeInMonth, $bulanFormatted, $tahun) {
+            ->map(function ($periodeGroup) use ($allSpks, $bulanFormatted, $tahun) {
                 $kegiatan = $periodeGroup->first()->kegiatan;
 
                 // Get all petugas who are allocated to this kegiatan in this month/year
@@ -499,6 +499,7 @@ class SpkController extends Controller
                     'tanggal_spk' => $s->tanggal_spk,
                     'addendum_number' => $s->addendum_number,
                     'file_path' => $s->file_path,
+                    'signed_file_path' => $s->signed_file_path,
                     'status' => $s->status,
                     'created_by' => $s->createdBy->name ?? 'System',
                     'created_at' => $s->created_at->format('d M Y H:i'),
@@ -519,6 +520,7 @@ class SpkController extends Controller
                 'nip_ppk' => $spk->nip_ppk,
                 'status' => $spk->status,
                 'file_path' => $spk->file_path,
+                'signed_file_path' => $spk->signed_file_path,
                 'addendum_number' => $spk->addendum_number,
                 'parent_spk_id' => $spk->parent_spk_id,
                 'created_by' => $spk->createdBy->name ?? 'System',
@@ -1168,7 +1170,7 @@ class SpkController extends Controller
             ->pluck('petugas_id')
             ->toArray();
 
-        $isRegenerateAddendum = !empty($petugasWithAddendum);
+        $isRegenerateAddendum = ! empty($petugasWithAddendum);
 
         // Group by petugas_id and aggregate their data
         $petugasListRaw = $allAlokasi->groupBy('petugas_id')
@@ -1213,7 +1215,7 @@ class SpkController extends Controller
                         ->first();
 
                     // Jika tidak ada alokasi sebelumnya untuk kegiatan ini, berarti kegiatan baru (tambahan)
-                    if (!$alokasiSebelumnya) {
+                    if (! $alokasiSebelumnya) {
                         $isBerubah = true;
                         break;
                     }
@@ -1957,7 +1959,7 @@ class SpkController extends Controller
             $kegiatan = $alokasi->periodeAlokasi->kegiatan;
             $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
             $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
-            
+
             // Store kegiatan data with its COA
             $kegiatanData[] = [
                 'kegiatan_id' => $kegiatan->id,
@@ -1997,13 +1999,13 @@ class SpkController extends Controller
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
         $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
-        
+
         // Set PDF title metadata untuk main
         $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
 
         $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
-        
+
         // Set PDF title metadata untuk lampiran
         $pdfLampiran->getDomPDF()->set_option('pdfTitle', $filename);
 
@@ -3201,7 +3203,7 @@ class SpkController extends Controller
     private function hasNewKegiatanAfterSpk(int $tahun, int $bulan, $monthPeriodes): bool
     {
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-        
+
         // Check if any SPK exists in this month
         $hasAnySPK = Spk::where('addendum_number', 0)
             ->whereYear('tanggal_spk', $tahun)
@@ -3209,7 +3211,7 @@ class SpkController extends Controller
             ->exists();
 
         // If no SPK exists, return false (should use normal "Generate SPK" button)
-        if (!$hasAnySPK) {
+        if (! $hasAnySPK) {
             return false;
         }
 
@@ -3241,7 +3243,7 @@ class SpkController extends Controller
 
         // Also check for petugas with new kegiatan (kegiatan additions)
         $hasNewKegiatan = false;
-        if (!$petugasWithoutSpk) {
+        if (! $petugasWithoutSpk) {
             // Get all petugas who have SPK in this month
             $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
                 ->whereIn('petugas_id', $existingSpkPetugasIds)
@@ -3263,7 +3265,7 @@ class SpkController extends Controller
 
             foreach ($existingSpkPetugasIds as $petugasId) {
                 $currentKegiatanCount = $petugasKegiatanCount->get($petugasId, 0);
-                
+
                 // Get kegiatan count from existing SPK baseline
                 $existingSpk = Spk::where('petugas_id', $petugasId)
                     ->where('addendum_number', 0)
@@ -3369,7 +3371,7 @@ class SpkController extends Controller
 
         // Get all periode with status 'perubahan' in this month (periode yang menandakan ada perubahan)
         $perubahanPeriodes = $monthPeriodes->filter(fn ($p) => $p->status === 'perubahan');
-        
+
         if ($perubahanPeriodes->isEmpty()) {
             return false; // No perubahan periods, no need for addendum
         }
@@ -3383,7 +3385,7 @@ class SpkController extends Controller
             $baselinePeriode = $monthPeriodes
                 ->where('kegiatan_id', $perubahanPeriode->kegiatan_id)
                 ->whereIn('status', ['dikirim', 'direvisi'])
-                ->sortBy(function($p) {
+                ->sortBy(function ($p) {
                     // Prefer 'dikirim' over 'direvisi'
                     return $p->status === 'dikirim' ? 0 : 1;
                 })
@@ -3404,7 +3406,7 @@ class SpkController extends Controller
             foreach ($alokasiPerubahan as $alokasi) {
                 $hasActualChanges = false;
 
-                if (!$baselinePeriode) {
+                if (! $baselinePeriode) {
                     // No baseline means this is a completely new kegiatan assignment
                     $hasActualChanges = true;
                 } else {
@@ -3413,12 +3415,12 @@ class SpkController extends Controller
                         ->where('petugas_id', $alokasi->petugas_id)
                         ->first();
 
-                    if (!$baselineAlokasi) {
+                    if (! $baselineAlokasi) {
                         // New petugas in this kegiatan
                         $hasActualChanges = true;
                     } else {
                         // Check for actual value changes
-                        $hasActualChanges = 
+                        $hasActualChanges =
                             $alokasi->jumlah_satuan != $baselineAlokasi->jumlah_satuan ||
                             $alokasi->jumlah_satuan_listing != $baselineAlokasi->jumlah_satuan_listing ||
                             abs($alokasi->total_honor - $baselineAlokasi->total_honor) > 0.01 ||
@@ -3463,16 +3465,16 @@ class SpkController extends Controller
         // This method should return TRUE if there are petugas who:
         // 1. Already have addendum SPK
         // 2. But have NEW kegiatan changes that are NOT yet covered by any addendum
-        
+
         // Since we don't store kegiatan_ids in SPK table, we cannot reliably determine
         // if there are "new" changes after the last addendum was created.
         // The "Re-generate Addendum" button should only show if hasIncompleteAddendum returns true
         // (meaning there are petugas who need addendum but don't have one yet)
-        
+
         // For petugas who already have addendum, we cannot determine if they have new changes
         // without storing kegiatan_ids. So we return false here to avoid showing the button
         // when all petugas already have their addendum.
-        
+
         return false;
     }
 
@@ -3484,7 +3486,7 @@ class SpkController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
-        if (!$bulan || !$tahun) {
+        if (! $bulan || ! $tahun) {
             return response()->json(['error' => 'Bulan dan tahun harus diisi'], 400);
         }
 

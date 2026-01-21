@@ -22,12 +22,12 @@ class PdfMergerService
             // TCPDF specific settings
             $pdf->SetCreator('BPS');
             $pdf->SetAuthor('BPS');
-            
+
             // Set title if provided
             if ($title) {
                 $pdf->SetTitle($title);
             }
-            
+
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
             $pdf->SetAutoPageBreak(false);

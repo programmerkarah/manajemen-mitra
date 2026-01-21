@@ -131,17 +131,19 @@ class AlokasiPetugasController extends Controller
             ->map(function ($periodesByKegiatan) {
                 return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
                     $periode = $periodeInMonth->first();
+
                     return $periode->alokasiPetugas->sum(function ($alokasi) {
                         return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
                     });
                 })->sortKeys();
             });
-            
+
         $honorPerKegiatanPerBulanAll = $deduplicatedPeriodes
             ->groupBy('kegiatan_id')
             ->map(function ($periodesByKegiatan) {
                 return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
                     $periode = $periodeInMonth->first();
+
                     return $periode->alokasiPetugas->sum(function ($alokasi) {
                         return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
                     });
@@ -186,7 +188,7 @@ class AlokasiPetugasController extends Controller
             ->pluck('latest_bulan', 'kegiatan_id');
 
         // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $totalHonorTerpakaiByKegiatan, $totalHonorTerpakaiListingByKegiatan, $activeYear, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
+        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -197,7 +199,7 @@ class AlokasiPetugasController extends Controller
             $paguListing = $periode->kegiatan->pagu_listing ?? 0;
 
             $currentBulan = (int) $periode->bulan;
-            
+
             // For draft: use ALL periods (including other drafts) to calculate sisa pagu
             // For validated: use only validated periods
             if ($periode->status === 'draft') {
@@ -206,7 +208,7 @@ class AlokasiPetugasController extends Controller
                 $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
                     return (int) $bulan <= $currentBulan;
                 })->sum();
-                
+
                 // Sisa pagu = total pagu - all honor (validated + draft) sampai bulan ini
                 $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
                 $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;
@@ -216,7 +218,7 @@ class AlokasiPetugasController extends Controller
                 $totalHonorSampaiDenganBulanIni = $honorByMonth->filter(function ($honor, $bulan) use ($currentBulan) {
                     return (int) $bulan <= $currentBulan;
                 })->sum();
-                
+
                 // Sisa pagu = total pagu - validated honor sampai bulan ini
                 $sisaPagu = ($paguPencacahan + $paguListing) - $totalHonorSampaiDenganBulanIni;
                 $totalTerpakaiUntukBudgetInfo = $totalHonorSampaiDenganBulanIni;

@@ -1163,23 +1163,23 @@ class BastController extends Controller
             // 3. Pengolahan listing → jadwal_pengolahan_listing_selesai
             // 4. Pengolahan pencacahan → jadwal_pengolahan_pencacahan_selesai
             $tanggalSelesaiKegiatan = null;
-            
+
             if ($isPendataanRole && $hasListing) {
                 // Untuk peran pendataan dengan listing
                 $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
-            } elseif ($isPendataanRole && !$hasListing) {
+            } elseif ($isPendataanRole && ! $hasListing) {
                 // Untuk peran pendataan (pencacahan) tanpa listing
                 $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
             } elseif ($isPengolahanRole && $hasListing) {
                 // Untuk peran pengolahan listing
                 $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
-            } elseif ($isPengolahanRole && !$hasListing) {
+            } elseif ($isPengolahanRole && ! $hasListing) {
                 // Untuk peran pengolahan pencacahan
                 $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
             }
-            
+
             // Fallback ke tanggal_selesai umum, lalu tanggal dari SPK, terakhir 'Belum ada SPK'
-            if (!$tanggalSelesaiKegiatan) {
+            if (! $tanggalSelesaiKegiatan) {
                 $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $spkPetugas?->tanggal_selesai_kerja ?? 'Belum ada SPK';
             }
 
@@ -1258,7 +1258,7 @@ class BastController extends Controller
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
-                'tanggal_selesai_formatted' => ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK') 
+                'tanggal_selesai_formatted' => ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK')
                     ? \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY')
                     : '-',
                 'uraian_pekerjaan' => $uraianPekerjaan,
