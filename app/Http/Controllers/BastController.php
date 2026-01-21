@@ -221,13 +221,33 @@ class BastController extends Controller
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
                 $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
                 $spkTerkait = $alokasi->spk?->first(); // ambil SPK terbaru (bisa null)
+                $periodeAlokasi = $alokasi->periodeAlokasi;
+
+                // Tentukan tanggal selesai berdasarkan peran dan periode alokasi
+                $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+                if ($isPengolahanRole) {
+                    // Untuk peran pengolahan, gunakan jadwal pengolahan
+                    $endDates = array_filter([
+                        $periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai,
+                        $periodeAlokasi?->jadwal_pengolahan_listing_selesai,
+                    ]);
+                    $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
+                } else {
+                    // Untuk peran lapangan, gunakan jadwal lapangan
+                    $endDates = array_filter([
+                        $periodeAlokasi?->tanggal_selesai,
+                        $periodeAlokasi?->tanggal_selesai_listing,
+                    ]);
+                    $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
+                }
 
                 return [
                     'kegiatan_id' => $kegiatan?->id,
                     'kode_kegiatan' => $kegiatan?->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan?->nama_kegiatan,
-                    'tanggal_selesai' => $spkTerkait?->tanggal_selesai_kerja?->format('Y-m-d') ?? null,
-                    'tanggal_selesai_label' => $spkTerkait?->tanggal_selesai_kerja?->format('d/m/Y') ?? 'Belum ada SPK',
+                    'tanggal_selesai' => $tanggalSelesai ? \Carbon\Carbon::parse($tanggalSelesai)->format('Y-m-d') : null,
+                    'tanggal_selesai_label' => $tanggalSelesai ? \Carbon\Carbon::parse($tanggalSelesai)->format('d/m/Y') : 'Belum ada SPK',
                     'peran' => $alokasi?->peran,
                     'hasil_listing' => $alokasi?->jumlah_satuan_listing,
                     'hasil_pendataan_lapangan' => $alokasi?->jumlah_satuan,

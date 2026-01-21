@@ -309,7 +309,17 @@ export default function ShowByMonth({
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Daftar Petugas ({petugas_list.length})
+                                    Daftar Petugas ({
+                                        petugas_list.reduce((map, item) => {
+                                            const key = item.petugas_nik
+                                                ? item.petugas_nik
+                                                : item.id;
+                                            if (!map.has(key)) {
+                                                map.set(key, item);
+                                            }
+                                            return map;
+                                        }, new Map()).size
+                                    })
                                 </h3>
                             </div>
 
@@ -357,18 +367,19 @@ export default function ShowByMonth({
                     </ContentCard>
 
                     {/* Download SPK per Kegiatan */}
-                    <ContentCard>
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Download Perjanjian Kerja per Kegiatan
-                            </h3>
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Unduh Perjanjian Kerja semua petugas yang terlibat di
-                                masing-masing kegiatan
-                            </p>
+                    {unique_kegiatan_list.length > 0 && (
+                        <ContentCard>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Download Perjanjian Kerja per Kegiatan
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Unduh Perjanjian Kerja semua petugas yang terlibat di
+                                    masing-masing kegiatan
+                                </p>
 
-                            <div className="space-y-3">
-                                {unique_kegiatan_list.map((kegiatan) => (
+                                <div className="space-y-3">
+                                    {unique_kegiatan_list.map((kegiatan) => (
                                     <div
                                         key={kegiatan.id}
                                         className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
@@ -432,6 +443,7 @@ export default function ShowByMonth({
                             </div>
                         </div>
                     </ContentCard>
+                    )}
                 </div>
 
                 {/* Main Content - SPK Details */}

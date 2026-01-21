@@ -68,6 +68,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Generate BAST', href: '#' },
 ];
 
+const getPeranLabel = (peran: string): string => {
+    const labels: Record<string, string> = {
+        pcl_ppl: 'Petugas Lapangan',
+        pml: 'Petugas Pemeriksa Lapangan',
+        pengolahan: 'Petugas Pengolahan',
+        pengawas_pengolahan: 'Pemeriksa Pengolahan',
+    };
+    return labels[peran] || peran;
+};
+
 export default function CreateForMonth({
     bulan,
     tahun,
@@ -260,22 +270,15 @@ export default function CreateForMonth({
                                                             <div className="flex-1">
                                                                 <span className="font-medium text-neutral-900 dark:text-white">
                                                                     {
-                                                                        keg.kode_kegiatan
+                                                                        keg.nama_kegiatan
                                                                     }
                                                                 </span>
                                                                 <span className="text-neutral-600 dark:text-neutral-400">
                                                                     {' '}
                                                                     •{' '}
-                                                                    {
-                                                                        keg.nama_kegiatan
-                                                                    }
-                                                                </span>
-                                                                <span className="ml-2 text-xs text-neutral-500">
-                                                                    (
-                                                                    {
-                                                                        keg.peran
-                                                                    }
-                                                                    )
+                                                                    {getPeranLabel(
+                                                                        keg.peran,
+                                                                    )}
                                                                 </span>
                                                             </div>
                                                             <span className="text-xs text-neutral-500 dark:text-neutral-400">
