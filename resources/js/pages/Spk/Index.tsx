@@ -68,7 +68,7 @@ interface IndexProps {
     };
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'SPK', href: '/spk' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Perjanjian Kerja', href: '/spk' }];
 
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
@@ -147,12 +147,12 @@ export default function Index({ periodeList, filters }: IndexProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="SPK" />
+            <Head title="Perjanjian Kerja" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Surat Perjanjian Kerja (SPK)"
-                    description="Kelola Surat Perjanjian Kerja untuk petugas per bulan"
+                    title="Perjanjian Kerja"
+                    description="Kelola Perjanjian Kerja untuk petugas per bulan"
                 />
 
                 {/* Table */}
@@ -171,10 +171,10 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                         Jumlah Petugas Non Organik
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Total SPK
+                                        Total Perjanjian Kerja
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Status SPK
+                                        Status Perjanjian Kerja
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
@@ -190,7 +190,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                             className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
                                         >
                                             Tidak ada periode yang memerlukan
-                                            SPK
+                                            Perjanjian Kerja
                                         </td>
                                     </tr>
                                 ) : (
@@ -293,7 +293,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <Plus className="h-3.5 w-3.5" />
                                                                         Generate
-                                                                        SPK
+                                                                        Perjanjian Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}
@@ -320,7 +320,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <Plus className="h-3.5 w-3.5" />
                                                                         Re-generate
-                                                                        SPK
+                                                                        Perjanjian Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}
@@ -370,7 +370,7 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <FileEdit className="h-3.5 w-3.5" />
                                                                         Addendum
-                                                                        SPK
+                                                                        Perjanjian Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}

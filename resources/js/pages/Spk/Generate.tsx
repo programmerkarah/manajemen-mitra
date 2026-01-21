@@ -99,9 +99,9 @@ export default function Generate({
     const [successMessage, setSuccessMessage] = useState('');
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'SPK', href: '/spk' },
+        { title: 'Perjanjian Kerja', href: '/spk' },
         {
-            title: `Generate SPK - ${periode.bulan_label} ${periode.tahun}`,
+            title: `Generate Perjanjian Kerja - ${periode.bulan_label} ${periode.tahun}`,
             href: '#',
         },
     ];
@@ -125,7 +125,7 @@ export default function Generate({
     const handlePreview = (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form Tanggal SPK terlebih dahulu',
+                'Lengkapi form Tanggal Perjanjian Kerja terlebih dahulu',
             );
             setShowFormModal(true);
             return;
@@ -219,7 +219,7 @@ export default function Generate({
     const handlePreviewMain = (alokasi: any) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -311,7 +311,7 @@ export default function Generate({
     const handlePreviewLampiran = (alokasi: any) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -409,7 +409,7 @@ export default function Generate({
 
         if (!formData.tanggal_spk) {
             setModalMessage(
-                'Lengkapi form terlebih dahulu (Tanggal SPK wajib diisi)',
+                'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
             );
             setShowFormModal(true);
             return;
@@ -433,13 +433,13 @@ export default function Generate({
                     // But inertiajs router.post with JSON response will set event.detail.response
                     // So, use a fetch fallback if needed
                     setSuccessMessage(
-                        'SPK berhasil dibuat untuk semua petugas non-organik.',
+                        'Perjanjian Kerja berhasil dibuat untuk semua petugas non-organik.',
                     );
                     setShowSuccessModal(true);
                 },
                 onError: (errors) => {
                     setProcessing(false);
-                    setModalMessage('Terjadi error saat generate SPK.');
+                    setModalMessage('Terjadi error saat generate Perjanjian Kerja.');
                     setShowFormModal(true);
                 },
             },
@@ -463,11 +463,11 @@ export default function Generate({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Generate SPK" />
+            <Head title="Generate Perjanjian Kerja" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Generate SPK"
+                    title="Generate Perjanjian Kerja"
                     description={`Generate Surat Perjanjian Kerja untuk kegiatan bulan ${periode.bulan_label} ${periode.tahun}`}
                 >
                     <Button variant="outline" asChild>
@@ -497,7 +497,7 @@ export default function Generate({
                             </svg>
                             <div>
                                 <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
-                                    Tidak Dapat Generate SPK
+                                    Tidak Dapat Generate Perjanjian Kerja
                                 </h3>
                                 <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">
                                     Masih terdapat periode alokasi kegiatan
@@ -517,14 +517,14 @@ export default function Generate({
                 <ContentCard>
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                            Informasi SPK
+                            Informasi Perjanjian Kerja
                         </h3>
 
                         {is_regenerate && (
                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
                                 <p className="text-sm text-blue-800 dark:text-blue-200">
                                     <strong>Mode Regenerate:</strong> Tanggal
-                                    SPK dan Sampai Tanggal menggunakan data yang
+                                    Perjanjian Kerja dan Sampai Tanggal menggunakan data yang
                                     sudah ada di database dan tidak dapat
                                     diubah.
                                 </p>
@@ -533,7 +533,7 @@ export default function Generate({
 
                         <div className="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label htmlFor="tanggal_spk">Tanggal SPK</Label>
+                                <Label htmlFor="tanggal_spk">Tanggal Perjanjian Kerja</Label>
                                 <Input
                                     id="tanggal_spk"
                                     type="date"
@@ -548,13 +548,13 @@ export default function Generate({
                                     required
                                 />
                                 <p className="mt-1 text-xs text-neutral-500">
-                                    Tanggal mulai pelaksanaan SPK (Pasal 3). Tanggal akhir akan otomatis dihitung dari periode kegiatan.
+                                    Tanggal mulai pelaksanaan Perjanjian Kerja (Pasal 3). Tanggal akhir akan otomatis dihitung dari periode kegiatan.
                                 </p>
                             </div>
                         </div>
 
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Format Nomor SPK: PPIS/13730/[No Urut]/K/[Tahun]
+                            Format Nomor Perjanjian Kerja: PPIS/13730/[No Urut]/K/[Tahun]
                             <br />
                             Contoh: PPIS/13730/1/K/
                             {formData.tanggal_spk
@@ -709,7 +709,7 @@ export default function Generate({
                                                                 )
                                                             }
                                                             className="gap-1"
-                                                            title="Preview SPK + Lampiran (Merged)"
+                                                            title="Preview Perjanjian Kerja + Lampiran (Merged)"
                                                             disabled={
                                                                 has_draft_periode
                                                             }
@@ -726,13 +726,13 @@ export default function Generate({
                                                                 )
                                                             }
                                                             className="gap-1"
-                                                            title="Preview SPK Main Saja"
+                                                            title="Preview Perjanjian Kerja Main Saja"
                                                             disabled={
                                                                 has_draft_periode
                                                             }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
-                                                            SPK
+                                                            Perjanjian Kerja
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -781,7 +781,7 @@ export default function Generate({
                                 ? 'Memproses...'
                                 : has_draft_periode
                                   ? 'Tidak dapat generate (ada periode draft)'
-                                  : `Generate SPK (${selectedPetugas.length} Petugas)`}
+                                  : `Generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`}
                         </Button>
                     </div>
                 </ContentCard>

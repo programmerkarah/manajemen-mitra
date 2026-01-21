@@ -50,7 +50,7 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                         Periode
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Total SPK
+                                        Total Perjanjian Kerja
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         BAST Dibuat
@@ -93,7 +93,7 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
                                             {!item.has_spk ? (
                                                 <Badge variant="secondary">
-                                                    Tidak ada SPK
+                                                    Tidak ada Perjanjian Kerja
                                                 </Badge>
                                             ) : item.all_completed ? (
                                                 <Badge variant="default">

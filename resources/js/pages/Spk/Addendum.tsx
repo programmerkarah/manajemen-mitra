@@ -70,9 +70,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
     const [generatedCount, setGeneratedCount] = useState(0);
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'SPK', href: '/spk' },
+        { title: 'Perjanjian Kerja', href: '/spk' },
         {
-            title: `Addendum SPK - ${periode.bulan_label} ${periode.tahun}`,
+            title: `Addendum Perjanjian Kerja - ${periode.bulan_label} ${periode.tahun}`,
             href: '#',
         },
     ];
@@ -179,7 +179,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             } catch {
                 // Jika gagal parse JSON (redirect), anggap sukses
                 setSuccessMessage(
-                    `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+                    `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
                 );
                 setShowSuccessModal(true);
                 setTimeout(() => window.location.reload(), 1000);
@@ -187,20 +187,20 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             }
             if (result && result.success) {
                 setSuccessMessage(
-                    `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+                    `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
                 );
                 setShowSuccessModal(true);
                 setTimeout(() => window.location.reload(), 1000);
             } else {
                 setModalMessage(
-                    result?.message || 'Gagal generate addendum SPK',
+                    result?.message || 'Gagal generate addendum Perjanjian Kerja',
                 );
                 setShowFormModal(true);
             }
         } catch (error) {
             // Jika error network, tetap reload (anggap sukses, karena data biasanya sudah masuk)
             setSuccessMessage(
-                `Addendum SPK untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+                `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
             );
             setShowSuccessModal(true);
             setTimeout(() => window.location.reload(), 1000);
@@ -274,7 +274,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
 
         if (failCount === 0) {
             setSuccessMessage(
-                `Berhasil generate ${successCount} addendum SPK!`,
+                `Berhasil generate ${successCount} addendum Perjanjian Kerja!`,
             );
         } else {
             setSuccessMessage(
@@ -289,7 +289,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head
-                title={`Addendum SPK - ${periode.bulan_label} ${periode.tahun}`}
+                title={`Addendum Perjanjian Kerja - ${periode.bulan_label} ${periode.tahun}`}
             />
 
             <div className="space-y-6">
@@ -299,7 +299,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         <div className="flex items-center gap-3">
                             <FileEdit className="h-6 w-6 text-primary" />
                             <h2 className="text-xl font-semibold">
-                                Generate Addendum SPK
+                                Generate Addendum Perjanjian Kerja
                             </h2>
                         </div>
                         <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
@@ -325,9 +325,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         <div className="rounded-md border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <strong>Catatan:</strong> Anda akan membuat
-                                addendum SPK untuk petugas yang sudah memiliki
-                                SPK di bulan ini. Addendum akan mereferensikan
-                                SPK asli dan menyimpan perubahan sebagai dokumen
+                                addendum Perjanjian Kerja untuk petugas yang sudah memiliki
+                                Perjanjian Kerja di bulan ini. Addendum akan mereferensikan
+                                Perjanjian Kerja asli dan menyimpan perubahan sebagai dokumen
                                 baru.
                             </p>
                         </div>
@@ -338,7 +338,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 <ContentCard>
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">
-                            Form Addendum SPK
+                            Form Addendum Perjanjian Kerja
                         </h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
@@ -384,7 +384,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold">
-                                Daftar Petugas dengan SPK Aktif (
+                                Daftar Petugas dengan Perjanjian Kerja Aktif (
                                 {petugas_list.length})
                             </h3>
                             <div className="flex gap-2">
@@ -435,7 +435,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                         </th>
                                         <th className="p-3 text-left">NIK</th>
                                         <th className="p-3 text-left">
-                                            SPK Asli
+                                            Perjanjian Kerja
                                         </th>
                                         <th className="p-3 text-left">
                                             Addendum
@@ -619,7 +619,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                     router.visit('/spk');
                                 }}
                             >
-                                Kembali ke Daftar SPK
+                                Kembali ke Daftar Perjanjian Kerja
                             </Button>
                         </div>
                     </div>

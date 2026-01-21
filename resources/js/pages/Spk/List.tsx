@@ -79,8 +79,8 @@ export default function List({
     const selectedSpk = spk_list.find((spk) => spk.id === selectedSpkId);
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'SPK', href: '/spk' },
-        { title: `Daftar SPK ${bulan_label} ${tahun}`, href: '#' },
+        { title: 'Perjanjian Kerja', href: '/spk' },
+        { title: `Daftar Perjanjian Kerja ${bulan_label} ${tahun}`, href: '#' },
     ];
 
     const handleDownload = (filePath: string) => {
@@ -143,12 +143,12 @@ export default function List({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Daftar SPK ${bulan_label} ${tahun}`} />
+            <Head title={`Daftar Perjanjian Kerja ${bulan_label} ${tahun}`} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title={`Daftar SPK ${bulan_label} ${tahun}`}
-                    description={`Menampilkan ${spk_list.length} SPK yang telah dibuat untuk periode ini`}
+                    title={`Daftar Perjanjian Kerja ${bulan_label} ${tahun}`}
+                    description={`Menampilkan ${spk_list.length} Perjanjian Kerja yang telah dibuat untuk periode ini`}
                 >
                     <Button variant="outline" asChild>
                         <Link href="/spk">
@@ -164,7 +164,7 @@ export default function List({
                             <thead className="bg-neutral-50 dark:bg-neutral-800">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Nomor SPK
+                                        Nomor Perjanjian Kerja
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Petugas
@@ -173,7 +173,7 @@ export default function List({
                                         Kegiatan & Peran
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Tanggal SPK
+                                        Tanggal Perjanjian Kerja
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Nilai Kontrak
@@ -193,7 +193,7 @@ export default function List({
                                             colSpan={7}
                                             className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
                                         >
-                                            Tidak ada SPK untuk periode ini
+                                            Tidak ada Perjanjian Kerja untuk periode ini
                                         </td>
                                     </tr>
                                 ) : (

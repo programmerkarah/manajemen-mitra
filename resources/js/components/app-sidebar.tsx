@@ -67,7 +67,7 @@ export function AppSidebar() {
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
             { title: 'BAST', href: '/bast', icon: FileText },
             { title: 'Manajemen User', href: '/users', icon: Users },
         );
@@ -95,7 +95,7 @@ export function AppSidebar() {
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
             { title: 'BAST', href: '/bast', icon: FileText },
         );
     } else if (hasActiveRole('ketua_tim')) {
@@ -116,7 +116,7 @@ export function AppSidebar() {
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
             { title: 'BAST', href: '/bast', icon: FileText },
         );
     } else if (hasActiveRole('approver')) {
@@ -127,7 +127,7 @@ export function AppSidebar() {
                 icon: Package,
                 items: [{ title: 'Kegiatan', href: '/kegiatan' }],
             },
-            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
         );
     } else if (hasActiveRole('pj')) {
         mainNavItems.push(
@@ -154,7 +154,7 @@ export function AppSidebar() {
                 ],
             },
             { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'SPK', href: '/spk', icon: ClipboardList },
+            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
             { title: 'BAST', href: '/bast', icon: FileText },
         );
     }

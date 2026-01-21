@@ -346,7 +346,7 @@ export default function Dashboard({
                             </div>
                             <div className="min-w-0 flex-1">
                                 <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                    SPK
+                                    Perjanjian Kerja
                                 </h3>
                                 <p className="text-xl font-bold text-neutral-900 dark:text-white">
                                     {additionalStats.spk.total}
@@ -1455,7 +1455,7 @@ export default function Dashboard({
                                                         <div className="flex items-center gap-2">
                                                             <FileText className="size-4 text-neutral-500" />
                                                             <span className="text-neutral-700 dark:text-neutral-300">
-                                                                SPK
+                                                                Perjanjian Kerja
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -1469,7 +1469,7 @@ export default function Dashboard({
                                                                                 .spk
                                                                                 .count
                                                                         }{' '}
-                                                                        SPK
+                                                                        Perjanjian Kerja
                                                                     </span>
                                                                     {canEditSpk &&
                                                                         kegiatan.sk && (

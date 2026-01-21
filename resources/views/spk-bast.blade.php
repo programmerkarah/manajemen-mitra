@@ -145,9 +145,36 @@
 </head>
 <body>
     <div class="bast-header">
+        @php
+            $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
+            
+            // For SENSUS, use specific titles based on kegiatan name
+            if ($jenisKegiatan === 'sensus') {
+                $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
+                if ($peran === 'pcl' || $peran === 'ppl') {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                } elseif (str_contains($peran, 'olah')) {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                } else {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                }
+            } else {
+                // For SURVEI, determine title based on work type
+                $workType = $workType ?? 'lapangan';
+                if ($workType === 'lapangan_pengolahan') {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS PENDATAAN DAN PETUGAS PENGOLAHAN SURVEI';
+                } elseif ($workType === 'pengolahan') {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS PENGOLAHAN SURVEI';
+                } else {
+                    $judulBast = 'BERITA ACARA SERAH TERIMA PEKERJAAN<br>PETUGAS LAPANGAN SURVEI';
+                }
+            }
+        @endphp
         <div class="bast-title">
-            BERITA ACARA SERAH TERIMA PEKERJAAN<br>
-            PETUGAS LAPANGAN KEGIATAN {{ strtoupper($kegiatan->nama_kegiatan) }} TAHUN {{ $kegiatan->tahun_anggaran }}<br>
+            {!! $judulBast !!}<br>
+            KEGIATAN {{ strtoupper($kegiatan->nama_kegiatan) }} TAHUN {{ $kegiatan->tahun_anggaran }}<br>
             PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
             Nomor: {{ $nomorBast }}
         </div>

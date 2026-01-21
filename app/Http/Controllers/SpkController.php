@@ -461,11 +461,17 @@ class SpkController extends Controller
                     ->distinct()
                     ->pluck('alokasi_petugas.petugas_id');
 
-                // Count how many SPKs exist for these petugas in this month
-                // This matches the actual files that will be downloaded
-                $spkCount = $allSpks->filter(function ($spk) use ($petugasIdsInKegiatan) {
+                // Get SPKs for these petugas in this month
+                $spksForKegiatan = $allSpks->filter(function ($spk) use ($petugasIdsInKegiatan) {
                     return $petugasIdsInKegiatan->contains($spk->petugas_id);
-                })->unique('petugas_id')->count();
+                })->unique('petugas_id');
+
+                $spkCount = $spksForKegiatan->count();
+
+                // Check if ALL petugas have signed SPKs
+                $allSigned = $spksForKegiatan->every(function ($spk) {
+                    return ! empty($spk->signed_file_path);
+                });
 
                 return [
                     'id' => $kegiatan->id,
@@ -473,10 +479,12 @@ class SpkController extends Controller
                     'kode_kegiatan' => $kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
                     'jumlah_spk' => $spkCount,
+                    'all_signed' => $allSigned,
                 ];
             })
             ->filter(function ($kegiatan) {
-                return $kegiatan['jumlah_spk'] > 0;
+                // Only show kegiatan where jumlah_spk > 0 AND all SPKs are signed
+                return $kegiatan['jumlah_spk'] > 0 && $kegiatan['all_signed'];
             })
             ->values()
             ->sortBy('kode_kegiatan')
@@ -614,9 +622,11 @@ class SpkController extends Controller
 
         // Add each SPK file to ZIP
         foreach ($allSpks as $spk) {
-            $filePath = public_path($spk->file_path);
+            // Use signed file if available, otherwise use regular file
+            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
-                $fileName = basename($spk->file_path);
+                $fileName = basename($fileToUse);
                 $zip->addFile($filePath, $fileName);
             }
         }
@@ -692,9 +702,11 @@ class SpkController extends Controller
 
         // Add each SPK file to ZIP with organized folder structure
         foreach ($allSpks as $spk) {
-            $filePath = public_path($spk->file_path);
+            // Use signed file if available, otherwise use regular file
+            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
-                $fileName = basename($spk->file_path);
+                $fileName = basename($fileToUse);
                 // Add file with petugas name in the filename for better organization
                 $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
                 $zipFileNameInArchive = "{$petugasName}_{$fileName}";
@@ -1799,10 +1811,17 @@ class SpkController extends Controller
             ->select('id', 'kode_kegiatan', 'nama_kegiatan')
             ->get()
             ->map(function ($kegiatan) use ($allSpksInMonth) {
-                // Count SPKs for this kegiatan
-                $spkCount = $allSpksInMonth->filter(function ($spk) use ($kegiatan) {
+                // Get SPKs for this kegiatan
+                $spksForKegiatan = $allSpksInMonth->filter(function ($spk) use ($kegiatan) {
                     return $spk->alokasiPetugas->periodeAlokasi->kegiatan_id === $kegiatan->id;
-                })->count();
+                });
+
+                $spkCount = $spksForKegiatan->count();
+
+                // Check if ALL SPKs have signed files
+                $allSigned = $spksForKegiatan->every(function ($spk) {
+                    return ! empty($spk->signed_file_path);
+                });
 
                 return [
                     'id' => $kegiatan->id,
@@ -1810,10 +1829,12 @@ class SpkController extends Controller
                     'kode_kegiatan' => $kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
                     'jumlah_spk' => $spkCount,
+                    'all_signed' => $allSigned,
                 ];
             })
             ->filter(function ($kegiatan) {
-                return $kegiatan['jumlah_spk'] > 0;
+                // Only show kegiatan where jumlah_spk > 0 AND all SPKs are signed
+                return $kegiatan['jumlah_spk'] > 0 && $kegiatan['all_signed'];
             })
             ->values()
             ->all();
@@ -1989,11 +2010,13 @@ class SpkController extends Controller
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
             'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
             'pdfTitle' => $filename,
+            'workType' => $this->detectWorkType($allAlokasi),
         ];
 
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
@@ -2181,10 +2204,12 @@ class SpkController extends Controller
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
             'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
+            'workType' => $this->detectWorkType($allAlokasi),
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
@@ -2321,10 +2346,12 @@ class SpkController extends Controller
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
             'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
+            'workType' => $this->detectWorkType($allAlokasi),
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
@@ -2421,7 +2448,7 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('error', 'Tidak ada petugas yang dapat dibuatkan SPK untuk periode ini');
         }
 
-        $petugas = $allAlokasi->first()->petugas;
+        $petugas = Petugas::findOrFail($petugasId);
 
         // Get active Kepala BPS
         $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
@@ -2451,10 +2478,12 @@ class SpkController extends Controller
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
             'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
             'totalHonor' => $totalHonor,
             'uraianTugas' => $uraianTugas,
             'bebanAnggaran' => $bebanAnggaran,
+            'workType' => $this->detectWorkType($allAlokasi),
         ];
 
         DB::beginTransaction();
@@ -2717,6 +2746,33 @@ class SpkController extends Controller
     }
 
     /**
+     * Detect work type from all allocations
+     * Returns: 'lapangan', 'pengolahan', or 'lapangan_pengolahan'
+     */
+    private function detectWorkType($allAlokasi): string
+    {
+        $hasPengolahan = false;
+        $hasLapangan = false;
+
+        foreach ($allAlokasi as $alokasi) {
+            $peran = $alokasi->peran ?? '';
+            if (in_array($peran, ['pengolahan', 'pengawas_pengolahan'])) {
+                $hasPengolahan = true;
+            } else {
+                $hasLapangan = true;
+            }
+        }
+
+        if ($hasPengolahan && $hasLapangan) {
+            return 'lapangan_pengolahan';
+        } elseif ($hasPengolahan) {
+            return 'pengolahan';
+        } else {
+            return 'lapangan';
+        }
+    }
+
+    /**
      * Generate addendum PDF content
      */
     private function generateAddendumPdfContent(array $data): string
@@ -2903,7 +2959,7 @@ class SpkController extends Controller
         $results = [];
 
         foreach ($sortedPetugas as $petugasId => $alokasiGroup) {
-            $petugas = $alokasiGroup->first()->petugas;
+            $petugas = Petugas::findOrFail($petugasId);
             $petugasHashedId = $petugas->hashed_id;
 
             // Check if this petugas already has an SPK
@@ -3031,10 +3087,12 @@ class SpkController extends Controller
                 'tanggalPerpanjangan' => null,
                 'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
                 'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
+                'peran' => $allAlokasiPetugas->first()->peran,
                 'peranLabel' => $this->getPeranLabel($allAlokasiPetugas->first()->peran),
                 'totalHonor' => $totalHonor,
                 'uraianTugas' => $uraianTugas,
                 'bebanAnggaran' => $bebanAnggaran,
+                'workType' => $this->detectWorkType($allAlokasiPetugas),
             ];
 
             // Use the same PDF/database logic as generateSpk

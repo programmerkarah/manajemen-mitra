@@ -329,7 +329,7 @@ export default function Show({
                             {spk && (
                                 <div className="border-t border-neutral-200 pt-4 dark:border-neutral-700">
                                     <Label className="text-neutral-600 dark:text-neutral-400">
-                                        SPK Terkait
+                                        Perjanjian Kerja Terkait
                                     </Label>
                                     <p className="font-medium text-neutral-900 dark:text-white">
                                         {spk.nomor_spk}

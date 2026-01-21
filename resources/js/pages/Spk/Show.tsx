@@ -121,8 +121,8 @@ interface ShowProps {
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'SPK', href: '/spk' },
-    { title: 'Detail SPK', href: '#' },
+    { title: 'Perjanjian Kerja', href: '/spk' },
+    { title: 'Detail Perjanjian Kerja', href: '#' },
 ];
 
 const bulanLabels: Record<number, string> = {
@@ -211,10 +211,10 @@ export default function Show({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail SPK - ${spk.nomor_spk}`} />
+            <Head title={`Detail Perjanjian Kerja - ${spk.nomor_spk}`} />
 
             <PageHeader
-                title="Detail SPK"
+                title="Detail Perjanjian Kerja"
                 description={`Surat Perjanjian Kerja untuk ${petugas.nama}`}
             >
                 <div className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export default function Show({
                             <div className="flex items-start justify-between">
                                 <div>
                                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Informasi SPK
+                                        Informasi Perjanjian Kerja
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                         Detail surat perjanjian kerja petugas
@@ -247,7 +247,7 @@ export default function Show({
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Nomor SPK
+                                        Nomor Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium text-neutral-900 dark:text-white">
                                         {spk.nomor_spk}
@@ -255,7 +255,7 @@ export default function Show({
                                 </div>
                                 <div>
                                     <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Tanggal SPK
+                                        Tanggal Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium text-neutral-900 dark:text-white">
                                         {spk.tanggal_spk}
@@ -318,7 +318,7 @@ export default function Show({
                         <ContentCard>
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300">
-                                    Addendum SPK
+                                    Addendum Perjanjian Kerja
                                 </h3>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-blue-200 dark:divide-blue-700">
@@ -612,7 +612,7 @@ export default function Show({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Dokumen SPK
+                                Dokumen Perjanjian Kerja
                             </h3>
 
                             <div className="space-y-3">
@@ -620,7 +620,7 @@ export default function Show({
                                 {spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            {spk.signed_file_path ? 'SPK Bertandatangan' : 'SPK Terbaru'}
+                                            {spk.signed_file_path ? 'Perjanjian Kerja Bertandatangan' : 'Perjanjian Kerja Terbaru'}
                                         </Label>
                                         <Button
                                             variant="default"
@@ -630,7 +630,7 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SPK
+                                            Download Perjanjian Kerja
                                         </Button>
                                     </div>
                                 )}
@@ -639,7 +639,7 @@ export default function Show({
                                 {spk.signed_file_path && spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            SPK Terbaru (Belum Ditandatangani)
+                                            Perjanjian Kerja Terbaru (Belum Ditandatangani)
                                         </Label>
                                         <Button
                                             variant="outline"
@@ -651,7 +651,7 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SPK Belum Signed
+                                            Download Perjanjian Kerja Belum Bertanda Tangan
                                         </Button>
                                     </div>
                                 )}
@@ -660,7 +660,7 @@ export default function Show({
                                 {spk.previous_file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            SPK Signed Sebelumnya
+                                            Perjanjian Kerja Bertanda Tangan Sebelumnya
                                         </Label>
                                         <Button
                                             variant="outline"
@@ -672,14 +672,14 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SPK Lama
+                                            Download Perjanjian Kerja Lama
                                         </Button>
                                     </div>
                                 )}
 
                                 {!spk.file_path && (
                                     <p className="py-4 text-center text-sm text-neutral-600 dark:text-neutral-400">
-                                        File SPK belum tersedia
+                                        File Perjanjian Kerja belum tersedia
                                     </p>
                                 )}
 
@@ -687,7 +687,7 @@ export default function Show({
                                 {canEdit && spk.file_path && (
                                     <div className="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                                         <Label className="mb-2 block text-xs text-neutral-600 dark:text-neutral-400">
-                                            Upload SPK yang Sudah Ditandatangani
+                                            Upload Perjanjian Kerja yang Sudah Ditandatangani
                                         </Label>
                                         <label
                                             htmlFor="upload-signed"
@@ -703,7 +703,7 @@ export default function Show({
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     {isUploading
                                                         ? 'Mengupload...'
-                                                        : 'Upload SPK Signed'}
+                                                        : 'Upload Perjanjian Kerja Bertanda Tangan'}
                                                 </span>
                                             </Button>
                                         </label>
@@ -752,10 +752,10 @@ export default function Show({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Download Semua SPK
+                                Download Semua Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Download semua SPK untuk semua petugas di
+                                Download semua Perjanjian Kerja untuk semua petugas di
                                 periode {bulanLabels[periode.bulan]}{' '}
                                 {periode.tahun}
                             </p>
@@ -765,7 +765,7 @@ export default function Show({
                                 className="w-full"
                             >
                                 <Archive className="mr-2 h-4 w-4" />
-                                Download Semua SPK
+                                Download Semua Perjanjian Kerja
                             </Button>
                         </div>
                     </ContentCard>
@@ -774,10 +774,10 @@ export default function Show({
                         <ContentCard>
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Download SPK per Kegiatan
+                                    Download Perjanjian Kerja per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Download SPK untuk petugas pada kegiatan
+                                    Download Perjanjian Kerja untuk petugas pada kegiatan
                                     tertentu
                                 </p>
                                 <div className="space-y-2">

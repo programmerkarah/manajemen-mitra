@@ -217,13 +217,12 @@
 <body>
     <!-- MAIN SPK DOCUMENT -->
     <div class="header content">
-        <h3>
-            PERJANJIAN KERJA <h3>
-         @php
+        @php
             $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
-            $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
-            $judulSpk = '';
+            
+            // For SENSUS, use specific titles based on kegiatan name
             if ($jenisKegiatan === 'sensus') {
+                $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
                 if ($peran === 'pcl' || $peran === 'ppl') {
                     $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
@@ -233,12 +232,25 @@
                 } else {
                     $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 }
+                $judulSpkText = strtolower($judulSpk);
             } else {
-                $judulSpk = 'PETUGAS LAPANGAN SURVEI';
+                // For SURVEI, determine title based on work type
+                $workType = $workType ?? 'lapangan';
+                if ($workType === 'lapangan_pengolahan') {
+                    $judulSpk = 'PETUGAS LAPANGAN DAN PETUGAS PENGOLAHAN SURVEI';
+                    $judulSpkText = 'petugas lapangan dan petugas pengolahan survei';
+                } elseif ($workType === 'pengolahan') {
+                    $judulSpk = 'PETUGAS PENGOLAHAN SURVEI';
+                    $judulSpkText = 'petugas pengolahan survei';
+                } else {
+                    $judulSpk = 'PETUGAS LAPANGAN SURVEI';
+                    $judulSpkText = 'petugas lapangan survei';
+                }
             }
-            $judulSpkText = strtolower($judulSpk);
         @endphp
-        <h3> {{ $judulSpk }} <br>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }}</h3>
+        <h3>PERJANJIAN KERJA</h3>
+        <h3>{{ $judulSpk }}</h3>
+        <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }}</h3>
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         <div style="font-weight: bold; text-align: center; margin-top: 5px;">NOMOR: {{ $nomorSpk }}</div>
     </div>

@@ -95,7 +95,7 @@ export default function CreateForMonth({
 
     const handleGenerateBast = () => {
         if (selectedSpks.length === 0) {
-            alert('Pilih minimal 1 SPK untuk generate BAST');
+            alert('Pilih minimal 1 Perjanjian Kerja untuk generate BAST');
             return;
         }
 
@@ -155,7 +155,7 @@ export default function CreateForMonth({
 
             <PageHeader
                 title={`Generate BAST - ${bulan_label} ${tahun}`}
-                description="Pilih SPK yang akan dibuatkan BAST"
+                description="Pilih Perjanjian Kerja yang akan dibuatkan BAST"
             >
                 <div className="flex items-center gap-2">
                     <Button variant="outline" asChild>
@@ -229,7 +229,7 @@ export default function CreateForMonth({
                                                     </Badge>
                                                 </div>
                                                 <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                                    SPK: {spk.nomor_spk}
+                                                    Perjanjian Kerja: {spk.nomor_spk}
                                                 </p>
                                             </div>
                                             <div className="text-right">

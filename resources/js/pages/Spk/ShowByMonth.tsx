@@ -183,8 +183,8 @@ export default function ShowByMonth({
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'SPK', href: '/spk' },
-        { title: `Detail SPK ${bulan_label} ${tahun}`, href: '#' },
+        { title: 'Perjanjian Kerja', href: '/spk' },
+        { title: `Detail Perjanjian Kerja ${bulan_label} ${tahun}`, href: '#' },
     ];
 
     const canEdit =
@@ -239,11 +239,11 @@ export default function ShowByMonth({
     };
 
     const getDocumentLabel = (addendumNumber: number) => {
-        if (addendumNumber === 0) return 'SPK Asli';
-        if (addendumNumber === 1) return 'SPK Addendum';
-        if (addendumNumber === 2) return 'SPK Addendum Kedua';
-        if (addendumNumber === 3) return 'SPK Addendum Ketiga';
-        return `SPK Addendum Ke-${addendumNumber}`;
+        if (addendumNumber === 0) return 'Perjanjian Kerja';
+        if (addendumNumber === 1) return 'Perjanjian Kerja Addendum';
+        if (addendumNumber === 2) return 'Perjanjian Kerja Addendum Kedua';
+        if (addendumNumber === 3) return 'Perjanjian Kerja Addendum Ketiga';
+        return `Perjanjian Kerja Addendum Ke-${addendumNumber}`;
     };
 
     const handleDownload = (filePath: string) => {
@@ -299,7 +299,7 @@ export default function ShowByMonth({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <PageHeader
-                title={`Detail SPK ${bulan_label} ${tahun}`}
+                title={`Detail Perjanjian Kerja ${bulan_label} ${tahun}`}
             ></PageHeader>
 
             <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
@@ -320,7 +320,7 @@ export default function ShowByMonth({
                                 size="sm"
                             >
                                 <Archive className="mr-2 h-4 w-4" />
-                                Download Semua SPK
+                                Download Semua Perjanjian Kerja
                             </Button>
 
                             <div className="max-h-[600px] space-y-2 overflow-y-auto">
@@ -360,10 +360,10 @@ export default function ShowByMonth({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Download SPK per Kegiatan
+                                Download Perjanjian Kerja per Kegiatan
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Unduh SPK semua petugas yang terlibat di
+                                Unduh Perjanjian Kerja semua petugas yang terlibat di
                                 masing-masing kegiatan
                             </p>
 
@@ -442,7 +442,7 @@ export default function ShowByMonth({
                             <div className="flex items-start justify-between">
                                 <div>
                                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Informasi SPK
+                                        Informasi Perjanjian Kerja
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                         Detail surat perjanjian kerja petugas
@@ -453,7 +453,7 @@ export default function ShowByMonth({
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Nomor SPK
+                                        Nomor Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
                                         {spk.nomor_spk}
@@ -461,7 +461,7 @@ export default function ShowByMonth({
                                 </div>
                                 <div className="min-w-0">
                                     <Label className="text-neutral-600 dark:text-neutral-400">
-                                        Tanggal SPK
+                                        Tanggal Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
                                         {formatIndonesianDate(spk.tanggal_spk)}
@@ -525,10 +525,10 @@ export default function ShowByMonth({
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300">
-                                            Informasi Addendum SPK
+                                            Informasi Addendum Perjanjian Kerja
                                         </h3>
                                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                                            Perubahan/addendum terhadap SPK asli
+                                            Perubahan/addendum terhadap Perjanjian Kerja
                                         </p>
                                     </div>
                                     {getStatusBadge(spk.status)}
@@ -788,7 +788,7 @@ export default function ShowByMonth({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                History Dokumen SPK
+                                History Dokumen Perjanjian Kerja
                             </h3>
 
                             <div className="space-y-3">

@@ -705,7 +705,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                         <DialogDescription className="pt-2 text-base">
                             Alokasi yang dikirim akan digunakan sebagai dasar
                             pembuatan <strong>SK KPA</strong> dan{' '}
-                            <strong>SPK</strong>.
+                            <strong>Perjanjian Kerja</strong>.
                         </DialogDescription>
                     </DialogHeader>
                     {selectedPeriode && (
@@ -757,7 +757,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 Data akan digunakan untuk SK KPA
                                             </li>
                                             <li>
-                                                Data akan digunakan untuk SPK
+                                                Data akan digunakan untuk Perjanjian Kerja
                                             </li>
                                             <li>
                                                 Dapat direvisi jika diperlukan
@@ -893,7 +893,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                             Revisi akan membuat draft baru yang dapat diedit.
                             Revisi ini akan menghasilkan{' '}
                             <strong>SK Perubahan</strong> dan{' '}
-                            <strong>Addendum SPK</strong>.
+                            <strong>Addendum Perjanjian Kerja</strong>.
                         </DialogDescription>
                     </DialogHeader>
                     {selectedPeriode && (
@@ -954,7 +954,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 dibuat SK Perubahan
                                             </li>
                                             <li>
-                                                SPK akan ditambahkan Addendum
+                                                Perjanjian Kerja akan ditambahkan Addendum
                                             </li>
                                         </ul>
                                     </div>

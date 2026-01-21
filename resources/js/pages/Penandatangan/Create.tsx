@@ -114,7 +114,7 @@ export default function Create() {
                                                     Kepala (untuk SK Petugas)
                                                 </SelectItem>
                                                 <SelectItem value="ppk">
-                                                    PPK (untuk SPK dan BAST)
+                                                    PPK (untuk Perjanjian Kerja dan BAST)
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -123,7 +123,7 @@ export default function Create() {
                                         />
                                         <p className="text-xs text-neutral-500">
                                             Kepala menandatangani SK, PPK
-                                            menandatangani SPK dan BAST
+                                            menandatangani Perjanjian Kerja dan BAST
                                         </p>
                                     </div>
 

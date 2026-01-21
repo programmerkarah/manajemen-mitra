@@ -115,26 +115,34 @@
     <div class="lampiran-header">
         <div class="lampiran-title">
             @php
-                    $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
+                $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
+                
+                // For SENSUS, use specific titles based on kegiatan name
+                if ($jenisKegiatan === 'sensus') {
                     $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
-                    $judulSpk = '';
-                    if ($jenisKegiatan === 'sensus') {
-                        if ($peran === 'pcl' || $peran === 'ppl') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } elseif (str_contains($peran, 'olah')) {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } else {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        }
+                    if ($peran === 'pcl' || $peran === 'ppl') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    } elseif (str_contains($peran, 'olah')) {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                     } else {
-                        $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN SURVEI';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                     }
-            $judulSpkText = strtolower($judulSpk);
-                @endphp
+                } else {
+                    // For SURVEI, use work type
+                    $workType = $workType ?? 'lapangan';
+                    if ($workType === 'lapangan_pengolahan') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN DAN PETUGAS PENGOLAHAN SURVEI';
+                    } elseif ($workType === 'pengolahan') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN SURVEI';
+                    } else {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN SURVEI';
+                    }
+                }
+            @endphp
             Lampiran<br>
-            {{ strtoupper($judulSpk) }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            {{ strtoupper($judulSpkLampiran) }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
             NOMOR: {{ $nomorSpk }}
         </div>
     </div>

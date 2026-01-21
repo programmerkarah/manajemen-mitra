@@ -321,7 +321,7 @@ export default function Index({
                                                         {Penandatangan.jenis_penandatangan ===
                                                         'kepala'
                                                             ? 'Kepala (SK)'
-                                                            : 'PPK (SPK/BAST)'}
+                                                            : 'PPK (Perjanjian Kerja/BAST)'}
                                                     </Badge>
                                                 </td>
                                                 <td className="px-3 py-3 text-sm">

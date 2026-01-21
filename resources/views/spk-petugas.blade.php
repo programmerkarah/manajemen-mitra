@@ -218,9 +218,10 @@
     <div class="header content">
         @php
             $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
-            $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
-            $judulSpk = '';
+            
+            // For SENSUS, use specific titles based on kegiatan name
             if ($jenisKegiatan === 'sensus') {
+                $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
                 if ($peran === 'pcl' || $peran === 'ppl') {
                     $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
@@ -230,10 +231,21 @@
                 } else {
                     $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
                 }
+                $judulSpkText = strtolower($judulSpk);
             } else {
-                $judulSpk = 'PETUGAS LAPANGAN KEGIATAN SURVEI';
+                // For SURVEI, determine title based on work type
+                $workType = $workType ?? 'lapangan';
+                if ($workType === 'lapangan_pengolahan') {
+                    $judulSpk = 'PETUGAS LAPANGAN DAN PETUGAS PENGOLAHAN SURVEI';
+                    $judulSpkText = 'petugas lapangan dan petugas pengolahan survei';
+                } elseif ($workType === 'pengolahan') {
+                    $judulSpk = 'PETUGAS PENGOLAHAN SURVEI';
+                    $judulSpkText = 'petugas pengolahan survei';
+                } else {
+                    $judulSpk = 'PETUGAS LAPANGAN SURVEI';
+                    $judulSpkText = 'petugas lapangan survei';
+                }
             }
-            $judulSpkText = strtolower($judulSpk);
         @endphp
         <h3>PERJANJIAN KERJA</h3>
         <h3>{{ $judulSpk }}</h3>
@@ -592,26 +604,18 @@
         <div class="lampiran-header">
             <div class="lampiran-title">
                 @php
-                    $jenisKegiatan = strtolower($kegiatan->jenis_kegiatan ?? '');
-                    $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
-                    $judulSpk = '';
-                    if ($jenisKegiatan === 'sensus') {
-                        if ($peran === 'pcl' || $peran === 'ppl') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } elseif (str_contains($peran, 'olah')) {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        } else {
-                            $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
-                        }
+                    // Use same title logic
+                    $workType = $workType ?? 'lapangan';
+                    if ($workType === 'lapangan_pengolahan') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN DAN PETUGAS PENGOLAHAN SURVEI';
+                    } elseif ($workType === 'pengolahan') {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN SURVEI';
                     } else {
-                        $judulSpk = 'PERJANJIAN KERJA PETUGAS LAPANGAN KEGIATAN SURVEI';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN SURVEI';
                     }
-            $judulSpkText = strtolower($judulSpk);
                 @endphp
                 Lampiran<br>
-                {{ $judulSpk }} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+                {{ $judulSpkLampiran }} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
                 <strong>NOMOR: {{ $nomorSpk }}</strong>
             </div>
         </div>
