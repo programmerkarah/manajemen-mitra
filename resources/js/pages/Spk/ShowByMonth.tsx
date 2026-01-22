@@ -381,7 +381,7 @@ export default function ShowByMonth({
                                 Petugas dengan PK Ditandatangani (
                                 {petugasSigned.length})
                             </h4>
-                            <div className="max-h-[600px] space-y-2 overflow-y-auto">
+                            <div className="max-h-[300px] space-y-2 overflow-y-auto">
                                 {/* Petugas dengan PK Ditandatangani */}
                                 {petugasSigned.length > 0 && (
                                     <div className="space-y-2">
@@ -411,7 +411,7 @@ export default function ShowByMonth({
                                 Petugas dengan PK Belum Ditandatangani (
                                 {petugasUnsigned.length})
                             </h4>
-                            <div className="max-h-[600px] space-y-2 overflow-y-auto">
+                            <div className="max-h-[300px] space-y-2 overflow-y-auto">
                                 {/* Petugas dengan PK Belum Ditandatangani */}
                                 {petugasUnsigned.length > 0 && (
                                     <div className="space-y-2">
