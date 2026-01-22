@@ -384,7 +384,7 @@ class SkKpaController extends Controller
         // Upload new signed file
         $file = $request->file('signed_file');
         $sanitizedNamaKegiatan = preg_replace('/[\/\\\:\*\?"<>\|]/', '', $skKpa->kegiatan->nama_kegiatan);
-        $filename = 'SK_'.str_replace('/', '-', $skKpa->nomor_sk).'_'.$sanitizedNamaKegiatan.'_'.now()->format('YmdHis').'(signed)'.'.pdf';
+        $filename = 'SK_'.str_replace('/', '-', $skKpa->nomor_sk).'_'.$sanitizedNamaKegiatan.'_'.now()->format('YmdHis').'_signed.pdf';
 
         // Ensure sk directory exists
         $skDirectory = public_path('sk');
