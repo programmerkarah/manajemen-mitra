@@ -149,7 +149,7 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail SK - ${skKpa.nomor_sk}`} />
+            <Head title={`Detail SK - ${kegiatan.nama_kegiatan}`} />
 
             <PageHeader
                 title="Detail SK KPA"

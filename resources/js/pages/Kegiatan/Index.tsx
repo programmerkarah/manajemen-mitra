@@ -18,6 +18,13 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    Select,
+    SelectTrigger,
+    SelectContent,
+    SelectItem,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Check,
     ChevronLeft,
     ChevronRight,
@@ -325,7 +332,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     Cari Kegiatan
                                 </Label>
                                 <div className="relative">
-                                    <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                     <Input
                                         id="search"
                                         type="text"
@@ -345,19 +352,17 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 >
                                     Status
                                 </Label>
-                                <select
-                                    id="status"
-                                    value={status}
-                                    onChange={(e) => setStatus(e.target.value)}
-                                    className="h-11 w-full rounded-lg border-2 border-neutral-300 px-4 text-base font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                                >
-                                    <option value="">Semua Status</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="divalidasi">
-                                        Divalidasi
-                                    </option>
-                                    <option value="selesai">Selesai</option>
-                                </select>
+                                <Select value={status || 'all'} onValueChange={v => setStatus(v === 'all' ? '' : v)}>
+                                    <SelectTrigger className="h-10 w-full">
+                                        <SelectValue placeholder="Semua Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Semua Status</SelectItem>
+                                        <SelectItem value="draft">Draft</SelectItem>
+                                        <SelectItem value="divalidasi">Divalidasi</SelectItem>
+                                        <SelectItem value="selesai">Selesai</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="flex items-end gap-2">
                                 <Button

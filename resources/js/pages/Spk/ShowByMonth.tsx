@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { encryptFilters } from '@/utils/encryption';
-import { router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Download, FileText, Upload } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -353,9 +353,12 @@ export default function ShowByMonth({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title={`Detail Perjanjian Kerja`} />
             <PageHeader
                 title={`Detail Perjanjian Kerja ${bulan_label} ${tahun}`}
             ></PageHeader>
+
+
 
             <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
                 {/* Sidebar - Petugas List */}
