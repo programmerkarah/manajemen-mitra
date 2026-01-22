@@ -238,9 +238,9 @@ class BastController extends Controller
                         $periodeAlokasi?->jadwal_pengolahan_listing_selesai,
                     ]);
                     $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
-                    
+
                     // Fallback: jika jadwal pengolahan tidak ada, gunakan tanggal dari SPK
-                    if (!$tanggalSelesai && $spkTerkait) {
+                    if (! $tanggalSelesai && $spkTerkait) {
                         $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
                     }
                 } else {
@@ -250,9 +250,9 @@ class BastController extends Controller
                         $periodeAlokasi?->tanggal_selesai_listing,
                     ]);
                     $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
-                    
+
                     // Fallback: jika jadwal lapangan tidak ada, gunakan tanggal dari SPK
-                    if (!$tanggalSelesai && $spkTerkait) {
+                    if (! $tanggalSelesai && $spkTerkait) {
                         $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
                     }
                 }

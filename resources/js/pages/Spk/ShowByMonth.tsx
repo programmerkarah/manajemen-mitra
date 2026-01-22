@@ -4,7 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
+import { encryptFilters } from '@/utils/encryption';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Download, FileText, Upload } from 'lucide-react';
 import React, { useState } from 'react';
@@ -100,6 +102,7 @@ interface PetugasListItem {
     hashed_id: string;
     petugas_nama: string;
     petugas_nik: string;
+    signed_file_path: string | null;
 }
 
 interface UniqueKegiatanItem {
@@ -125,15 +128,27 @@ interface SharedData {
 }
 
 interface ShowByMonthProps {
-    spk: Spk;
-    spk_documents: SpkDocument[];
-    petugas: Petugas;
-    kegiatan_list: MergedKegiatan[];
+    spk: {
+        encrypted: string;
+    };
+    spk_documents: {
+        encrypted: string;
+    };
+    petugas: {
+        encrypted: string;
+    };
+    kegiatan_list: {
+        encrypted: string;
+    };
     addendums?: Addendum[];
     periode: PeriodeAlokasi;
     bast: Bast | null;
-    petugas_list: PetugasListItem[];
-    unique_kegiatan_list: UniqueKegiatanItem[];
+    petugas_list: {
+        encrypted: string;
+    };
+    unique_kegiatan_list: {
+        encrypted: string;
+    };
     bulan: number;
     tahun: number;
     bulan_label: string;
@@ -168,11 +183,47 @@ export default function ShowByMonth({
     tahun,
     bulan_label,
 }: ShowByMonthProps) {
+    // Decrypt data
+    const decryptedSpk = useDecryptedData<Spk>(spk.encrypted)[0];
+    const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted)[0];
+    const decryptedSpkDocuments = useDecryptedData<SpkDocument>(
+        spk_documents.encrypted,
+    );
+    const decryptedKegiatanList = useDecryptedData<MergedKegiatan>(
+        kegiatan_list.encrypted,
+    );
+    const decryptedPetugasList = useDecryptedData<PetugasListItem>(
+        petugas_list.encrypted,
+    );
+    const decryptedUniqueKegiatanList = useDecryptedData<UniqueKegiatanItem>(
+        unique_kegiatan_list.encrypted,
+    );
+
+    // Separate petugas into signed and unsigned based on the latest SPK document
+    const uniquePetugasMap = decryptedPetugasList.reduce((map, item) => {
+        const key = item.petugas_nik ? item.petugas_nik : item.id;
+        if (!map.has(key)) {
+            map.set(key, item);
+        }
+        return map;
+    }, new Map());
+
+    const allPetugas = Array.from(uniquePetugasMap.values());
+
+    // Filter petugas by signed status using the signed_file_path from backend
+    const petugasSigned = allPetugas.filter((item: PetugasListItem) => {
+        return item.signed_file_path !== null && item.signed_file_path !== '';
+    });
+
+    const petugasUnsigned = allPetugas.filter((item: PetugasListItem) => {
+        return item.signed_file_path === null || item.signed_file_path === '';
+    });
+
     // The 'spk' prop contains the current SPK being viewed (could be original or addendum)
     // If it's an original (addendum_number === 0), show it in the main card
     // If it's an addendum (addendum_number > 0), show current SPK details in addendum card
     // and we would need to fetch/show the original elsewhere (currently we'll show current SPK as main)
-    const isAddendum = spk.addendum_number > 0;
+    const isAddendum = decryptedSpk.addendum_number > 0;
     const { auth } = usePage<SharedData>().props;
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
 
@@ -255,17 +306,21 @@ export default function ShowByMonth({
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {
-        router.post('/spk/month', {
+        const payload = {
             bulan: bulan,
             tahun: tahun,
             spk: spkHashedId,
+        };
+        const encryptedPayload = encryptFilters(payload);
+        router.post('/spk/month', {
+            encrypted_filters: encryptedPayload,
         });
     };
 
     const handleUploadSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!data.file || !uploadingDocId) return;
-        const doc = spk_documents.find(
+        const doc = decryptedSpkDocuments.find(
             (d: SpkDocument) => d.hashed_id === uploadingDocId,
         );
         if (!doc) return;
@@ -309,17 +364,7 @@ export default function ShowByMonth({
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Daftar Petugas ({
-                                        petugas_list.reduce((map, item) => {
-                                            const key = item.petugas_nik
-                                                ? item.petugas_nik
-                                                : item.id;
-                                            if (!map.has(key)) {
-                                                map.set(key, item);
-                                            }
-                                            return map;
-                                        }, new Map()).size
-                                    })
+                                    Daftar Petugas ({allPetugas.length})
                                 </h3>
                             </div>
 
@@ -332,117 +377,154 @@ export default function ShowByMonth({
                                 <Archive className="mr-2 h-4 w-4" />
                                 Download Semua Perjanjian Kerja
                             </Button>
-
+                            <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">
+                                Petugas dengan PK Ditandatangani (
+                                {petugasSigned.length})
+                            </h4>
                             <div className="max-h-[600px] space-y-2 overflow-y-auto">
-                                {Array.from(
-                                    petugas_list.reduce((map, item) => {
-                                        // Gabungkan berdasarkan NIK jika ada, jika tidak pakai ID
-                                        const key = item.petugas_nik
-                                            ? item.petugas_nik
-                                            : item.id;
-                                        if (!map.has(key)) {
-                                            map.set(key, item);
-                                        }
-                                        return map;
-                                    }, new Map()),
-                                ).map(([key, item]) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() =>
-                                            handleSelectPetugas(item.hashed_id)
-                                        }
-                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                                            item.id === spk.id
-                                                ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
-                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                        }`}
-                                    >
-                                        <div className="text-sm font-medium text-neutral-900 dark:text-white">
-                                            {item.petugas_nama}
-                                        </div>
-                                    </button>
-                                ))}
+                                {/* Petugas dengan PK Ditandatangani */}
+                                {petugasSigned.length > 0 && (
+                                    <div className="space-y-2">
+                                        {petugasSigned.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() =>
+                                                    handleSelectPetugas(
+                                                        item.hashed_id,
+                                                    )
+                                                }
+                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                                                    item.id === decryptedSpk.id
+                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
+                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                                                    {item.petugas_nama}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-400">
+                                Petugas dengan PK Belum Ditandatangani (
+                                {petugasUnsigned.length})
+                            </h4>
+                            <div className="max-h-[600px] space-y-2 overflow-y-auto">
+                                {/* Petugas dengan PK Belum Ditandatangani */}
+                                {petugasUnsigned.length > 0 && (
+                                    <div className="space-y-2">
+                                        {petugasUnsigned.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() =>
+                                                    handleSelectPetugas(
+                                                        item.hashed_id,
+                                                    )
+                                                }
+                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                                                    item.id === decryptedSpk.id
+                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
+                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                                                    {item.petugas_nama}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </ContentCard>
 
                     {/* Download SPK per Kegiatan */}
-                    {unique_kegiatan_list.length > 0 && (
+                    {decryptedUniqueKegiatanList.length > 0 && (
                         <ContentCard>
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                     Download Perjanjian Kerja per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Unduh Perjanjian Kerja semua petugas yang terlibat di
-                                    masing-masing kegiatan
+                                    Unduh Perjanjian Kerja semua petugas yang
+                                    terlibat di masing-masing kegiatan
                                 </p>
 
                                 <div className="space-y-3">
-                                    {unique_kegiatan_list.map((kegiatan) => (
-                                    <div
-                                        key={kegiatan.id}
-                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                                    >
-                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-semibold break-words text-neutral-900 dark:text-white">
-                                                    {kegiatan.nama_kegiatan}
-                                                </p>
-                                                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                                    {kegiatan.kode_kegiatan}
-                                                </p>
-                                                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                                                    {kegiatan.jumlah_spk}{' '}
-                                                    petugas
-                                                </p>
+                                    {decryptedUniqueKegiatanList.map(
+                                        (kegiatan) => (
+                                            <div
+                                                key={kegiatan.id}
+                                                className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                                            >
+                                                <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-semibold break-words text-neutral-900 dark:text-white">
+                                                            {
+                                                                kegiatan.nama_kegiatan
+                                                            }
+                                                        </p>
+                                                        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                                                            {
+                                                                kegiatan.kode_kegiatan
+                                                            }
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                                            {
+                                                                kegiatan.jumlah_spk
+                                                            }{' '}
+                                                            petugas
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <form
+                                                            method="POST"
+                                                            action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
+                                                            className="inline-block"
+                                                        >
+                                                            <input
+                                                                type="hidden"
+                                                                name="_token"
+                                                                value={
+                                                                    document
+                                                                        .querySelector(
+                                                                            'meta[name="csrf-token"]',
+                                                                        )
+                                                                        ?.getAttribute(
+                                                                            'content',
+                                                                        ) || ''
+                                                                }
+                                                            />
+                                                            <input
+                                                                type="hidden"
+                                                                name="bulan"
+                                                                value={bulan}
+                                                            />
+                                                            <input
+                                                                type="hidden"
+                                                                name="tahun"
+                                                                value={tahun}
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                size="sm"
+                                                                variant="default"
+                                                                className="gap-1"
+                                                            >
+                                                                <Download className="h-3.5 w-3.5" />
+                                                                Download ZIP
+                                                            </Button>
+                                                        </form>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex-shrink-0">
-                                                <form
-                                                    method="POST"
-                                                    action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
-                                                    className="inline-block"
-                                                >
-                                                    <input
-                                                        type="hidden"
-                                                        name="_token"
-                                                        value={
-                                                            document
-                                                                .querySelector(
-                                                                    'meta[name="csrf-token"]',
-                                                                )
-                                                                ?.getAttribute(
-                                                                    'content',
-                                                                ) || ''
-                                                        }
-                                                    />
-                                                    <input
-                                                        type="hidden"
-                                                        name="bulan"
-                                                        value={bulan}
-                                                    />
-                                                    <input
-                                                        type="hidden"
-                                                        name="tahun"
-                                                        value={tahun}
-                                                    />
-                                                    <Button
-                                                        type="submit"
-                                                        size="sm"
-                                                        variant="default"
-                                                        className="gap-1"
-                                                    >
-                                                        <Download className="h-3.5 w-3.5" />
-                                                        Download ZIP
-                                                    </Button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                        ),
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </ContentCard>
+                        </ContentCard>
                     )}
                 </div>
 
@@ -460,7 +542,7 @@ export default function ShowByMonth({
                                         Detail surat perjanjian kerja petugas
                                     </p>
                                 </div>
-                                {getStatusBadge(spk.status)}
+                                {getStatusBadge(decryptedSpk.status)}
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="min-w-0">
@@ -468,7 +550,7 @@ export default function ShowByMonth({
                                         Nomor Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {spk.nomor_spk}
+                                        {decryptedSpk.nomor_spk}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
@@ -476,7 +558,9 @@ export default function ShowByMonth({
                                         Tanggal Perjanjian Kerja
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {formatIndonesianDate(spk.tanggal_spk)}
+                                        {formatIndonesianDate(
+                                            decryptedSpk.tanggal_spk,
+                                        )}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
@@ -485,8 +569,8 @@ export default function ShowByMonth({
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
                                         {formatPeriodeKerja(
-                                            spk.tanggal_mulai_kerja,
-                                            spk.tanggal_selesai_kerja,
+                                            decryptedSpk.tanggal_mulai_kerja,
+                                            decryptedSpk.tanggal_selesai_kerja,
                                         )}
                                     </p>
                                 </div>
@@ -497,7 +581,7 @@ export default function ShowByMonth({
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
                                         Rp{' '}
                                         {parseFloat(
-                                            spk.nilai_kontrak?.toString() ||
+                                            decryptedSpk.nilai_kontrak?.toString() ||
                                                 '0',
                                         ).toLocaleString('id-ID')}
                                     </p>
@@ -507,11 +591,11 @@ export default function ShowByMonth({
                                         PPK
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {spk.nama_ppk}
+                                        {decryptedSpk.nama_ppk}
                                     </p>
-                                    {spk.nip_ppk && (
+                                    {decryptedSpk.nip_ppk && (
                                         <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                            NIP: {spk.nip_ppk}
+                                            NIP: {decryptedSpk.nip_ppk}
                                         </p>
                                     )}
                                 </div>
@@ -520,10 +604,10 @@ export default function ShowByMonth({
                                         Dibuat Oleh
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {spk.created_by}
+                                        {decryptedSpk.created_by}
                                     </p>
                                     <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                        {spk.created_at}
+                                        {decryptedSpk.created_at}
                                     </p>
                                 </div>
                             </div>
@@ -540,10 +624,11 @@ export default function ShowByMonth({
                                             Informasi Addendum Perjanjian Kerja
                                         </h3>
                                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                                            Perubahan/addendum terhadap Perjanjian Kerja
+                                            Perubahan/addendum terhadap
+                                            Perjanjian Kerja
                                         </p>
                                     </div>
-                                    {getStatusBadge(spk.status)}
+                                    {getStatusBadge(decryptedSpk.status)}
                                 </div>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="min-w-0">
@@ -551,7 +636,7 @@ export default function ShowByMonth({
                                             Nomor Addendum
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {spk.nomor_spk}
+                                            {decryptedSpk.nomor_spk}
                                         </p>
                                     </div>
                                     <div className="min-w-0">
@@ -560,7 +645,7 @@ export default function ShowByMonth({
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
                                             {formatIndonesianDate(
-                                                spk.tanggal_spk,
+                                                decryptedSpk.tanggal_spk,
                                             )}
                                         </p>
                                     </div>
@@ -570,8 +655,8 @@ export default function ShowByMonth({
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
                                             {formatPeriodeKerja(
-                                                spk.tanggal_mulai_kerja,
-                                                spk.tanggal_selesai_kerja,
+                                                decryptedSpk.tanggal_mulai_kerja,
+                                                decryptedSpk.tanggal_selesai_kerja,
                                             )}
                                         </p>
                                     </div>
@@ -582,7 +667,7 @@ export default function ShowByMonth({
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
                                             Rp{' '}
                                             {parseFloat(
-                                                spk.nilai_kontrak.toString(),
+                                                decryptedSpk.nilai_kontrak.toString(),
                                             ).toLocaleString('id-ID')}
                                         </p>
                                     </div>
@@ -591,11 +676,11 @@ export default function ShowByMonth({
                                             PPK
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {spk.nama_ppk}
+                                            {decryptedSpk.nama_ppk}
                                         </p>
-                                        {spk.nip_ppk && (
+                                        {decryptedSpk.nip_ppk && (
                                             <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                                NIP: {spk.nip_ppk}
+                                                NIP: {decryptedSpk.nip_ppk}
                                             </p>
                                         )}
                                     </div>
@@ -604,10 +689,10 @@ export default function ShowByMonth({
                                             Dibuat Oleh
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {spk.created_by}
+                                            {decryptedSpk.created_by}
                                         </p>
                                         <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                            {spk.created_at}
+                                            {decryptedSpk.created_at}
                                         </p>
                                     </div>
                                 </div>
@@ -628,7 +713,7 @@ export default function ShowByMonth({
                                         Nama Petugas
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {petugas.nama}
+                                        {decryptedPetugas.nama}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
@@ -636,7 +721,7 @@ export default function ShowByMonth({
                                         NIK/NIP
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {petugas.nik}
+                                        {decryptedPetugas.nik}
                                     </p>
                                 </div>
                                 <div className="min-w-0">
@@ -644,18 +729,19 @@ export default function ShowByMonth({
                                         Jenis Petugas
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 capitalize dark:text-white">
-                                        {petugas.jenis_petugas === 'organik'
+                                        {decryptedPetugas.jenis_petugas ===
+                                        'organik'
                                             ? 'Organik'
                                             : 'Non Organik'}
                                     </p>
                                 </div>
-                                {petugas.alamat && (
+                                {decryptedPetugas.alamat && (
                                     <div className="min-w-0">
                                         <Label className="text-neutral-600 dark:text-neutral-400">
                                             Alamat
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {petugas.alamat}
+                                            {decryptedPetugas.alamat}
                                         </p>
                                     </div>
                                 )}
@@ -667,7 +753,7 @@ export default function ShowByMonth({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Daftar Kegiatan ({kegiatan_list.length})
+                                Daftar Kegiatan ({decryptedKegiatanList.length})
                             </h3>
 
                             <div className="w-full overflow-x-auto">
@@ -689,83 +775,87 @@ export default function ShowByMonth({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                        {kegiatan_list.map((kegiatan, idx) => {
-                                            const changed = kegiatan.has_change;
-                                            return (
-                                                <tr
-                                                    key={
-                                                        kegiatan.id +
-                                                        '-' +
-                                                        kegiatan.peran
-                                                    }
-                                                    className={
-                                                        changed
-                                                            ? 'bg-yellow-50 dark:bg-yellow-900'
-                                                            : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
-                                                    }
-                                                >
-                                                    <td className="max-w-xs px-3 py-3 text-sm text-neutral-900 dark:text-white">
-                                                        <div className="break-words">
-                                                            {
-                                                                kegiatan.nama_kegiatan
-                                                            }
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {getPeranLabel(
-                                                            kegiatan.peran,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        Rp{' '}
-                                                        {kegiatan.total_honor.toLocaleString(
-                                                            'id-ID',
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-sm whitespace-nowrap">
-                                                        {changed ? (
-                                                            <span
-                                                                className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200"
-                                                                title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}
-                                                            >
-                                                                <svg
-                                                                    className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-500"
-                                                                    fill="none"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="2"
-                                                                    viewBox="0 0 24 24"
+                                        {decryptedKegiatanList.map(
+                                            (kegiatan, idx) => {
+                                                const changed =
+                                                    kegiatan.has_change;
+                                                return (
+                                                    <tr
+                                                        key={
+                                                            kegiatan.id +
+                                                            '-' +
+                                                            kegiatan.peran
+                                                        }
+                                                        className={
+                                                            changed
+                                                                ? 'bg-yellow-50 dark:bg-yellow-900'
+                                                                : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                                                        }
+                                                    >
+                                                        <td className="max-w-xs px-3 py-3 text-sm text-neutral-900 dark:text-white">
+                                                            <div className="break-words">
+                                                                {
+                                                                    kegiatan.nama_kegiatan
+                                                                }
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {getPeranLabel(
+                                                                kegiatan.peran,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            Rp{' '}
+                                                            {kegiatan.total_honor.toLocaleString(
+                                                                'id-ID',
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                                            {changed ? (
+                                                                <span
+                                                                    className="inline-flex items-start gap-1 text-yellow-700 dark:text-yellow-200"
+                                                                    title={`Perubahan: dari Rp ${kegiatan.original.total_honor?.toLocaleString('id-ID')} ke Rp ${kegiatan.latest.total_honor?.toLocaleString('id-ID')}`}
                                                                 >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"
-                                                                    />
-                                                                </svg>
-                                                                <span className="break-words">
-                                                                    Ada
-                                                                    perubahan
-                                                                    sebesar Rp{' '}
-                                                                    {Math.abs(
-                                                                        kegiatan
-                                                                            .latest
-                                                                            .total_honor -
+                                                                    <svg
+                                                                        className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-500"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="2"
+                                                                        viewBox="0 0 24 24"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"
+                                                                        />
+                                                                    </svg>
+                                                                    <span className="break-words">
+                                                                        Ada
+                                                                        perubahan
+                                                                        sebesar
+                                                                        Rp{' '}
+                                                                        {Math.abs(
                                                                             kegiatan
-                                                                                .original
-                                                                                .total_honor,
-                                                                    ).toLocaleString(
-                                                                        'id-ID',
-                                                                    )}
+                                                                                .latest
+                                                                                .total_honor -
+                                                                                kegiatan
+                                                                                    .original
+                                                                                    .total_honor,
+                                                                        ).toLocaleString(
+                                                                            'id-ID',
+                                                                        )}
+                                                                    </span>
                                                                 </span>
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-xs text-neutral-400">
-                                                                -
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                                            ) : (
+                                                                <span className="text-xs text-neutral-400">
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            },
+                                        )}
                                     </tbody>
                                     <tfoot className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
@@ -780,7 +870,7 @@ export default function ShowByMonth({
                                                 className="px-3 py-3 text-right font-semibold break-words text-neutral-900 dark:text-white"
                                             >
                                                 Rp{' '}
-                                                {kegiatan_list
+                                                {decryptedKegiatanList
                                                     .reduce(
                                                         (sum, k) =>
                                                             sum + k.total_honor,
@@ -804,7 +894,7 @@ export default function ShowByMonth({
                             </h3>
 
                             <div className="space-y-3">
-                                {spk_documents.map((doc) => (
+                                {decryptedSpkDocuments.map((doc) => (
                                     <div
                                         key={doc.id}
                                         className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
@@ -848,12 +938,16 @@ export default function ShowByMonth({
                                                             variant="default"
                                                             onClick={() =>
                                                                 handleDownload(
-                                                                    doc.signed_file_path || doc.file_path!,
+                                                                    doc.signed_file_path ||
+                                                                        doc.file_path!,
                                                                 )
                                                             }
                                                         >
                                                             <Download className="mr-2 h-3.5 w-3.5" />
-                                                            Download {doc.signed_file_path ? '(Signed)' : ''}
+                                                            Download{' '}
+                                                            {doc.signed_file_path
+                                                                ? '(Signed)'
+                                                                : ''}
                                                         </Button>
                                                         {canEdit &&
                                                             doc.status ===
@@ -924,7 +1018,9 @@ export default function ShowByMonth({
                                             Tanggal BAST
                                         </Label>
                                         <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                            {formatIndonesianDate(bast.tanggal_bast)}
+                                            {formatIndonesianDate(
+                                                bast.tanggal_bast,
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -950,7 +1046,7 @@ export default function ShowByMonth({
             {/* Upload Modal */}
             {uploadingDocId &&
                 (() => {
-                    const doc = spk_documents.find(
+                    const doc = decryptedSpkDocuments.find(
                         (d: SpkDocument) => d.hashed_id === uploadingDocId,
                     );
                     if (!doc) return null;

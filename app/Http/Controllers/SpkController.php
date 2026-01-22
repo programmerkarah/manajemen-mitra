@@ -297,6 +297,14 @@ class SpkController extends Controller
      */
     public function showByMonth(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
+        // Decrypt payload
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $spkHashedId = $request->input('spk');
@@ -428,6 +436,15 @@ class SpkController extends Controller
 
         // Build petugas list for sidebar
         $petugasList = $allSpks->map(function ($s) {
+            // Get the latest SPK document (including addendums) for this petugas
+            $originalSpkId = $s->parent_spk_id ?: $s->id;
+            $latestSpkDoc = Spk::where(function ($q) use ($originalSpkId) {
+                $q->where('id', $originalSpkId)
+                    ->orWhere('parent_spk_id', $originalSpkId);
+            })
+                ->orderBy('addendum_number', 'desc')
+                ->first();
+
             return [
                 'id' => $s->id,
                 'hashed_id' => $s->hashed_id,
@@ -435,6 +452,7 @@ class SpkController extends Controller
                 'petugas_nama' => $s->alokasiPetugas->petugas->nama,
                 'petugas_nik' => $s->alokasiPetugas->petugas->nik,
                 'status' => $s->status,
+                'signed_file_path' => $latestSpkDoc?->signed_file_path,
             ];
         })->sortBy('petugas_nama')->values()->all();
 
@@ -515,36 +533,58 @@ class SpkController extends Controller
                 ];
             });
 
+        // Encrypt sensitive data
+        $encryptedSpkDocuments = encryptData($allSpkDocuments);
+        $encryptedKegiatanList = encryptData($kegiatanList);
+        $encryptedPetugasList = encryptData($petugasList);
+        $encryptedUniqueKegiatanList = encryptData($uniqueKegiatanList);
+
+        // Prepare SPK data
+        $spkData = [
+            'id' => $spk->id,
+            'hashed_id' => $spk->hashed_id,
+            'nomor_spk' => $spk->nomor_spk,
+            'tanggal_spk' => $spk->tanggal_spk,
+            'tanggal_mulai_kerja' => $spk->tanggal_mulai_kerja,
+            'tanggal_selesai_kerja' => $spk->tanggal_selesai_kerja,
+            'nilai_kontrak' => $spk->nilai_kontrak,
+            'nama_ppk' => $spk->nama_ppk,
+            'nip_ppk' => $spk->nip_ppk,
+            'status' => $spk->status,
+            'file_path' => $spk->file_path,
+            'signed_file_path' => $spk->signed_file_path,
+            'addendum_number' => $spk->addendum_number,
+            'parent_spk_id' => $spk->parent_spk_id,
+            'created_by' => $spk->createdBy->name ?? 'System',
+            'created_at' => $spk->created_at->format('d M Y H:i'),
+            'updated_at' => $spk->updated_at->format('d M Y H:i'),
+        ];
+        $encryptedSpk = encryptData($spkData);
+
+        // Prepare Petugas data
+        $petugasData = [
+            'id' => $petugas->id,
+            'hashed_id' => $petugas->hashed_id,
+            'nama' => $petugas->nama,
+            'nik' => $petugas->nik,
+            'jenis_petugas' => $petugas->jenis_petugas,
+            'alamat' => $petugas->alamat,
+        ];
+        $encryptedPetugas = encryptData($petugasData);
+
         return Inertia::render('Spk/ShowByMonth', [
             'spk' => [
-                'id' => $spk->id,
-                'hashed_id' => $spk->hashed_id,
-                'nomor_spk' => $spk->nomor_spk,
-                'tanggal_spk' => $spk->tanggal_spk,
-                'tanggal_mulai_kerja' => $spk->tanggal_mulai_kerja,
-                'tanggal_selesai_kerja' => $spk->tanggal_selesai_kerja,
-                'nilai_kontrak' => $spk->nilai_kontrak,
-                'nama_ppk' => $spk->nama_ppk,
-                'nip_ppk' => $spk->nip_ppk,
-                'status' => $spk->status,
-                'file_path' => $spk->file_path,
-                'signed_file_path' => $spk->signed_file_path,
-                'addendum_number' => $spk->addendum_number,
-                'parent_spk_id' => $spk->parent_spk_id,
-                'created_by' => $spk->createdBy->name ?? 'System',
-                'created_at' => $spk->created_at->format('d M Y H:i'),
-                'updated_at' => $spk->updated_at->format('d M Y H:i'),
+                'encrypted' => $encryptedSpk,
             ],
-            'spk_documents' => $allSpkDocuments,
+            'spk_documents' => [
+                'encrypted' => $encryptedSpkDocuments,
+            ],
             'petugas' => [
-                'id' => $petugas->id,
-                'hashed_id' => $petugas->hashed_id,
-                'nama' => $petugas->nama,
-                'nik' => $petugas->nik,
-                'jenis_petugas' => $petugas->jenis_petugas,
-                'alamat' => $petugas->alamat,
+                'encrypted' => $encryptedPetugas,
             ],
-            'kegiatan_list' => $kegiatanList,
+            'kegiatan_list' => [
+                'encrypted' => $encryptedKegiatanList,
+            ],
             'periode' => [
                 'id' => $periode->id,
                 'hashed_id' => $periode->hashed_id,
@@ -558,8 +598,12 @@ class SpkController extends Controller
                 'tanggal_bast' => $bast->tanggal_bast,
                 'file_path' => $bast->signed_file_path ?? $bast->file_path,
             ] : null,
-            'petugas_list' => $petugasList,
-            'unique_kegiatan_list' => $uniqueKegiatanList,
+            'petugas_list' => [
+                'encrypted' => $encryptedPetugasList,
+            ],
+            'unique_kegiatan_list' => [
+                'encrypted' => $encryptedUniqueKegiatanList,
+            ],
             'bulan' => (int) $bulan,
             'tahun' => (int) $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
