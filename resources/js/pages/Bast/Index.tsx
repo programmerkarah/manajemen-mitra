@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -20,7 +21,9 @@ interface PeriodeData {
 }
 
 interface IndexProps {
-    data: PeriodeData[];
+    data: {
+        encrypted: string;
+    };
     filters: {
         search?: string;
     };
@@ -30,6 +33,8 @@ interface IndexProps {
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
 
 export default function Index({ data, filters, active_year }: IndexProps) {
+    const decryptedData = useDecryptedData<PeriodeData>(data.encrypted);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="BAST" />
@@ -67,7 +72,7 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {data.map((item) => (
+                                {decryptedData.map((item) => (
                                     <tr
                                         key={`${item.tahun}-${item.bulan}`}
                                         className="hover:bg-neutral-50 dark:hover:bg-neutral-800"

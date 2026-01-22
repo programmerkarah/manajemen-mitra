@@ -98,8 +98,13 @@ class BastController extends Controller
             ];
         }
 
+        // Encrypt sensitive data
+        $encryptedData = encryptData($data);
+
         return Inertia::render('Bast/Index', [
-            'data' => $data,
+            'data' => [
+                'encrypted' => $encryptedData,
+            ],
             'filters' => [
                 'search' => $search,
             ],
@@ -233,6 +238,11 @@ class BastController extends Controller
                         $periodeAlokasi?->jadwal_pengolahan_listing_selesai,
                     ]);
                     $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
+                    
+                    // Fallback: jika jadwal pengolahan tidak ada, gunakan tanggal dari SPK
+                    if (!$tanggalSelesai && $spkTerkait) {
+                        $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
+                    }
                 } else {
                     // Untuk peran lapangan, gunakan jadwal lapangan
                     $endDates = array_filter([
@@ -240,6 +250,11 @@ class BastController extends Controller
                         $periodeAlokasi?->tanggal_selesai_listing,
                     ]);
                     $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
+                    
+                    // Fallback: jika jadwal lapangan tidak ada, gunakan tanggal dari SPK
+                    if (!$tanggalSelesai && $spkTerkait) {
+                        $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
+                    }
                 }
 
                 return [
@@ -299,11 +314,16 @@ class BastController extends Controller
             ];
         })->values();
 
+        // Encrypt sensitive data
+        $encryptedSpkList = encryptData($spkList);
+
         return Inertia::render('Bast/CreateForMonth', [
             'bulan' => (int) $bulan,
             'tahun' => $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
-            'spk_list' => $spkList,
+            'spk_list' => [
+                'encrypted' => $encryptedSpkList,
+            ],
         ]);
     }
 
@@ -313,6 +333,14 @@ class BastController extends Controller
      */
     public function generateBatch(Request $request): \Illuminate\Http\RedirectResponse
     {
+        // Decrypt payload
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
         $request->validate([
             'spk_ids' => 'required|array|min:1',
             'spk_ids.*' => 'required|integer|exists:spk,id',
@@ -1060,6 +1088,14 @@ class BastController extends Controller
      */
     public function previewForSpk(Request $request): \Symfony\Component\HttpFoundation\Response
     {
+        // Decrypt payload
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
         $request->validate([
             'spk_id' => 'required|integer|exists:spk,id',
             'nomor_bast' => 'nullable|string',

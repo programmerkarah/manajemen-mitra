@@ -2,8 +2,10 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Eye, FileText, User } from 'lucide-react';
 import { useState } from 'react';
@@ -60,7 +62,9 @@ interface CreateForMonthProps {
     bulan: number;
     tahun: number;
     bulan_label: string;
-    spk_list: SpkItem[];
+    spk_list: {
+        encrypted: string;
+    };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -84,14 +88,15 @@ export default function CreateForMonth({
     bulan_label,
     spk_list,
 }: CreateForMonthProps) {
+    const decryptedSpkList = useDecryptedData<SpkItem>(spk_list.encrypted);
     const [selectedSpks, setSelectedSpks] = useState<number[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleSelectAll = () => {
-        if (selectedSpks.length === spk_list.length) {
+        if (selectedSpks.length === decryptedSpkList.length) {
             setSelectedSpks([]);
         } else {
-            setSelectedSpks(spk_list.map((spk) => spk.spk_id));
+            setSelectedSpks(decryptedSpkList.map((spk) => spk.spk_id));
         }
     };
 
@@ -109,13 +114,19 @@ export default function CreateForMonth({
             return;
         }
 
+        const payload = {
+            spk_ids: selectedSpks,
+            bulan,
+            tahun,
+        };
+
+        const encryptedPayload = encryptFilters(payload);
+
         setIsGenerating(true);
         router.post(
             '/bast/generate-batch',
             {
-                spk_ids: selectedSpks,
-                bulan,
-                tahun,
+                encrypted_filters: encryptedPayload,
             },
             {
                 onFinish: () => setIsGenerating(false),
@@ -124,6 +135,16 @@ export default function CreateForMonth({
     };
 
     const handlePreviewSpk = (spkId: number, nomorBast: string | null) => {
+        const payload: Record<string, any> = {
+            spk_id: spkId,
+        };
+
+        if (nomorBast) {
+            payload.nomor_bast = nomorBast;
+        }
+
+        const encryptedPayload = encryptFilters(payload);
+
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/bast/preview-spk';
@@ -140,19 +161,11 @@ export default function CreateForMonth({
             form.appendChild(csrfInput);
         }
 
-        const spkInput = document.createElement('input');
-        spkInput.type = 'hidden';
-        spkInput.name = 'spk_id';
-        spkInput.value = spkId.toString();
-        form.appendChild(spkInput);
-
-        if (nomorBast) {
-            const nomorBastInput = document.createElement('input');
-            nomorBastInput.type = 'hidden';
-            nomorBastInput.name = 'nomor_bast';
-            nomorBastInput.value = nomorBast;
-            form.appendChild(nomorBastInput);
-        }
+        const encryptedInput = document.createElement('input');
+        encryptedInput.type = 'hidden';
+        encryptedInput.name = 'encrypted_filters';
+        encryptedInput.value = encryptedPayload;
+        form.appendChild(encryptedInput);
 
         document.body.appendChild(form);
         form.submit();
@@ -194,19 +207,19 @@ export default function CreateForMonth({
                                 Daftar Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                {spk_list.length} Perjanjian Kerja belum memiliki BAST di
+                                {decryptedSpkList.length} Perjanjian Kerja belum memiliki BAST di
                                 periode ini
                             </p>
                         </div>
                         <Button variant="outline" onClick={handleSelectAll}>
-                            {selectedSpks.length === spk_list.length
+                            {selectedSpks.length === decryptedSpkList.length
                                 ? 'Batal Pilih Semua'
                                 : 'Pilih Semua'}
                         </Button>
                     </div>
 
                     <div className="space-y-4">
-                        {spk_list.map((spk) => (
+                        {decryptedSpkList.map((spk) => (
                             <div
                                 key={spk.spk_id}
                                 className={`rounded-lg border p-4 transition-colors ${
@@ -294,11 +307,6 @@ export default function CreateForMonth({
                                         </div>
 
                                         <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
-                                            <span>
-                                                PPK: {spk.nama_ppk}
-                                                {spk.nip_ppk &&
-                                                    ` (${spk.nip_ppk})`}
-                                            </span>
                                             {spk.ketua_tim.nama && (
                                                 <span>
                                                     Ketua Tim:{' '}
@@ -330,7 +338,7 @@ export default function CreateForMonth({
                         ))}
                     </div>
 
-                    {spk_list.length === 0 && (
+                    {decryptedSpkList.length === 0 && (
                         <div className="py-12 text-center text-neutral-500">
                             Tidak ada Perjanjian Kerja yang perlu dibuatkan BAST
                         </div>
