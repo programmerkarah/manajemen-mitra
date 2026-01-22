@@ -60,7 +60,10 @@ class SkKpaController extends Controller
             $query->where('jenis_kegiatan', $validated['jenis_kegiatan']);
         }
 
-        $kegiatan = $query->latest()->paginate(15)->withQueryString();
+        // Get page from validated data
+        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
+
+        $kegiatan = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
 
         // Transform data to include SK status
         // Note: status_sk and revision_number are calculated from skKpa relationship
@@ -101,6 +104,7 @@ class SkKpaController extends Controller
                     'hashed_id' => $latestSk->hashed_id,
                     'nomor_sk' => $latestSk->nomor_sk,
                     'tanggal_sk' => $latestSk->tanggal_sk,
+                    'tahun' => $latestSk->tahun,
                     'status' => $latestSk->status,
                     'file_path' => $latestSk->file_path,
                     'signed_file_path' => $latestSk->signed_file_path,

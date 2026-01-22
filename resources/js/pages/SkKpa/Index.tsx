@@ -23,6 +23,7 @@ interface LatestSk {
     hashed_id: string;
     nomor_sk: string;
     tanggal_sk: string;
+    tahun: number;
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
     signed_file_path: string | null;
@@ -308,7 +309,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                         {keg.nama_kegiatan}
                                                     </div>
                                                     <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                        {keg.kode_kegiatan}
+                                                        {keg.latest_sk
+                                                            ? `Keputusan Kepala BPS Kota Sawahlunto Nomor ${keg.latest_sk.nomor_sk} Tahun ${keg.latest_sk.tahun}`
+                                                            : 'Belum dibuat SK KPA'}
                                                     </div>
                                                 </div>
                                             </td>
@@ -428,28 +431,35 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                     const isFirst =
                                         link.label.includes('Previous');
                                     const isLast = link.label.includes('Next');
-                                    // Ambil nomor halaman dari link.url (misal: ?page=2)
-                                    let page = 1;
-                                    if (link.url) {
-                                        const match =
-                                            link.url.match(/page=(\\d+)/);
-                                        if (match)
-                                            page = parseInt(match[1], 10);
-                                    }
+
                                     const handlePageClick = (
                                         e: React.MouseEvent,
                                     ) => {
                                         e.preventDefault();
                                         if (!link.url || link.active) return;
-                                        const filterParams = {
-                                            search: search || undefined,
-                                            jenis_kegiatan:
-                                                jenisKegiatan &&
-                                                jenisKegiatan !== 'all'
-                                                    ? jenisKegiatan
-                                                    : undefined,
-                                            page: page,
-                                        };
+
+                                        // Extract page number from URL
+                                        const url = new URL(
+                                            link.url,
+                                            window.location.origin,
+                                        );
+                                        const page =
+                                            url.searchParams.get('page') || '1';
+
+                                        const filterParams: Record<
+                                            string,
+                                            string
+                                        > = { page };
+
+                                        if (search)
+                                            filterParams.search = search;
+                                        if (
+                                            jenisKegiatan &&
+                                            jenisKegiatan !== 'all'
+                                        )
+                                            filterParams.jenis_kegiatan =
+                                                jenisKegiatan;
+
                                         const encryptedFilters =
                                             encryptFilters(filterParams);
                                         router.post(
@@ -460,7 +470,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             },
                                             {
                                                 preserveState: true,
-                                                preserveScroll: true,
+                                                preserveScroll: false,
                                                 replace: true,
                                             },
                                         );
