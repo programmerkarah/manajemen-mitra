@@ -1,4 +1,4 @@
-APP_NAME="Manajemen Mitra"
+APP_NAME="SIMANTIK"
 APP_ENV=production
 APP_KEY=base64:X5E807mpVqp4L+q21CE5AJibzrIRz3AlY4JnfgG6bsk=
 APP_DEBUG=false
