@@ -120,7 +120,8 @@ export default function Create({
     isViewMode = false,
 }: AlokasiCreateProps) {
     // Debug: Log petugas data
-    const { auth, errors: backendErrors } = usePage<SharedData>().props;
+    const pageProps = usePage<SharedData & { errors: Record<string, string> }>().props;
+    const { auth, errors: backendErrors = {} } = pageProps;
     const errorAlertRef = useRef<HTMLDivElement>(null);
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
@@ -240,16 +241,26 @@ export default function Create({
     // Combine local errors with backend errors
     const allErrors = { ...backendErrors, ...errors };
 
+    // Debug: log errors to console
+    useEffect(() => {
+        if (Object.keys(backendErrors || {}).length > 0) {
+            console.log('Backend Errors:', backendErrors);
+        }
+        if (Object.keys(allErrors).length > 0) {
+            console.log('All Errors:', allErrors);
+        }
+    }, [backendErrors, allErrors]);
+
     // Auto-scroll to error alert when errors occur
     useEffect(() => {
-        if (allErrors.sbml_constraint || allErrors.budget || allErrors.error) {
+        if (Object.keys(allErrors).length > 0) {
             errorAlertRef.current?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center',
             });
             errorAlertRef.current?.focus();
         }
-    }, [allErrors.sbml_constraint, allErrors.budget, allErrors.error]);
+    }, [allErrors]);
 
     // Filter kegiatan based on ketua_tim role
     const filteredKegiatans = useMemo(() => {
@@ -1238,9 +1249,7 @@ export default function Create({
             )}
 
             {/* Display SBML and Budget Errors */}
-            {(allErrors.sbml_constraint ||
-                allErrors.budget ||
-                allErrors.error) && (
+            {Object.keys(allErrors).length > 0 && (
                 <div
                     ref={errorAlertRef}
                     tabIndex={-1}
@@ -1254,10 +1263,12 @@ export default function Create({
                             <h3 className="text-base font-bold text-red-800 dark:text-red-300">
                                 Validasi Gagal
                             </h3>
-                            <div className="mt-2 text-sm whitespace-pre-line text-red-700 dark:text-red-400">
-                                {allErrors.sbml_constraint ||
-                                    allErrors.budget ||
-                                    allErrors.error}
+                            <div className="mt-2 space-y-1">
+                                {Object.entries(allErrors).map(([key, value]) => (
+                                    <div key={key} className="text-sm whitespace-pre-line text-red-700 dark:text-red-400">
+                                        {typeof value === 'string' ? value : JSON.stringify(value)}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>

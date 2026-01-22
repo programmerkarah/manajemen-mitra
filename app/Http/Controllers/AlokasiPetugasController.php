@@ -1589,7 +1589,7 @@ class AlokasiPetugasController extends Controller
                 if (! $periode) {
                     DB::rollBack();
 
-                    return back()->withErrors(['periode' => 'Periode tidak ditemukan atau tidak dapat diedit.']);
+                    return redirect()->back()->withErrors(['error' => 'Periode tidak ditemukan atau tidak dapat diedit.']);
                 }
 
                 // Update tahapan field
@@ -1715,9 +1715,9 @@ class AlokasiPetugasController extends Controller
             if (! empty($errors)) {
                 DB::rollBack();
 
-                return back()->withErrors([
-                    'alokasi' => 'Terdapat kesalahan pada alokasi petugas: '.implode(' | ', $errors),
-                ])->withInput();
+                return redirect()->back()->withErrors([
+                    'error' => 'Terdapat kesalahan pada alokasi petugas: '.implode(' | ', $errors),
+                ]);
             }
 
             // Recalculate periode total and sisa_pagu
