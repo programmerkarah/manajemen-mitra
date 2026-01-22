@@ -147,7 +147,7 @@ export default function CreateForMonth({
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/bast/preview-spk';
+        form.action = '/bast/preview-bast';
         form.target = '_blank';
 
         const csrfToken = document
