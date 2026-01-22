@@ -1487,8 +1487,8 @@ class AlokasiPetugasController extends Controller
 
         // Validate that kegiatan has rate honors
         if ($kegiatan->rateHonors()->count() === 0) {
-            return back()->withErrors([
-                'rate_honor' => 'Kegiatan ini belum memiliki rate honor. Silakan set rate honor pada kegiatan terlebih dahulu.',
+            return redirect()->back()->withErrors([
+                'error' => 'Kegiatan ini belum memiliki rate honor. Silakan set rate honor pada kegiatan terlebih dahulu.',
             ]);
         }
 
