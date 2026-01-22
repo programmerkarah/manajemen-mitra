@@ -282,6 +282,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                         Status SK
                                     </th>
                                     <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                        Status File SK
+                                    </th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                         Aksi
                                     </th>
                                 </tr>
@@ -290,7 +293,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                 {decryptedKegiatan.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
                                         >
                                             Tidak ada kegiatan yang memerlukan
@@ -330,6 +333,23 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                 <StatusBadge
                                                     status={keg.sk_status_type}
                                                 />
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {keg.latest_sk ? (
+                                                    keg.latest_sk.signed_file_path ? (
+                                                        <StatusBadge
+                                                            status="signed"
+                                                            label="Sudah Ditandatangani"
+                                                        />
+                                                    ) : (
+                                                        <StatusBadge
+                                                            status="unsigned"
+                                                            label="Belum Ditandatangani"
+                                                        />
+                                                    )
+                                                ) : (
+                                                    <span className="text-neutral-400 dark:text-neutral-500">-</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-center text-sm">
                                                 <div className="justify-left flex items-center gap-2">

@@ -256,6 +256,21 @@ export function StatusBadge({
             borderColor: 'border-indigo-300 dark:border-indigo-600',
             icon: Briefcase,
         },
+        // File signing statuses
+        signed: {
+            label: 'Sudah Ditandatangani',
+            bgColor: 'bg-green-100 dark:bg-green-900',
+            textColor: 'text-green-900 dark:text-green-200',
+            borderColor: 'border-green-300 dark:border-green-600',
+            icon: CheckCircle2,
+        },
+        unsigned: {
+            label: 'Belum Ditandatangani',
+            bgColor: 'bg-amber-100 dark:bg-amber-900',
+            textColor: 'text-amber-900 dark:text-amber-200',
+            borderColor: 'border-amber-300 dark:border-amber-600',
+            icon: Clock,
+        },
     };
 
     const config = statusConfig[status.toLowerCase()] || {

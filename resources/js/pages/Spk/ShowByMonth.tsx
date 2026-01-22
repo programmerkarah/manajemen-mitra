@@ -530,6 +530,115 @@ export default function ShowByMonth({
 
                 {/* Main Content - SPK Details */}
                 <div className="w-full min-w-0 space-y-6 md:col-span-2">
+                    {/* Documents History */}
+                    <ContentCard>
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                History Dokumen Perjanjian Kerja
+                            </h3>
+
+                            <div className="space-y-3">
+                                {decryptedSpkDocuments.map((doc) => (
+                                    <div
+                                        key={doc.id}
+                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                                    >
+                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+                                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400" />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="font-semibold text-neutral-900 dark:text-white">
+                                                            {getDocumentLabel(
+                                                                doc.addendum_number,
+                                                            )}
+                                                        </p>
+                                                        {getStatusBadge(
+                                                            doc.status,
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-1 text-sm break-words text-neutral-600 dark:text-neutral-400">
+                                                        {doc.nomor_spk}
+                                                    </p>
+                                                    <p className="mt-1 text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                        Dibuat oleh{' '}
+                                                        {doc.created_by} pada{' '}
+                                                        {doc.created_at}
+                                                    </p>
+                                                    {doc.updated_at !==
+                                                        doc.created_at && (
+                                                        <p className="text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                            Diperbarui pada{' '}
+                                                            {doc.updated_at}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-shrink-0 flex-col gap-2">
+                                                {doc.file_path ? (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            onClick={() =>
+                                                                handleDownload(
+                                                                    doc.signed_file_path ||
+                                                                        doc.file_path!,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Download className="mr-2 h-3.5 w-3.5" />
+                                                            Download{' '}
+                                                            {doc.signed_file_path
+                                                                ? '(Signed)'
+                                                                : ''}
+                                                        </Button>
+                                                        {canEdit &&
+                                                            doc.status ===
+                                                                'draft' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        setUploadingDocId(
+                                                                            doc.hashed_id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Upload className="mr-2 h-3.5 w-3.5" />
+                                                                    Upload
+                                                                    Signed
+                                                                </Button>
+                                                            )}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="mb-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                                            File belum tersedia
+                                                        </p>
+                                                        {canEdit && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    setUploadingDocId(
+                                                                        doc.hashed_id,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Upload className="mr-2 h-3.5 w-3.5" />
+                                                                Upload
+                                                            </Button>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </ContentCard>
                     {/* Always show original SPK info */}
                     <ContentCard>
                         <div className="space-y-6">
@@ -882,116 +991,6 @@ export default function ShowByMonth({
                                         </tr>
                                     </tfoot>
                                 </table>
-                            </div>
-                        </div>
-                    </ContentCard>
-
-                    {/* Documents History */}
-                    <ContentCard>
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                History Dokumen Perjanjian Kerja
-                            </h3>
-
-                            <div className="space-y-3">
-                                {decryptedSpkDocuments.map((doc) => (
-                                    <div
-                                        key={doc.id}
-                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                                    >
-                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
-                                            <div className="flex min-w-0 flex-1 items-start gap-3">
-                                                <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400" />
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <p className="font-semibold text-neutral-900 dark:text-white">
-                                                            {getDocumentLabel(
-                                                                doc.addendum_number,
-                                                            )}
-                                                        </p>
-                                                        {getStatusBadge(
-                                                            doc.status,
-                                                        )}
-                                                    </div>
-                                                    <p className="mt-1 text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                                        {doc.nomor_spk}
-                                                    </p>
-                                                    <p className="mt-1 text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                        Dibuat oleh{' '}
-                                                        {doc.created_by} pada{' '}
-                                                        {doc.created_at}
-                                                    </p>
-                                                    {doc.updated_at !==
-                                                        doc.created_at && (
-                                                        <p className="text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                            Diperbarui pada{' '}
-                                                            {doc.updated_at}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-shrink-0 flex-col gap-2">
-                                                {doc.file_path ? (
-                                                    <>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="default"
-                                                            onClick={() =>
-                                                                handleDownload(
-                                                                    doc.signed_file_path ||
-                                                                        doc.file_path!,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Download className="mr-2 h-3.5 w-3.5" />
-                                                            Download{' '}
-                                                            {doc.signed_file_path
-                                                                ? '(Signed)'
-                                                                : ''}
-                                                        </Button>
-                                                        {canEdit &&
-                                                            doc.status ===
-                                                                'draft' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() =>
-                                                                        setUploadingDocId(
-                                                                            doc.hashed_id,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                    Upload
-                                                                    Signed
-                                                                </Button>
-                                                            )}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <p className="mb-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                            File belum tersedia
-                                                        </p>
-                                                        {canEdit && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setUploadingDocId(
-                                                                        doc.hashed_id,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                Upload
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     </ContentCard>
