@@ -61,7 +61,7 @@ class BastController extends Controller
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            // Hitung total SPK eligible untuk BAST (status dikirim/perubahan dengan alokasi > 0)
+            // Hitung total SPK eligible untuk BAST (status dikirim/direvisi dengan alokasi > 0)
             $totalSpk = Spk::where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $activeYear)
                 ->whereMonth('tanggal_spk', $bulan)
@@ -69,7 +69,7 @@ class BastController extends Controller
                     $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
                         $query->where('bulan', $bulanFormatted)
                             ->where('tahun', $activeYear)
-                            ->whereIn('status', ['dikirim', 'perubahan']);
+                            ->whereIn('status', ['dikirim', 'direvisi']);
                     })
                     ->where(function ($query) {
                         $query->where('jumlah_satuan', '>', 0)
@@ -87,7 +87,7 @@ class BastController extends Controller
                     $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
                         $query->where('bulan', $bulanFormatted)
                             ->where('tahun', $activeYear)
-                            ->whereIn('status', ['dikirim', 'perubahan']);
+                            ->whereIn('status', ['dikirim', 'direvisi']);
                     })
                     ->where(function ($query) {
                         $query->where('jumlah_satuan', '>', 0)
@@ -188,7 +188,7 @@ class BastController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Ambil SPK original yang belum punya BAST di bulan ini
-        // Filter hanya SPK dengan status dikirim/perubahan dan punya pekerjaan
+        // Filter hanya SPK dengan status dikirim/direvisi dan punya pekerjaan
         $spks = Spk::where('addendum_number', 0)
             ->whereYear('tanggal_spk', $tahun)
             ->whereMonth('tanggal_spk', $bulan)
@@ -197,7 +197,7 @@ class BastController extends Controller
                 $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $tahun) {
                     $query->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
+                        ->whereIn('status', ['dikirim', 'direvisi']);
                 })
                 ->where(function ($query) {
                     $query->where('jumlah_satuan', '>', 0)
