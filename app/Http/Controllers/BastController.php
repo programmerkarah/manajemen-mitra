@@ -854,7 +854,7 @@ class BastController extends Controller
 
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
-            // Validasi tanggal sebelum parsing
+            // Validasi tanggal sebelum parsing dan adjust ke hari kerja jika weekend
             $tanggalSelesaiFormatted = '-';
             if (! empty($tanggalSelesaiKegiatan) && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
                 try {
@@ -864,7 +864,14 @@ class BastController extends Controller
                         : $tanggalSelesaiKegiatan;
 
                     if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
-                        $tanggalSelesaiFormatted = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                        $carbonDate = \Carbon\Carbon::parse($dateString);
+                        
+                        // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
+                        while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
+                            $carbonDate->subDay();
+                        }
+                        
+                        $tanggalSelesaiFormatted = $carbonDate->locale('id')->isoFormat('D MMMM YYYY');
                     }
                 } catch (\Exception $e) {
                     // Try fallback to tanggal BAST utama
@@ -875,7 +882,14 @@ class BastController extends Controller
                                 : $tanggalBerakhir;
 
                             if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
-                                $tanggalSelesaiFormatted = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                                $carbonDate = \Carbon\Carbon::parse($dateString);
+                                
+                                // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
+                                while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
+                                    $carbonDate->subDay();
+                                }
+                                
+                                $tanggalSelesaiFormatted = $carbonDate->locale('id')->isoFormat('D MMMM YYYY');
                             }
                         } catch (\Exception $e2) {
                             $tanggalSelesaiFormatted = '-';
