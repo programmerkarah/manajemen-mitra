@@ -61,7 +61,7 @@ class BastController extends Controller
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            // Hitung total SPK eligible untuk BAST (status dikirim/direvisi dengan alokasi > 0)
+            // Hitung total SPK eligible untuk BAST (status dikirim/perubahan dengan alokasi > 0)
             $totalSpk = Spk::where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $activeYear)
                 ->whereMonth('tanggal_spk', $bulan)
@@ -69,7 +69,7 @@ class BastController extends Controller
                     $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
                         $query->where('bulan', $bulanFormatted)
                             ->where('tahun', $activeYear)
-                            ->whereIn('status', ['dikirim', 'direvisi']);
+                            ->whereIn('status', ['dikirim', 'perubahan']);
                     })
                     ->where(function ($query) {
                         $query->where('jumlah_satuan', '>', 0)
@@ -87,7 +87,7 @@ class BastController extends Controller
                     $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
                         $query->where('bulan', $bulanFormatted)
                             ->where('tahun', $activeYear)
-                            ->whereIn('status', ['dikirim', 'direvisi']);
+                            ->whereIn('status', ['dikirim', 'perubahan']);
                     })
                     ->where(function ($query) {
                         $query->where('jumlah_satuan', '>', 0)
@@ -201,7 +201,7 @@ class BastController extends Controller
                         ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                         ->where('periode_alokasi.bulan', $bulanFormatted)
                         ->where('periode_alokasi.tahun', $tahun)
-                        ->whereIn('periode_alokasi.status', ['dikirim', 'direvisi'])
+                        ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
                         ->where(function ($jumlahQuery) {
                             $jumlahQuery->where('alokasi_petugas.jumlah_satuan', '>', 0)
                                 ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0);
