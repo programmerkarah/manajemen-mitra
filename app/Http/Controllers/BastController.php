@@ -489,8 +489,9 @@ class BastController extends Controller
                         );
 
                         if ($merged && file_exists($mergedPath)) {
-                            // Create directory for export if not exists
-                            $directory = storage_path('app/public/bast-export');
+
+                            // Create directory for export if not exists (public/bast-export)
+                            $directory = public_path('bast-export');
                             if (! file_exists($directory)) {
                                 mkdir($directory, 0755, true);
                             }
@@ -498,8 +499,8 @@ class BastController extends Controller
                             // Generate filename
                             $cleanNomorBast = str_replace(['/', '\\', ' '], '_', $nomorBast);
                             $filename = $cleanNomorBast.'_'.$spk->alokasiPetugas->petugas->nama.'.pdf';
-                            $filePath = 'storage/bast-export/'.$filename;
-                            $fullPath = storage_path('app/public/bast-export/'.$filename);
+                            $filePath = 'bast-export/'.$filename;
+                            $fullPath = public_path($filePath);
 
                             // Copy merged PDF to final destination
                             copy($mergedPath, $fullPath);
@@ -709,6 +710,16 @@ class BastController extends Controller
             $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
+            // Validasi tanggal sebelum parsing
+            $tanggalSelesaiFormatted = '-';
+            if (!empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
+                try {
+                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
+                } catch (\Exception $e) {
+                    $tanggalSelesaiFormatted = '-';
+                }
+            }
+
             // Generate uraian terpisah untuk listing dan pencacahan
             $uraianListing = null;
             $uraianPencacahan = null;
@@ -781,7 +792,7 @@ class BastController extends Controller
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
-                'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
+                'tanggal_selesai_formatted' => $tanggalSelesaiFormatted,
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
                 'uraian_pencacahan' => $uraianPencacahan,
