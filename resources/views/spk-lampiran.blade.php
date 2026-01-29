@@ -142,7 +142,7 @@
                 }
             @endphp
             Lampiran<br>
-            {{ strtoupper($judulSpkLampiran) }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+            {{ strtoupper($judulSpkLampiran) }} BADAN PUSAT STATISTIK KOTA SAWAHLUNTO BULAN {{ strtoupper(bulanIndonesia($periode->bulan))}} TAHUN {{ $periode->tahun }} PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
             NOMOR: {{ $nomorSpk }}
         </div>
     </div>

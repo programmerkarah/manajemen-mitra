@@ -392,3 +392,28 @@ if (! function_exists('getHariKerjaTerakhir')) {
         return $carbon;
     }
 }
+
+if (! function_exists('bulanIndonesia')) {
+    /**
+     * Convert numeric month (01-12 or 1-12) to Indonesian month name
+     */
+    function bulanIndonesia($bulan): string
+    {
+        $bulanMap = [
+            '01' => 'Januari', '1' => 'Januari',
+            '02' => 'Februari', '2' => 'Februari',
+            '03' => 'Maret', '3' => 'Maret',
+            '04' => 'April', '4' => 'April',
+            '05' => 'Mei', '5' => 'Mei',
+            '06' => 'Juni', '6' => 'Juni',
+            '07' => 'Juli', '7' => 'Juli',
+            '08' => 'Agustus', '8' => 'Agustus',
+            '09' => 'September', '9' => 'September',
+            '10' => 'Oktober',
+            '11' => 'November',
+            '12' => 'Desember',
+        ];
+
+        return $bulanMap[(string) $bulan] ?? 'Unknown';
+    }
+}

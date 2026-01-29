@@ -249,7 +249,7 @@
         @endphp
         <h3>PERJANJIAN KERJA</h3>
         <h3>{{ $judulSpk }}</h3>
-        <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper($tanggalSpk->locale('id')->translatedFormat('F'))}} TAHUN {{ $kegiatan->tahun_anggaran }}</h3>
+        <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper(bulanIndonesia($periode->bulan))}} TAHUN {{ $periode->tahun }}</h3>
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         <div style="font-weight: bold; text-align: center; margin-top: 5px;">NOMOR: {{ $nomorSpk }}</div>
     </div>
@@ -279,7 +279,7 @@
     </div>
 
     <div class="content">
-        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
+        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
     </div>
 
     <!-- Pasal 1 -->
@@ -287,7 +287,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 1</div>
             <div class="pasal-content">
-                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
@@ -297,7 +297,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 2</div>
             <div class="pasal-content">
-                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, pedoman {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{$tanggalSpk->locale('id')->translatedFormat('F')}} Tahun {{ $kegiatan->tahun_anggaran }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, pedoman {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
