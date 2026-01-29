@@ -61,20 +61,42 @@ class BastController extends Controller
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            // Hitung total SPK di bulan ini (original SPK saja)
+            // Hitung total SPK eligible untuk BAST (status dikirim/perubahan dengan alokasi > 0)
             $totalSpk = Spk::where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $activeYear)
                 ->whereMonth('tanggal_spk', $bulan)
+                ->whereHas('alokasiPetugas', function ($q) use ($bulanFormatted, $activeYear) {
+                    $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
+                        $query->where('bulan', $bulanFormatted)
+                            ->where('tahun', $activeYear)
+                            ->whereIn('status', ['dikirim', 'perubahan']);
+                    })
+                    ->where(function ($query) {
+                        $query->where('jumlah_satuan', '>', 0)
+                            ->orWhere('jumlah_satuan_listing', '>', 0);
+                    });
+                })
                 ->count();
 
-            // Hitung SPK yang sudah punya BAST
+            // Hitung SPK eligible yang sudah punya BAST
             $spkWithBast = Spk::where('addendum_number', 0)
                 ->whereYear('tanggal_spk', $activeYear)
                 ->whereMonth('tanggal_spk', $bulan)
                 ->whereHas('bast')
+                ->whereHas('alokasiPetugas', function ($q) use ($bulanFormatted, $activeYear) {
+                    $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $activeYear) {
+                        $query->where('bulan', $bulanFormatted)
+                            ->where('tahun', $activeYear)
+                            ->whereIn('status', ['dikirim', 'perubahan']);
+                    })
+                    ->where(function ($query) {
+                        $query->where('jumlah_satuan', '>', 0)
+                            ->orWhere('jumlah_satuan_listing', '>', 0);
+                    });
+                })
                 ->count();
 
-            // Hitung SPK yang belum punya BAST
+            // Hitung SPK eligible yang belum punya BAST
             $spkWithoutBast = $totalSpk - $spkWithBast;
 
             // Get first BAST for this month
@@ -166,10 +188,22 @@ class BastController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Ambil SPK original yang belum punya BAST di bulan ini
+        // Filter hanya SPK dengan status dikirim/perubahan dan punya pekerjaan
         $spks = Spk::where('addendum_number', 0)
             ->whereYear('tanggal_spk', $tahun)
             ->whereMonth('tanggal_spk', $bulan)
             ->whereDoesntHave('bast')
+            ->whereHas('alokasiPetugas', function ($q) use ($bulanFormatted, $tahun) {
+                $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $tahun) {
+                    $query->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->where(function ($query) {
+                    $query->where('jumlah_satuan', '>', 0)
+                        ->orWhere('jumlah_satuan_listing', '>', 0);
+                });
+            })
             ->with([
                 'alokasiPetugas.petugas:id,nama,nik,alamat',
                 'alokasiPetugas.periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id',
@@ -188,7 +222,7 @@ class BastController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        if ($lastBast && preg_match('/^(\d+)\//', $lastBast->nomor_bast, $matches)) {
+        if ($lastBast && preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $lastBast->nomor_bast, $matches)) {
             $nomorUrutStart = (int) $matches[1] + 1;
         } else {
             $nomorUrutStart = 1;
@@ -245,6 +279,10 @@ class BastController extends Controller
                         ->where('tahun', $tahun)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
+                ->where(function ($query) {
+                    $query->where('jumlah_satuan', '>', 0)
+                        ->orWhere('jumlah_satuan_listing', '>', 0);
+                })
                 ->with('periodeAlokasi')
                 ->get();
 
@@ -290,6 +328,10 @@ class BastController extends Controller
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
                         ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->where(function ($query) {
+                    $query->where('jumlah_satuan', '>', 0)
+                        ->orWhere('jumlah_satuan_listing', '>', 0);
                 })
                 ->with('periodeAlokasi')
                 ->get();
@@ -529,6 +571,10 @@ class BastController extends Controller
                         ->where('tahun', $tahunA)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
+                ->where(function ($query) {
+                    $query->where('jumlah_satuan', '>', 0)
+                        ->orWhere('jumlah_satuan_listing', '>', 0);
+                })
                 ->with('periodeAlokasi')
                 ->get();
 
@@ -576,6 +622,10 @@ class BastController extends Controller
                     $q->where('bulan', $bulanB)
                         ->where('tahun', $tahunB)
                         ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->where(function ($query) {
+                    $query->where('jumlah_satuan', '>', 0)
+                        ->orWhere('jumlah_satuan_listing', '>', 0);
                 })
                 ->with('periodeAlokasi')
                 ->get();
@@ -760,6 +810,17 @@ class BastController extends Controller
                         ])
                         ->get();
 
+                    // Skip jika tidak ada alokasi dengan pekerjaan
+                    if ($allAlokasi->isEmpty()) {
+                        $failedSpk[] = [
+                            'nomor_spk' => $spk->nomor_spk,
+                            'reason' => 'Tidak ada alokasi dengan pekerjaan',
+                        ];
+                        DB::rollBack();
+
+                        continue;
+                    }
+
                     $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
                     // Ambil seluruh alokasi petugas di bulan dan tahun yang sama (identik dengan preview)
@@ -849,9 +910,9 @@ class BastController extends Controller
                     }
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Generate nomor BAST dengan increment untuk setiap SPK (counter sudah di-initialize di luar loop)
-                    $nomorUrutBast++;
-                    $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorUrutBast, $carbonTarget->year);
+                    // Generate nomor BAST (counter akan di-increment setelah berhasil save)
+                    $nomorBastTemp = $nomorUrutBast + 1;
+                    $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
 
                     // Ambil PPK aktif
                     $ppk = \App\Models\Penandatangan::where('jenis_penandatangan', 'ppk')
@@ -982,6 +1043,10 @@ class BastController extends Controller
                         ]);
                     }
                     $successCount++;
+                    
+                    // Increment counter hanya setelah BAST berhasil disimpan
+                    $nomorUrutBast++;
+                    
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();

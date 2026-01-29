@@ -339,14 +339,6 @@
 						<td colspan="{{ $hasNonResponse ? '7' : '5' }}" class="left">Tidak ada data hasil pekerjaan</td>
 					</tr>
 					@endif
-
-					@if($kegiatan['keterangan'])
-					<tr>
-						<td colspan="{{ $hasNonResponse ? '7' : '5' }}" class="left">
-							<strong>Catatan:</strong> {{ $kegiatan['keterangan'] }}
-						</td>
-					</tr>
-					@endif
 				</tbody>
 			</table>
 		</div>
