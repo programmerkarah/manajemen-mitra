@@ -625,13 +625,96 @@ class BastController extends Controller
             return strcmp($petugasA?->nama ?? '', $petugasB?->nama ?? '');
         })->values();
 
-        $successCount = 0;
-        $failedSpk = [];
-
-        // Initialize nomor urut BAST - akan di-set saat SPK pertama diproses
-        $nomorUrutBast = null;
+        // Initialize nomor urut BAST berdasarkan SPK pertama yang sudah diurutkan
+        $nomorUrutBast = 0;
         $bulanBast = null;
         $tahunBast = null;
+
+        if ($spksSorted->isNotEmpty()) {
+            $firstSpk = $spksSorted->first();
+            $firstPetugas = $firstSpk->alokasiPetugas?->petugas;
+            $firstBulan = date('m', strtotime($firstSpk->tanggal_mulai_kerja));
+            $firstTahun = date('Y', strtotime($firstSpk->tanggal_mulai_kerja));
+
+            // Get tanggal berakhir for first SPK to determine bulan/tahun BAST
+            $firstAllAlokasi = \App\Models\AlokasiPetugas::where('petugas_id', $firstPetugas?->id)
+                ->whereHas('periodeAlokasi', function ($q) use ($firstBulan, $firstTahun) {
+                    $q->where('bulan', $firstBulan)
+                        ->where('tahun', $firstTahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->with('periodeAlokasi')
+                ->get();
+
+            $firstTanggalBerakhir = $firstAllAlokasi->map(function ($alokasi) {
+                $periode = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    }
+                } else {
+                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    }
+                }
+
+                return null;
+            })->filter()->max();
+
+            if (! $firstTanggalBerakhir) {
+                $firstTanggalBerakhir = $firstSpk->tanggal_selesai_kerja ?? $firstSpk->tanggal_mulai_kerja;
+            }
+
+            // Convert and adjust for weekend
+            if ($firstTanggalBerakhir instanceof \Carbon\Carbon) {
+                $firstTanggalBerakhir = $firstTanggalBerakhir->format('Y-m-d');
+            }
+
+            $carbonTarget = \Carbon\Carbon::parse($firstTanggalBerakhir);
+            while (in_array($carbonTarget->dayOfWeekIso, [6, 7])) {
+                $carbonTarget->subDay();
+            }
+
+            $bulanBast = $carbonTarget->month;
+            $tahunBast = $carbonTarget->year;
+
+            // Ambil semua BAST di bulan dan tahun yang sama dan cari nomor tertinggi
+            $allBast = Bast::whereYear('tanggal_bast', $tahunBast)
+                ->whereMonth('tanggal_bast', $bulanBast)
+                ->pluck('nomor_bast');
+
+            $maxUrut = 0;
+            foreach ($allBast as $existingNomor) {
+                // Pattern: PPIS/13730/{urut}/BAST/{tahun}
+                if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
+                    $urut = (int) $matches[1];
+                    if ($urut > $maxUrut) {
+                        $maxUrut = $urut;
+                    }
+                }
+            }
+
+            $nomorUrutBast = $maxUrut;
+        }
+
+        $successCount = 0;
+        $failedSpk = [];
 
         try {
             foreach ($spksSorted as $spk) {
@@ -766,31 +849,7 @@ class BastController extends Controller
                     }
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Initialize nomor urut BAST pada iterasi pertama
-                    if ($nomorUrutBast === null) {
-                        $bulanBast = $carbonTarget->month;
-                        $tahunBast = $carbonTarget->year;
-
-                        // Ambil semua BAST di bulan dan tahun yang sama dan cari nomor tertinggi
-                        $allBast = Bast::whereYear('tanggal_bast', $tahunBast)
-                            ->whereMonth('tanggal_bast', $bulanBast)
-                            ->pluck('nomor_bast');
-
-                        $maxUrut = 0;
-                        foreach ($allBast as $existingNomor) {
-                            // Pattern: PPIS/13730/{urut}/BAST/{tahun}
-                            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
-                                $urut = (int) $matches[1];
-                                if ($urut > $maxUrut) {
-                                    $maxUrut = $urut;
-                                }
-                            }
-                        }
-
-                        $nomorUrutBast = $maxUrut;
-                    }
-
-                    // Generate nomor BAST dengan increment untuk setiap SPK
+                    // Generate nomor BAST dengan increment untuk setiap SPK (counter sudah di-initialize di luar loop)
                     $nomorUrutBast++;
                     $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorUrutBast, $carbonTarget->year);
 

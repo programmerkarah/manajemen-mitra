@@ -128,6 +128,11 @@ export default function Show({
     const { auth } = usePage<SharedData>().props;
     const [isUploading, setIsUploading] = useState(false);
     
+    // Urutkan bast_list berdasarkan nama petugas (A-Z)
+    const sortedBastList = [...bast_list].sort((a, b) => 
+        a.petugas_nama.localeCompare(b.petugas_nama)
+    );
+    
     const canEdit =
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
@@ -203,7 +208,7 @@ export default function Show({
                         <div className="space-y-4">
                             <div>
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Daftar BAST ({bast_list.length})
+                                    Daftar BAST ({sortedBastList.length})
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                     BAST periode {bulan_label} {tahun}
@@ -211,7 +216,7 @@ export default function Show({
                             </div>
 
                             <div className="max-h-[600px] space-y-2 overflow-y-auto">
-                                {bast_list.map((item) => (
+                                {sortedBastList.map((item) => (
                                     <button
                                         key={item.id}
                                         onClick={() =>
