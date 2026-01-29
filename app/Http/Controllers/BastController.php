@@ -188,20 +188,25 @@ class BastController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Ambil SPK original yang belum punya BAST di bulan ini
-        // Filter hanya SPK dengan status dikirim/direvisi dan punya pekerjaan
+        // Filter: petugasnya harus punya minimal 1 alokasi dengan jumlah > 0 di bulan yang sama
         $spks = Spk::where('addendum_number', 0)
             ->whereYear('tanggal_spk', $tahun)
             ->whereMonth('tanggal_spk', $bulan)
             ->whereDoesntHave('bast')
             ->whereHas('alokasiPetugas', function ($q) use ($bulanFormatted, $tahun) {
-                $q->whereHas('periodeAlokasi', function ($query) use ($bulanFormatted, $tahun) {
-                    $query->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'direvisi']);
-                })
-                ->where(function ($query) {
-                    $query->where('jumlah_satuan', '>', 0)
-                        ->orWhere('jumlah_satuan_listing', '>', 0);
+                // Check if petugas_id has ANY alokasi with jumlah > 0 in this month
+                $q->whereIn('petugas_id', function ($subQuery) use ($bulanFormatted, $tahun) {
+                    $subQuery->select('petugas_id')
+                        ->from('alokasi_petugas')
+                        ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                        ->where('periode_alokasi.bulan', $bulanFormatted)
+                        ->where('periode_alokasi.tahun', $tahun)
+                        ->whereIn('periode_alokasi.status', ['dikirim', 'direvisi'])
+                        ->where(function ($jumlahQuery) {
+                            $jumlahQuery->where('alokasi_petugas.jumlah_satuan', '>', 0)
+                                ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0);
+                        })
+                        ->groupBy('petugas_id');
                 });
             })
             ->with([
