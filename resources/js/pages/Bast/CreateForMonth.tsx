@@ -139,9 +139,10 @@ export default function CreateForMonth({
             spk_id: spkId,
         };
 
-        if (nomorBast) {
-            payload.nomor_bast = nomorBast;
-        }
+        // Don't send nomor_bast - let backend generate the latest number
+        // if (nomorBast) {
+        //     payload.nomor_bast = nomorBast;
+        // }
 
         const encryptedPayload = encryptFilters(payload);
 

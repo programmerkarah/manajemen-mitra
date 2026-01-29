@@ -203,14 +203,41 @@ class BastController extends Controller
         })->get();
         $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
             $periode = $alokasi->periodeAlokasi;
-            return $periode?->tanggal_selesai_listing
-                ?? $periode?->jadwal_pengolahan_listing_selesai
-                ?? $periode?->tanggal_selesai
-                ?? null;
+            $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+            $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+            $tanggalSelesai = null;
+
+            if ($isPengolahanRole) {
+                // For pengolahan roles, check appropriate processing schedule
+                if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
+                } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
+                }
+            } else {
+                // For field roles (lapangan), check appropriate field schedule
+                if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                    $tanggalSelesai = $periode->tanggal_selesai_listing;
+                } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                    $tanggalSelesai = $periode->tanggal_selesai;
+                } elseif (! empty($periode?->tanggal_selesai)) {
+                    $tanggalSelesai = $periode->tanggal_selesai;
+                } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                    $tanggalSelesai = $periode->tanggal_selesai_listing;
+                }
+            }
+
+            return $tanggalSelesai;
         })->filter()->max();
 
         // Format data SPK dengan detail kegiatan yang diikuti petugas
-        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $tanggalBerakhirPalingAkhir) {
+        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart) {
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
@@ -242,25 +269,47 @@ class BastController extends Controller
                 $spkTerkait = $alokasi->spk?->first();
                 $periodeAlokasi = $alokasi->periodeAlokasi;
 
+                // Determine appropriate end date based on role and activity type
                 $tanggalSelesai = null;
-                if (in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan'])) {
-                    if (!empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    // For pengolahan roles, check appropriate processing schedule
+                    if ($hasListing && ! empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
                         $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (!empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
+                    } elseif (! empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
                         $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
                     }
                 } else {
-                    if (!empty($periodeAlokasi?->tanggal_selesai)) {
+                    // For field roles (lapangan), check appropriate field schedule
+                    if ($hasListing && ! empty($periodeAlokasi?->tanggal_selesai_listing)) {
+                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periodeAlokasi?->tanggal_selesai)) {
                         $tanggalSelesai = $periodeAlokasi->tanggal_selesai;
-                    } elseif (!empty($periodeAlokasi?->tanggal_selesai_listing)) {
+                    } elseif (! empty($periodeAlokasi?->tanggal_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai;
+                    } elseif (! empty($periodeAlokasi?->tanggal_selesai_listing)) {
                         $tanggalSelesai = $periodeAlokasi->tanggal_selesai_listing;
                     }
                 }
 
                 $tanggalSelesaiLabel = '';
-                if (!empty($tanggalSelesai) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesai)) {
+                if (! empty($tanggalSelesai)) {
                     try {
-                        $tanggalSelesaiLabel = \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMMM YYYY');
+                        // Convert to string if it's already a Carbon instance
+                        $dateString = $tanggalSelesai instanceof \Carbon\Carbon
+                            ? $tanggalSelesai->format('Y-m-d')
+                            : $tanggalSelesai;
+
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
+                            $tanggalSelesaiLabel = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                        }
                     } catch (\Exception $e) {
                         $tanggalSelesaiLabel = '';
                     }
@@ -283,12 +332,22 @@ class BastController extends Controller
                 ];
             })->filter()->values();
 
+            // Hitung tanggal berakhir paling akhir dari kegiatan yang diikuti petugas ini
+            $tanggalBerakhirPetugasIni = $kegiatanList->map(function ($kegiatan) {
+                return $kegiatan['tanggal_selesai'];
+            })->filter()->max();
+
+            // Fallback ke tanggal SPK jika tidak ada tanggal dari kegiatan
+            if (! $tanggalBerakhirPetugasIni) {
+                $tanggalBerakhirPetugasIni = $spk->tanggal_selesai_kerja;
+            }
+
             $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
             // Generate nomor BAST untuk SPK ini dengan nomor urut yang increment
             $nomorUrut = $nomorUrutStart + $index;
-            $nomorBastPreview = $tanggalBerakhirPalingAkhir
-                ? sprintf('PPIS/13730/%d/BAST/%d', $nomorUrut, $tanggalBerakhirPalingAkhir->year)
+            $nomorBastPreview = $tanggalBerakhirPetugasIni
+                ? sprintf('PPIS/13730/%d/BAST/%d', $nomorUrut, $tanggalBerakhirPetugasIni instanceof \Carbon\Carbon ? $tanggalBerakhirPetugasIni->year : \Carbon\Carbon::parse($tanggalBerakhirPetugasIni)->year)
                 : null;
 
             return [
@@ -299,7 +358,7 @@ class BastController extends Controller
                 'tanggal_spk' => $spk->tanggal_spk?->format('Y-m-d'),
                 'tanggal_mulai_kerja' => $spk->tanggal_mulai_kerja?->format('Y-m-d'),
                 'tanggal_selesai_kerja_asli' => $spk->tanggal_selesai_kerja?->format('Y-m-d'),
-                'tanggal_berakhir_paling_akhir' => $tanggalBerakhirPalingAkhir?->format('Y-m-d'),
+                'tanggal_berakhir_paling_akhir' => $tanggalBerakhirPetugasIni instanceof \Carbon\Carbon ? $tanggalBerakhirPetugasIni->format('Y-m-d') : $tanggalBerakhirPetugasIni,
                 'nama_ppk' => $spk->nama_ppk,
                 'nip_ppk' => $spk->nip_ppk,
                 'petugas' => [
@@ -351,7 +410,11 @@ class BastController extends Controller
 
         $successCount = 0;
         $failedSpk = [];
-        $nomorBastCounter = null; // Track counter untuk nomor BAST unique
+
+        // Initialize nomor urut BAST - akan di-set saat SPK pertama diproses
+        $nomorUrutBast = null;
+        $bulanBast = null;
+        $tahunBast = null;
 
         try {
             foreach ($request->spk_ids as $spkId) {
@@ -370,6 +433,7 @@ class BastController extends Controller
                             'reason' => 'BAST sudah ada',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
@@ -428,8 +492,40 @@ class BastController extends Controller
                         ->get();
 
                     // Untuk tanggal BAST utama, gunakan tanggal paling akhir dari semua kegiatan
+                    // dengan logika yang sama seperti di method create()
                     $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
-                        return $alokasi->tanggal_selesai ?? null;
+                        $periode = $alokasi->periodeAlokasi;
+                        $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                        $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                        $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                        $tanggalSelesai = null;
+
+                        if ($isPengolahanRole) {
+                            // For pengolahan roles, check appropriate processing schedule
+                            if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                                $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
+                            } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                                $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
+                            } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                                $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
+                            } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                                $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
+                            }
+                        } else {
+                            // For field roles (lapangan), check appropriate field schedule
+                            if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                                $tanggalSelesai = $periode->tanggal_selesai_listing;
+                            } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                                $tanggalSelesai = $periode->tanggal_selesai;
+                            } elseif (! empty($periode?->tanggal_selesai)) {
+                                $tanggalSelesai = $periode->tanggal_selesai;
+                            } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                                $tanggalSelesai = $periode->tanggal_selesai_listing;
+                            }
+                        }
+
+                        return $tanggalSelesai;
                     })->filter()->max();
 
                     // Fallback ke tanggal SPK original jika tidak ada yang lain
@@ -439,19 +535,51 @@ class BastController extends Controller
                     if (! $tanggalBerakhirPalingAkhir) {
                         $tanggalBerakhirPalingAkhir = $spk->tanggal_mulai_kerja;
                     }
+
+                    // Convert to Carbon if needed
+                    if ($tanggalBerakhirPalingAkhir instanceof \Carbon\Carbon) {
+                        $tanggalBerakhirPalingAkhir = $tanggalBerakhirPalingAkhir->format('Y-m-d');
+                    }
+
                     // Fallback terakhir: gunakan hari ini jika tetap tidak valid
-                    if (empty($tanggalBerakhirPalingAkhir) || $tanggalBerakhirPalingAkhir === '-' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhirPalingAkhir)) {
+                    if (empty($tanggalBerakhirPalingAkhir) || $tanggalBerakhirPalingAkhir === '-') {
                         $tanggalBerakhirPalingAkhir = \Carbon\Carbon::now()->format('Y-m-d');
                     }
-                    // Selalu adjust ke hari kerja terdekat ke depan (seperti preview)
+
+                    // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend/libur
                     $carbonTarget = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir);
-                    while (in_array($carbonTarget->dayOfWeekIso, [6,7])) {
-                        $carbonTarget->addDay();
+                    while (in_array($carbonTarget->dayOfWeekIso, [6, 7])) {
+                        $carbonTarget->subDay();
                     }
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Generate nomor BAST otomatis
-                    $nomorBast = $this->generateNomorBastForSpk(\Carbon\Carbon::parse($tanggalBerakhirPalingAkhir));
+                    // Initialize nomor urut BAST pada iterasi pertama
+                    if ($nomorUrutBast === null) {
+                        $bulanBast = $carbonTarget->month;
+                        $tahunBast = $carbonTarget->year;
+
+                        // Ambil semua BAST di bulan dan tahun yang sama dan cari nomor tertinggi
+                        $allBast = Bast::whereYear('tanggal_bast', $tahunBast)
+                            ->whereMonth('tanggal_bast', $bulanBast)
+                            ->pluck('nomor_bast');
+
+                        $maxUrut = 0;
+                        foreach ($allBast as $existingNomor) {
+                            // Pattern: PPIS/13730/{urut}/BAST/{tahun}
+                            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
+                                $urut = (int) $matches[1];
+                                if ($urut > $maxUrut) {
+                                    $maxUrut = $urut;
+                                }
+                            }
+                        }
+
+                        $nomorUrutBast = $maxUrut;
+                    }
+
+                    // Generate nomor BAST dengan increment untuk setiap SPK
+                    $nomorUrutBast++;
+                    $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorUrutBast, $carbonTarget->year);
 
                     // Ambil PPK aktif
                     $ppk = \App\Models\Penandatangan::where('jenis_penandatangan', 'ppk')
@@ -599,6 +727,7 @@ class BastController extends Controller
                 $failedList = collect($failedSpk)->map(fn ($f) => "{$f['nomor_spk']} ({$f['reason']})")->join(', ');
                 $message .= ". Gagal: {$failedList}";
             }
+
             return redirect()->route('bast.index')->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal generate BAST: '.$e->getMessage());
@@ -687,31 +816,71 @@ class BastController extends Controller
             $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
-            // LOGIKA TANGGAL SELESAI PER PERAN
-            if ($isPendataanRole) {
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing ?? $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
-            } elseif ($isPengolahanRole) {
-                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai ?? $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
+            // Determine appropriate end date based on role and activity type
+            $tanggalSelesaiKegiatan = null;
+            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+            if ($isPengolahanRole) {
+                // For pengolahan roles, check appropriate processing schedule
+                if ($hasListing && ! empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                } elseif ($hasPencacahan && ! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                }
+            } elseif ($isPendataanRole) {
+                // For field roles (lapangan), check appropriate field schedule
+                if ($hasListing && ! empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                } elseif ($hasPencacahan && ! empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
+                } elseif (! empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
+                } elseif (! empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                }
             } else {
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
+                // Fallback for other roles
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $periode->tanggal_selesai_listing;
+            }
+
+            // Fallback to SPK dates if periode dates not available
+            if (empty($tanggalSelesaiKegiatan)) {
+                $tanggalSelesaiKegiatan = $spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK';
             }
 
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
             // Validasi tanggal sebelum parsing
             $tanggalSelesaiFormatted = '-';
-            if (!empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
+            if (! empty($tanggalSelesaiKegiatan) && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
                 try {
-                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
+                    // Convert to string if it's already a Carbon instance
+                    $dateString = $tanggalSelesaiKegiatan instanceof \Carbon\Carbon
+                        ? $tanggalSelesaiKegiatan->format('Y-m-d')
+                        : $tanggalSelesaiKegiatan;
+
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
+                        $tanggalSelesaiFormatted = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                    }
                 } catch (\Exception $e) {
-                    $tanggalSelesaiFormatted = '-';
-                }
-            } else if (!empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
-                // Fallback ke tanggal BAST utama jika tanggal selesai tidak valid
-                try {
-                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
-                } catch (\Exception $e) {
-                    $tanggalSelesaiFormatted = '-';
+                    // Try fallback to tanggal BAST utama
+                    if (! empty($tanggalBerakhir)) {
+                        try {
+                            $dateString = $tanggalBerakhir instanceof \Carbon\Carbon
+                                ? $tanggalBerakhir->format('Y-m-d')
+                                : $tanggalBerakhir;
+
+                            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
+                                $tanggalSelesaiFormatted = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                            }
+                        } catch (\Exception $e2) {
+                            $tanggalSelesaiFormatted = '-';
+                        }
+                    }
                 }
             }
 
@@ -788,7 +957,7 @@ class BastController extends Controller
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
                 // Tampilkan label tanggal selesai jika valid, jika tidak kosongkan string agar tidak tampil "-" di frontend
-                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && !empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
+                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && ! empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
                 'tanggal_selesai_formatted' => $tanggalSelesaiFormatted,
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
@@ -897,13 +1066,13 @@ class BastController extends Controller
 
             // Validasi tanggal sebelum parsing
             $tanggalSelesaiFormatted = '-';
-            if (!empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
+            if (! empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
                 try {
                     $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
                 } catch (\Exception $e) {
                     $tanggalSelesaiFormatted = '-';
                 }
-            } else if (!empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
+            } elseif (! empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
                 // Fallback ke tanggal BAST utama jika tanggal selesai tidak valid
                 try {
                     $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
@@ -985,7 +1154,7 @@ class BastController extends Controller
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
                 // Tampilkan label tanggal selesai jika valid, jika tidak kosongkan string agar tidak tampil "-" di frontend
-                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && !empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
+                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && ! empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
                 'tanggal_selesai_formatted' => $tanggalSelesaiFormatted,
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
@@ -1049,18 +1218,23 @@ class BastController extends Controller
         $tahun = $tanggalBast->year;
         $bulan = $tanggalBast->month;
 
-        // Get last BAST number for this month
-        $lastBast = Bast::whereYear('tanggal_bast', $tahun)
+        // Get all BAST in this month and extract the highest number
+        $allBast = Bast::whereYear('tanggal_bast', $tahun)
             ->whereMonth('tanggal_bast', $bulan)
-            ->orderByDesc('id')
-            ->first();
+            ->pluck('nomor_bast');
 
-        if ($lastBast && preg_match('/^(\d+)\//', $lastBast->nomor_bast, $matches)) {
-            $urut = (int) $matches[1] + 1;
-        } else {
-            $urut = 1;
+        $maxUrut = 0;
+        foreach ($allBast as $nomorBast) {
+            // Pattern: PPIS/13730/{urut}/BAST/{tahun}
+            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $nomorBast, $matches)) {
+                $urut = (int) $matches[1];
+                if ($urut > $maxUrut) {
+                    $maxUrut = $urut;
+                }
+            }
         }
 
+        $urut = $maxUrut + 1;
         $bulanRomawi = $this->getRomanMonth($bulan);
 
         return sprintf('PPIS/13730/%d/BAST/%d', $urut, $tahun);
@@ -1259,28 +1433,35 @@ class BastController extends Controller
             })->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
-            // Ambil tanggal selesai berdasarkan jenis peran
-            // 1. Listing (pendataan + listing) → tanggal_selesai_listing
-            // 2. Pencacahan (pendataan tanpa listing) → tanggal_selesai
-            // 3. Pengolahan listing → jadwal_pengolahan_listing_selesai
-            // 4. Pengolahan pencacahan → jadwal_pengolahan_pencacahan_selesai
+            // Ambil tanggal selesai berdasarkan jenis peran dan tahapan kegiatan
             $tanggalSelesaiKegiatan = null;
+            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
 
-            if ($isPendataanRole && $hasListing) {
-                // Untuk peran pendataan dengan listing
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
-            } elseif ($isPendataanRole && ! $hasListing) {
-                // Untuk peran pendataan (pencacahan) tanpa listing
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
-            } elseif ($isPengolahanRole && $hasListing) {
-                // Untuk peran pengolahan listing
-                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
-            } elseif ($isPengolahanRole && ! $hasListing) {
-                // Untuk peran pengolahan pencacahan
-                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+            if ($isPengolahanRole) {
+                // For pengolahan roles, check appropriate processing schedule
+                if ($hasListing && ! empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                } elseif ($hasPencacahan && ! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
+                } elseif (! empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                }
+            } elseif ($isPendataanRole) {
+                // For field roles (lapangan), check appropriate field schedule
+                if ($hasListing && ! empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                } elseif ($hasPencacahan && ! empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
+                } elseif (! empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
+                } elseif (! empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                }
             }
 
-            // Fallback ke tanggal_selesai umum, lalu tanggal dari SPK, terakhir 'Belum ada SPK'
+            // Fallback to generic dates or SPK dates if not set
             if (! $tanggalSelesaiKegiatan) {
                 $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $spkPetugas?->tanggal_selesai_kerja ?? 'Belum ada SPK';
             }
@@ -1359,7 +1540,7 @@ class BastController extends Controller
             if ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
                 $carbonTanggal = \Carbon\Carbon::parse($tanggalSelesaiKegiatan);
                 // Jika Sabtu (6) atau Minggu (7), fallback ke Jumat atau hari kerja sebelumnya
-                while (in_array($carbonTanggal->dayOfWeekIso, [6,7])) {
+                while (in_array($carbonTanggal->dayOfWeekIso, [6, 7])) {
                     $carbonTanggal->subDay();
                 }
                 $tanggalSelesaiFinal = $carbonTanggal->format('Y-m-d');

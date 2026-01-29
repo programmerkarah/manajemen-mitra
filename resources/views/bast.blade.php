@@ -423,7 +423,7 @@
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($bast->nama_ppk ?? '') }}</div>
+                    <div class="signature-name">{{ strtoupper(trim(preg_replace('/^(Dr\.?|Prof\.?|Drs\.?|Ir\.?|H\.?)\s+/i', '', explode(',', $bast->nama_ppk ?? '')[0]))) }}</div>
                 </div>
             </div>
         </div>
