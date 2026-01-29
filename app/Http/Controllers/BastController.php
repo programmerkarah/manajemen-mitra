@@ -195,8 +195,22 @@ class BastController extends Controller
             $nomorUrutStart = 1;
         }
 
+        // Tentukan tanggal berakhir paling akhir dari semua alokasi di bulan ini
+        $allAlokasiBulan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+            $q->where('bulan', $bulanFormatted)
+                ->where('tahun', $tahun)
+                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
+        })->get();
+        $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
+            $periode = $alokasi->periodeAlokasi;
+            return $periode?->tanggal_selesai_listing
+                ?? $periode?->jadwal_pengolahan_listing_selesai
+                ?? $periode?->tanggal_selesai
+                ?? null;
+        })->filter()->max();
+
         // Format data SPK dengan detail kegiatan yang diikuti petugas
-        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart) {
+        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $tanggalBerakhirPalingAkhir) {
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
@@ -225,35 +239,30 @@ class BastController extends Controller
             // Kumpulkan kegiatan unik dengan detail dari semua alokasi petugas
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
                 $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
-                $spkTerkait = $alokasi->spk?->first(); // ambil SPK terbaru (bisa null)
+                $spkTerkait = $alokasi->spk?->first();
                 $periodeAlokasi = $alokasi->periodeAlokasi;
 
-                // Tentukan tanggal selesai berdasarkan peran dan periode alokasi
-                $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
-
-                if ($isPengolahanRole) {
-                    // Untuk peran pengolahan, gunakan jadwal pengolahan
-                    $endDates = array_filter([
-                        $periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai,
-                        $periodeAlokasi?->jadwal_pengolahan_listing_selesai,
-                    ]);
-                    $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
-
-                    // Fallback: jika jadwal pengolahan tidak ada, gunakan tanggal dari SPK
-                    if (! $tanggalSelesai && $spkTerkait) {
-                        $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
+                $tanggalSelesai = null;
+                if (in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan'])) {
+                    if (!empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (!empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
                     }
                 } else {
-                    // Untuk peran lapangan, gunakan jadwal lapangan
-                    $endDates = array_filter([
-                        $periodeAlokasi?->tanggal_selesai,
-                        $periodeAlokasi?->tanggal_selesai_listing,
-                    ]);
-                    $tanggalSelesai = ! empty($endDates) ? max($endDates) : null;
+                    if (!empty($periodeAlokasi?->tanggal_selesai)) {
+                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai;
+                    } elseif (!empty($periodeAlokasi?->tanggal_selesai_listing)) {
+                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai_listing;
+                    }
+                }
 
-                    // Fallback: jika jadwal lapangan tidak ada, gunakan tanggal dari SPK
-                    if (! $tanggalSelesai && $spkTerkait) {
-                        $tanggalSelesai = $spkTerkait->tanggal_selesai_kerja;
+                $tanggalSelesaiLabel = '';
+                if (!empty($tanggalSelesai) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesai)) {
+                    try {
+                        $tanggalSelesaiLabel = \Carbon\Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMMM YYYY');
+                    } catch (\Exception $e) {
+                        $tanggalSelesaiLabel = '';
                     }
                 }
 
@@ -261,24 +270,18 @@ class BastController extends Controller
                     'kegiatan_id' => $kegiatan?->id,
                     'kode_kegiatan' => $kegiatan?->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan?->nama_kegiatan,
-                    'tanggal_selesai' => $tanggalSelesai ? \Carbon\Carbon::parse($tanggalSelesai)->format('Y-m-d') : null,
-                    'tanggal_selesai_label' => $tanggalSelesai ? \Carbon\Carbon::parse($tanggalSelesai)->format('d/m/Y') : 'Belum ada SPK',
-                    'peran' => $alokasi?->peran,
-                    'hasil_listing' => $alokasi?->jumlah_satuan_listing,
-                    'hasil_pendataan_lapangan' => $alokasi?->jumlah_satuan,
-                    'hasil_pengolahan' => in_array($alokasi?->peran, self::PENGOLAHAN_ROLES) ? $alokasi?->jumlah_satuan : null,
-                    'hasil_pengolahan_listing' => in_array($alokasi?->peran, self::PENGOLAHAN_ROLES) ? $alokasi?->jumlah_satuan_listing : null,
-                    'spk_id' => $spkTerkait?->id,
+                    'jenis_kegiatan' => $kegiatan?->jenis_kegiatan,
                     'nomor_spk' => $spkTerkait?->nomor_spk ?? 'Belum ada SPK',
+                    'tanggal_selesai' => $tanggalSelesai,
+                    'tanggal_selesai_label' => $tanggalSelesaiLabel,
+                    'peran' => $alokasi->peran,
+                    'hasil_listing' => $alokasi->jumlah_satuan_listing,
+                    'hasil_pendataan_lapangan' => $alokasi->jumlah_satuan,
+                    'hasil_pengolahan' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $alokasi->jumlah_satuan : null,
+                    'hasil_pengolahan_listing' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $alokasi->jumlah_satuan_listing : null,
+                    'spk_id' => $spkTerkait?->id,
                 ];
-            })->filter(function ($k) {
-                return $k['kegiatan_id'] !== null;
-            })->values();
-
-            // Tentukan tanggal berakhir paling akhir dari semua SPK terkait
-            $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
-                return $alokasi->spk?->first()?->tanggal_selesai_kerja;
-            })->filter()->max();
+            })->filter()->values();
 
             $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
@@ -310,7 +313,7 @@ class BastController extends Controller
                     'nip' => $ketuaTim?->nip,
                 ],
                 'kegiatan_list' => $kegiatanList,
-                'jumlah_kegiatan' => $kegiatanList->count(),
+                'jumlah_kegiatan' => is_array($kegiatanList) ? count($kegiatanList) : (method_exists($kegiatanList, 'count') ? $kegiatanList->count() : 0),
             ];
         })->values();
 
@@ -366,98 +369,99 @@ class BastController extends Controller
                             'nomor_spk' => $spk->nomor_spk,
                             'reason' => 'BAST sudah ada',
                         ];
-
+                        DB::rollBack();
                         continue;
                     }
 
-                    // Ambil semua SPK (original + addendum) untuk menentukan tanggal berakhir
-                    $allSpks = Spk::where(function ($q) use ($spk) {
-                        $q->where('id', $spk->id)
-                            ->orWhere('parent_spk_id', $spk->id);
-                    })
-                        ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
+                    $petugas = $spk->alokasiPetugas?->petugas;
+                    $bulan = date('m', strtotime($spk->tanggal_mulai_kerja));
+                    $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
+
+                    // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
+                    // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
+                    $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
+                            $q->where('bulan', $bulan)
+                                ->where('tahun', $tahun)
+                                ->whereIn('status', ['dikirim', 'perubahan']);
+                        })
+                        ->whereHas('petugas', function ($q) {
+                            $q->where('jenis_petugas', 'non-organik');
+                        })
+                        ->where(function ($query) {
+                            $query->where('total_honor', '>', 0)
+                                ->orWhere('total_honor_listing', '>', 0);
+                        })
+                        ->with([
+                            'periodeAlokasi.kegiatan.rateHonors.satuan',
+                            'periodeAlokasi.kegiatan.rateHonors.satuanListing',
+                            'periodeAlokasi.kegiatan.ketuaTim',
+                            'spk',
+                        ])
                         ->get();
 
-                    // Tentukan tanggal berakhir paling akhir dari semua kegiatan
-                    $tanggalBerakhirPalingAkhir = $allSpks->max('tanggal_selesai_kerja');
+                    $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
+                    // Ambil seluruh alokasi petugas di bulan dan tahun yang sama (identik dengan preview)
+                    $petugasUtama = $spk->alokasiPetugas->petugas;
+                    $bulanUtama = date('m', strtotime($spk->tanggal_mulai_kerja));
+                    $tahunUtama = date('Y', strtotime($spk->tanggal_mulai_kerja));
+                    $allAlokasi = \App\Models\AlokasiPetugas::where('petugas_id', $petugasUtama->id)
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulanUtama, $tahunUtama) {
+                            $q->where('bulan', $bulanUtama)
+                                ->where('tahun', $tahunUtama)
+                                ->whereIn('status', ['dikirim', 'perubahan']);
+                        })
+                        ->whereHas('petugas', function ($q) {
+                            $q->where('jenis_petugas', 'non-organik');
+                        })
+                        ->where(function ($query) {
+                            $query->where('total_honor', '>', 0)
+                                ->orWhere('total_honor_listing', '>', 0);
+                        })
+                        ->with([
+                            'periodeAlokasi.kegiatan.rateHonors.satuan',
+                            'periodeAlokasi.kegiatan.rateHonors.satuanListing',
+                            'periodeAlokasi.kegiatan.ketuaTim',
+                            'spk',
+                        ])
+                        ->get();
+
+                    // Untuk tanggal BAST utama, gunakan tanggal paling akhir dari semua kegiatan
+                    $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
+                        return $alokasi->tanggal_selesai ?? null;
+                    })->filter()->max();
+
+                    // Fallback ke tanggal SPK original jika tidak ada yang lain
                     if (! $tanggalBerakhirPalingAkhir) {
-                        $failedSpk[] = [
-                            'nomor_spk' => $spk->nomor_spk,
-                            'reason' => 'Tidak ada tanggal selesai kerja',
-                        ];
-
-                        continue;
+                        $tanggalBerakhirPalingAkhir = $spk->tanggal_selesai_kerja;
                     }
-
-                    // Ambil kegiatan_id dan periode_alokasi_id dari SPK utama
-                    $alokasi = $spk->alokasiPetugas;
-                    $kegiatan = $alokasi?->periodeAlokasi?->kegiatan;
-                    $periodeAlokasi = $alokasi?->periodeAlokasi;
-
-                    if (! $kegiatan || ! $periodeAlokasi) {
-                        $failedSpk[] = [
-                            'nomor_spk' => $spk->nomor_spk,
-                            'reason' => 'Tidak ada kegiatan atau periode alokasi',
-                        ];
-
-                        continue;
+                    if (! $tanggalBerakhirPalingAkhir) {
+                        $tanggalBerakhirPalingAkhir = $spk->tanggal_mulai_kerja;
                     }
+                    // Fallback terakhir: gunakan hari ini jika tetap tidak valid
+                    if (empty($tanggalBerakhirPalingAkhir) || $tanggalBerakhirPalingAkhir === '-' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhirPalingAkhir)) {
+                        $tanggalBerakhirPalingAkhir = \Carbon\Carbon::now()->format('Y-m-d');
+                    }
+                    // Selalu adjust ke hari kerja terdekat ke depan (seperti preview)
+                    $carbonTarget = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir);
+                    while (in_array($carbonTarget->dayOfWeekIso, [6,7])) {
+                        $carbonTarget->addDay();
+                    }
+                    $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Generate uraian pekerjaan
-                    $uraianPekerjaan = $this->generateUraianPekerjaan(
-                        $alokasi->peran,
-                        $kegiatan->nama_kegiatan,
-                        (int) $periodeAlokasi->bulan,
-                        $periodeAlokasi->tahun,
-                        $alokasi->jumlah_satuan_listing ?? 0,
-                        $alokasi->jumlah_satuan ?? 0
-                    );
+                    // Generate nomor BAST otomatis
+                    $nomorBast = $this->generateNomorBastForSpk(\Carbon\Carbon::parse($tanggalBerakhirPalingAkhir));
 
-                    // Ambil ketua tim dari kegiatan
-                    $ketuaTim = $kegiatan->ketuaTim;
-
-                    // Ambil PPK
+                    // Ambil PPK aktif
                     $ppk = \App\Models\Penandatangan::where('jenis_penandatangan', 'ppk')
                         ->where('is_active', true)
                         ->first();
 
-                    if (! $ppk) {
-                        $failedSpk[] = [
-                            'nomor_spk' => $spk->nomor_spk,
-                            'reason' => 'PPK tidak ditemukan',
-                        ];
-
-                        continue;
-                    }
-
-                    // Generate nomor BAST dengan counter unique
-                    if ($nomorBastCounter === null) {
-                        // First iteration - get last nomor
-                        $tahun = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->year;
-                        $bulan = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->month;
-
-                        $lastBast = Bast::whereYear('tanggal_bast', $tahun)
-                            ->whereMonth('tanggal_bast', $bulan)
-                            ->orderByDesc('id')
-                            ->first();
-
-                        if ($lastBast && preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $lastBast->nomor_bast, $matches)) {
-                            $nomorBastCounter = (int) $matches[1];
-                        } else {
-                            $nomorBastCounter = 0;
-                        }
-                    }
-
-                    // Increment counter untuk BAST ini
-                    $nomorBastCounter++;
-                    $tahunBast = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->year;
-                    $nomorBast = "PPIS/13730/{$nomorBastCounter}/BAST/{$tahunBast}";
-
-                    // Siapkan data menggunakan logic yang sama dengan previewForSpk
+                    // Siapkan data menggunakan logic yang sama dengan previewForSpk (hari kerja terdekat)
                     $viewData = $this->prepareBastDataForExport(
                         $spk,
-                        $allSpks,
+                        $allAlokasi,
                         $nomorBast,
                         $tanggalBerakhirPalingAkhir,
                         $ppk
@@ -489,22 +493,18 @@ class BastController extends Controller
                         );
 
                         if ($merged && file_exists($mergedPath)) {
-
                             // Create directory for export if not exists (public/bast-export)
                             $directory = public_path('bast-export');
                             if (! file_exists($directory)) {
                                 mkdir($directory, 0755, true);
                             }
-
                             // Generate filename
                             $cleanNomorBast = str_replace(['/', '\\', ' '], '_', $nomorBast);
                             $filename = $cleanNomorBast.'_'.$spk->alokasiPetugas->petugas->nama.'.pdf';
                             $filePath = 'bast-export/'.$filename;
                             $fullPath = public_path($filePath);
-
                             // Copy merged PDF to final destination
                             copy($mergedPath, $fullPath);
-
                             // Cleanup temporary files
                             @unlink($mainPath);
                             @unlink($lampiranPath);
@@ -519,18 +519,18 @@ class BastController extends Controller
                     // Jika PDF berhasil, baru simpan ke database
                     $bast = Bast::create([
                         'spk_id' => $spk->id,
-                        'kegiatan_id' => $kegiatan->id,
-                        'periode_alokasi_id' => $periodeAlokasi->id,
+                        'kegiatan_id' => $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->id,
+                        'periode_alokasi_id' => $spk->alokasiPetugas?->periodeAlokasi?->id,
                         'nomor_bast' => $nomorBast,
                         'tanggal_bast' => $tanggalBerakhirPalingAkhir,
                         'tanggal_serah_terima' => $tanggalBerakhirPalingAkhir,
-                        'uraian_pekerjaan' => $uraianPekerjaan,
+                        'uraian_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
                         'nama_ketua_tim' => $ketuaTim?->name ?? '-',
                         'nip_ketua_tim' => $ketuaTim?->nip ?? '-',
                         'nama_ppk' => $ppk->nama,
                         'nip_ppk' => $ppk->nip ?? '-',
                         'menggunakan_fasih' => false,
-                        'hasil_pekerjaan' => $uraianPekerjaan,
+                        'hasil_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
                         'file_path' => $filePath,
                         'lokasi_kegiatan' => 'Kota Sawahlunto',
                         'status' => 'draft',
@@ -538,48 +538,36 @@ class BastController extends Controller
                     ]);
 
                     // Create BastPetugas record - hanya 1 per petugas per BAST
-                    // Aggregate data dari semua SPK untuk petugas ini
                     $alokasi = $spk->alokasiPetugas;
                     $petugas = $alokasi->petugas;
-
                     if ($petugas) {
                         $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
                         $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
-
                         // Aggregate hasil dari semua SPK (original + addendum)
                         $totalListing = 0;
                         $totalPendataan = 0;
                         $totalPengolahan = 0;
                         $catatan = [];
-
-                        foreach ($allSpks as $spkKegiatan) {
-                            $alokasiSpk = $spkKegiatan->alokasiPetugas;
+                        foreach ($allAlokasi as $alokasiSpk) {
                             $kegiatanSpk = $alokasiSpk?->periodeAlokasi?->kegiatan;
-
                             if (! $kegiatanSpk) {
                                 continue;
                             }
-
                             $hasListing = ($kegiatanSpk->has_listing_updating ?? false)
                                 || ($alokasiSpk->jumlah_satuan_listing ?? 0) > 0;
-
                             if ($hasListing && $isPendataanRole) {
                                 $totalListing += $alokasiSpk->jumlah_satuan_listing ?? 0;
                             }
-
                             if ($isPendataanRole) {
                                 $totalPendataan += $alokasiSpk->jumlah_satuan ?? 0;
                             }
-
                             if ($isPengolahanRole) {
                                 $totalPengolahan += $alokasiSpk->jumlah_satuan ?? 0;
                             }
-
                             if ($alokasiSpk->catatan) {
                                 $catatan[] = $alokasiSpk->catatan;
                             }
                         }
-
                         BastPetugas::create([
                             'bast_id' => $bast->id,
                             'petugas_id' => $alokasi->petugas_id,
@@ -593,33 +581,24 @@ class BastController extends Controller
                             'catatan' => ! empty($catatan) ? implode('; ', $catatan) : null,
                         ]);
                     }
-
                     $successCount++;
-
-                    // Commit transaction untuk SPK ini
                     DB::commit();
                 } catch (\Exception $e) {
-                    // Rollback transaction untuk SPK ini
                     DB::rollBack();
-
-                    // Jika ada error, delete PDF yang sudah dibuat
                     if (isset($fullPath) && file_exists($fullPath)) {
                         @unlink($fullPath);
                     }
-
                     $failedSpk[] = [
                         'nomor_spk' => $spk->nomor_spk ?? 'Unknown',
                         'reason' => $e->getMessage(),
                     ];
                 }
             }
-
             $message = "Berhasil generate {$successCount} BAST";
             if (count($failedSpk) > 0) {
                 $failedList = collect($failedSpk)->map(fn ($f) => "{$f['nomor_spk']} ({$f['reason']})")->join(', ');
                 $message .= ". Gagal: {$failedList}";
             }
-
             return redirect()->route('bast.index')->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal generate BAST: '.$e->getMessage());
@@ -707,7 +686,16 @@ class BastController extends Controller
             // Cari SPK dari petugas ini saja, bukan per kegiatan
             $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
-            $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
+
+            // LOGIKA TANGGAL SELESAI PER PERAN
+            if ($isPendataanRole) {
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing ?? $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
+            } elseif ($isPengolahanRole) {
+                $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai ?? $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
+            } else {
+                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK');
+            }
+
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
             // Validasi tanggal sebelum parsing
@@ -715,6 +703,13 @@ class BastController extends Controller
             if (!empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
                 try {
                     $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
+                } catch (\Exception $e) {
+                    $tanggalSelesaiFormatted = '-';
+                }
+            } else if (!empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
+                // Fallback ke tanggal BAST utama jika tanggal selesai tidak valid
+                try {
+                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
                 } catch (\Exception $e) {
                     $tanggalSelesaiFormatted = '-';
                 }
@@ -792,6 +787,8 @@ class BastController extends Controller
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
+                // Tampilkan label tanggal selesai jika valid, jika tidak kosongkan string agar tidak tampil "-" di frontend
+                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && !empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
                 'tanggal_selesai_formatted' => $tanggalSelesaiFormatted,
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
@@ -874,10 +871,46 @@ class BastController extends Controller
 
             // Cari SPK dari petugas ini saja, bukan per kegiatan
             $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $alokasi = $spkKegiatan->alokasiPetugas;
+            $keg = $alokasi?->periodeAlokasi?->kegiatan;
+            $periode = $alokasi?->periodeAlokasi;
+
+            if (! $keg || ! $periode) {
+                continue;
+            }
+
+            $rateHonor = $keg->rateHonors->first(function ($rate) use ($alokasi) {
+                return $rate->status_kepegawaian === $alokasi->status_kepegawaian
+                    && $rate->jenis_penugasan === $alokasi->peran;
+            });
+
+            $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
+            $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
+            $hasListing = ($keg->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+
+            // Cari SPK dari petugas ini saja, bukan per kegiatan
+            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
             $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
             $ketuaTimKegiatan = $keg->ketuaTim;
+
+            // Validasi tanggal sebelum parsing
+            $tanggalSelesaiFormatted = '-';
+            if (!empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
+                try {
+                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
+                } catch (\Exception $e) {
+                    $tanggalSelesaiFormatted = '-';
+                }
+            } else if (!empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
+                // Fallback ke tanggal BAST utama jika tanggal selesai tidak valid
+                try {
+                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
+                } catch (\Exception $e) {
+                    $tanggalSelesaiFormatted = '-';
+                }
+            }
 
             // Generate uraian terpisah untuk listing dan pencacahan
             $uraianListing = null;
@@ -936,7 +969,7 @@ class BastController extends Controller
             }
 
             // Fallback: use first available uraian
-            $uraian = $uraianListing ?? $uraianPencacahan ?? $this->generateUraianPekerjaan(
+            $uraianPekerjaan = $uraianListing ?? $uraianPencacahan ?? $this->generateUraianPekerjaan(
                 $alokasi->peran,
                 $keg->nama_kegiatan,
                 (int) $periode->bulan,
@@ -951,8 +984,10 @@ class BastController extends Controller
                 'jenis_kegiatan' => $keg->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiKegiatan,
-                'tanggal_selesai_formatted' => \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY'),
-                'uraian_pekerjaan' => $uraian,
+                // Tampilkan label tanggal selesai jika valid, jika tidak kosongkan string agar tidak tampil "-" di frontend
+                'tanggal_selesai_label' => ($tanggalSelesaiFormatted !== '-' && !empty($tanggalSelesaiKegiatan)) ? $tanggalSelesaiFormatted : '',
+                'tanggal_selesai_formatted' => $tanggalSelesaiFormatted,
+                'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
                 'uraian_pencacahan' => $uraianPencacahan,
                 'uraian_pengolahan_listing' => $uraianPengolahanListing,
@@ -964,8 +999,8 @@ class BastController extends Controller
                 'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'non_response' => $isPendataanRole ? $alokasi->non_response : null,
-                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
@@ -1319,14 +1354,24 @@ class BastController extends Controller
                 $alokasi->jumlah_satuan ?? 0
             );
 
+            // Tanggal hari kerja terdekat dari tanggal selesai
+            $tanggalSelesaiFinal = $tanggalSelesaiKegiatan;
+            if ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
+                $carbonTanggal = \Carbon\Carbon::parse($tanggalSelesaiKegiatan);
+                // Jika Sabtu (6) atau Minggu (7), fallback ke Jumat atau hari kerja sebelumnya
+                while (in_array($carbonTanggal->dayOfWeekIso, [6,7])) {
+                    $carbonTanggal->subDay();
+                }
+                $tanggalSelesaiFinal = $carbonTanggal->format('Y-m-d');
+            }
             $bastData['kegiatan_list'][] = [
                 'kode_kegiatan' => $kegiatan->kode_kegiatan,
                 'nama_kegiatan' => $kegiatan->nama_kegiatan,
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'nomor_spk' => $nomorSpk,
-                'tanggal_selesai' => $tanggalSelesaiKegiatan,
-                'tanggal_selesai_formatted' => ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK')
-                    ? \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY')
+                'tanggal_selesai' => $tanggalSelesaiFinal,
+                'tanggal_selesai_formatted' => ($tanggalSelesaiFinal && $tanggalSelesaiFinal !== 'Belum ada SPK')
+                    ? \Carbon\Carbon::parse($tanggalSelesaiFinal)->locale('id')->isoFormat('D MMMM YYYY')
                     : '-',
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
