@@ -89,14 +89,27 @@ export default function CreateForMonth({
     spk_list,
 }: CreateForMonthProps) {
     const decryptedSpkList = useDecryptedData<SpkItem>(spk_list.encrypted);
+    
+    // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir (ASC) kemudian nama petugas (A-Z)
+    const sortedSpkList = [...decryptedSpkList].sort((a, b) => {
+        // Compare by tanggal_berakhir_paling_akhir first
+        const dateCompare = a.tanggal_berakhir_paling_akhir.localeCompare(
+            b.tanggal_berakhir_paling_akhir,
+        );
+        if (dateCompare !== 0) return dateCompare;
+
+        // If dates are equal, compare by nama petugas (A-Z)
+        return a.petugas.nama.localeCompare(b.petugas.nama);
+    });
+
     const [selectedSpks, setSelectedSpks] = useState<number[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleSelectAll = () => {
-        if (selectedSpks.length === decryptedSpkList.length) {
+        if (selectedSpks.length === sortedSpkList.length) {
             setSelectedSpks([]);
         } else {
-            setSelectedSpks(decryptedSpkList.map((spk) => spk.spk_id));
+            setSelectedSpks(sortedSpkList.map((spk) => spk.spk_id));
         }
     };
 
@@ -208,19 +221,19 @@ export default function CreateForMonth({
                                 Daftar Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                {decryptedSpkList.length} Perjanjian Kerja belum memiliki BAST di
+                                {sortedSpkList.length} Perjanjian Kerja belum memiliki BAST di
                                 periode ini
                             </p>
                         </div>
                         <Button variant="outline" onClick={handleSelectAll}>
-                            {selectedSpks.length === decryptedSpkList.length
+                            {selectedSpks.length === sortedSpkList.length
                                 ? 'Batal Pilih Semua'
                                 : 'Pilih Semua'}
                         </Button>
                     </div>
 
                     <div className="space-y-4">
-                        {decryptedSpkList.map((spk) => (
+                        {sortedSpkList.map((spk) => (
                             <div
                                 key={spk.spk_id}
                                 onClick={() => handleSelectSpk(spk.spk_id)}

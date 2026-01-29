@@ -175,7 +175,6 @@ class BastController extends Controller
                 'alokasiPetugas.periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id',
                 'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim:id,name,nip',
             ])
-            ->orderBy('nomor_spk')
             ->get();
 
         if ($spks->isEmpty()) {
@@ -235,6 +234,110 @@ class BastController extends Controller
 
             return $tanggalSelesai;
         })->filter()->max();
+
+        // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
+        $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun) {
+            // Get tanggal berakhir untuk SPK A
+            $petugasA = $a->alokasiPetugas?->petugas;
+            $allAlokasiA = AlokasiPetugas::where('petugas_id', $petugasA?->id)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->with('periodeAlokasi')
+                ->get();
+
+            $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
+                $periode = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    }
+                } else {
+                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    }
+                }
+
+                return null;
+            })->filter()->max();
+
+            if (! $tanggalBerakhirA) {
+                $tanggalBerakhirA = $a->tanggal_selesai_kerja ?? $a->tanggal_mulai_kerja;
+            }
+
+            // Get tanggal berakhir untuk SPK B
+            $petugasB = $b->alokasiPetugas?->petugas;
+            $allAlokasiB = AlokasiPetugas::where('petugas_id', $petugasB?->id)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->with('periodeAlokasi')
+                ->get();
+
+            $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
+                $periode = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    }
+                } else {
+                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    }
+                }
+
+                return null;
+            })->filter()->max();
+
+            if (! $tanggalBerakhirB) {
+                $tanggalBerakhirB = $b->tanggal_selesai_kerja ?? $b->tanggal_mulai_kerja;
+            }
+
+            // Compare dates first
+            $dateCompare = strcmp($tanggalBerakhirA, $tanggalBerakhirB);
+            if ($dateCompare !== 0) {
+                return $dateCompare;
+            }
+
+            // If dates are equal, compare by nama petugas (A-Z)
+            return strcmp($petugasA?->nama ?? '', $petugasB?->nama ?? '');
+        })->values();
 
         // Format data SPK dengan detail kegiatan yang diikuti petugas
         $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart) {
@@ -408,6 +511,120 @@ class BastController extends Controller
             'spk_ids.*' => 'required|integer|exists:spk,id',
         ]);
 
+        // Load semua SPKs yang dipilih dengan relasi yang dibutuhkan
+        $spks = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ])->whereIn('id', $request->spk_ids)->get();
+
+        // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
+        $spksSorted = $spks->sort(function ($a, $b) {
+            $bulanA = date('m', strtotime($a->tanggal_mulai_kerja));
+            $tahunA = date('Y', strtotime($a->tanggal_mulai_kerja));
+            $petugasA = $a->alokasiPetugas?->petugas;
+
+            $allAlokasiA = \App\Models\AlokasiPetugas::where('petugas_id', $petugasA?->id)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanA, $tahunA) {
+                    $q->where('bulan', $bulanA)
+                        ->where('tahun', $tahunA)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->with('periodeAlokasi')
+                ->get();
+
+            $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
+                $periode = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    }
+                } else {
+                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    }
+                }
+
+                return null;
+            })->filter()->max();
+
+            if (! $tanggalBerakhirA) {
+                $tanggalBerakhirA = $a->tanggal_selesai_kerja ?? $a->tanggal_mulai_kerja;
+            }
+
+            $bulanB = date('m', strtotime($b->tanggal_mulai_kerja));
+            $tahunB = date('Y', strtotime($b->tanggal_mulai_kerja));
+            $petugasB = $b->alokasiPetugas?->petugas;
+
+            $allAlokasiB = \App\Models\AlokasiPetugas::where('petugas_id', $petugasB?->id)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanB, $tahunB) {
+                    $q->where('bulan', $bulanB)
+                        ->where('tahun', $tahunB)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->with('periodeAlokasi')
+                ->get();
+
+            $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
+                $periode = $alokasi->periodeAlokasi;
+                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
+                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+                if ($isPengolahanRole) {
+                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
+                        return $periode->jadwal_pengolahan_pencacahan_selesai;
+                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
+                        return $periode->jadwal_pengolahan_listing_selesai;
+                    }
+                } else {
+                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai)) {
+                        return $periode->tanggal_selesai;
+                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
+                        return $periode->tanggal_selesai_listing;
+                    }
+                }
+
+                return null;
+            })->filter()->max();
+
+            if (! $tanggalBerakhirB) {
+                $tanggalBerakhirB = $b->tanggal_selesai_kerja ?? $b->tanggal_mulai_kerja;
+            }
+
+            // Compare dates first
+            $dateCompare = strcmp($tanggalBerakhirA, $tanggalBerakhirB);
+            if ($dateCompare !== 0) {
+                return $dateCompare;
+            }
+
+            // If dates are equal, compare by nama petugas (A-Z)
+            return strcmp($petugasA?->nama ?? '', $petugasB?->nama ?? '');
+        })->values();
+
         $successCount = 0;
         $failedSpk = [];
 
@@ -417,14 +634,10 @@ class BastController extends Controller
         $tahunBast = null;
 
         try {
-            foreach ($request->spk_ids as $spkId) {
+            foreach ($spksSorted as $spk) {
                 // Gunakan transaction terpisah untuk setiap SPK
                 DB::beginTransaction();
                 try {
-                    $spk = Spk::with([
-                        'alokasiPetugas.petugas',
-                        'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
-                    ])->findOrFail($spkId);
 
                     // Check if BAST already exists for this SPK
                     if ($spk->bast()->exists()) {
@@ -865,12 +1078,12 @@ class BastController extends Controller
 
                     if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
                         $carbonDate = \Carbon\Carbon::parse($dateString);
-                        
+
                         // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
                         while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
                             $carbonDate->subDay();
                         }
-                        
+
                         $tanggalSelesaiFormatted = $carbonDate->locale('id')->isoFormat('D MMMM YYYY');
                     }
                 } catch (\Exception $e) {
@@ -883,12 +1096,12 @@ class BastController extends Controller
 
                             if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
                                 $carbonDate = \Carbon\Carbon::parse($dateString);
-                                
+
                                 // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
                                 while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
                                     $carbonDate->subDay();
                                 }
-                                
+
                                 $tanggalSelesaiFormatted = $carbonDate->locale('id')->isoFormat('D MMMM YYYY');
                             }
                         } catch (\Exception $e2) {
