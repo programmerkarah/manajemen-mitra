@@ -223,10 +223,11 @@ export default function CreateForMonth({
                         {decryptedSpkList.map((spk) => (
                             <div
                                 key={spk.spk_id}
-                                className={`rounded-lg border p-4 transition-colors ${
+                                onClick={() => handleSelectSpk(spk.spk_id)}
+                                className={`cursor-pointer rounded-lg border p-4 transition-colors ${
                                     selectedSpks.includes(spk.spk_id)
                                         ? 'border-primary bg-primary/5'
-                                        : 'border-neutral-200 dark:border-neutral-800'
+                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700'
                                 }`}
                             >
                                 <div className="flex items-start gap-4">
@@ -235,10 +236,9 @@ export default function CreateForMonth({
                                         checked={selectedSpks.includes(
                                             spk.spk_id,
                                         )}
-                                        onChange={() =>
-                                            handleSelectSpk(spk.spk_id)
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-neutral-300"
+                                        onChange={() => {}}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="pointer-events-none mt-1 h-4 w-4 rounded border-neutral-300"
                                     />
                                     <div className="flex-1 space-y-3">
                                         <div className="flex items-start justify-between">
@@ -322,12 +322,13 @@ export default function CreateForMonth({
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() =>
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     handlePreviewSpk(
                                                         spk.spk_id,
                                                         spk.nomor_bast_preview,
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             >
                                                 <Eye className="mr-1 h-3 w-3" />
                                                 Preview BAST
