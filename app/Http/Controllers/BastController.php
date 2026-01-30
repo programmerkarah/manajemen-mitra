@@ -771,19 +771,29 @@ class BastController extends Controller
         $failedSpk = [];
 
         try {
+
+            $usedUruts = [];
             foreach ($spksSorted as $spk) {
                 // Gunakan transaction terpisah untuk setiap SPK
                 DB::beginTransaction();
                 try {
-
-                    // Check if BAST already exists for this SPK
-                    if ($spk->bast()->exists()) {
+                    // Cek apakah sudah ada BAST untuk petugas dan periode_alokasi yang sama
+                    $alokasi = $spk->alokasiPetugas;
+                    $petugasId = $alokasi?->petugas_id;
+                    $periodeAlokasiId = $alokasi?->periode_alokasi_id;
+                    $bastSudahAda = false;
+                    if ($petugasId && $periodeAlokasiId) {
+                        $bastSudahAda = \App\Models\Bast::where('periode_alokasi_id', $periodeAlokasiId)
+                            ->whereHas('spk.alokasiPetugas', function ($q) use ($petugasId) {
+                                $q->where('petugas_id', $petugasId);
+                            })->exists();
+                    }
+                    if ($bastSudahAda) {
                         $failedSpk[] = [
                             'nomor_spk' => $spk->nomor_spk,
                             'reason' => 'BAST sudah ada',
                         ];
                         DB::rollBack();
-
                         continue;
                     }
 
@@ -821,13 +831,10 @@ class BastController extends Controller
                             'reason' => 'Tidak ada alokasi dengan pekerjaan',
                         ];
                         DB::rollBack();
-
                         continue;
                     }
 
                     $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
-
-                    // Ambil seluruh alokasi petugas di bulan dan tahun yang sama (identik dengan preview)
                     $petugasUtama = $spk->alokasiPetugas->petugas;
                     $bulanUtama = date('m', strtotime($spk->tanggal_mulai_kerja));
                     $tahunUtama = date('Y', strtotime($spk->tanggal_mulai_kerja));
@@ -852,18 +859,13 @@ class BastController extends Controller
                         ])
                         ->get();
 
-                    // Untuk tanggal BAST utama, gunakan tanggal paling akhir dari semua kegiatan
-                    // dengan logika yang sama seperti di method create()
                     $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
                         $periode = $alokasi->periodeAlokasi;
                         $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
                         $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
                         $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
                         $tanggalSelesai = null;
-
                         if ($isPengolahanRole) {
-                            // For pengolahan roles, check appropriate processing schedule
                             if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
                                 $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
                             } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
@@ -874,7 +876,6 @@ class BastController extends Controller
                                 $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
                             }
                         } else {
-                            // For field roles (lapangan), check appropriate field schedule
                             if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
                                 $tanggalSelesai = $periode->tanggal_selesai_listing;
                             } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
@@ -885,37 +886,47 @@ class BastController extends Controller
                                 $tanggalSelesai = $periode->tanggal_selesai_listing;
                             }
                         }
-
                         return $tanggalSelesai;
                     })->filter()->max();
 
-                    // Fallback ke tanggal SPK original jika tidak ada yang lain
                     if (! $tanggalBerakhirPalingAkhir) {
                         $tanggalBerakhirPalingAkhir = $spk->tanggal_selesai_kerja;
                     }
                     if (! $tanggalBerakhirPalingAkhir) {
                         $tanggalBerakhirPalingAkhir = $spk->tanggal_mulai_kerja;
                     }
-
-                    // Convert to Carbon if needed
                     if ($tanggalBerakhirPalingAkhir instanceof \Carbon\Carbon) {
                         $tanggalBerakhirPalingAkhir = $tanggalBerakhirPalingAkhir->format('Y-m-d');
                     }
-
-                    // Fallback terakhir: gunakan hari ini jika tetap tidak valid
                     if (empty($tanggalBerakhirPalingAkhir) || $tanggalBerakhirPalingAkhir === '-') {
                         $tanggalBerakhirPalingAkhir = \Carbon\Carbon::now()->format('Y-m-d');
                     }
-
-                    // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend/libur
                     $carbonTarget = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir);
                     while (in_array($carbonTarget->dayOfWeekIso, [6, 7])) {
                         $carbonTarget->subDay();
                     }
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Generate nomor BAST (counter akan di-increment setelah berhasil save)
-                    $nomorBastTemp = $nomorUrutBast + 1;
+                    // Ambil nomor urut terakhir dari database untuk bulan & tahun ini
+                    $allBast = Bast::whereYear('tanggal_bast', $carbonTarget->year)
+                        ->whereMonth('tanggal_bast', $carbonTarget->month)
+                        ->pluck('nomor_bast');
+                    $maxUrut = 0;
+                    foreach ($allBast as $existingNomor) {
+                        if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
+                            $urut = (int) $matches[1];
+                            if ($urut > $maxUrut) {
+                                $maxUrut = $urut;
+                            }
+                        }
+                    }
+                    // Cek juga nomor urut yang sudah dipakai di batch ini
+                    if (!empty($usedUruts[$carbonTarget->year][$carbonTarget->month])) {
+                        $maxUrutBatch = max($maxUrut, max($usedUruts[$carbonTarget->year][$carbonTarget->month]));
+                    } else {
+                        $maxUrutBatch = $maxUrut;
+                    }
+                    $nomorBastTemp = $maxUrutBatch + 1;
                     $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
 
                     // Ambil PPK aktif
@@ -1047,10 +1058,8 @@ class BastController extends Controller
                         ]);
                     }
                     $successCount++;
-                    
-                    // Increment counter hanya setelah BAST berhasil disimpan
-                    $nomorUrutBast++;
-                    
+                    // Simpan nomor urut yang baru saja dipakai ke array batch
+                    $usedUruts[$carbonTarget->year][$carbonTarget->month][] = $nomorBastTemp;
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
@@ -1063,13 +1072,27 @@ class BastController extends Controller
                     ];
                 }
             }
-            $message = "Berhasil generate {$successCount} BAST";
-            if (count($failedSpk) > 0) {
-                $failedList = collect($failedSpk)->map(fn ($f) => "{$f['nomor_spk']} ({$f['reason']})")->join(', ');
-                $message .= ". Gagal: {$failedList}";
+            if (count($failedSpk) === 0) {
+                $message = "Berhasil generate {$successCount} BAST.";
+                return redirect()->route('bast.index')->with('success', $message);
+            } else {
+                $failedList = collect($failedSpk)->map(function ($f) {
+                    $reason = $f['reason'];
+                    // Sederhanakan pesan error duplicate entry
+                    if (str_contains($reason, 'Duplicate entry')) {
+                        $reason = 'Nomor BAST sudah digunakan';
+                    } elseif (str_contains($reason, 'BAST sudah ada')) {
+                        $reason = 'BAST sudah pernah dibuat';
+                    } elseif (str_contains($reason, 'Integrity constraint violation')) {
+                        $reason = 'Data tidak valid atau sudah ada.';
+                    } elseif (str_contains($reason, 'Gagal generate PDF')) {
+                        $reason = 'Gagal membuat file BAST.';
+                    }
+                    return "{$f['nomor_spk']} ($reason)";
+                })->join(', ');
+                $message = "Gagal generate BAST untuk: {$failedList}. Berhasil: {$successCount}.";
+                return redirect()->route('bast.index')->with('error', $message);
             }
-
-            return redirect()->route('bast.index')->with('success', $message);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal generate BAST: '.$e->getMessage());
         }
