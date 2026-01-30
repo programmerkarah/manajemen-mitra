@@ -217,7 +217,7 @@ export default function CreateForMonth({
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Daftar Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">

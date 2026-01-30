@@ -14,8 +14,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Js;
 use Inertia\Inertia;
 use Inertia\Response;
+
 
 class BastController extends Controller
 {
@@ -55,53 +57,110 @@ class BastController extends Controller
         $search = $request->input('search');
         $activeYear = \App\Services\ActiveYearService::get();
 
-        // Ambil semua SPK eligible di tahun berjalan
-        $eligibleSpks = Spk::where('addendum_number', 0)
-            ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear) {
-                $q->where('tahun', $activeYear)
-                  ->whereIn('status', ['dikirim', 'direvisi']);
+        // Ambil semua SPK yang punya alokasi > 0 pada periode status 'dikirim' atau 'perubahan' di tahun berjalan
+            $eligibleSpks = DB::table('spk')
+                ->join('alokasi_petugas as ap', 'ap.petugas_id', '=', 'spk.petugas_id')
+                ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+                ->where('spk.addendum_number', 0)
+                ->where('pa.tahun', $activeYear)
+                ->whereIn('pa.status', ['dikirim', 'perubahan'])
+                ->where(function($q) {
+                    $q->where('ap.jumlah_satuan', '>', 0)
+                      ->orWhere('ap.jumlah_satuan_listing', '>', 0)
+                      ->orWhere('ap.total_honor', '>', 0)
+                      ->orWhere('ap.total_honor_listing', '>', 0);
+                })
+                ->distinct('spk.petugas_id')
+                ->select('spk.*')
+                ->get();
+
+        // Untuk setiap SPK, tentukan bulan periode alokasi pertamanya di tahun berjalan (alokasi > 0, status dikirim/perubahan)
+        $spkByBulan = [];
+        // Ambil seluruh alokasi_petugas yang join ke periode_alokasi (tahun aktif, status dikirim/perubahan, jumlah > 0)
+        $alokasiRows = DB::table('alokasi_petugas as ap')
+            ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['dikirim', 'perubahan'])
+            ->where(function($q) {
+                $q->where('ap.jumlah_satuan', '>', 0)
+                  ->orWhere('ap.jumlah_satuan_listing', '>', 0)
+                  ->orWhere('ap.total_honor', '>', 0)
+                  ->orWhere('ap.total_honor_listing', '>', 0);
             })
+            ->select('ap.petugas_id', 'pa.bulan')
             ->get();
 
-        // Untuk setiap SPK, tentukan bulan periode alokasi pertamanya di tahun berjalan
+      
+
+        // Untuk setiap bulan, kumpulkan petugas unik
         $spkByBulan = [];
-        foreach ($eligibleSpks as $spk) {
-            $periodes = $spk->alokasiPetugas && $spk->alokasiPetugas->periodeAlokasi
-                ? [$spk->alokasiPetugas->periodeAlokasi]
-                : [];
-            // Jika ada addendum, bisa saja ada lebih dari satu alokasiPetugas
-            if (method_exists($spk->alokasiPetugas, 'getCollection')) {
-                $periodes = $spk->alokasiPetugas->pluck('periodeAlokasi')->all();
-            }
-            $firstPeriode = collect($periodes)
-                ->where('tahun', $activeYear)
-                ->whereIn('status', ['dikirim', 'direvisi'])
-                ->sortBy('bulan')
-                ->first();
-            if ($firstPeriode) {
-                $bulan = (int) ltrim($firstPeriode->bulan, '0');
-                if (!isset($spkByBulan[$bulan])) {
-                    $spkByBulan[$bulan] = [];
-                }
-                $spkByBulan[$bulan][] = $spk;
-            }
+        foreach (range(1, 12) as $bulan) {
+            $petugasIds = $alokasiRows->filter(function($row) use ($bulan) {
+                return (int) ltrim($row->bulan, '0') === $bulan;
+            })->pluck('petugas_id')->unique()->values();
+            $spkByBulan[$bulan] = $petugasIds->all();
         }
 
         $data = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $spks = $spkByBulan[$bulan] ?? [];
-            $totalSpk = count($spks);
-            $spkWithBast = collect($spks)->filter(function ($spk) {
-                return $spk->bast && $spk->bast->count() > 0;
-            })->count();
-            $spkWithoutBast = $totalSpk - $spkWithBast;
+            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            // Ambil semua SPK eligible di tahun berjalan
+            $eligibleSpks = Spk::where('addendum_number', 0)
+                ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
+                ->whereHas('alokasiPetugas', function ($q) use ($activeYear, $bulanFormatted) {
+                    $q->whereHas('periodeAlokasi', function ($q2) use ($activeYear, $bulanFormatted) {
+                        $q2->where('tahun', $activeYear)
+                           ->where('bulan', $bulanFormatted)
+                           ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                    })->where(function ($q3) {
+                        $q3->where('jumlah_satuan', '>', 0)
+                           ->orWhere('jumlah_satuan_listing', '>', 0)
+                           ->orWhere('total_honor', '>', 0)
+                           ->orWhere('total_honor_listing', '>', 0);
+                    });
+                })
+                ->get();
+
+                // echo json_encode(count($eligibleSpks)); exit;
+
+            $spks = collect();
+            foreach ($eligibleSpks as $spk) {
+                $periodes = $spk->alokasiPetugas && $spk->alokasiPetugas->periodeAlokasi
+                    ? [$spk->alokasiPetugas->periodeAlokasi]
+                    : [];
+                if (method_exists($spk->alokasiPetugas, 'getCollection')) {
+                    $periodes = $spk->alokasiPetugas->pluck('periodeAlokasi')->all();
+                }
+                $firstPeriode = collect($periodes)
+                    ->where('tahun', $activeYear)
+                    ->where('bulan', $bulanFormatted)
+                    ->whereIn('status', ['dikirim', 'direvisi', 'perubahan'])
+                    ->sortBy('bulan')
+                    ->first();
+                if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
+                    // Hanya tampilkan SPK yang belum punya BAST
+                    // if (!($spk->bast && $spk->bast->count() > 0)) {
+                        $spks->push($spk);
+                    // }
+                }
+            }
+
+            $totalPetugas = $spks->count();
+
+            // Hitung petugas yang sudah punya BAST di bulan ini
+            $petugasIds = $spks->map(function ($spk) {
+                return $spk->alokasiPetugas?->petugas?->id;
+            })->filter()->unique()->values()->all();
+            $petugasWithBast = DB::table('bast_petugas as bp')
+                ->join('bast as b', 'bp.bast_id', '=', 'b.id')
+                ->whereYear('b.tanggal_bast', $activeYear)
+                ->whereMonth('b.tanggal_bast', $bulan)
+                ->pluck('bp.petugas_id')->unique()->count();
+            $petugasWithoutBast = $totalPetugas - $petugasWithBast; // eligible = totalPetugas - petugasWithBast
 
             // Get first BAST for this month
-            $firstBast = Bast::whereHas('periodeAlokasi', function ($q) use ($activeYear, $bulan) {
-                $q->where('tahun', $activeYear)
-                    ->where('bulan', $bulan);
-            })
+            $firstBast = Bast::whereYear('tanggal_bast', $activeYear)
+                ->whereMonth('tanggal_bast', $bulan)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
@@ -109,11 +168,11 @@ class BastController extends Controller
                 'bulan' => $bulan,
                 'bulan_label' => $this->getBulanLabel($bulan),
                 'tahun' => $activeYear,
-                'total_spk' => $totalSpk,
-                'spk_with_bast' => $spkWithBast,
-                'spk_without_bast' => $spkWithoutBast,
-                'has_spk' => $totalSpk > 0,
-                'all_completed' => $totalSpk > 0 && $spkWithoutBast === 0,
+                'total_spk' => $totalPetugas,
+                'spk_with_bast' => $petugasWithBast,
+                'spk_without_bast' => $petugasWithoutBast,
+                'has_spk' => $totalPetugas > 0,
+                'all_completed' => $totalPetugas > 0 && $petugasWithoutBast === 0,
                 'first_bast_hashed_id' => $firstBast?->hashed_id,
             ];
         }
@@ -185,11 +244,19 @@ class BastController extends Controller
         }
 
         // Ambil semua SPK eligible di tahun berjalan
+        // Hanya SPK yang memiliki alokasi dengan jumlah > 0 pada periode dengan status 'dikirim' atau 'perubahan'
         $eligibleSpks = Spk::where('addendum_number', 0)
             ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun) {
-                $q->where('tahun', $tahun)
-                  ->whereIn('status', ['dikirim', 'direvisi']);
+            ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
+                $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
+                    $q2->where('tahun', $tahun)
+                       ->whereIn('status', ['dikirim', 'perubahan']);
+                })->where(function ($q3) {
+                    $q3->where('jumlah_satuan', '>', 0)
+                       ->orWhere('jumlah_satuan_listing', '>', 0)
+                       ->orWhere('total_honor', '>', 0)
+                       ->orWhere('total_honor_listing', '>', 0);
+                });
             })
             ->get();
 
@@ -204,7 +271,7 @@ class BastController extends Controller
             }
             $firstPeriode = collect($periodes)
                 ->where('tahun', $tahun)
-                ->whereIn('status', ['dikirim', 'direvisi'])
+                ->whereIn('status', ['dikirim', 'perubahan'])
                 ->sortBy('bulan')
                 ->first();
             if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
@@ -233,10 +300,11 @@ class BastController extends Controller
         }
 
         // Tentukan tanggal berakhir paling akhir dari semua alokasi di bulan ini
+        // Ambil alokasi di bulan ini hanya dari periode yang "dikirim" atau "perubahan"
         $allAlokasiBulan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
             $q->where('bulan', $bulanFormatted)
                 ->where('tahun', $tahun)
-                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
+                ->whereIn('status', ['dikirim', 'perubahan']);
         })->get();
         $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
             $periode = $alokasi->periodeAlokasi;
@@ -399,7 +467,7 @@ class BastController extends Controller
                 ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
+                        ->whereIn('status', ['dikirim', 'perubahan']);
                 })
                 ->where('petugas_id', $petugas?->id)
                 ->whereHas('petugas', function ($q) {
@@ -414,39 +482,30 @@ class BastController extends Controller
 
             // Kumpulkan kegiatan unik dengan detail dari semua alokasi petugas
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
+
                 $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
                 $spkTerkait = $alokasi->spk?->first();
                 $periodeAlokasi = $alokasi->periodeAlokasi;
 
-                // Determine appropriate end date based on role and activity type
-                $tanggalSelesai = null;
+                // Kumpulkan semua tanggal selesai yang relevan (listing & pencacahan)
+                $tanggalSelesaiArr = [];
                 $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
                 if ($isPengolahanRole) {
-                    // For pengolahan roles, check appropriate processing schedule
-                    if ($hasListing && ! empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
+                    if (!empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
+                        $tanggalSelesaiArr[] = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
+                    }
+                    if (!empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
+                        $tanggalSelesaiArr[] = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
                     }
                 } else {
-                    // For field roles (lapangan), check appropriate field schedule
-                    if ($hasListing && ! empty($periodeAlokasi?->tanggal_selesai_listing)) {
-                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periodeAlokasi?->tanggal_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai;
-                    } elseif (! empty($periodeAlokasi?->tanggal_selesai)) {
-                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai;
-                    } elseif (! empty($periodeAlokasi?->tanggal_selesai_listing)) {
-                        $tanggalSelesai = $periodeAlokasi->tanggal_selesai_listing;
+                    if (!empty($periodeAlokasi?->tanggal_selesai_listing)) {
+                        $tanggalSelesaiArr[] = $periodeAlokasi->tanggal_selesai_listing;
+                    }
+                    if (!empty($periodeAlokasi?->tanggal_selesai)) {
+                        $tanggalSelesaiArr[] = $periodeAlokasi->tanggal_selesai;
                     }
                 }
+                $tanggalSelesai = !empty($tanggalSelesaiArr) ? collect($tanggalSelesaiArr)->max() : null;
 
                 $tanggalSelesaiLabel = '';
                 if (! empty($tanggalSelesai)) {
@@ -909,7 +968,6 @@ class BastController extends Controller
 
                     // Ambil nomor urut terakhir dari database untuk bulan & tahun ini
                     $allBast = Bast::whereYear('tanggal_bast', $carbonTarget->year)
-                        ->whereMonth('tanggal_bast', $carbonTarget->month)
                         ->pluck('nomor_bast');
                     $maxUrut = 0;
                     foreach ($allBast as $existingNomor) {
@@ -1162,7 +1220,6 @@ class BastController extends Controller
         foreach ($allAlokasi as $alokasi) {
             $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
             $periode = $alokasi->periodeAlokasi;
-
             if (! $kegiatan || ! $periode) {
                 continue;
             }
@@ -1180,38 +1237,38 @@ class BastController extends Controller
             $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
-            // Determine appropriate end date based on role and activity type
-            $tanggalSelesaiKegiatan = null;
-            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
+            // Kumpulkan semua tanggal selesai yang relevan (listing & pencacahan)
+            $tanggalSelesaiArr = [];
             if ($isPengolahanRole) {
-                // For pengolahan roles, check appropriate processing schedule
-                if ($hasListing && ! empty($periode->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
-                } elseif ($hasPencacahan && ! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                if (!empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_listing_selesai;
+                }
+                if (!empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_pencacahan_selesai;
                 }
             } elseif ($isPendataanRole) {
-                // For field roles (lapangan), check appropriate field schedule
-                if ($hasListing && ! empty($periode->tanggal_selesai_listing)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
-                } elseif ($hasPencacahan && ! empty($periode->tanggal_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
-                } elseif (! empty($periode->tanggal_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
-                } elseif (! empty($periode->tanggal_selesai_listing)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                if (!empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
+                }
+                if (!empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai;
                 }
             } else {
-                // Fallback for other roles
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $periode->tanggal_selesai_listing;
+                if (!empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai;
+                }
+                if (!empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
+                }
             }
 
-            // Fallback to SPK dates if periode dates not available
+            // Ambil tanggal paling akhir dari semua tahapan
+            $tanggalSelesaiKegiatan = null;
+            if (!empty($tanggalSelesaiArr)) {
+                $tanggalSelesaiKegiatan = collect($tanggalSelesaiArr)->max();
+            }
+
+            // Fallback ke tanggal SPK jika tidak ada tanggal dari periode
             if (empty($tanggalSelesaiKegiatan)) {
                 $tanggalSelesaiKegiatan = $spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK';
             }
@@ -1812,38 +1869,40 @@ class BastController extends Controller
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
             // Ambil tanggal selesai berdasarkan jenis peran dan tahapan kegiatan
-            $tanggalSelesaiKegiatan = null;
-            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
+            $tanggalSelesaiArr = [];
             if ($isPengolahanRole) {
-                // For pengolahan roles, check appropriate processing schedule
-                if ($hasListing && ! empty($periode->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
-                } elseif ($hasPencacahan && ! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->jadwal_pengolahan_listing_selesai;
+                if (!empty($periode->jadwal_pengolahan_listing_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_listing_selesai;
+                }
+                if (!empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_pencacahan_selesai;
                 }
             } elseif ($isPendataanRole) {
-                // For field roles (lapangan), check appropriate field schedule
-                if ($hasListing && ! empty($periode->tanggal_selesai_listing)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
-                } elseif ($hasPencacahan && ! empty($periode->tanggal_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
-                } elseif (! empty($periode->tanggal_selesai)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai;
-                } elseif (! empty($periode->tanggal_selesai_listing)) {
-                    $tanggalSelesaiKegiatan = $periode->tanggal_selesai_listing;
+                if (!empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
+                }
+                if (!empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai;
+                }
+            } else {
+                if (!empty($periode->tanggal_selesai)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai;
+                }
+                if (!empty($periode->tanggal_selesai_listing)) {
+                    $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
                 }
             }
 
-            // Fallback to generic dates or SPK dates if not set
-            if (! $tanggalSelesaiKegiatan) {
-                $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? $spkPetugas?->tanggal_selesai_kerja ?? 'Belum ada SPK';
+            // Ambil tanggal paling akhir dari semua tahapan
+            $tanggalSelesaiKegiatan = null;
+            if (!empty($tanggalSelesaiArr)) {
+                $tanggalSelesaiKegiatan = collect($tanggalSelesaiArr)->max();
             }
 
+            // Fallback ke tanggal SPK jika tidak ada tanggal dari periode
+            if (empty($tanggalSelesaiKegiatan)) {
+                $tanggalSelesaiKegiatan = $spkPetugas?->tanggal_selesai_kerja ?? $alokasi->tanggal_selesai ?? 'Belum ada SPK';
+            }
             // Ambil ketua tim dari kegiatan ini
             $ketuaTimKegiatan = $kegiatan->ketuaTim;
 
