@@ -231,6 +231,15 @@ class AlokasiPetugasController extends Controller
                 isset($latestMonthsByKegiatan[$periode->kegiatan_id]) &&
                 $periode->bulan == $latestMonthsByKegiatan[$periode->kegiatan_id];
 
+            // Check if this kegiatan+bulan has both 'direvisi' AND 'perubahan' status
+            $hasCompletedRevisionCycle = PeriodeAlokasi::query()
+                ->where('kegiatan_id', $periode->kegiatan_id)
+                ->where('bulan', $periode->bulan)
+                ->where('tahun', $periode->tahun)
+                ->whereIn('status', ['direvisi', 'perubahan'])
+                ->distinct('status')
+                ->count() >= 2; // Has both direvisi and perubahan
+
             return [
                 'kegiatan_id' => $periode->kegiatan_id,
                 'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
@@ -247,6 +256,7 @@ class AlokasiPetugasController extends Controller
                 'total_terpakai_untuk_budget_info' => $totalTerpakaiUntukBudgetInfo,
                 'latest_created_at' => $periode->created_at,
                 'is_latest_periode' => $isLatestPeriode,
+                'has_completed_revision_cycle' => $hasCompletedRevisionCycle,
                 'kegiatan' => [
                     'id' => $periode->kegiatan->id,
                     'hashed_id' => $periode->kegiatan->hashed_id,

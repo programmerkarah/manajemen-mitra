@@ -108,6 +108,8 @@ interface UniqueKegiatan {
     hashed_id: string;
     kode_kegiatan: string;
     nama_kegiatan: string;
+    jumlah_spk: number;
+    all_signed: boolean;
 }
 
 interface ShowProps {
@@ -777,32 +779,48 @@ export default function Show({
                                     Download Perjanjian Kerja per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Download Perjanjian Kerja untuk petugas pada kegiatan
-                                    tertentu
+                                    Download Perjanjian Kerja yang sudah ditandatangani untuk petugas pada kegiatan tertentu
                                 </p>
                                 <div className="space-y-2">
                                     {kegiatanListForDownload.map((kegiatan) => (
-                                        <Button
-                                            key={kegiatan.id}
-                                            variant="outline"
-                                            onClick={() =>
-                                                handleDownloadAllByKegiatan(
-                                                    kegiatan.hashed_id,
-                                                )
-                                            }
-                                            className="w-full justify-start"
-                                            size="sm"
-                                        >
-                                            <Download className="mr-2 h-4 w-4" />
-                                            <div className="flex-1 text-left">
-                                                <div className="font-medium">
-                                                    {kegiatan.nama_kegiatan}
+                                        <div key={kegiatan.id}>
+                                            {kegiatan.all_signed ? (
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        handleDownloadAllByKegiatan(
+                                                            kegiatan.hashed_id,
+                                                        )
+                                                    }
+                                                    className="w-full justify-start"
+                                                    size="sm"
+                                                >
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    <div className="flex-1 text-left">
+                                                        <div className="font-medium">
+                                                            {kegiatan.nama_kegiatan}
+                                                        </div>
+                                                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                            {kegiatan.kode_kegiatan} • {kegiatan.jumlah_spk} Perjanjian Kerja
+                                                        </div>
+                                                    </div>
+                                                </Button>
+                                            ) : (
+                                                <div className="flex w-full items-center justify-between rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-700">
+                                                    <div className="flex-1">
+                                                        <div className="font-medium text-neutral-700 dark:text-neutral-300">
+                                                            {kegiatan.nama_kegiatan}
+                                                        </div>
+                                                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                            {kegiatan.kode_kegiatan} • {kegiatan.jumlah_spk} Perjanjian Kerja
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs text-orange-600 dark:text-orange-400">
+                                                        Belum semua bertanda tangan
+                                                    </span>
                                                 </div>
-                                                <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    {kegiatan.kode_kegiatan}
-                                                </div>
-                                            </div>
-                                        </Button>
+                                            )}
+                                        </div>
                                     ))}
                                 </div>
                             </div>

@@ -244,13 +244,12 @@ class BastController extends Controller
         }
 
         // Ambil semua SPK eligible di tahun berjalan
-        // Hanya SPK yang memiliki alokasi dengan jumlah > 0 pada periode dengan status 'dikirim' atau 'perubahan'
+        // Hanya SPK yang memiliki alokasi dengan jumlah > 0
         $eligibleSpks = Spk::where('addendum_number', 0)
             ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
             ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
                 $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
-                    $q2->where('tahun', $tahun)
-                       ->whereIn('status', ['dikirim', 'perubahan']);
+                    $q2->where('tahun', $tahun);
                 })->where(function ($q3) {
                     $q3->where('jumlah_satuan', '>', 0)
                        ->orWhere('jumlah_satuan_listing', '>', 0)
@@ -271,7 +270,6 @@ class BastController extends Controller
             }
             $firstPeriode = collect($periodes)
                 ->where('tahun', $tahun)
-                ->whereIn('status', ['dikirim', 'perubahan'])
                 ->sortBy('bulan')
                 ->first();
             if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
@@ -300,11 +298,10 @@ class BastController extends Controller
         }
 
         // Tentukan tanggal berakhir paling akhir dari semua alokasi di bulan ini
-        // Ambil alokasi di bulan ini hanya dari periode yang "dikirim" atau "perubahan"
+        // Ambil alokasi di bulan ini dari semua periode (tidak peduli status)
         $allAlokasiBulan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
             $q->where('bulan', $bulanFormatted)
-                ->where('tahun', $tahun)
-                ->whereIn('status', ['dikirim', 'perubahan']);
+                ->where('tahun', $tahun);
         })->get();
         $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
             $periode = $alokasi->periodeAlokasi;

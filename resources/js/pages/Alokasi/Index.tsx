@@ -63,6 +63,7 @@ interface AlokasiPeriod {
     pagu_terpakai: number;
     latest_created_at: string;
     is_latest_periode: boolean;
+    has_completed_revision_cycle: boolean;
     kegiatan: Kegiatan;
 }
 
@@ -648,26 +649,27 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                                     {canRevisiPeriode(
                                                                         periode.bulan,
                                                                         periode.tahun,
-                                                                    ) && (
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                handleRevisi(
-                                                                                    periode
-                                                                                        .kegiatan
-                                                                                        .hashed_id,
-                                                                                    periode.bulan,
-                                                                                    periode.tahun,
-                                                                                    periode
-                                                                                        .kegiatan
-                                                                                        .nama_kegiatan,
-                                                                                )
-                                                                            }
-                                                                            className="cursor-pointer gap-2 text-purple-600 dark:text-purple-400"
-                                                                        >
-                                                                            <RefreshCw className="h-4 w-4" />
-                                                                            Revisi
-                                                                        </DropdownMenuItem>
-                                                                    )}
+                                                                    ) &&
+                                                                        !periode.has_completed_revision_cycle && (
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleRevisi(
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .hashed_id,
+                                                                                        periode.bulan,
+                                                                                        periode.tahun,
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .nama_kegiatan,
+                                                                                    )
+                                                                                }
+                                                                                className="cursor-pointer gap-2 text-purple-600 dark:text-purple-400"
+                                                                            >
+                                                                                <RefreshCw className="h-4 w-4" />
+                                                                                Revisi
+                                                                            </DropdownMenuItem>
+                                                                        )}
                                                                 </>
                                                             )}
                                                     </DropdownMenuContent>

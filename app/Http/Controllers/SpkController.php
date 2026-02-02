@@ -486,9 +486,9 @@ class SpkController extends Controller
 
                 $spkCount = $spksForKegiatan->count();
 
-                // Check if ALL petugas have signed SPKs
+                // Check if ALL petugas have signed SPKs and the files exist physically
                 $allSigned = $spksForKegiatan->every(function ($spk) {
-                    return ! empty($spk->signed_file_path);
+                    return !empty($spk->signed_file_path) && file_exists(public_path($spk->signed_file_path));
                 });
 
                 return [
@@ -714,7 +714,10 @@ class SpkController extends Controller
 
         // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
-            ->whereNotNull('file_path')
+            ->where(function ($q) {
+                $q->whereNotNull('file_path')
+                  ->orWhereNotNull('signed_file_path');
+            })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
@@ -726,6 +729,18 @@ class SpkController extends Controller
 
         if ($allSpks->isEmpty()) {
             return redirect()->back()->with('error', 'Tidak ada SPK dengan file untuk diunduh pada kegiatan ini');
+        }
+
+        // Check if all petugas have signed files that exist physically
+        $missingSignedFiles = $allSpks->filter(function ($spk) {
+            if (empty($spk->signed_file_path)) {
+                return true; // Missing signed file path
+            }
+            return !file_exists(public_path($spk->signed_file_path)); // File path exists but file doesn't
+        });
+
+        if ($missingSignedFiles->isNotEmpty()) {
+            return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua petugas pada kegiatan ini harus memiliki file Perjanjian Kerja yang sudah ditandatangani dan tersimpan.');
         }
 
         // Create ZIP file
@@ -797,7 +812,10 @@ class SpkController extends Controller
 
         // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
-            ->whereNotNull('file_path')
+            ->where(function ($q) {
+                $q->whereNotNull('file_path')
+                  ->orWhereNotNull('signed_file_path');
+            })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
@@ -806,6 +824,22 @@ class SpkController extends Controller
             })
             ->orderBy('nomor_spk')
             ->get();
+
+        if ($allSpks->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada SPK untuk kegiatan ini di periode tersebut.');
+        }
+
+        // Check if all petugas have signed files that exist physically
+        $missingSignedFiles = $allSpks->filter(function ($spk) {
+            if (empty($spk->signed_file_path)) {
+                return true; // Missing signed file path
+            }
+            return !file_exists(public_path($spk->signed_file_path)); // File path exists but file doesn't
+        });
+
+        if ($missingSignedFiles->isNotEmpty()) {
+            return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua petugas pada kegiatan ini harus memiliki file Perjanjian Kerja yang sudah ditandatangani dan tersimpan.');
+        }
 
         // Create ZIP file
         $zip = new \ZipArchive;
@@ -826,10 +860,14 @@ class SpkController extends Controller
         $filesAdded = 0;
         // Add each SPK file to ZIP with organized folder structure
         foreach ($allSpks as $spk) {
-            $filePath = public_path($spk->file_path);
+            // Use signed file if available, otherwise use regular file
+            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            if (!$fileToUse) continue;
+
+            $filePath = public_path($fileToUse);
 
             if (file_exists($filePath)) {
-                $fileName = basename($spk->file_path);
+                $fileName = basename($fileToUse);
                 // Add file with petugas name in the filename for better organization
                 $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
                 $zipFileNameInArchive = "{$petugasName}_{$fileName}";
@@ -1678,14 +1716,11 @@ class SpkController extends Controller
 
             DB::commit();
 
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Addendum SPK berhasil di-generate',
-                ]);
-            }
-
-            return redirect()->route('spk.index')->with('success', 'Addendum SPK berhasil di-generate');
+            // Return JSON response for AJAX requests
+            return response()->json([
+                'success' => true,
+                'message' => 'Addendum SPK berhasil di-generate',
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
