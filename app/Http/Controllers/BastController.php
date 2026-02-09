@@ -14,10 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Js;
 use Inertia\Inertia;
 use Inertia\Response;
-
 
 class BastController extends Controller
 {
@@ -58,21 +56,21 @@ class BastController extends Controller
         $activeYear = \App\Services\ActiveYearService::get();
 
         // Ambil semua SPK yang punya alokasi > 0 pada periode status 'dikirim' atau 'perubahan' di tahun berjalan
-            $eligibleSpks = DB::table('spk')
-                ->join('alokasi_petugas as ap', 'ap.petugas_id', '=', 'spk.petugas_id')
-                ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
-                ->where('spk.addendum_number', 0)
-                ->where('pa.tahun', $activeYear)
-                ->whereIn('pa.status', ['dikirim', 'perubahan'])
-                ->where(function($q) {
-                    $q->where('ap.jumlah_satuan', '>', 0)
-                      ->orWhere('ap.jumlah_satuan_listing', '>', 0)
-                      ->orWhere('ap.total_honor', '>', 0)
-                      ->orWhere('ap.total_honor_listing', '>', 0);
-                })
-                ->distinct('spk.petugas_id')
-                ->select('spk.*')
-                ->get();
+        $eligibleSpks = DB::table('spk')
+            ->join('alokasi_petugas as ap', 'ap.petugas_id', '=', 'spk.petugas_id')
+            ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+            ->where('spk.addendum_number', 0)
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['dikirim', 'perubahan'])
+            ->where(function ($q) {
+                $q->where('ap.jumlah_satuan', '>', 0)
+                    ->orWhere('ap.jumlah_satuan_listing', '>', 0)
+                    ->orWhere('ap.total_honor', '>', 0)
+                    ->orWhere('ap.total_honor_listing', '>', 0);
+            })
+            ->distinct('spk.petugas_id')
+            ->select('spk.*')
+            ->get();
 
         // Untuk setiap SPK, tentukan bulan periode alokasi pertamanya di tahun berjalan (alokasi > 0, status dikirim/perubahan)
         $spkByBulan = [];
@@ -81,21 +79,19 @@ class BastController extends Controller
             ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
             ->where('pa.tahun', $activeYear)
             ->whereIn('pa.status', ['dikirim', 'perubahan'])
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('ap.jumlah_satuan', '>', 0)
-                  ->orWhere('ap.jumlah_satuan_listing', '>', 0)
-                  ->orWhere('ap.total_honor', '>', 0)
-                  ->orWhere('ap.total_honor_listing', '>', 0);
+                    ->orWhere('ap.jumlah_satuan_listing', '>', 0)
+                    ->orWhere('ap.total_honor', '>', 0)
+                    ->orWhere('ap.total_honor_listing', '>', 0);
             })
             ->select('ap.petugas_id', 'pa.bulan')
             ->get();
 
-      
-
         // Untuk setiap bulan, kumpulkan petugas unik
         $spkByBulan = [];
         foreach (range(1, 12) as $bulan) {
-            $petugasIds = $alokasiRows->filter(function($row) use ($bulan) {
+            $petugasIds = $alokasiRows->filter(function ($row) use ($bulan) {
                 return (int) ltrim($row->bulan, '0') === $bulan;
             })->pluck('petugas_id')->unique()->values();
             $spkByBulan[$bulan] = $petugasIds->all();
@@ -110,18 +106,18 @@ class BastController extends Controller
                 ->whereHas('alokasiPetugas', function ($q) use ($activeYear, $bulanFormatted) {
                     $q->whereHas('periodeAlokasi', function ($q2) use ($activeYear, $bulanFormatted) {
                         $q2->where('tahun', $activeYear)
-                           ->where('bulan', $bulanFormatted)
-                           ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                            ->where('bulan', $bulanFormatted)
+                            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
                     })->where(function ($q3) {
                         $q3->where('jumlah_satuan', '>', 0)
-                           ->orWhere('jumlah_satuan_listing', '>', 0)
-                           ->orWhere('total_honor', '>', 0)
-                           ->orWhere('total_honor_listing', '>', 0);
+                            ->orWhere('jumlah_satuan_listing', '>', 0)
+                            ->orWhere('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
                     });
                 })
                 ->get();
 
-                // echo json_encode(count($eligibleSpks)); exit;
+            // echo json_encode(count($eligibleSpks)); exit;
 
             $spks = collect();
             foreach ($eligibleSpks as $spk) {
@@ -140,7 +136,7 @@ class BastController extends Controller
                 if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
                     // Hanya tampilkan SPK yang belum punya BAST
                     // if (!($spk->bast && $spk->bast->count() > 0)) {
-                        $spks->push($spk);
+                    $spks->push($spk);
                     // }
                 }
             }
@@ -250,12 +246,12 @@ class BastController extends Controller
             ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
                 $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
                     $q2->where('tahun', $tahun)
-                       ->whereIn('status', ['dikirim', 'perubahan']);
+                        ->whereIn('status', ['dikirim', 'perubahan']);
                 })->where(function ($q3) {
                     $q3->where('jumlah_satuan', '>', 0)
-                       ->orWhere('jumlah_satuan_listing', '>', 0)
-                       ->orWhere('total_honor', '>', 0)
-                       ->orWhere('total_honor_listing', '>', 0);
+                        ->orWhere('jumlah_satuan_listing', '>', 0)
+                        ->orWhere('total_honor', '>', 0)
+                        ->orWhere('total_honor_listing', '>', 0);
                 });
             })
             ->get();
@@ -276,7 +272,7 @@ class BastController extends Controller
                 ->first();
             if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
                 // Hanya tampilkan SPK yang belum punya BAST
-                if (!($spk->bast && $spk->bast->count() > 0)) {
+                if (! ($spk->bast && $spk->bast->count() > 0)) {
                     $spks->push($spk);
                 }
             }
@@ -491,21 +487,21 @@ class BastController extends Controller
                 $tanggalSelesaiArr = [];
                 $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
                 if ($isPengolahanRole) {
-                    if (!empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
+                    if (! empty($periodeAlokasi?->jadwal_pengolahan_listing_selesai)) {
                         $tanggalSelesaiArr[] = $periodeAlokasi->jadwal_pengolahan_listing_selesai;
                     }
-                    if (!empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
+                    if (! empty($periodeAlokasi?->jadwal_pengolahan_pencacahan_selesai)) {
                         $tanggalSelesaiArr[] = $periodeAlokasi->jadwal_pengolahan_pencacahan_selesai;
                     }
                 } else {
-                    if (!empty($periodeAlokasi?->tanggal_selesai_listing)) {
+                    if (! empty($periodeAlokasi?->tanggal_selesai_listing)) {
                         $tanggalSelesaiArr[] = $periodeAlokasi->tanggal_selesai_listing;
                     }
-                    if (!empty($periodeAlokasi?->tanggal_selesai)) {
+                    if (! empty($periodeAlokasi?->tanggal_selesai)) {
                         $tanggalSelesaiArr[] = $periodeAlokasi->tanggal_selesai;
                     }
                 }
-                $tanggalSelesai = !empty($tanggalSelesaiArr) ? collect($tanggalSelesaiArr)->max() : null;
+                $tanggalSelesai = ! empty($tanggalSelesaiArr) ? collect($tanggalSelesaiArr)->max() : null;
 
                 $tanggalSelesaiLabel = '';
                 if (! empty($tanggalSelesai)) {
@@ -853,6 +849,7 @@ class BastController extends Controller
                             'reason' => 'BAST sudah ada',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
@@ -890,6 +887,7 @@ class BastController extends Controller
                             'reason' => 'Tidak ada alokasi dengan pekerjaan',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
@@ -945,6 +943,7 @@ class BastController extends Controller
                                 $tanggalSelesai = $periode->tanggal_selesai_listing;
                             }
                         }
+
                         return $tanggalSelesai;
                     })->filter()->max();
 
@@ -979,7 +978,7 @@ class BastController extends Controller
                         }
                     }
                     // Cek juga nomor urut yang sudah dipakai di batch ini
-                    if (!empty($usedUruts[$carbonTarget->year][$carbonTarget->month])) {
+                    if (! empty($usedUruts[$carbonTarget->year][$carbonTarget->month])) {
                         $maxUrutBatch = max($maxUrut, max($usedUruts[$carbonTarget->year][$carbonTarget->month]));
                     } else {
                         $maxUrutBatch = $maxUrut;
@@ -1132,6 +1131,7 @@ class BastController extends Controller
             }
             if (count($failedSpk) === 0) {
                 $message = "Berhasil generate {$successCount} BAST.";
+
                 return redirect()->route('bast.index')->with('success', $message);
             } else {
                 $failedList = collect($failedSpk)->map(function ($f) {
@@ -1146,9 +1146,11 @@ class BastController extends Controller
                     } elseif (str_contains($reason, 'Gagal generate PDF')) {
                         $reason = 'Gagal membuat file BAST.';
                     }
+
                     return "{$f['nomor_spk']} ($reason)";
                 })->join(', ');
                 $message = "Gagal generate BAST untuk: {$failedList}. Berhasil: {$successCount}.";
+
                 return redirect()->route('bast.index')->with('error', $message);
             }
         } catch (\Exception $e) {
@@ -1240,31 +1242,31 @@ class BastController extends Controller
             // Kumpulkan semua tanggal selesai yang relevan (listing & pencacahan)
             $tanggalSelesaiArr = [];
             if ($isPengolahanRole) {
-                if (!empty($periode->jadwal_pengolahan_listing_selesai)) {
+                if (! empty($periode->jadwal_pengolahan_listing_selesai)) {
                     $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_listing_selesai;
                 }
-                if (!empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                if (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
                     $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_pencacahan_selesai;
                 }
             } elseif ($isPendataanRole) {
-                if (!empty($periode->tanggal_selesai_listing)) {
+                if (! empty($periode->tanggal_selesai_listing)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
                 }
-                if (!empty($periode->tanggal_selesai)) {
+                if (! empty($periode->tanggal_selesai)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai;
                 }
             } else {
-                if (!empty($periode->tanggal_selesai)) {
+                if (! empty($periode->tanggal_selesai)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai;
                 }
-                if (!empty($periode->tanggal_selesai_listing)) {
+                if (! empty($periode->tanggal_selesai_listing)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
                 }
             }
 
             // Ambil tanggal paling akhir dari semua tahapan
             $tanggalSelesaiKegiatan = null;
-            if (!empty($tanggalSelesaiArr)) {
+            if (! empty($tanggalSelesaiArr)) {
                 $tanggalSelesaiKegiatan = collect($tanggalSelesaiArr)->max();
             }
 
@@ -1871,31 +1873,31 @@ class BastController extends Controller
             // Ambil tanggal selesai berdasarkan jenis peran dan tahapan kegiatan
             $tanggalSelesaiArr = [];
             if ($isPengolahanRole) {
-                if (!empty($periode->jadwal_pengolahan_listing_selesai)) {
+                if (! empty($periode->jadwal_pengolahan_listing_selesai)) {
                     $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_listing_selesai;
                 }
-                if (!empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
+                if (! empty($periode->jadwal_pengolahan_pencacahan_selesai)) {
                     $tanggalSelesaiArr[] = $periode->jadwal_pengolahan_pencacahan_selesai;
                 }
             } elseif ($isPendataanRole) {
-                if (!empty($periode->tanggal_selesai_listing)) {
+                if (! empty($periode->tanggal_selesai_listing)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
                 }
-                if (!empty($periode->tanggal_selesai)) {
+                if (! empty($periode->tanggal_selesai)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai;
                 }
             } else {
-                if (!empty($periode->tanggal_selesai)) {
+                if (! empty($periode->tanggal_selesai)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai;
                 }
-                if (!empty($periode->tanggal_selesai_listing)) {
+                if (! empty($periode->tanggal_selesai_listing)) {
                     $tanggalSelesaiArr[] = $periode->tanggal_selesai_listing;
                 }
             }
 
             // Ambil tanggal paling akhir dari semua tahapan
             $tanggalSelesaiKegiatan = null;
-            if (!empty($tanggalSelesaiArr)) {
+            if (! empty($tanggalSelesaiArr)) {
                 $tanggalSelesaiKegiatan = collect($tanggalSelesaiArr)->max();
             }
 

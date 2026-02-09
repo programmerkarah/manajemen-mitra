@@ -137,12 +137,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Maintenance Mode Bypass Secret
+    |--------------------------------------------------------------------------
+    |
+    | Secret token untuk bypass maintenance mode. Admin dapat mengakses
+    | sistem dengan menambahkan parameter ?bypass=SECRET di URL.
+    | Contoh: http://localhost:8000?bypass=admin-secret-2026
+    |
+    */
+
+    'maintenance_bypass_secret' => env('MAINTENANCE_BYPASS_SECRET'),
+    'maintenance_bypass_session_key' => env('MAINTENANCE_BYPASS_SESSION_KEY'),
+    'maintenance_bypass_start_key' => env('MAINTENANCE_BYPASS_START_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Instansi Configuration
     |--------------------------------------------------------------------------
     |
     | These values are used for document generation (SPK, BAST, etc)
     |
     */
+
+    // Custom maintenance message (editable from admin panel)
+    'maintenance_message' => env('MAINTENANCE_MESSAGE', null),
 
     'instansi_name' => env('INSTANSI_NAME', 'Badan Pusat Statistik Kota Sawahlunto'),
     'instansi_provinsi' => env('INSTANSI_PROVINSI', 'Sumatera Barat'),

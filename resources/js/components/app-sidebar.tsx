@@ -70,6 +70,12 @@ export function AppSidebar() {
             { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
             { title: 'BAST', href: '/bast', icon: FileText },
             { title: 'Manajemen User', href: '/users', icon: Users },
+            {
+                title: 'Administrasi',
+                href: '/admin/dashboard',
+                icon: LayoutGrid,
+                
+            },
         );
     } else if (hasActiveRole('operator')) {
         mainNavItems.push(

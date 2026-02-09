@@ -6,6 +6,7 @@ use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\PenandatanganController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
@@ -18,9 +19,20 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\ViewAsUserController;
 use App\Http\Controllers\YearSwitchController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+
+// Routes untuk maintenance mode - accessible by anyone during maintenance
+Route::get('/bypass', [MaintenanceController::class, 'showBypass'])->name('maintenance.bypass');
+Route::post('/bypass', [MaintenanceController::class, 'processBypass'])->name('maintenance.bypass.process');
+Route::get('/up', [MaintenanceController::class, 'showUp'])->name('maintenance.up');
+Route::post('/up', [MaintenanceController::class, 'processUp'])->name('maintenance.up.process');
+
+// Route untuk masuk ke maintenance mode (di web.php karena harus bisa diakses saat tidak maintenance)
+Route::get('/mt', [MaintenanceController::class, 'showDown'])->name('maintenance.down');
+Route::post('/mt', [MaintenanceController::class, 'processDown']);
 
 // Debug route - remove after deployment works
 Route::get('/debug', function () {
@@ -72,7 +84,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('view-as-user/clear', [ViewAsUserController::class, 'clear'])->name('view-as-user.clear');
     Route::get('view-as-user/search', [ViewAsUserController::class, 'search'])->name('view-as-user.search');
 
-    // Petugas Management (Admin only for modify, Admin+Administrator for view)
+    // Admin System Settings
+    Route::middleware(['active.role:admin'])->prefix('admin')->group(function () {
+        Route::get('dashboard', function () {
+            // Ambil data ringkasan untuk dashboard admin
+            $maintenance = app()->isDownForMaintenance();
+            $lastBackup = null;
+            $backupDir = base_path('backup');
+            if (is_dir($backupDir)) {
+                $files = array_filter(scandir($backupDir), fn ($f) => preg_match('/backup_.*\\.sql$/', $f));
+                if ($files) {
+                    $files = array_map(fn ($f) => [
+                        'file' => $f,
+                        'time' => filemtime($backupDir.DIRECTORY_SEPARATOR.$f),
+                    ], $files);
+                    usort($files, fn ($a, $b) => $b['time'] <=> $a['time']);
+                    $lastBackup = [
+                        'filename' => $files[0]['file'],
+                        'created_at' => date('Y-m-d H:i', $files[0]['time']),
+                    ];
+                }
+            }
+            $totalUsers = \App\Models\User::count();
+
+            return Inertia::render('Admin/Dashboard', [
+                'systemStatus' => [
+                    'maintenance' => $maintenance,
+                    'status' => $maintenance ? 'maintenance' : 'active',
+                    'label' => $maintenance ? 'Maintenance' : 'Active',
+                ],
+                'lastBackup' => $lastBackup,
+                'totalUsers' => $totalUsers,
+            ]);
+        })->name('admin.dashboard');
+        Route::get('system-settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('admin.system-settings');
+        Route::post('system-settings/maintenance', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
+        Route::get('activity-log', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
+        Route::get('database-status', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
+        Route::post('database-backup', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
+        Route::post('database-restore', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
+        Route::get('database-list-backups', function () {
+            $backupDir = base_path('backup');
+            $backups = [];
+            if (is_dir($backupDir)) {
+                $files = array_filter(scandir($backupDir), fn ($f) => preg_match('/backup_.*\\.sql$/', $f));
+                foreach ($files as $f) {
+                    $path = $backupDir.DIRECTORY_SEPARATOR.$f;
+                    $backups[] = [
+                        'filename' => $f,
+                        'size' => filesize($path),
+                        'size_formatted' => number_format(filesize($path) / 1024, 1).' KB',
+                        'created_at' => date('Y-m-d H:i', filemtime($path)),
+                        'created_at_formatted' => date('Y-m-d H:i', filemtime($path)),
+                    ];
+                }
+                usort($backups, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+            }
+
+            return response()->json(['success' => true, 'backups' => $backups]);
+        })->name('admin.database-list-backups');
+    });
     // Petugas Management - IMPORTANT: Specific routes must come before parameter routes
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');

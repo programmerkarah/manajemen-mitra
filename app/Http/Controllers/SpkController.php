@@ -634,8 +634,9 @@ class SpkController extends Controller
             })
             ->pluck('id');
 
-        // Get all SPKs in this month that have files
-        $allSpks = Spk::with(['alokasiPetugas.petugas'])
+        // Ambil semua SPK utama (addendum_number = 0)
+        $mainSpks = Spk::with(['alokasiPetugas.petugas'])
+            ->where('addendum_number', 0)
             ->whereNotNull('file_path')
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
@@ -645,8 +646,20 @@ class SpkController extends Controller
             ->orderBy('nomor_spk')
             ->get();
 
-        if ($allSpks->isEmpty()) {
-            return redirect()->back()->with('error', 'Tidak ada SPK dengan file untuk diunduh');
+        // Ambil semua addendum yang sudah signed (addendum_number > 0 dan signed_file_path != null)
+        $addendumSpks = Spk::with(['alokasiPetugas.petugas'])
+            ->where('addendum_number', '>', 0)
+            ->whereNotNull('signed_file_path')
+            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
+                $query->select('id')
+                    ->from('alokasi_petugas')
+                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            })
+            ->orderBy('nomor_spk')
+            ->get();
+
+        if ($mainSpks->isEmpty() && $addendumSpks->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada SPK/addendum yang sudah ditandatangani untuk diunduh');
         }
 
         // Create ZIP file
@@ -664,14 +677,24 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
 
-        // Add each SPK file to ZIP
-        foreach ($allSpks as $spk) {
-            // Use signed file if available, otherwise use regular file
+        // Masukkan SPK utama
+        foreach ($mainSpks as $spk) {
             $fileToUse = $spk->signed_file_path ?? $spk->file_path;
             $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
                 $fileName = basename($fileToUse);
                 $zip->addFile($filePath, $fileName);
+            }
+        }
+
+        // Masukkan addendum yang sudah signed
+        foreach ($addendumSpks as $spk) {
+            $filePath = public_path($spk->signed_file_path);
+            if (file_exists($filePath)) {
+                $fileName = basename($spk->signed_file_path);
+                // Tambahkan keterangan addendum pada nama file
+                $zipFileNameInArchive = preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
+                $zip->addFile($filePath, $zipFileNameInArchive);
             }
         }
 
@@ -712,8 +735,9 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
             ->pluck('id');
 
-        // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
-        $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+        // Ambil semua SPK utama (addendum_number = 0)
+        $mainSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+            ->where('addendum_number', 0)
             ->whereNotNull('file_path')
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
@@ -724,14 +748,27 @@ class SpkController extends Controller
             ->orderBy('nomor_spk')
             ->get();
 
-        if ($allSpks->isEmpty()) {
-            return redirect()->back()->with('error', 'Tidak ada SPK dengan file untuk diunduh pada kegiatan ini');
+        // Ambil semua addendum yang sudah signed (addendum_number > 0 dan signed_file_path != null)
+        $addendumSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+            ->where('addendum_number', '>', 0)
+            ->whereNotNull('signed_file_path')
+            ->whereIn('petugas_id', $petugasIdsInKegiatan)
+            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
+                $query->select('id')
+                    ->from('alokasi_petugas')
+                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            })
+            ->orderBy('nomor_spk')
+            ->get();
+
+        if ($mainSpks->isEmpty() && $addendumSpks->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada SPK/addendum yang sudah ditandatangani untuk diunduh pada kegiatan ini');
         }
 
         // Create ZIP file
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
-        $kegiatanName = preg_replace('/[\/\\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
+        $kegiatanName = preg_replace('/[\/\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
         $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$periode->tahun}_".time().'.zip';
         $zipPath = storage_path('app/temp/'.$zipFileName);
 
@@ -744,16 +781,25 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
 
-        // Add each SPK file to ZIP with organized folder structure
-        foreach ($allSpks as $spk) {
-            // Use signed file if available, otherwise use regular file
+        // Masukkan SPK utama
+        foreach ($mainSpks as $spk) {
             $fileToUse = $spk->signed_file_path ?? $spk->file_path;
             $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
+                $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
                 $fileName = basename($fileToUse);
-                // Add file with petugas name in the filename for better organization
-                $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
                 $zipFileNameInArchive = "{$petugasName}_{$fileName}";
+                $zip->addFile($filePath, $zipFileNameInArchive);
+            }
+        }
+
+        // Masukkan addendum yang sudah signed
+        foreach ($addendumSpks as $spk) {
+            $filePath = public_path($spk->signed_file_path);
+            if (file_exists($filePath)) {
+                $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
+                $fileName = basename($spk->signed_file_path);
+                $zipFileNameInArchive = "{$petugasName}_".preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
                 $zip->addFile($filePath, $zipFileNameInArchive);
             }
         }
@@ -1862,9 +1908,27 @@ class SpkController extends Controller
 
                 $spkCount = $spksForKegiatan->count();
 
-                // Check if ALL SPKs have signed files
-                $allSigned = $spksForKegiatan->every(function ($spk) {
-                    return ! empty($spk->signed_file_path);
+                // Group by petugas
+                $petugasGroups = $spksForKegiatan->groupBy('petugas_id');
+                $allPetugasSigned = $petugasGroups->every(function ($spkGroup) {
+                    // Main PK (addendum_number = 0) must be signed
+                    $main = $spkGroup->first(function ($spk) {
+                        return $spk->addendum_number == 0;
+                    });
+                    if (! $main || empty($main->signed_file_path)) {
+                        return false;
+                    }
+                    // All addendums (addendum_number > 0) must be signed if exist
+                    $addendums = $spkGroup->filter(function ($spk) {
+                        return $spk->addendum_number > 0;
+                    });
+                    foreach ($addendums as $add) {
+                        if (empty($add->signed_file_path)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
                 });
 
                 return [
@@ -1873,11 +1937,11 @@ class SpkController extends Controller
                     'kode_kegiatan' => $kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
                     'jumlah_spk' => $spkCount,
-                    'all_signed' => $allSigned,
+                    'all_signed' => $allPetugasSigned,
                 ];
             })
             ->filter(function ($kegiatan) {
-                // Only show kegiatan where jumlah_spk > 0 AND all SPKs are signed
+                // Only show kegiatan where jumlah_spk > 0 AND all PK/addendum for all petugas are signed
                 return $kegiatan['jumlah_spk'] > 0 && $kegiatan['all_signed'];
             })
             ->values()
