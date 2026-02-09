@@ -173,24 +173,22 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     }),
                 },
             );
-            let result = null;
-            try {
-                result = await response.json();
-            } catch {
-                // Jika gagal parse JSON (redirect), anggap sukses
-                setSuccessMessage(
-                    `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
-                );
-                setShowSuccessModal(true);
-                setTimeout(() => window.location.reload(), 1000);
-                return;
+
+            // Check if response is ok (status 200-299)
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            if (result && result.success) {
+
+            const result = await response.json();
+            
+            if (result.success) {
                 setSuccessMessage(
                     `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
                 );
                 setShowSuccessModal(true);
-                setTimeout(() => window.location.reload(), 1000);
+                setTimeout(() => {
+                    window.location.href = '/spk';
+                }, 2000);
             } else {
                 setModalMessage(
                     result?.message || 'Gagal generate addendum Perjanjian Kerja',
@@ -198,12 +196,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 setShowFormModal(true);
             }
         } catch (error) {
-            // Jika error network, tetap reload (anggap sukses, karena data biasanya sudah masuk)
-            setSuccessMessage(
-                `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
+            console.error('Error generating addendum:', error);
+            setModalMessage(
+                'Terjadi kesalahan saat generate addendum. Silakan coba lagi.',
             );
-            setShowSuccessModal(true);
-            setTimeout(() => window.location.reload(), 1000);
+            setShowFormModal(true);
         } finally {
             setProcessing(false);
         }
@@ -257,6 +254,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     },
                 );
 
+                if (!response.ok) {
+                    failCount++;
+                    continue;
+                }
+
                 const result = await response.json();
 
                 if (result.success) {
@@ -265,6 +267,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     failCount++;
                 }
             } catch (error) {
+                console.error('Error generating addendum for', petugasData.petugas.nama, error);
                 failCount++;
             }
         }
@@ -283,7 +286,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         }
         setShowSuccessModal(true);
         setSelectedPetugas([]);
-        setTimeout(() => window.location.reload(), 1000);
+        
+        // Redirect to SPK index instead of reloading
+        setTimeout(() => {
+            window.location.href = '/spk';
+        }, 2000);
     };
 
     return (
