@@ -246,9 +246,11 @@ class SystemSettingsController
             // Use Laravel's built-in maintenance mode with secret
             Artisan::call('down', [
                 '--refresh' => 15, // allow refresh every 15s
-                '--render' => 'errors.503',
                 '--secret' => $secret,
             ]);
+
+            // Remove prerendered template to allow middleware to work
+            $this->removeMaintenancePrerenderTemplate();
 
             // Create bypass cookie for current admin user
             $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($secret);
@@ -285,5 +287,27 @@ class SystemSettingsController
             'maintenance' => $enabled,
             'message' => $message,
         ]);
+    }
+
+    /**
+     * Remove prerendered template from maintenance mode file
+     */
+    private function removeMaintenancePrerenderTemplate(): void
+    {
+        $downPath = storage_path('framework/down');
+
+        if (! file_exists($downPath)) {
+            return;
+        }
+
+        $data = json_decode(file_get_contents($downPath), true);
+
+        if (! is_array($data) || ! array_key_exists('template', $data)) {
+            return;
+        }
+
+        unset($data['template']);
+
+        file_put_contents($downPath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 }

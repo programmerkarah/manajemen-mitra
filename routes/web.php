@@ -29,6 +29,10 @@ use Laravel\Fortify\Features;
 Route::get('/mt', [MaintenanceController::class, 'showDown'])->name('maintenance.down');
 Route::post('/mt', [MaintenanceController::class, 'processDown']);
 
+// Alias /maintenance untuk /mt
+Route::get('/maintenance', [MaintenanceController::class, 'showDown'])->name('maintenance.down.alt');
+Route::post('/maintenance', [MaintenanceController::class, 'processDown']);
+
 // Debug route - remove after deployment works
 Route::get('/debug', function () {
     return response()->json([

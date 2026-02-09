@@ -49,6 +49,20 @@ export default function Error({ status }: ErrorProps) {
                         </div>
                     </div> */}
 
+                    {/* 503 Image - Only show for 503 errors */}
+                    {status === 503 && (
+                        <div className="mb-8 flex justify-center">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20 animate-pulse-slow"></div>
+                                <img 
+                                    src="/503.png" 
+                                    alt="503 Service Unavailable" 
+                                    className="w-64 h-64 object-contain relative z-10 animate-float"
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {/* 404 Image - Only show for 404 errors */}
                     {status === 404 && (
                         <div className="mb-8 flex justify-center">

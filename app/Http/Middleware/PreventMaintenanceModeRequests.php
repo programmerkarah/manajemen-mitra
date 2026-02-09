@@ -21,6 +21,8 @@ class PreventMaintenanceModeRequests extends Middleware
         'up/*',
         'mt',
         'mt/*',
+        'maintenance',
+        'maintenance/*',
         'admin/system-settings',
         'admin/system-settings/*',
         'health',

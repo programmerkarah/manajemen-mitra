@@ -59,25 +59,24 @@ export default function SystemSettings() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': getCsrfToken(),
+                    'Accept': 'application/json',
                 },
-                credentials: 'same-origin', // Ensure cookies are sent and received
+                credentials: 'same-origin',
                 body: JSON.stringify({ enabled: !maintenance, message: editMessage }),
             });
+
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
             const data = await res.json();
             
-            // If enabling maintenance, reload page to apply bypass cookie
+            // If enabling maintenance, redirect to dashboard after cookie is set
             if (data.maintenance) {
-                // Show success message briefly before reload
-                setMaintenance(data.maintenance);
-                setMessage(data.message || '');
-                setShowSaved(true);
-                
-                // Reload after short delay to let cookie be set
                 setTimeout(() => {
-                    window.location.reload();
-                }, 500);
+                    window.location.href = '/dashboard';
+                }, 300);
             } else {
                 // If disabling maintenance, just update state
                 setMaintenance(data.maintenance);
@@ -88,6 +87,7 @@ export default function SystemSettings() {
             }
         } catch (error) {
             console.error('Failed to toggle maintenance:', error);
+            alert('Gagal mengubah status maintenance. Silakan coba lagi.');
             setLoading(false);
         }
     };

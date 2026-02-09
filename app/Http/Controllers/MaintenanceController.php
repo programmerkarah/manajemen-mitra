@@ -186,6 +186,9 @@ class MaintenanceController extends Controller
                 // Remove prerendered template to allow middleware to work
                 $this->removeMaintenancePrerenderTemplate();
 
+                // Create bypass cookie for current user
+                $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($bypassSecret);
+
                 // Log aktivitas
                 ActivityLog::log(
                     action: 'Maintenance Mode Diaktifkan',
@@ -200,7 +203,11 @@ class MaintenanceController extends Controller
                     ]
                 );
 
-                return redirect('/')->with('success', 'Sistem berhasil masuk maintenance mode');
+                // Return JSON response with cookie (similar to SystemSettingsController)
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Sistem berhasil masuk maintenance mode',
+                ])->withCookie($bypassCookie);
             }
 
             return redirect('/mt')->withErrors(['key' => 'Kunci maintenance tidak valid']);
@@ -244,6 +251,9 @@ class MaintenanceController extends Controller
             // Remove prerendered template to allow middleware to work
             $this->removeMaintenancePrerenderTemplate();
 
+            // Create bypass cookie for current user
+            $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($bypassSecret);
+
             // Log aktivitas
             ActivityLog::log(
                 action: 'Maintenance Mode Diaktifkan',
@@ -258,7 +268,11 @@ class MaintenanceController extends Controller
                 ]
             );
 
-            return redirect('/')->with('success', 'Sistem berhasil masuk maintenance mode');
+            // Return JSON response with cookie (similar to SystemSettingsController)
+            return response()->json([
+                'success' => true,
+                'message' => 'Sistem berhasil masuk maintenance mode',
+            ])->withCookie($bypassCookie);
         }
 
         return back()->withErrors([
