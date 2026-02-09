@@ -104,61 +104,52 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const decryptedAlokasi = useDecryptedData<AlokasiPeriod>(alokasi.encrypted);
     const isPJ = auth.activeRole?.name === 'pj';
 
-    // Decrypt filters from backend if encrypted, otherwise use decrypted
-    const initialFilters = filters.decrypted || {};
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || 'all');
-    const [bulan, setBulan] = useState(initialFilters.bulan || 'all');
-    const isFirstRender = useRef(true);
-    const previousStatus = useRef(status);
-    const previousBulan = useRef(bulan);
+    // State for client-side filtering
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('all');
+    const [bulan, setBulan] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const perPage = 15;
 
-    // Combined auto-filter with conditional debounce
+    // Client-side filtering
+    const filteredAlokasi = useMemo(() => {
+        let result = [...decryptedAlokasi];
+
+        // Filter by search (kegiatan name or code)
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((periode) =>
+                periode.kegiatan.nama_kegiatan.toLowerCase().includes(query) ||
+                periode.kegiatan.kode_kegiatan.toLowerCase().includes(query)
+            );
+        }
+
+        // Filter by status
+        if (status && status !== 'all') {
+            result = result.filter((periode) => periode.status === status);
+        }
+
+        // Filter by bulan
+        if (bulan && bulan !== 'all') {
+            result = result.filter((periode) => periode.bulan === bulan);
+        }
+
+        return result;
+    }, [decryptedAlokasi, search, status, bulan]);
+
+    // Client-side pagination
+    const paginatedAlokasi = useMemo(() => {
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = startIndex + perPage;
+        return filteredAlokasi.slice(startIndex, endIndex);
+    }, [filteredAlokasi, currentPage, perPage]);
+
+    const totalPages = Math.ceil(filteredAlokasi.length / perPage);
+
+    // Reset to page 1 when filters change
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-
-        // Check if dropdown changed (no debounce for dropdowns)
-        const isDropdownChange =
-            previousStatus.current !== status ||
-            previousBulan.current !== bulan;
-        previousStatus.current = status;
-        previousBulan.current = bulan;
-
-        if (isDropdownChange) {
-            // Apply filter immediately for dropdown
-            applyFilter();
-        } else {
-            // Apply filter with debounce for search
-            const timeoutId = setTimeout(() => {
-                applyFilter();
-            }, 500);
-
-            return () => clearTimeout(timeoutId);
-        }
+        setCurrentPage(1);
     }, [search, status, bulan]);
-
-    const applyFilter = () => {
-        const filterParams: Record<string, string> = {};
-
-        if (search) filterParams.search = search;
-        if (status && status !== 'all') filterParams.status = status;
-        if (bulan && bulan !== 'all') filterParams.bulan = bulan;
-
-        const encryptedFilters = encryptFilters(filterParams);
-
-        router.post(
-            '/alokasi',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
-    };
 
     // Modal states
     const [showKirimModal, setShowKirimModal] = useState(false);
@@ -216,15 +207,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         setSearch('');
         setStatus('all');
         setBulan('all');
-        router.get(
-            '/alokasi',
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        setCurrentPage(1);
     };
 
     const handleKirim = (
@@ -445,49 +428,51 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
             {/* Table */}
             <ContentCard padding="none" className="overflow-x-auto">
                 <div className="rounded-2xl">
-                    <table className="w-full min-w-max divide-y divide-white/20 dark:divide-neutral-700/30">
-                        <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
+                    <table className="w-full min-w-max">
+                        <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                             <tr>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Kegiatan
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Bulan
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Estimasi Honor
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Sisa Pagu
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Jumlah Petugas
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Status
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Aksi
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
-                            {decryptedAlokasi.length === 0 ? (
+                        <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                            {paginatedAlokasi.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan={7}
                                         className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
                                     >
-                                        Tidak ada data alokasi
+                                        {filteredAlokasi.length === 0 && decryptedAlokasi.length > 0
+                                            ? 'Tidak ada data yang sesuai dengan filter'
+                                            : 'Tidak ada data alokasi'}
                                     </td>
                                 </tr>
                             ) : (
-                                decryptedAlokasi.map((periode, index) => (
+                                paginatedAlokasi.map((periode, index) => (
                                     <tr
                                         key={`${periode.kegiatan_id}-${periode.bulan}-${periode.tahun}-${index}`}
-                                        className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
+                                        className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                     >
-                                        <td className="px-6 py-4">
+                                        <td className="px-3 py-3">
                                             <div className="max-w-xs">
                                                 <div className="font-medium break-words text-neutral-900 dark:text-white">
                                                     {
@@ -503,16 +488,16 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                        <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
                                             {getBulanLabel(periode.bulan)}{' '}
                                             {periode.tahun}
                                         </td>
-                                        <td className="px-6 py-4 text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
+                                        <td className="px-3 py-3 text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
                                             {formatCurrency(
                                                 periode.estimasi_honor,
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                                        <td className="px-3 py-3 text-sm whitespace-nowrap">
                                             <span
                                                 className={`font-semibold ${
                                                     periode.sisa_pagu >= 0
@@ -525,7 +510,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 )}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-3 py-3 whitespace-nowrap">
                                             <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 px-4 py-2 text-base font-semibold text-blue-900 shadow-lg backdrop-blur-md dark:text-blue-200">
                                                 <Users
                                                     className="h-5 w-5 shrink-0"
@@ -534,12 +519,12 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 {periode.jumlah_petugas} petugas
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-3 py-3 whitespace-nowrap">
                                             <StatusBadge
                                                 status={periode.status}
                                             />
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
+                                        <td className="px-3 py-3 whitespace-nowrap">
                                             <div className="flex items-center justify-center gap-2">
                                                 <Button
                                                     size="sm"
@@ -684,39 +669,46 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                 </div>
 
                 {/* Pagination */}
-                {alokasi.links && (
-                    <div className="flex items-center justify-between border-t border-white/20 px-6 py-4 dark:border-neutral-700/30">
-                        <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                            Showing {decryptedAlokasi.length} of{' '}
-                            {alokasi.meta.total} results
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAlokasi.length)} dari {filteredAlokasi.length} data
+                            {(search || status !== 'all' || bulan !== 'all') && ` (difilter dari ${decryptedAlokasi.length} total)`}
                         </div>
                         <div className="flex gap-1">
-                            {alokasi.links.map((link, index) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
-
-                                return (
-                                    <Button
-                                        key={index}
-                                        size="sm"
-                                        variant={
-                                            link.active ? 'default' : 'outline'
-                                        }
-                                        disabled={!link.url}
-                                        onClick={() =>
-                                            link.url && router.visit(link.url)
-                                        }
-                                    >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            link.label
-                                        )}
-                                    </Button>
-                                );
-                            })}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-9 gap-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                            </Button>
+                            
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                <Button
+                                    key={page}
+                                    variant={currentPage === page ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setCurrentPage(page)}
+                                    className="h-9 w-9"
+                                >
+                                    {page}
+                                </Button>
+                            ))}
+                            
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-9 gap-1"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
                 )}

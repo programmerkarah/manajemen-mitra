@@ -17,37 +17,28 @@ class DasarHukumController extends Controller
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? 'all';
 
+        // Load ALL data for client-side filtering, sorting, and pagination
         $dasarHukum = DasarHukum::query()
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('nomor', 'like', "%{$search}%")
-                        ->orWhere('tentang', 'like', "%{$search}%");
-                });
-            })
-            ->when($status && $status !== 'all', function ($query) use ($status) {
-                $query->where('status', $status);
-            })
             ->orderBy('tahun', 'desc')
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+            ->get();
 
         // Encrypt sensitive data
-        $dasarHukumData = $dasarHukum->items();
-        $encryptedData = encryptData($dasarHukumData);
+        $encryptedData = encryptData($dasarHukum);
+        $totalData = $dasarHukum->count();
 
         return Inertia::render('DasarHukum/Index', [
             'dasarHukum' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $dasarHukum->currentPage(),
-                    'last_page' => $dasarHukum->lastPage(),
-                    'per_page' => $dasarHukum->perPage(),
-                    'total' => $dasarHukum->total(),
-                    'from' => $dasarHukum->firstItem(),
-                    'to' => $dasarHukum->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $dasarHukum->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),

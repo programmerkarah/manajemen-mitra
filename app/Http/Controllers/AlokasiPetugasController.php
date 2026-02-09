@@ -6,6 +6,7 @@ use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreAlokasiPetugasRequest;
 use App\Http\Requests\UpdateAlokasiPetugasRequest;
 use App\Http\Requests\UpdateNonResponseRequest;
+use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
@@ -150,34 +151,6 @@ class AlokasiPetugasController extends Controller
                 })->sortKeys();
             });
 
-        // Manual pagination
-        $perPage = 15;
-        $currentPage = $request->input('page', 1);
-        $total = $deduplicatedPeriodes->count();
-        $lastPage = (int) ceil($total / $perPage);
-        $offset = ($currentPage - 1) * $perPage;
-
-        $paginatedItems = $deduplicatedPeriodes->slice($offset, $perPage)->values();
-
-        // Create pagination links
-        $links = [];
-        $links[] = ['url' => $currentPage > 1 ? url()->current().'?'.http_build_query(array_merge($validated, ['page' => $currentPage - 1])) : null, 'label' => '&laquo; Previous', 'active' => false];
-
-        for ($i = 1; $i <= $lastPage; $i++) {
-            $links[] = ['url' => url()->current().'?'.http_build_query(array_merge($validated, ['page' => $i])), 'label' => (string) $i, 'active' => $i === $currentPage];
-        }
-
-        $links[] = ['url' => $currentPage < $lastPage ? url()->current().'?'.http_build_query(array_merge($validated, ['page' => $currentPage + 1])) : null, 'label' => 'Next &raquo;', 'active' => false];
-
-        // Create paginated collection manually
-        $alokasi = new \Illuminate\Pagination\LengthAwarePaginator(
-            $paginatedItems,
-            $total,
-            $perPage,
-            $currentPage,
-            ['path' => url()->current(), 'query' => $validated]
-        );
-
         // Get latest month for each kegiatan (for revisi button logic)
         // Only show revisi for 'dikirim' or 'perubahan' status
         $latestMonthsByKegiatan = PeriodeAlokasi::query()
@@ -187,8 +160,8 @@ class AlokasiPetugasController extends Controller
             ->groupBy('kegiatan_id')
             ->pluck('latest_bulan', 'kegiatan_id');
 
-        // Transform the result to include necessary data
-        $alokasi->getCollection()->transform(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
+        // Transform the result to include necessary data (client-side filtering and pagination)
+        $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -274,22 +247,23 @@ class AlokasiPetugasController extends Controller
             })
             ->exists();
 
-        // Encrypt sensitive data for security
-        $alokasiData = $alokasi->items();
-        $encryptedData = encryptData($alokasiData);
+        // Encrypt all data for client-side filtering and pagination
+        $encryptedData = encryptData($allAlokasiData->values()->toArray());
+
+        $totalCount = $allAlokasiData->count();
 
         return Inertia::render('Alokasi/Index', [
             'alokasi' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $alokasi->currentPage(),
-                    'last_page' => $alokasi->lastPage(),
-                    'per_page' => $alokasi->perPage(),
-                    'total' => $alokasi->total(),
-                    'from' => $alokasi->firstItem(),
-                    'to' => $alokasi->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalCount,
+                    'total' => $totalCount,
+                    'from' => $totalCount > 0 ? 1 : 0,
+                    'to' => $totalCount,
                 ],
-                'links' => $alokasi->linkCollection()->toArray(),
+                'links' => [], // No pagination links needed for client-side pagination
             ],
             'filters' => [
                 'encrypted' => encryptFilters($filters),
@@ -655,6 +629,27 @@ class AlokasiPetugasController extends Controller
             }
 
             DB::commit();
+
+            // Log the activity (use first periode for logging summary)
+            if (! empty($periodeGroups)) {
+                $firstPeriode = $periodeGroups[0];
+                $bulanName = \Carbon\Carbon::create()->month($firstPeriode['bulan'])->translatedFormat('F');
+
+                ActivityLog::log(
+                    'Buat Alokasi Periode',
+                    'alokasi',
+                    "Berhasil membuat alokasi {$kegiatan->nama_kegiatan} untuk {$bulanName} {$firstPeriode['tahun']} ({$created} petugas)",
+                    'success',
+                    [
+                        'kegiatan_id' => $kegiatan->id,
+                        'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                        'bulan' => $firstPeriode['bulan'],
+                        'tahun' => $firstPeriode['tahun'],
+                        'total_petugas' => $created,
+                        'total_periode' => count($periodeGroups),
+                    ]
+                );
+            }
 
             return redirect()->route('alokasi.index')
                 ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
@@ -1200,6 +1195,25 @@ class AlokasiPetugasController extends Controller
             'submitted_by' => effectiveUser($request)->id,
             'submitted_at' => now(),
         ]);
+
+        $bulanName = \Carbon\Carbon::create()->month($bulan)->translatedFormat('F');
+        $totalPetugas = $periode->alokasiPetugas()->count();
+
+        ActivityLog::log(
+            $newStatus === 'perubahan' ? 'Kirim Perubahan Alokasi' : 'Kirim Alokasi',
+            'alokasi',
+            "Berhasil mengirim alokasi {$kegiatan->nama_kegiatan} untuk {$bulanName} {$tahun} ({$totalPetugas} petugas)",
+            'success',
+            [
+                'periode_id' => $periode->id,
+                'kegiatan_id' => $kegiatan->id,
+                'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'total_petugas' => $totalPetugas,
+                'status' => $newStatus,
+            ]
+        );
 
         return redirect()->route('alokasi.index')
             ->with('success', 'Alokasi periode berhasil dikirim untuk pembuatan SK KPA dan SPK.');

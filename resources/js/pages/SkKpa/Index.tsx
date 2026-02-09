@@ -15,8 +15,8 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Download, Eye, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Download, Eye, Plus, Search, X, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 interface LatestSk {
     id: number;
@@ -74,62 +74,103 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const decryptedKegiatan = useDecryptedData<KegiatanItem>(
+    const allKegiatan = useDecryptedData<KegiatanItem>(
         kegiatan.encrypted,
     );
 
-    const initialFilters = filters.decrypted || {};
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [jenisKegiatan, setJenisKegiatan] = useState(
-        initialFilters.jenis_kegiatan || 'all',
-    );
-    const isFirstRender = useRef(true);
-    const previousJenisKegiatan = useRef(jenisKegiatan);
+    const [search, setSearch] = useState('');
+    const [jenisKegiatan, setJenisKegiatan] = useState('all');
+    const [sortField, setSortField] = useState<'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'>('nama_kegiatan');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Combined auto-filter with conditional debounce
+    // Client-side filtering and sorting
+    const filteredAndSortedKegiatan = useMemo(() => {
+        let result: KegiatanItem[] = [...allKegiatan];
+
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: KegiatanItem) => 
+                item.nama_kegiatan?.toLowerCase().includes(query) ||
+                item.kode_kegiatan?.toLowerCase().includes(query)
+            );
+        }
+
+        // Filter by jenis kegiatan
+        if (jenisKegiatan && jenisKegiatan !== 'all') {
+            result = result.filter((item: KegiatanItem) => item.jenis_kegiatan === jenisKegiatan);
+        }
+
+        // Sort
+        result.sort((a: KegiatanItem, b: KegiatanItem) => {
+            let aVal: any = '', bVal: any = '';
+            switch (sortField) {
+                case 'sk_count':
+                    aVal = a.sk_count || 0;
+                    bVal = b.sk_count || 0;
+                    break;
+                case 'jenis_kegiatan':
+                    aVal = a.jenis_kegiatan?.toLowerCase() || '';
+                    bVal = b.jenis_kegiatan?.toLowerCase() || '';
+                    break;
+                case 'tahun_anggaran':
+                    aVal = a.tahun_anggaran || 0;
+                    bVal = b.tahun_anggaran || 0;
+                    break;
+                case 'nama_kegiatan':
+                default:
+                    aVal = a.nama_kegiatan?.toLowerCase() || '';
+                    bVal = b.nama_kegiatan?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allKegiatan, search, jenisKegiatan, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedKegiatan.length / perPage);
+    const paginatedKegiatan = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedKegiatan.slice(start, end);
+    }, [filteredAndSortedKegiatan, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-
-        // Check if jenisKegiatan changed (dropdown = no debounce)
-        const isDropdownChange =
-            previousJenisKegiatan.current !== jenisKegiatan;
-        previousJenisKegiatan.current = jenisKegiatan;
-
-        if (isDropdownChange) {
-            // Apply filter immediately for dropdown
-            applyFilter();
-        } else {
-            // Apply filter with debounce for search
-            const timeoutId = setTimeout(() => {
-                applyFilter();
-            }, 500);
-
-            return () => clearTimeout(timeoutId);
-        }
+        setCurrentPage(1);
     }, [search, jenisKegiatan]);
 
-    const applyFilter = () => {
-        const filterParams = {
-            search: search || undefined,
-            jenis_kegiatan:
-                jenisKegiatan && jenisKegiatan !== 'all'
-                    ? jenisKegiatan
-                    : undefined,
-        };
-
-        const encryptedFilters = encryptFilters(filterParams);
-
-        router.post(
-            '/sk-kpa',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
             },
+        });
+    };
+
+    const handleSort = (field: 'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: 'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? (
+            <ChevronUp className="w-4 h-4" />
+        ) : (
+            <ChevronDown className="w-4 h-4" />
         );
     };
 
@@ -142,17 +183,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
-        // Kirim filter kosong terenkripsi via POST
-        const encryptedFilters = encryptFilters({});
-        router.post(
-            '/sk-kpa',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        setCurrentPage(1);
     };
 
     const getStatusBadgeColor = (type: string) => {
@@ -261,172 +292,190 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                 </ContentCard>
 
                 {/* Table */}
-                <ContentCard>
+                <ContentCard padding="none">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-
+                            {Math.min(currentPage * perPage, filteredAndSortedKegiatan.length)} dari {filteredAndSortedKegiatan.length} data
+                            {filteredAndSortedKegiatan.length !== allKegiatan.length && ` (difilter dari ${allKegiatan.length} total)`}
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                    </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
-                            <thead className="bg-neutral-50 dark:bg-neutral-800">
+                        <table className="w-full">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Kegiatan
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nama_kegiatan')}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Kegiatan
+                                            <SortIcon field="nama_kegiatan" />
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Jenis
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('jenis_kegiatan')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Jenis
+                                            <SortIcon field="jenis_kegiatan" />
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Tahun
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('tahun_anggaran')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Tahun
+                                            <SortIcon field="tahun_anggaran" />
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Status SK
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                        Status File SK
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        File
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                {decryptedKegiatan.length === 0 ? (
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                {paginatedKegiatan.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
-                                            className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
+                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
-                                            Tidak ada kegiatan yang memerlukan
-                                            SK KPA
+                                            {filteredAndSortedKegiatan.length === 0 && allKegiatan.length > 0
+                                                ? 'Tidak ada data yang sesuai dengan filter'
+                                                : 'Tidak ada kegiatan yang memerlukan SK KPA'}
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedKegiatan.map((keg) => (
+                                    paginatedKegiatan.map((keg) => (
                                         <tr
                                             key={keg.id}
-                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div>
                                                     <div className="font-medium text-neutral-900 dark:text-white">
                                                         {keg.nama_kegiatan}
                                                     </div>
-                                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                                    <div className="text-sm text-neutral-600 dark:text-neutral-400 mt-0.5">
                                                         {keg.latest_sk
-                                                            ? `Keputusan Kepala BPS Kota Sawahlunto Nomor ${keg.latest_sk.nomor_sk} Tahun ${keg.latest_sk.tahun}`
+                                                            ? `SK Nomor ${keg.latest_sk.nomor_sk} Tahun ${keg.latest_sk.tahun}`
                                                             : 'Belum dibuat SK KPA'}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
                                                 <span className="capitalize">
                                                     {keg.jenis_kegiatan}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-3 py-3 text-center text-sm font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
                                                 {keg.tahun_anggaran}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
+                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
                                                 {keg.ketua_tim}
                                             </td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-3 py-3 text-center">
                                                 <StatusBadge
                                                     status={keg.sk_status_type}
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-3 py-3 text-center">
                                                 {keg.latest_sk ? (
                                                     keg.latest_sk.signed_file_path ? (
                                                         <StatusBadge
                                                             status="signed"
-                                                            label="Sudah Ditandatangani"
+                                                            label="Ditandatangani"
                                                         />
                                                     ) : (
                                                         <StatusBadge
                                                             status="unsigned"
-                                                            label="Belum Ditandatangani"
+                                                            label="Draft"
                                                         />
                                                     )
                                                 ) : (
                                                     <span className="text-neutral-400 dark:text-neutral-500">-</span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-center text-sm">
-                                                <div className="justify-left flex items-center gap-2">
+                                            <td className="px-3 py-3">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (
                                                         <>
-                                                            {/* Buat SK - Show only if no SK exists yet */}
-                                                            {keg.sk_count ===
-                                                                0 && (
+                                                            {keg.sk_count === 0 && (
                                                                 <Button
                                                                     size="sm"
                                                                     asChild
-                                                                    className="gap-1"
                                                                 >
                                                                     <Link
                                                                         href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
                                                                     >
                                                                         <Plus className="h-3.5 w-3.5" />
-                                                                        Buat SK
                                                                     </Link>
                                                                 </Button>
                                                             )}
 
-                                                            {/* SK Perubahan - Show ONLY if:
-                                                                1. SK exists (sk_count > 0) AND
-                                                                2. There are actual personnel changes (has_personnel_changes = true)
-                                                                If no personnel changes detected, button will be hidden */}
                                                             {keg.sk_count > 0 &&
                                                                 keg.has_personnel_changes && (
                                                                     <Button
                                                                         size="sm"
+                                                                        variant="outline"
                                                                         asChild
-                                                                        className="gap-1"
+                                                                        title="SK Perubahan"
                                                                     >
                                                                         <Link
                                                                             href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
                                                                         >
                                                                             <Plus className="h-3.5 w-3.5" />
-                                                                            SK
-                                                                            Perubahan
                                                                         </Link>
                                                                     </Button>
                                                                 )}
                                                         </>
                                                     )}
-                                                    {/* View Latest SK Details - All roles can view */}
                                                     {keg.latest_sk && (
                                                         <Button
                                                             size="sm"
                                                             variant="secondary"
                                                             asChild
-                                                            className="gap-1"
+                                                            title="Lihat Detail"
                                                         >
                                                             <Link
                                                                 href={`/sk-kpa/${keg.latest_sk.hashed_id}`}
                                                             >
                                                                 <Eye className="h-3.5 w-3.5" />
-                                                                Detail
                                                             </Link>
                                                         </Button>
                                                     )}
 
-                                                    {/* Download SK Terakhir - All roles can download */}
-                                                    {keg.latest_sk
-                                                        ?.file_path && (
+                                                    {keg.latest_sk?.file_path && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() =>
-                                                                handleDownload(
-                                                                    keg,
-                                                                )
-                                                            }
-                                                            className="gap-1"
+                                                            onClick={() => handleDownload(keg)}
+                                                            title="Download SK"
                                                         >
                                                             <Download className="h-3.5 w-3.5" />
-                                                            Download
                                                         </Button>
                                                     )}
                                                 </div>
@@ -439,91 +488,44 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {decryptedKegiatan.length > 0 && (
+                    {totalPages > 1 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
-                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Menampilkan {kegiatan.meta.from} hingga{' '}
-                                {kegiatan.meta.to} dari {kegiatan.meta.total}{' '}
-                                kegiatan
-                            </div>
-                            <div className="flex gap-2">
-                                {kegiatan.links.map((link, index) => {
-                                    const isFirst =
-                                        link.label.includes('Previous');
-                                    const isLast = link.label.includes('Next');
-
-                                    const handlePageClick = (
-                                        e: React.MouseEvent,
-                                    ) => {
-                                        e.preventDefault();
-                                        if (!link.url || link.active) return;
-
-                                        // Extract page number from URL
-                                        const url = new URL(
-                                            link.url,
-                                            window.location.origin,
-                                        );
-                                        const page =
-                                            url.searchParams.get('page') || '1';
-
-                                        const filterParams: Record<
-                                            string,
-                                            string
-                                        > = { page };
-
-                                        if (search)
-                                            filterParams.search = search;
-                                        if (
-                                            jenisKegiatan &&
-                                            jenisKegiatan !== 'all'
-                                        )
-                                            filterParams.jenis_kegiatan =
-                                                jenisKegiatan;
-
-                                        const encryptedFilters =
-                                            encryptFilters(filterParams);
-                                        router.post(
-                                            '/sk-kpa',
-                                            {
-                                                encrypted_filters:
-                                                    encryptedFilters,
-                                            },
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: false,
-                                                replace: true,
-                                            },
-                                        );
-                                    };
-                                    return (
-                                        <button
-                                            key={index}
-                                            onClick={handlePageClick}
-                                            disabled={!link.url || link.active}
-                                            className={`rounded px-3 py-1 text-sm ${
-                                                link.active
-                                                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
-                                                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
-                                            } ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
+                                <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                                    Halaman {currentPage} dari {totalPages}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <Button
+                                            key={page}
                                             type="button"
+                                            variant={currentPage === page ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(page)}
                                         >
-                                            {isFirst ? (
-                                                <ChevronLeft className="h-4 w-4" />
-                                            ) : isLast ? (
-                                                <ChevronRight className="h-4 w-4" />
-                                            ) : (
-                                                <span
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: link.label,
-                                                    }}
-                                                />
-                                            )}
-                                        </button>
-                                    );
-                                })}
+                                            {page}
+                                        </Button>
+                                    ))}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
                 </ContentCard>
             </div>
         </AppLayout>

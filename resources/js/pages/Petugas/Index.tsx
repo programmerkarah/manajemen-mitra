@@ -25,8 +25,17 @@ import {
     Pencil,
     Plus,
     Search,
+    User as UserIcon,
+    CreditCard,
+    Mail,
+    Phone,
+    GraduationCap,
+    CheckCircle2,
+    RefreshCw,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Petugas', href: '/petugas' }];
 
@@ -40,6 +49,7 @@ interface Petugas {
     pendidikan: string;
     tahun_bergabung: number;
     status: string;
+    jenis_petugas: string;
 }
 
 interface PetugasIndexProps {
@@ -69,56 +79,109 @@ interface PetugasIndexProps {
 export default function Index({ petugas, filters }: PetugasIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    const initialFilters = filters.decrypted || {};
 
-    const decryptedPetugas = useDecryptedData<Petugas>(petugas.encrypted);
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || 'all');
-    const [jenisPetugas, setJenisPetugas] = useState(initialFilters.jenis_petugas || 'all');
-    const [currentPage, setCurrentPage] = useState(petugas.meta.current_page);
+    const allPetugas = useDecryptedData<Petugas>(petugas.encrypted);
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('all');
+    const [jenisPetugas, setJenisPetugas] = useState('all');
+    const [sortField, setSortField] = useState<'nama' | 'email'>('nama');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
-    const [importFile, setImportFile] = useState<File | null>(null);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null as File | null,
     });
-    const isFirstRender = useRef(true);
 
-    // Set first render flag after mount
-    useEffect(() => {
-        isFirstRender.current = false;
-    }, []);
+    // Client-side filtering and sorting
+    const filteredAndSortedPetugas = useMemo(() => {
+        let result: Petugas[] = [...allPetugas];
 
-    // Auto-filter with debounce
-    useEffect(() => {
-        if (isFirstRender.current) return;
-
-        const timeoutId = setTimeout(() => {
-            const filterParams: Record<string, string> = {};
-            
-            if (search) filterParams.search = search;
-            if (status && status !== 'all') filterParams.status = status;
-            if (jenisPetugas && jenisPetugas !== 'all') filterParams.jenis_petugas = jenisPetugas;
-            
-            const encryptedFilters = encryptFilters(filterParams);
-
-            // Reset to page 1 when filters change
-            setCurrentPage(1);
-
-            router.post(
-                '/petugas',
-                { encrypted_filters: encryptedFilters },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ['petugas', 'filters'],
-                },
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: Petugas) => 
+                item.nama?.toLowerCase().includes(query) ||
+                item.nik_masked?.toLowerCase().includes(query) ||
+                item.email?.toLowerCase().includes(query)
             );
-        }, 300);
+        }
 
-        return () => clearTimeout(timeoutId);
+        // Filter by status
+        if (status && status !== 'all') {
+            result = result.filter((item: Petugas) => item.status === status);
+        }
+
+        // Filter by jenis_petugas
+        if (jenisPetugas && jenisPetugas !== 'all') {
+            result = result.filter((item: Petugas) => {
+                // Map display values to database values
+                const jenisValue = jenisPetugas === 'organik' ? 'organik' : 'non-organik';
+                return item.jenis_petugas === jenisValue;
+            });
+        }
+
+        // Sort
+        result.sort((a: Petugas, b: Petugas) => {
+            let aVal = '', bVal = '';
+            switch (sortField) {
+                case 'email':
+                    aVal = a.email?.toLowerCase() || '';
+                    bVal = b.email?.toLowerCase() || '';
+                    break;
+                case 'nama':
+                default:
+                    aVal = a.nama?.toLowerCase() || '';
+                    bVal = b.nama?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allPetugas, search, status, jenisPetugas, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedPetugas.length / perPage);
+    const paginatedPetugas = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedPetugas.slice(start, end);
+    }, [filteredAndSortedPetugas, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
     }, [search, status, jenisPetugas]);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            }
+        });
+    };
+
+    const handleSort = (field: 'nama' | 'email') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: 'nama' | 'email' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? 
+            <ChevronUp className="w-4 h-4" /> : 
+            <ChevronDown className="w-4 h-4" />;
+    };
 
     const handleImport = (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,40 +216,56 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                     title="Data Petugas"
                     description="Kelola data petugas mitra yang terlibat dalam kegiatan"
                 >
-                    {!isPJ && (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                asChild
-                                className="gap-2"
-                            >
-                                <a href="/petugas/template/download">
-                                    <Download className="h-4 w-4" />
-                                    Download Template
-                                </a>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowImportModal(true)}
-                                className="gap-2"
-                            >
-                                <FileUp className="h-4 w-4" />
-                                Import Excel
-                            </Button>
-                            <Button size="sm" asChild className="gap-2">
-                                <Link href="/petugas/create">
-                                    <Plus className="h-4 w-4" />
-                                    Tambah Petugas
-                                </Link>
-                            </Button>
-                        </>
-                    )}
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                        {!isPJ && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="gap-2"
+                                >
+                                    <a href="/petugas/template/download">
+                                        <Download className="h-4 w-4" />
+                                        Download Template
+                                    </a>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowImportModal(true)}
+                                    className="gap-2"
+                                >
+                                    <FileUp className="h-4 w-4" />
+                                    Import Excel
+                                </Button>
+                                <Button size="sm" asChild className="gap-2">
+                                    <Link href="/petugas/create">
+                                        <Plus className="h-4 w-4" />
+                                        Tambah Petugas
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </PageHeader>
 
                 {/* Filters */}
                 <ContentCard>
+                    {/* Results Counter */}
+                    <div className="mb-4 text-sm text-muted-foreground">
+                        Menampilkan <span className="font-semibold text-foreground">{((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPetugas.length)}</span> dari <span className="font-semibold text-foreground">{filteredAndSortedPetugas.length}</span> petugas {search || status !== 'all' || jenisPetugas !== 'all' ? `(difilter dari ${allPetugas.length} total petugas)` : ''}
+                    </div>
+
                     <div className="flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
@@ -239,49 +318,99 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
 
                 {/* Table */}
                 <ContentCard padding="none">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPetugas.length)} dari {filteredAndSortedPetugas.length} data
+                            {(search || status) && ` (difilter dari ${allPetugas.length} total)`}
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
-                        <div className="overflow-hidden rounded-2xl">
-                            <table className="w-full">
-                                <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
-                                    <tr>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                        <table className="w-full">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
+                                <tr>
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nama')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <UserIcon className="w-4 h-4" />
                                             Nama
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                                            <SortIcon field="nama" />
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <CreditCard className="w-4 h-4" />
                                             NIK/NIP
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('email')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <Mail className="w-4 h-4" />
                                             Email
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                                            <SortIcon field="email" />
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <Phone className="w-4 h-4" />
                                             Telepon
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <GraduationCap className="w-4 h-4" />
                                             Pendidikan
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
                                             Status
-                                        </th>
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300">
-                                            Aksi
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
-                                    {decryptedPetugas.map((Petugas) => (
-                                        <tr
-                                            key={Petugas.id}
-                                            className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        Aksi
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                {paginatedPetugas.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={7}
+                                            className="px-6 py-12 text-center"
                                         >
-                                            <td className="px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <UserIcon className="h-12 w-12 opacity-20" />
+                                                <p className="font-medium">Tidak ada data petugas</p>
+                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    paginatedPetugas.map((Petugas, index) => (
+                                    <tr
+                                        key={Petugas.id}
+                                        className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                    >
+                                        <td className="px-3 py-3 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
+                                                    {Petugas.nama?.charAt(0).toUpperCase() || 'P'}
+                                                </div>
                                                 <div
-                                                    className="max-w-xs truncate"
+                                                    className="max-w-xs truncate font-medium"
                                                     title={Petugas.nama}
                                                 >
                                                     {Petugas.nama}
                                                 </div>
-                                            </td>
-                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.nik_masked}
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
@@ -292,13 +421,13 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                                     {Petugas.email}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.telepon}
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.pendidikan}
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge
                                                     status={Petugas.status}
                                                 />
@@ -334,71 +463,70 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    ))
+                                )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
 
                     {/* Pagination */}
-                    {petugas.links && (
-                        <div className="flex items-center justify-center gap-1 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
-                            {petugas.links.map((link, index) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
+                    {totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-between">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Halaman{' '}
+                                <span className="font-medium">
+                                    {currentPage}
+                                </span>{' '}
+                                dari{' '}
+                                <span className="font-medium">
+                                    {totalPages}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
 
-                                const handlePagination = () => {
-                                    if (!link.url) return;
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        return page === 1 || 
+                                               page === totalPages || 
+                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                    })
+                                    .map((page, index, array) => {
+                                        const prevPage = array[index - 1];
+                                        const showEllipsis = prevPage && page > prevPage + 1;
 
-                                    // Extract page number from URL
-                                    const url = new URL(link.url, window.location.origin);
-                                    const page = url.searchParams.get('page') || '1';
+                                        return (
+                                            <div key={page} className="flex items-center gap-1">
+                                                {showEllipsis && (
+                                                    <span className="px-2 text-neutral-500">...</span>
+                                                )}
+                                                <Button
+                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setCurrentPage(page)}
+                                                >
+                                                    {page}
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
 
-                                    // Update current page state
-                                    setCurrentPage(parseInt(page));
-
-                                    // Send POST request with current filters and page
-                                    const filterParams: Record<string, string> = { page };
-                                    
-                                    if (search) filterParams.search = search;
-                                    if (status && status !== 'all') filterParams.status = status;
-                                    if (jenisPetugas && jenisPetugas !== 'all') filterParams.jenis_petugas = jenisPetugas;
-                                    
-                                    const encryptedFilters = encryptFilters(filterParams);
-
-                                    router.post(
-                                        '/petugas',
-                                        { encrypted_filters: encryptedFilters },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: false,
-                                            replace: true,
-                                            only: ['petugas', 'filters'],
-                                        },
-                                    );
-                                };
-
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={handlePagination}
-                                        disabled={!link.url}
-                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                            link.active
-                                                ? 'bg-blue-600 text-white shadow-sm'
-                                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                        } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                    >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            link.label
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </ContentCard>

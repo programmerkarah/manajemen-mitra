@@ -40,27 +40,27 @@ class PenandatanganController extends Controller
             $query->where('is_active', $isActive);
         }
 
+        // Load ALL data for client-side filtering, sorting, and pagination
         $penandatanganList = $query->orderBy('is_active', 'desc')
             ->orderBy('periode_mulai', 'desc')
-            ->paginate(15)
-            ->withQueryString();
+            ->get();
 
         // Encrypt sensitive data
-        $penandatanganData = $penandatanganList->items();
-        $encryptedData = encryptData($penandatanganData);
+        $encryptedData = encryptData($penandatanganList);
+        $totalData = $penandatanganList->count();
 
         return Inertia::render('Penandatangan/Index', [
             'PenandatanganList' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $penandatanganList->currentPage(),
-                    'last_page' => $penandatanganList->lastPage(),
-                    'per_page' => $penandatanganList->perPage(),
-                    'total' => $penandatanganList->total(),
-                    'from' => $penandatanganList->firstItem(),
-                    'to' => $penandatanganList->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $penandatanganList->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),

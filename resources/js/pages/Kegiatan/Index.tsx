@@ -28,16 +28,19 @@ import {
     Check,
     ChevronLeft,
     ChevronRight,
+    ChevronUp,
+    ChevronDown,
     Copy,
     Eye,
     Pencil,
     Plus,
+    RefreshCw,
     RotateCcw,
     Search,
     Send,
     X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -94,11 +97,15 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         ['admin', 'operator', 'ketua_tim'].includes(auth.activeRole.name);
 
     // Decrypt data once with memoization
-    const decryptedKegiatans = useDecryptedData<Kegiatan>(kegiatans.encrypted);
+    const allKegiatans = useDecryptedData<Kegiatan>(kegiatans.encrypted);
 
-    const [search, setSearch] = useState(filters.decrypted?.search || '');
-    const [status, setStatus] = useState(filters.decrypted?.status || '');
-    const [currentPage, setCurrentPage] = useState(kegiatans.meta.current_page);
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('');
+    const [sortField, setSortField] = useState<'nama_kegiatan' | 'tahun_anggaran' | 'status'>('nama_kegiatan');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -107,54 +114,96 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         null,
     );
     const [processing, setProcessing] = useState(false);
-    const isFirstRender = useRef(true);
 
-    // Set first render flag after mount
-    useEffect(() => {
-        isFirstRender.current = false;
-    }, []);
+    // Client-side filtering and sorting
+    const filteredAndSortedKegiatans = useMemo(() => {
+        let result: Kegiatan[] = [...allKegiatans];
 
-    // Auto-filter with debounce
-    useEffect(() => {
-        if (isFirstRender.current) return;
-
-        const timeoutId = setTimeout(() => {
-            const filterParams: Record<string, string> = {};
-            if (search) filterParams.search = search;
-            if (status) filterParams.status = status;
-
-            const encryptedFilters = encryptFilters(filterParams);
-
-            // Reset to page 1 when filters change
-            setCurrentPage(1);
-
-            router.post(
-                '/kegiatan',
-                { encrypted_filters: encryptedFilters },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ['kegiatans', 'filters'],
-                },
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: Kegiatan) => 
+                item.nama_kegiatan?.toLowerCase().includes(query) ||
+                item.kode_kegiatan?.toLowerCase().includes(query) ||
+                item.ketua_tim?.name?.toLowerCase().includes(query)
             );
-        }, 300);
+        }
 
-        return () => clearTimeout(timeoutId);
+        // Filter by status
+        if (status) {
+            result = result.filter((item: Kegiatan) => item.status === status);
+        }
+
+        // Sort
+        result.sort((a: Kegiatan, b: Kegiatan) => {
+            let aVal: any = '', bVal: any = '';
+            switch (sortField) {
+                case 'tahun_anggaran':
+                    aVal = a.tahun_anggaran || 0;
+                    bVal = b.tahun_anggaran || 0;
+                    break;
+                case 'status':
+                    aVal = a.status?.toLowerCase() || '';
+                    bVal = b.status?.toLowerCase() || '';
+                    break;
+                case 'nama_kegiatan':
+                default:
+                    aVal = a.nama_kegiatan?.toLowerCase() || '';
+                    bVal = b.nama_kegiatan?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allKegiatans, search, status, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedKegiatans.length / perPage);
+    const paginatedKegiatans = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedKegiatans.slice(start, end);
+    }, [filteredAndSortedKegiatans, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
     }, [search, status]);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            },
+        });
+    };
+
+    const handleSort = (field: 'nama_kegiatan' | 'tahun_anggaran' | 'status') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: 'nama_kegiatan' | 'tahun_anggaran' | 'status' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? (
+            <ChevronUp className="w-4 h-4" />
+        ) : (
+            <ChevronDown className="w-4 h-4" />
+        );
+    };
 
     const handleReset = () => {
         setSearch('');
         setStatus('');
-        router.post(
-            '/kegiatan',
-            { encrypted_filters: encryptFilters({}) },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        setCurrentPage(1);
     };
 
     const formatCurrency = (value: number | null | undefined) => {
@@ -381,6 +430,23 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
                 {/* Table */}
                 <ContentCard padding="none">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-
+                            {Math.min(currentPage * perPage, filteredAndSortedKegiatans.length)} dari {filteredAndSortedKegiatans.length} data
+                            {filteredAndSortedKegiatans.length !== allKegiatans.length && ` (difilter dari ${allKegiatans.length} total)`}
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -388,11 +454,23 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                        Nama Kegiatan
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nama_kegiatan')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Nama Kegiatan
+                                            <SortIcon field="nama_kegiatan" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Tahun
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('tahun_anggaran')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Tahun
+                                            <SortIcon field="tahun_anggaran" />
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Pagu Anggaran
@@ -400,8 +478,14 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Status
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('status')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Status
+                                            <SortIcon field="status" />
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
@@ -409,7 +493,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {decryptedKegiatans.length === 0 ? (
+                                {paginatedKegiatans.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
@@ -418,14 +502,15 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             <div className="flex flex-col items-center gap-2">
                                                 <Search className="h-8 w-8 text-neutral-400" />
                                                 <p>
-                                                    Tidak ada kegiatan yang
-                                                    ditemukan
+                                                    {filteredAndSortedKegiatans.length === 0 && allKegiatans.length > 0
+                                                        ? 'Tidak ada data yang sesuai dengan filter'
+                                                        : 'Tidak ada kegiatan yang ditemukan'}
                                                 </p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedKegiatans.map((kegiatan) => (
+                                    paginatedKegiatans.map((kegiatan) => (
                                         <tr
                                             key={kegiatan.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
@@ -573,59 +658,42 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {kegiatans.links && (
-                        <div className="flex items-center justify-center gap-1 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
-                            {kegiatans.links.map((link, index) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
-
-                                const handlePagination = () => {
-                                    if (!link.url) return;
-
-                                    const url = new URL(link.url, window.location.origin);
-                                    const page = url.searchParams.get('page') || '1';
-
-                                    setCurrentPage(parseInt(page));
-
-                                    const filterParams: Record<string, string> = { page };
-                                    if (search) filterParams.search = search;
-                                    if (status) filterParams.status = status;
-
-                                    const encryptedFilters = encryptFilters(filterParams);
-
-                                    router.post(
-                                        '/kegiatan',
-                                        { encrypted_filters: encryptedFilters },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: false,
-                                            replace: true,
-                                            only: ['kegiatans', 'filters'],
-                                        },
-                                    );
-                                };
-
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={handlePagination}
-                                        disabled={!link.url}
-                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                            link.active
-                                                ? 'bg-blue-600 text-white shadow-sm'
-                                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                        } ${!link.url && 'cursor-not-allowed opacity-50'}`}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
+                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                                Halaman {currentPage} dari {totalPages}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <Button
+                                        key={page}
+                                        type="button"
+                                        variant={currentPage === page ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(page)}
                                     >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            link.label
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                        {page}
+                                    </Button>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </ContentCard>

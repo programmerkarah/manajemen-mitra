@@ -60,27 +60,25 @@ class KegiatanController extends Controller
             $query->where('ketua_tim_user_id', $effectiveUser->id)->orWhere('pj_lainnya_id', $effectiveUser->id);
         }
 
-        // Get page from validated data
-        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
-
-        $kegiatans = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
+        // Load ALL data for client-side filtering, sorting, and pagination
+        $kegiatans = $query->latest()->get();
 
         // Encrypt sensitive data
-        $kegiatansData = $kegiatans->items();
-        $encryptedData = encryptData($kegiatansData);
+        $encryptedData = encryptData($kegiatans);
+        $totalData = $kegiatans->count();
 
         return Inertia::render('Kegiatan/Index', [
             'kegiatans' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $kegiatans->currentPage(),
-                    'last_page' => $kegiatans->lastPage(),
-                    'per_page' => $kegiatans->perPage(),
-                    'total' => $kegiatans->total(),
-                    'from' => $kegiatans->firstItem(),
-                    'to' => $kegiatans->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $kegiatans->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($actualFilters),

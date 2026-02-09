@@ -9,6 +9,12 @@ import {
     SelectItem,
     SelectValue,
 } from "@/components/ui/select";
+import { BreadcrumbItem } from '@/types';
+
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Administrasi', href: '/admin/dashboard' },
+    { title: 'Status Database', href: '/admin/database-status' },
+];
 
 export default function DatabaseStatus() {
     // Define expected prop types
@@ -100,7 +106,7 @@ export default function DatabaseStatus() {
     };
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Database Management" />
             <div className="rounded-xl overflow-hidden mb-6" style={{background: 'linear-gradient(90deg, #2e1065 0%, #1e293b 100%)'}}>
                 <div className="p-6 flex items-center gap-4">
@@ -142,7 +148,7 @@ export default function DatabaseStatus() {
                     </button>
                     {backups[0] && (
                         <a
-                            href={`/admin/db-backup/download/${encodeURIComponent(backups[0].filename)}`}
+                            href={`/storage/db_backup/${encodeURIComponent(backups[0].filename)}`}
                             className="btn btn-success flex items-center gap-2 px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                             download
                         >

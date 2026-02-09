@@ -22,8 +22,14 @@ import {
     Plus,
     Search,
     Trash2,
+    FileText,
+    Calendar,
+    CheckCircle2,
+    RefreshCw,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -72,38 +78,99 @@ export default function Index({ dasarHukum, filters }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 
-    const decryptedDasarHukum = useDecryptedData<DasarHukum>(
+    const allDasarHukum = useDecryptedData<DasarHukum>(
         dasarHukum.encrypted,
     );
 
-    const initialFilters = filters.decrypted || { search: '', status: 'all' };
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || 'all');
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('all');
+    const [sortField, setSortField] = useState<'nomor' | 'tahun' | 'tentang'>('tahun');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // Client-side filtering and sorting
+    const filteredAndSortedDasarHukum = useMemo(() => {
+        let result: DasarHukum[] = [...allDasarHukum];
+
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: DasarHukum) => 
+                item.nomor?.toLowerCase().includes(query) ||
+                item.tentang?.toLowerCase().includes(query) ||
+                item.kategori?.toLowerCase().includes(query)
+            );
+        }
+
+        // Filter by status
+        if (status && status !== 'all') {
+            result = result.filter((item: DasarHukum) => item.status === status);
+        }
+
+        // Sort
+        result.sort((a: DasarHukum, b: DasarHukum) => {
+            let aVal: any = '', bVal: any = '';
+            switch (sortField) {
+                case 'nomor':
+                    aVal = a.nomor?.toLowerCase() || '';
+                    bVal = b.nomor?.toLowerCase() || '';
+                    break;
+                case 'tentang':
+                    aVal = a.tentang?.toLowerCase() || '';
+                    bVal = b.tentang?.toLowerCase() || '';
+                    break;
+                case 'tahun':
+                default:
+                    aVal = a.tahun || 0;
+                    bVal = b.tahun || 0;
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allDasarHukum, search, status, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedDasarHukum.length / perPage);
+    const paginatedDasarHukum = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedDasarHukum.slice(start, end);
+    }, [filteredAndSortedDasarHukum, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
     useEffect(() => {
-        const timer = setTimeout(() => {
-            handleFilter();
-        }, 300);
-        return () => clearTimeout(timer);
+        setCurrentPage(1);
     }, [search, status]);
 
-    const handleFilter = () => {
-        const filterParams = {
-            search: search || undefined,
-            status: status !== 'all' ? status : undefined,
-        };
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            }
+        });
+    };
 
-        const encryptedFilters = encryptFilters(filterParams);
+    const handleSort = (field: 'nomor' | 'tahun' | 'tentang') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
 
-        router.post(
-            '/dasar-hukum',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+    const SortIcon = ({ field }: { field: 'nomor' | 'tahun' | 'tentang' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? 
+            <ChevronUp className="w-4 h-4" /> : 
+            <ChevronDown className="w-4 h-4" />;
     };
 
     const handleDelete = (id: number, nomor: string) => {
@@ -124,18 +191,34 @@ export default function Index({ dasarHukum, filters }: Props) {
                     title="Dasar Hukum SK"
                     description="Kelola dasar hukum yang digunakan pada SK KPA"
                 >
-                    {!isPJ && (
-                        <Button size="sm" asChild className="gap-2">
-                            <Link href="/dasar-hukum/create">
-                                <Plus className="h-4 w-4" />
-                                Tambah Dasar Hukum
-                            </Link>
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
                         </Button>
-                    )}
+                        {!isPJ && (
+                            <Button size="sm" asChild className="gap-2">
+                                <Link href="/dasar-hukum/create">
+                                    <Plus className="h-4 w-4" />
+                                    Tambah Dasar Hukum
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </PageHeader>
 
                 {/* Filters */}
                 <ContentCard>
+                    {/* Results Counter */}
+                    <div className="mb-4 text-sm text-muted-foreground">
+                        Menampilkan <span className="font-semibold text-foreground">{((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedDasarHukum.length)}</span> dari <span className="font-semibold text-foreground">{filteredAndSortedDasarHukum.length}</span> dasar hukum {search || status !== 'all' ? `(difilter dari ${allDasarHukum.length} total data)` : ''}
+                    </div>
+
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div className="md:col-span-2">
                             <div className="relative">
@@ -170,18 +253,41 @@ export default function Index({ dasarHukum, filters }: Props) {
 
                 {/* Table */}
                 <ContentCard padding="none">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedDasarHukum.length)} dari {filteredAndSortedDasarHukum.length} data
+                            {(search || status !== 'all') && ` (difilter dari ${allDasarHukum.length} total)`}
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                        Dasar Hukum
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nomor')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <FileText className="w-4 h-4" />
+                                            Dasar Hukum
+                                            <SortIcon field="nomor" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Tahun
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('tahun')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar className="w-4 h-4" />
+                                            Tahun
+                                            <SortIcon field="tahun" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Status
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Status
+                                        </div>
                                     </th>
                                     {!isPJ && (
                                         <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
@@ -191,18 +297,22 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {!decryptedDasarHukum ||
-                                decryptedDasarHukum.length === 0 ? (
+                                {!paginatedDasarHukum ||
+                                paginatedDasarHukum.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 3 : 4}
-                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
+                                            className="px-6 py-12 text-center"
                                         >
-                                            Belum ada data dasar hukum
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <FileText className="h-12 w-12 opacity-20" />
+                                                <p className="font-medium">Belum ada data dasar hukum</p>
+                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedDasarHukum?.map((item) => {
+                                    paginatedDasarHukum?.map((item, index) => {
                                         // Format dengan atau tanpa instansi
                                         const formatNamaLengkap = () => {
                                             let kategoriLabel = '';
@@ -262,7 +372,7 @@ export default function Index({ dasarHukum, filters }: Props) {
                                         return (
                                             <tr
                                                 key={item.id}
-                                                className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/50"
+                                                className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                             >
                                                 <td className="px-3 py-3">
                                                     <div className="space-y-1">
@@ -279,12 +389,12 @@ export default function Index({ dasarHukum, filters }: Props) {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center whitespace-nowrap">
-                                                    <div className="text-sm text-neutral-900 dark:text-white">
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                                    <div className="font-medium">
                                                         {item.tahun}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center whitespace-nowrap">
+                                                <td className="px-3 py-3 whitespace-nowrap">
                                                     <StatusBadge
                                                         status={item.status}
                                                     />
@@ -330,42 +440,62 @@ export default function Index({ dasarHukum, filters }: Props) {
                     </div>
 
                     {/* Pagination */}
-                    {dasarHukum.meta.last_page > 1 && (
-                        <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-800">
-                            <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                Menampilkan {decryptedDasarHukum?.length || 0}{' '}
-                                dari {dasarHukum.meta.total} data
+                    {totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-between">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Halaman{' '}
+                                <span className="font-medium">
+                                    {currentPage}
+                                </span>{' '}
+                                dari{' '}
+                                <span className="font-medium">
+                                    {totalPages}
+                                </span>
                             </div>
-                            <div className="flex gap-2">
-                                {dasarHukum.links.map((link, index) => {
-                                    const isFirst =
-                                        link.label.includes('Previous');
-                                    const isLast = link.label.includes('Next');
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
 
-                                    return (
-                                        <Link
-                                            key={index}
-                                            href={link.url || '#'}
-                                            className={`rounded px-3 py-1 text-sm ${
-                                                link.active
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
-                                            } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                        >
-                                            {isFirst ? (
-                                                <ChevronLeft className="h-4 w-4" />
-                                            ) : isLast ? (
-                                                <ChevronRight className="h-4 w-4" />
-                                            ) : (
-                                                <span
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: link.label,
-                                                    }}
-                                                />
-                                            )}
-                                        </Link>
-                                    );
-                                })}
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        return page === 1 || 
+                                               page === totalPages || 
+                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                    })
+                                    .map((page, index, array) => {
+                                        const prevPage = array[index - 1];
+                                        const showEllipsis = prevPage && page > prevPage + 1;
+
+                                        return (
+                                            <div key={page} className="flex items-center gap-1">
+                                                {showEllipsis && (
+                                                    <span className="px-2 text-neutral-500">...</span>
+                                                )}
+                                                <Button
+                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setCurrentPage(page)}
+                                                >
+                                                    {page}
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                     )}

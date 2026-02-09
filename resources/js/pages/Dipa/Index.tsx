@@ -25,13 +25,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ChevronLeft,
     ChevronRight,
+    ChevronUp,
+    ChevronDown,
     Pencil,
     Plus,
+    RefreshCw,
     Search,
     Trash2,
     X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -79,43 +82,108 @@ export default function Index({
 }: DipaIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    const initialFilters = filters.decrypted || {};
 
-    const decryptedDipa = useDecryptedData<Dipa>(dipaList.encrypted);
+    const allDipa = useDecryptedData<Dipa>(dipaList.encrypted);
 
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || '');
-    const [tahun, setTahun] = useState(initialFilters.tahun || '');
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('');
+    const [tahun, setTahun] = useState('');
+    const [sortField, setSortField] = useState<'nomor_dipa' | 'tahun' | 'tanggal_dipa'>('tahun');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedDipa, setSelectedDipa] = useState<Dipa | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    // Auto-filter with debounce for search input
+    // Client-side filtering and sorting
+    const filteredAndSortedDipa = useMemo(() => {
+        let result: Dipa[] = [...allDipa];
+
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: Dipa) => 
+                item.nomor_dipa?.toLowerCase().includes(query)
+            );
+        }
+
+        // Filter by status
+        if (status) {
+            const isActive = status === 'active';
+            result = result.filter((item: Dipa) => item.is_active === isActive);
+        }
+
+        // Filter by tahun
+        if (tahun) {
+            const year = parseInt(tahun);
+            result = result.filter((item: Dipa) => item.tahun === year);
+        }
+
+        // Sort
+        result.sort((a: Dipa, b: Dipa) => {
+            let aVal: any = '', bVal: any = '';
+            switch (sortField) {
+                case 'tahun':
+                    aVal = a.tahun || 0;
+                    bVal = b.tahun || 0;
+                    break;
+                case 'tanggal_dipa':
+                    aVal = new Date(a.tanggal_dipa).getTime();
+                    bVal = new Date(b.tanggal_dipa).getTime();
+                    break;
+                case 'nomor_dipa':
+                default:
+                    aVal = a.nomor_dipa?.toLowerCase() || '';
+                    bVal = b.nomor_dipa?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allDipa, search, status, tahun, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedDipa.length / perPage);
+    const paginatedDipa = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedDipa.slice(start, end);
+    }, [filteredAndSortedDipa, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            applyFilter();
-        }, 500);
+        setCurrentPage(1);
+    }, [search, status, tahun]);
 
-        return () => clearTimeout(timeoutId);
-    }, [search]);
-
-    // Auto-filter immediately for dropdowns
-    useEffect(() => {
-        applyFilter();
-    }, [status, tahun]);
-
-    const applyFilter = () => {
-        const filterParams = { search, status, tahun };
-        const encryptedFilters = encryptFilters(filterParams);
-
-        router.post(
-            '/dipa',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
             },
+        });
+    };
+
+    const handleSort = (field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? (
+            <ChevronUp className="w-4 h-4" />
+        ) : (
+            <ChevronDown className="w-4 h-4" />
         );
     };
 
@@ -124,14 +192,7 @@ export default function Index({
         setSearch('');
         setStatus('');
         setTahun('');
-        router.post(
-            '/dipa',
-            { encrypted_filters: encryptFilters({}) },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            },
-        );
+        setCurrentPage(1);
     };
 
     const handleDeleteClick = (dipa: Dipa) => {
@@ -249,44 +310,81 @@ export default function Index({
                     </div>
 
                     {/* Table */}
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-
+                            {Math.min(currentPage * perPage, filteredAndSortedDipa.length)} dari {filteredAndSortedDipa.length} data
+                            {filteredAndSortedDipa.length !== allDipa.length && ` (difilter dari ${allDipa.length} total)`}
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="border-b bg-muted/50">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Nomor DIPA
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nomor_dipa')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Nomor DIPA
+                                            <SortIcon field="nomor_dipa" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Tahun
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('tahun')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Tahun
+                                            <SortIcon field="tahun" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Tanggal DIPA
+                                    <th 
+                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('tanggal_dipa')}
+                                    >
+                                        <div className="flex items-center justify-center gap-1">
+                                            Tanggal DIPA
+                                            <SortIcon field="tanggal_dipa" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         Status
                                     </th>
                                     {!isPJ && (
-                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                             Aksi
                                         </th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
-                                {decryptedDipa.length === 0 ? (
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                {paginatedDipa.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 4 : 5}
                                             className="px-4 py-8 text-center text-sm text-muted-foreground"
                                         >
-                                            Tidak ada data
+                                            {filteredAndSortedDipa.length === 0 && allDipa.length > 0
+                                                ? 'Tidak ada data yang sesuai dengan filter'
+                                                : 'Tidak ada data'}
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedDipa.map((dipa) => (
+                                    paginatedDipa.map((dipa) => (
                                         <tr
                                             key={dipa.id}
-                                            className="hover:bg-muted/50"
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
                                             <td className="px-3 py-3 text-sm font-medium whitespace-nowrap">
                                                 {dipa.nomor_dipa}
@@ -350,40 +448,42 @@ export default function Index({
                     </div>
 
                     {/* Pagination */}
-                    {dipaList.links.length > 3 && (
-                        <div className="mt-6 flex items-center justify-center gap-2">
-                            {dipaList.links.map((link: any, index: number) => {
-                                const isFirst = link.label.includes('Previous');
-                                const isLast = link.label.includes('Next');
-
-                                return (
+                    {totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-between">
+                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                                Halaman {currentPage} dari {totalPages}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                                     <Button
-                                        key={index}
-                                        variant={
-                                            link.active ? 'default' : 'outline'
-                                        }
+                                        key={page}
+                                        type="button"
+                                        variant={currentPage === page ? 'default' : 'outline'}
                                         size="sm"
-                                        disabled={!link.url || processing}
-                                        onClick={() => {
-                                            if (link.url) {
-                                                router.visit(link.url);
-                                            }
-                                        }}
+                                        onClick={() => setCurrentPage(page)}
                                     >
-                                        {isFirst ? (
-                                            <ChevronLeft className="h-4 w-4" />
-                                        ) : isLast ? (
-                                            <ChevronRight className="h-4 w-4" />
-                                        ) : (
-                                            <span
-                                                dangerouslySetInnerHTML={{
-                                                    __html: link.label,
-                                                }}
-                                            />
-                                        )}
+                                        {page}
                                     </Button>
-                                );
-                            })}
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </ContentCard>

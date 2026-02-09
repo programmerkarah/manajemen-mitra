@@ -24,24 +24,14 @@ class UserRoleController extends Controller
 
         $validated = $request->validated();
 
+        // Load ALL users for client-side filtering, sorting, and pagination
         $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.email_verified_at', 'users.two_factor_secret', 'users.created_at')
             ->with('roles:id,name')
-            ->when(! empty($validated['search']), function ($query) use ($validated) {
-                $query->where(function ($q) use ($validated) {
-                    $q->where('name', 'like', "%{$validated['search']}%")
-                        ->orWhere('username', 'like', "%{$validated['search']}%")
-                        ->orWhere('email', 'like', "%{$validated['search']}%");
-                });
-            })
-            ->orderBy('name');
-
-        // Get page from validated data
-        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
-
-        $users = $users->paginate(15, ['*'], 'page', $page)->withQueryString();
+            ->orderBy('name')
+            ->get();
 
         // Transform data to add computed properties
-        $transformedUsers = collect($users->items())->map(function ($user) {
+        $transformedUsers = $users->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -55,18 +45,20 @@ class UserRoleController extends Controller
             ];
         });
 
+        $totalUsers = $transformedUsers->count();
+
         return Inertia::render('Users/Index', [
             'users' => [
                 'encrypted' => encryptData($transformedUsers),
                 'meta' => [
-                    'current_page' => $users->currentPage(),
-                    'last_page' => $users->lastPage(),
-                    'per_page' => $users->perPage(),
-                    'total' => $users->total(),
-                    'from' => $users->firstItem(),
-                    'to' => $users->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalUsers,
+                    'total' => $totalUsers,
+                    'from' => $totalUsers > 0 ? 1 : 0,
+                    'to' => $totalUsers,
                 ],
-                'links' => $users->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),

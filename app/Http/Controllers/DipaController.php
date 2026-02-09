@@ -43,14 +43,14 @@ class DipaController extends Controller
             }
         }
 
+        // Load ALL data for client-side filtering, sorting, and pagination
         $dipaList = $query->orderBy('tahun', 'desc')
             ->orderBy('nomor_dipa', 'asc')
-            ->paginate(15)
-            ->withQueryString();
+            ->get();
 
         // Encrypt sensitive data
-        $dipaData = $dipaList->items();
-        $encryptedData = encryptData($dipaData);
+        $encryptedData = encryptData($dipaList);
+        $totalData = $dipaList->count();
 
         // Get unique years for filter
         $tahunOptions = Dipa::select('tahun')
@@ -62,14 +62,14 @@ class DipaController extends Controller
             'dipaList' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $dipaList->currentPage(),
-                    'last_page' => $dipaList->lastPage(),
-                    'per_page' => $dipaList->perPage(),
-                    'total' => $dipaList->total(),
-                    'from' => $dipaList->firstItem(),
-                    'to' => $dipaList->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $dipaList->linkCollection()->toArray(),
+                'links' => [],
             ],
             'tahunOptions' => $tahunOptions,
             'filters' => [

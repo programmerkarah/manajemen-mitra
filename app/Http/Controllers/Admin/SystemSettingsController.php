@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Requests\Settings\UpdateMaintenanceRequest;
+use App\Models\ActivityLog;
+use App\Services\DatabaseBackupService;
+use App\Traits\EncryptsFilterParams;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -14,12 +18,18 @@ use Inertia\Response;
 
 class SystemSettingsController
 {
+    use EncryptsFilterParams;
+
+    public function __construct(
+        private DatabaseBackupService $backupService
+    ) {}
+
     public function index(): Response
     {
         $maintenance = app()->isDownForMaintenance();
         $message = Storage::exists('framework/maintenance-message.txt')
             ? Storage::get('framework/maintenance-message.txt')
-            : config('app.maintenance_message');
+            : Config::get('app.maintenance_message');
 
         return Inertia::render('Admin/SystemSettings', [
             'maintenance' => $maintenance,
@@ -51,17 +61,28 @@ class SystemSettingsController
                 return [
                     'id' => $log->id,
                     'user' => $log->user?->name ?? 'System',
+                    'user_id' => $log->user_id,
                     'action' => $log->action,
+                    'description' => $log->description,
                     'status' => $log->status,
-                    'meta' => $log->meta,
-                    'time' => $log->created_at?->format('Y-m-d H:i'),
+                    'ip_address' => $log->ip_address,
+                    'user_agent' => $log->user_agent,
+                    'time' => $log->created_at?->format('d M Y H:i:s'),
+                    'created_at' => $log->created_at?->toISOString(),
+                    'properties' => $log->metadata,
                 ];
             });
         $users = \App\Models\User::orderBy('name')->get(['id', 'name']);
 
+        // Encrypt filter values for frontend
+        $encryptedFilters = $this->encryptFilterParams($filters);
+
+        // Encrypt logs data for secure transmission
+        $encryptedLogs = encryptData($logs->toArray());
+
         return Inertia::render('Admin/ActivityLog', [
-            'logs' => $logs,
-            'filters' => $filters,
+            'logs' => $encryptedLogs,
+            'filters' => $encryptedFilters,
             'users' => $users,
         ]);
     }
@@ -69,7 +90,7 @@ class SystemSettingsController
     public function databaseStatus(): Response
     {
         // Get DB connection info
-        $connection = config('database.default');
+        $connection = Config::get('database.default');
         $status = 'Connected';
         $tables = [];
         $tableCount = 0;
@@ -83,21 +104,10 @@ class SystemSettingsController
         } catch (\Exception $e) {
             $status = 'Error: '.$e->getMessage();
         }
-        // Find last backup file in backup dir
-        $backupDir = public_path('storage/db_backup');
-        $lastBackupFile = null;
-        if (is_dir($backupDir)) {
-            $files = array_filter(scandir($backupDir), fn ($f) => preg_match('/backup_.*\\.sql$/', $f));
-            if ($files) {
-                $files = array_map(fn ($f) => [
-                    'file' => $f,
-                    'time' => filemtime($backupDir.DIRECTORY_SEPARATOR.$f),
-                ], $files);
-                usort($files, fn ($a, $b) => $b['time'] <=> $a['time']);
-                $lastBackupFile = $files[0]['file'];
-                $lastBackup = date('Y-m-d H:i', $files[0]['time']);
-            }
-        }
+        // Find last backup file
+        $backups = $this->backupService->listBackups();
+        $lastBackup = $backups[0] ?? null;
+        $lastBackupFile = $lastBackup['filename'] ?? null;
 
         return Inertia::render('Admin/DatabaseStatus', [
             'connection' => $connection,
@@ -105,102 +115,107 @@ class SystemSettingsController
             'size' => round($dbSize, 2).' MB',
             'tables' => $tables,
             'tableCount' => $tableCount,
-            'lastBackup' => $lastBackup,
+            'lastBackup' => $lastBackup['created_at'] ?? null,
             'lastBackupFile' => $lastBackupFile,
         ]);
     }
 
     /**
      * Trigger a database backup and return the result.
+     * Using PHP-based backup (compatible with shared hosting)
      */
     public function backupDatabase(Request $request)
     {
-        $dbName = DB::getDatabaseName();
-        $filename = 'manajemen_mitra_backup_'.date('Ymd_His').'.sql';
-        $backupDir = public_path('storage/db_backup');
-        if (! is_dir($backupDir)) {
-            mkdir($backupDir, 0777, true);
-        }
-        $filePath = $backupDir.DIRECTORY_SEPARATOR.$filename;
-        $user = config('database.connections.mysql.username');
-        $pass = config('database.connections.mysql.password');
-        $host = config('database.connections.mysql.host');
-        $port = config('database.connections.mysql.port');
-        $mysqldump = 'E:/xampp/mysql/bin/mysqldump.exe';
-        if (! file_exists($mysqldump)) {
-            $mysqldump = 'mysqldump'; // fallback jika sudah ada di PATH
-        }
-        $cmd = sprintf('"%s" -h%s -P%s -u%s %s %s > %s',
-            $mysqldump,
-            escapeshellarg($host),
-            escapeshellarg($port),
-            escapeshellarg($user),
-            $pass ? '-p'.escapeshellarg($pass) : '',
-            escapeshellarg($dbName),
-            escapeshellarg($filePath)
-        );
-        $result = null;
-        $output = null;
         try {
-            $cmdWithError = $cmd.' 2>&1';
-            exec($cmdWithError, $output, $result);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage()]);
-        }
-        if ($result === 0 && file_exists($filePath)) {
-            return response()->json(['success' => true, 'file' => $filename]);
-        }
+            $result = $this->backupService->createBackup();
 
-        return response()->json([
-            'success' => false,
-            'error' => 'Backup failed',
-            'cmd' => $cmd,
-            'output' => $output,
-            'result' => $result,
-        ]);
+            if ($result['success']) {
+                ActivityLog::logSystem(
+                    'Backup Database',
+                    'Database berhasil di-backup: '.$result['filename'].' ('.$result['size_formatted'].')',
+                    'success',
+                    [
+                        'filename' => $result['filename'],
+                        'size' => $result['size'],
+                        'method' => 'php_native',
+                    ]
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'file' => $result['filename'],
+                    'size' => $result['size_formatted'],
+                ]);
+            }
+
+            ActivityLog::logError(
+                'Backup Database',
+                'system',
+                'Gagal membuat backup database: '.($result['error'] ?? 'Unknown error'),
+                ['error' => $result['error'] ?? null]
+            );
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            ActivityLog::logError(
+                'Backup Database',
+                'system',
+                'Error saat backup database: '.$e->getMessage(),
+                ['exception' => get_class($e)]
+            );
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
      * Restore database from a backup file.
+     * Using PHP-based restore (compatible with shared hosting)
      */
     public function restoreDatabase(Request $request)
     {
         $file = $request->input('file');
-        $backupDir = public_path('storage/db_backup');
-        $filePath = $backupDir.DIRECTORY_SEPARATOR.$file;
-        if (! file_exists($filePath)) {
-            return response()->json(['success' => false, 'error' => 'File not found']);
-        }
-        $dbName = DB::getDatabaseName();
-        $user = config('database.connections.mysql.username');
-        $pass = config('database.connections.mysql.password');
-        $host = config('database.connections.mysql.host');
-        $port = config('database.connections.mysql.port');
-        $mysql = 'E:/xampp/mysql/bin/mysql.exe';
-        if (! file_exists($mysql)) {
-            $mysql = 'mysql';
-        }
-        $cmd = sprintf('"%s" -h%s -P%s -u%s %s %s < %s',
-            $mysql,
-            escapeshellarg($host),
-            escapeshellarg($port),
-            escapeshellarg($user),
-            $pass ? '-p'.escapeshellarg($pass) : '',
-            escapeshellarg($dbName),
-            escapeshellarg($filePath)
-        );
-        $result = null;
-        $output = null;
-        try {
-            exec($cmd, $output, $result);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage()]);
-        }
-        if ($result === 0) {
-            return response()->json(['success' => true]);
-        }
 
-        return response()->json(['success' => false, 'error' => 'Restore failed', 'cmd' => $cmd]);
+        try {
+            $result = $this->backupService->restoreBackup($file);
+
+            if ($result['success']) {
+                ActivityLog::logSystem(
+                    'Restore Database',
+                    'Database berhasil di-restore dari backup: '.$file,
+                    'success',
+                    ['filename' => $file, 'method' => 'php_native']
+                );
+
+                return response()->json($result);
+            }
+
+            ActivityLog::logError(
+                'Restore Database',
+                'system',
+                'Gagal restore database dari: '.$file.' - '.($result['error'] ?? 'Unknown error'),
+                ['filename' => $file, 'error' => $result['error'] ?? null]
+            );
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            ActivityLog::logError(
+                'Restore Database',
+                'system',
+                'Error saat restore database: '.$e->getMessage(),
+                ['filename' => $file, 'exception' => get_class($e)]
+            );
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -225,13 +240,41 @@ class SystemSettingsController
 
         // Enable/disable maintenance mode
         if ($enabled) {
-            // Use Laravel's built-in maintenance mode
+            // Generate a bypass secret token
+            $secret = Config::get('app.maintenance_bypass_secret') ?: \Illuminate\Support\Str::random(40);
+
+            // Use Laravel's built-in maintenance mode with secret
             Artisan::call('down', [
                 '--refresh' => 15, // allow refresh every 15s
                 '--render' => 'errors.503',
+                '--secret' => $secret,
             ]);
+
+            // Create bypass cookie for current admin user
+            $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($secret);
+
+            ActivityLog::logSystem(
+                'Mode Maintenance Diaktifkan',
+                'Sistem diubah ke mode maintenance'.($message ? ': '.$message : ''),
+                'warning',
+                ['message' => $message, 'user_id' => Auth::id()]
+            );
+
+            // Return response with bypass cookie
+            return response()->json([
+                'success' => true,
+                'maintenance' => $enabled,
+                'message' => $message,
+            ])->withCookie($bypassCookie);
         } else {
             Artisan::call('up');
+
+            ActivityLog::logSystem(
+                'Mode Maintenance Dinonaktifkan',
+                'Sistem kembali normal dan dapat diakses',
+                'success',
+                ['user_id' => Auth::id()]
+            );
         }
 
         // Clear config cache if needed

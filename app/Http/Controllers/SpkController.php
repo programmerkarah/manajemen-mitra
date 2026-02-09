@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
+use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
@@ -2690,6 +2691,24 @@ class SpkController extends Controller
             ]);
 
             DB::commit();
+
+            $bulanName = \Carbon\Carbon::create()->month($periode->bulan)->translatedFormat('F');
+
+            ActivityLog::log(
+                'Generate SPK',
+                'spk',
+                "Berhasil generate SPK untuk {$petugas->nama}: {$nomorSpk} ({$bulanName} {$periode->tahun})",
+                'success',
+                [
+                    'spk_id' => $spk->id,
+                    'nomor_spk' => $nomorSpk,
+                    'petugas_id' => $petugas->id,
+                    'petugas_nama' => $petugas->nama,
+                    'bulan' => $periode->bulan,
+                    'tahun' => $periode->tahun,
+                    'nilai_kontrak' => $totalHonor,
+                ]
+            );
 
             return redirect()->route('spk.index')->with('success', 'SPK berhasil dibuat');
         } catch (\Exception $e) {

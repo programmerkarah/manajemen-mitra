@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
+use App\Models\ActivityLog;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\SkKpa;
@@ -60,15 +61,13 @@ class SkKpaController extends Controller
             $query->where('jenis_kegiatan', $validated['jenis_kegiatan']);
         }
 
-        // Get page from validated data
-        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
-
-        $kegiatan = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
+        // Load ALL data for client-side filtering, sorting, and pagination
+        $kegiatan = $query->latest()->get();
 
         // Transform data to include SK status
         // Note: status_sk and revision_number are calculated from skKpa relationship
         // They are not stored in kegiatan table
-        $transformedData = $kegiatan->getCollection()->map(function ($keg) {
+        $transformedData = $kegiatan->map(function ($keg) {
             $skCount = $keg->sk_kpa_count ?? 0;
             $latestSk = $keg->skKpa->sortByDesc('created_at')->first();
 
@@ -114,19 +113,20 @@ class SkKpaController extends Controller
 
         // Encrypt sensitive data
         $encryptedData = encryptData($transformedData);
+        $totalData = $transformedData->count();
 
         $response = Inertia::render('SkKpa/Index', [
             'kegiatan' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $kegiatan->currentPage(),
-                    'last_page' => $kegiatan->lastPage(),
-                    'per_page' => $kegiatan->perPage(),
-                    'total' => $kegiatan->total(),
-                    'from' => $kegiatan->firstItem(),
-                    'to' => $kegiatan->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $kegiatan->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),
@@ -402,6 +402,14 @@ class SkKpaController extends Controller
             'signed_at' => now(),
             'signed_by' => Auth::id(),
         ]);
+
+        ActivityLog::log(
+            'Upload SK Bertanda Tangan',
+            'sk_kpa',
+            "Berhasil upload SK bertanda tangan untuk: {$skKpa->nomor_sk} - {$skKpa->kegiatan->nama_kegiatan}",
+            'success',
+            ['sk_kpa_id' => $skKpa->id, 'nomor_sk' => $skKpa->nomor_sk, 'file_path' => $filePath]
+        );
 
         return redirect()->route('sk-kpa.show', ['skKpa' => $skKpa->hashed_id])
             ->with('success', 'SK yang sudah ditandatangani berhasil diupload.');
@@ -865,7 +873,7 @@ class SkKpaController extends Controller
 
         // Save SK record to database
         try {
-            SkKpa::create([
+            $skKpa = SkKpa::create([
                 'nomor_sk' => $validated['nomor_sk'],
                 'kegiatan_id' => $kegiatan->id,
                 'bulan' => $periode->bulan,
@@ -878,6 +886,21 @@ class SkKpaController extends Controller
                 'status' => 'diterbitkan',
                 'created_by' => Auth::id(),
             ]);
+
+            ActivityLog::log(
+                'Generate SK-KPA',
+                'sk_kpa',
+                "Berhasil generate SK-KPA: {$validated['nomor_sk']} untuk kegiatan {$kegiatan->nama_kegiatan}",
+                'success',
+                [
+                    'sk_kpa_id' => $skKpa->id,
+                    'nomor_sk' => $validated['nomor_sk'],
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'revision_number' => $revisionNumber,
+                    'file_path' => $filePath,
+                ]
+            );
         } catch (\Illuminate\Database\QueryException $e) {
             // Delete the generated PDF file
             if (file_exists(public_path($filePath))) {
@@ -886,12 +909,26 @@ class SkKpaController extends Controller
 
             // Check if it's a duplicate entry error
             if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'Duplicate entry')) {
+                ActivityLog::logError(
+                    'Generate SK-KPA',
+                    'sk_kpa',
+                    "Gagal generate SK-KPA: Nomor SK {$validated['nomor_sk']} sudah digunakan",
+                    ['nomor_sk' => $validated['nomor_sk'], 'error' => $e->getMessage()]
+                );
+
                 return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
                     ->withInput()
                     ->with('error', 'Nomor SK "'.$validated['nomor_sk'].'" sudah digunakan untuk tahun '.$periode->tahun.'. Silakan gunakan nomor SK yang berbeda.');
             }
 
             // For other database errors
+            ActivityLog::logError(
+                'Generate SK-KPA',
+                'sk_kpa',
+                'Gagal generate SK-KPA: '.$e->getMessage(),
+                ['nomor_sk' => $validated['nomor_sk'], 'error' => $e->getMessage()]
+            );
+
             return redirect()->route('sk-kpa.create-for-kegiatan', ['kegiatanHashedId' => $kegiatanHashedId])
                 ->withInput()
                 ->with('error', 'Terjadi kesalahan saat menyimpan SK: '.$e->getMessage());

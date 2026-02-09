@@ -169,7 +169,7 @@ class MaintenanceController extends Controller
             $secretToken = config('app.maintenance_bypass_start_key');
 
             if ($secretToken && $request->query('key') === $secretToken) {
-                $message = $request->query('message', 'Sistem sedang dalam maintenance');
+                $message = $request->query('message', 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.');
 
                 // Simpan pesan maintenance ke storage
                 Storage::put('framework/maintenance-message.txt', $message);
@@ -190,7 +190,7 @@ class MaintenanceController extends Controller
                 ActivityLog::log(
                     action: 'Maintenance Mode Diaktifkan',
                     type: 'system',
-                    description: 'Sistem masuk maintenance mode'.($message !== 'Sistem sedang dalam maintenance' ? ': '.$message : ''),
+                    description: 'Sistem masuk maintenance mode'.($message !== 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.' ? ': '.$message : ''),
                     status: 'warning',
                     metadata: [
                         'message' => $message,
@@ -227,7 +227,7 @@ class MaintenanceController extends Controller
         $secretToken = config('app.maintenance_bypass_start_key');
 
         if ($secretToken && $request->input('key') === $secretToken) {
-            $message = $request->input('message', 'Sistem sedang dalam maintenance');
+            $message = $request->input('message', 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.');
 
             // Simpan pesan maintenance ke storage
             Storage::put('framework/maintenance-message.txt', $message);
@@ -248,7 +248,7 @@ class MaintenanceController extends Controller
             ActivityLog::log(
                 action: 'Maintenance Mode Diaktifkan',
                 type: 'system',
-                description: 'Sistem masuk maintenance mode'.($message !== 'Sistem sedang dalam maintenance' ? ': '.$message : ''),
+                description: 'Sistem masuk maintenance mode'.($message !== 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.' ? ': '.$message : ''),
                 status: 'warning',
                 metadata: [
                     'message' => $message,

@@ -176,34 +176,34 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                     {/* Table */}
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="border-b bg-muted/50">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold">
                                         Nama
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         NIP
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold">
                                         Jabatan
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         Periode Mulai
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         Periode Selesai
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         Status
                                     </th>
                                     {!isPJ && (
-                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                             Aksi
                                         </th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
                                 {kepalaBpsList.data.length === 0 ? (
                                     <tr>
                                         <td
@@ -217,7 +217,7 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                     kepalaBpsList.data.map((kepalaBps) => (
                                         <tr
                                             key={kepalaBps.id}
-                                            className="hover:bg-muted/50"
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
                                             <td className="px-3 py-3 text-sm font-medium">
                                                 <div
@@ -243,12 +243,12 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                                     kepalaBps.periode_mulai,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-sm">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                 {formatDate(
                                                     kepalaBps.periode_selesai,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-3 py-3 text-center">
                                                 <span
                                                     className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
                                                         kepalaBps.is_active
@@ -262,7 +262,7 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                                                 </span>
                                             </td>
                                             {!isPJ && (
-                                                <td className="px-4 py-3">
+                                                <td className="px-3 py-3">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <Button
                                                             variant="outline"

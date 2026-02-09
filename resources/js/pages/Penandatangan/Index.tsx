@@ -31,8 +31,16 @@ import {
     Search,
     Trash2,
     X,
+    User as UserIcon,
+    CreditCard,
+    Briefcase,
+    Calendar,
+    CheckCircle2,
+    RefreshCw,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -81,47 +89,111 @@ export default function Index({
 }: PenandatanganIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-    const initialFilters = filters.decrypted || {};
 
-    const decryptedPenandatangan = useDecryptedData<Penandatangan>(
+    const allPenandatangan = useDecryptedData<Penandatangan>(
         PenandatanganList.encrypted,
     );
 
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [status, setStatus] = useState(initialFilters.status || '');
-    const [jenis, setJenis] = useState(initialFilters.jenis || '');
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('');
+    const [jenis, setJenis] = useState('');
+    const [sortField, setSortField] = useState<'nama' | 'nip' | 'jabatan'>('nama');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedPenandatangan, setSelectedPenandatangan] =
         useState<Penandatangan | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    // Auto-filter with debounce for search input
+    // Client-side filtering and sorting
+    const filteredAndSortedPenandatangan = useMemo(() => {
+        let result: Penandatangan[] = [...allPenandatangan];
+
+        // Filter by search
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((item: Penandatangan) => 
+                item.nama?.toLowerCase().includes(query) ||
+                item.nip?.toLowerCase().includes(query) ||
+                item.jabatan?.toLowerCase().includes(query)
+            );
+        }
+
+        // Filter by jenis
+        if (jenis) {
+            result = result.filter((item: Penandatangan) => item.jenis_penandatangan === jenis);
+        }
+
+        // Filter by status
+        if (status) {
+            const isActive = status === 'aktif';
+            result = result.filter((item: Penandatangan) => item.is_active === isActive);
+        }
+
+        // Sort
+        result.sort((a: Penandatangan, b: Penandatangan) => {
+            let aVal = '', bVal = '';
+            switch (sortField) {
+                case 'nip':
+                    aVal = a.nip?.toLowerCase() || '';
+                    bVal = b.nip?.toLowerCase() || '';
+                    break;
+                case 'jabatan':
+                    aVal = a.jabatan?.toLowerCase() || '';
+                    bVal = b.jabatan?.toLowerCase() || '';
+                    break;
+                case 'nama':
+                default:
+                    aVal = a.nama?.toLowerCase() || '';
+                    bVal = b.nama?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allPenandatangan, search, jenis, status, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedPenandatangan.length / perPage);
+    const paginatedPenandatangan = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedPenandatangan.slice(start, end);
+    }, [filteredAndSortedPenandatangan, currentPage, perPage]);
+
+    // Reset to page 1 when filters change
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            applyFilter();
-        }, 500);
+        setCurrentPage(1);
+    }, [search, jenis, status]);
 
-        return () => clearTimeout(timeoutId);
-    }, [search]);
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            }
+        });
+    };
 
-    // Auto-filter immediately for dropdowns
-    useEffect(() => {
-        applyFilter();
-    }, [status, jenis]);
+    const handleSort = (field: 'nama' | 'nip' | 'jabatan') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
 
-    const applyFilter = () => {
-        const filterParams = { search, status, jenis };
-        const encryptedFilters = encryptFilters(filterParams);
-
-        router.post(
-            '/penandatangan',
-            { encrypted_filters: encryptedFilters },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+    const SortIcon = ({ field }: { field: 'nama' | 'nip' | 'jabatan' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? 
+            <ChevronUp className="w-4 h-4" /> : 
+            <ChevronDown className="w-4 h-4" />;
     };
 
     const handleDeleteClick = (Penandatangan: Penandatangan) => {
@@ -142,19 +214,12 @@ export default function Index({
             },
         });
     };
+
     // Fungsi untuk reset filter
     const handleReset = () => {
         setSearch('');
         setStatus('');
         setJenis('');
-        router.post(
-            '/penandatangan',
-            { encrypted_filters: encryptFilters({}) },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            },
-        );
     };
     const formatDate = (dateString: string | null) => {
         if (!dateString) return '-';
@@ -174,19 +239,30 @@ export default function Index({
                     title="Penandatangan"
                     description="Kelola data Penandatangan untuk dokumen SK"
                 >
-                    {!isPJ && (
-                        <Button asChild size="sm" className="gap-2">
-                            <Link href="/penandatangan/create">
-                                <Plus className="h-4 w-4" />
-                                Tambah Penandatangan
-                            </Link>
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
                         </Button>
-                    )}
+                        {!isPJ && (
+                            <Button asChild size="sm" className="gap-2">
+                                <Link href="/penandatangan/create">
+                                    <Plus className="h-4 w-4" />
+                                    Tambah Penandatangan
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </PageHeader>
 
                 <ContentCard>
                     {/* Search and Filter */}
-                    <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+                    <div className="mb-4 flex flex-col gap-4 sm:flex-row">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -247,69 +323,117 @@ export default function Index({
                     </div>
 
                     {/* Table */}
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPenandatangan.length)} dari {filteredAndSortedPenandatangan.length} data
+                            {(search || jenis || status) && ` (difilter dari ${allPenandatangan.length} total)`}
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="border-b bg-muted/50">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">
-                                        Nama
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nama')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <UserIcon className="w-4 h-4" />
+                                            Nama
+                                            <SortIcon field="nama" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        NIP
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('nip')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <CreditCard className="w-4 h-4" />
+                                            NIP
+                                            <SortIcon field="nip" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Jenis
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <Briefcase className="w-4 h-4" />
+                                            Jenis
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium">
-                                        Jabatan
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('jabatan')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <Briefcase className="w-4 h-4" />
+                                            Jabatan
+                                            <SortIcon field="jabatan" />
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Periode Mulai
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar className="w-4 h-4" />
+                                            Periode Mulai
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Periode Selesai
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar className="w-4 h-4" />
+                                            Periode Selesai
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
-                                        Status
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Status
+                                        </div>
                                     </th>
                                     {!isPJ && (
-                                        <th className="px-3 py-3 text-center text-sm font-medium whitespace-nowrap">
+                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                             Aksi
                                         </th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
-                                {decryptedPenandatangan.length === 0 ? (
+                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                {paginatedPenandatangan.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={isPJ ? 7 : 8}
-                                            className="px-4 py-8 text-center text-sm text-muted-foreground"
+                                            className="px-4 py-12 text-center"
                                         >
-                                            Tidak ada data
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <UserIcon className="h-12 w-12 opacity-20" />
+                                                <p className="font-medium">Tidak ada data penandatangan</p>
+                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedPenandatangan.map(
+                                    paginatedPenandatangan.map(
                                         (Penandatangan) => (
                                             <tr
                                                 key={Penandatangan.id}
-                                                className="hover:bg-muted/50"
+                                                className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                             >
-                                                <td className="px-3 py-3 text-sm font-medium">
-                                                    <div
-                                                        className="max-w-xs truncate"
-                                                        title={
-                                                            Penandatangan.nama
-                                                        }
-                                                    >
-                                                        {Penandatangan.nama}
+                                                <td className="px-3 py-3 text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
+                                                            {Penandatangan.nama?.charAt(0).toUpperCase() || 'P'}
+                                                        </div>
+                                                        <div
+                                                            className="max-w-xs truncate font-medium"
+                                                            title={
+                                                                Penandatangan.nama
+                                                            }
+                                                        >
+                                                            {Penandatangan.nama}
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                     {Penandatangan.nip || '-'}
                                                 </td>
-                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap">
                                                     <Badge
                                                         variant={
                                                             Penandatangan.jenis_penandatangan ===
@@ -324,7 +448,7 @@ export default function Index({
                                                             : 'PPK (Perjanjian Kerja/BAST)'}
                                                     </Badge>
                                                 </td>
-                                                <td className="px-3 py-3 text-sm">
+                                                <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                     <div
                                                         className="max-w-xs"
                                                         title={
@@ -334,17 +458,17 @@ export default function Index({
                                                         {Penandatangan.jabatan}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                     {formatDate(
                                                         Penandatangan.periode_mulai,
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-3 text-center text-sm whitespace-nowrap">
+                                                <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                     {formatDate(
                                                         Penandatangan.periode_selesai,
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-3 text-center">
+                                                <td className="px-3 py-3">
                                                     <StatusBadge
                                                         status={
                                                             Penandatangan.is_active
@@ -398,45 +522,66 @@ export default function Index({
                     </div>
 
                     {/* Pagination */}
-                    {PenandatanganList.links.length > 3 && (
-                        <div className="mt-6 flex items-center justify-center gap-2">
-                            {PenandatanganList.links.map(
-                                (link: any, index: number) => {
-                                    const isFirst =
-                                        link.label.includes('Previous');
-                                    const isLast = link.label.includes('Next');
+                    {totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-between">
+                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Halaman{' '}
+                                <span className="font-medium">
+                                    {currentPage}
+                                </span>{' '}
+                                dari{' '}
+                                <span className="font-medium">
+                                    {totalPages}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {/* Previous Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
 
-                                    return (
-                                        <Button
-                                            key={index}
-                                            variant={
-                                                link.active
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            size="sm"
-                                            disabled={!link.url || processing}
-                                            onClick={() => {
-                                                if (link.url) {
-                                                    router.visit(link.url);
-                                                }
-                                            }}
-                                        >
-                                            {isFirst ? (
-                                                <ChevronLeft className="h-4 w-4" />
-                                            ) : isLast ? (
-                                                <ChevronRight className="h-4 w-4" />
-                                            ) : (
-                                                <span
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: link.label,
-                                                    }}
-                                                />
-                                            )}
-                                        </Button>
-                                    );
-                                },
-                            )}
+                                {/* Page Numbers */}
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        return page === 1 || 
+                                               page === totalPages || 
+                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                    })
+                                    .map((page, index, array) => {
+                                        const prevPage = array[index - 1];
+                                        const showEllipsis = prevPage && page > prevPage + 1;
+
+                                        return (
+                                            <div key={page} className="flex items-center gap-1">
+                                                {showEllipsis && (
+                                                    <span className="px-2 text-neutral-500">...</span>
+                                                )}
+                                                <Button
+                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setCurrentPage(page)}
+                                                >
+                                                    {page}
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
+
+                                {/* Next Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </ContentCard>

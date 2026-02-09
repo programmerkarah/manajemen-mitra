@@ -18,8 +18,8 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Pencil, Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Pencil, Search, X, User as UserIcon, Mail, Shield, CheckCircle2, Clock, RefreshCw, UserRoundCog, MailQuestion, ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -70,35 +70,93 @@ interface UsersIndexProps {
 }
 
 export default function Index({ users, filters }: UsersIndexProps) {
-    const decryptedUsers = useDecryptedData<User[]>(users.encrypted);
+    const allUsers = useDecryptedData<User>(users.encrypted);
 
-    const initialFilters = filters.decrypted || {};
-    const [search, setSearch] = useState(initialFilters.search || '');
-    const [currentPage, setCurrentPage] = useState(users.meta.current_page);
+    const [search, setSearch] = useState('');
+    const [sortField, setSortField] = useState<'name' | 'username' | 'email'>('name');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Auto-filter with debounce
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            const filterParams = { search };
-            const encryptedFilters = encryptFilters(filterParams);
+    // Client-side filtering and sorting
+    const filteredAndSortedUsers = useMemo(() => {
+        let result: User[] = [...allUsers];
 
-            // Reset to page 1 when filters change
-            setCurrentPage(1);
-
-            router.post(
-                '/users',
-                { encrypted_filters: encryptedFilters },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ['users', 'filters'],
-                },
+        // Filter
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter((user: User) => 
+                user.name?.toLowerCase().includes(query) ||
+                user.username?.toLowerCase().includes(query) ||
+                user.email?.toLowerCase().includes(query) ||
+                user.roles?.some((role: Role) => role.display_name?.toLowerCase().includes(query))
             );
-        }, 300);
+        }
 
-        return () => clearTimeout(timeoutId);
+        // Sort
+        result.sort((a: User, b: User) => {
+            let aVal = '', bVal = '';
+            switch (sortField) {
+                case 'username':
+                    aVal = a.username?.toLowerCase() || '';
+                    bVal = b.username?.toLowerCase() || '';
+                    break;
+                case 'email':
+                    aVal = a.email?.toLowerCase() || '';
+                    bVal = b.email?.toLowerCase() || '';
+                    break;
+                case 'name':
+                default:
+                    aVal = a.name?.toLowerCase() || '';
+                    bVal = b.name?.toLowerCase() || '';
+                    break;
+            }
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [allUsers, search, sortField, sortDirection]);
+
+    // Client-side pagination
+    const totalPages = Math.ceil(filteredAndSortedUsers.length / perPage);
+    const paginatedUsers = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedUsers.slice(start, end);
+    }, [filteredAndSortedUsers, currentPage, perPage]);
+
+    // Reset to page 1 when search changes
+    useEffect(() => {
+        setCurrentPage(1);
     }, [search]);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            onFinish: () => {
+                setTimeout(() => setIsRefreshing(false), 500);
+            }
+        });
+    };
+
+    const handleSort = (field: 'name' | 'username' | 'email') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: 'name' | 'username' | 'email' }) => {
+        if (sortField !== field) return null;
+        return sortDirection === 'asc' ? 
+            <ChevronUp className="w-4 h-4" /> : 
+            <ChevronDown className="w-4 h-4" />;
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -109,72 +167,112 @@ export default function Index({ users, filters }: UsersIndexProps) {
                 <PageHeader
                     title="Manajemen User"
                     description="Kelola role dan hak akses pengguna sistem"
-                />
+                >
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </PageHeader>
 
                 {/* Search */}
                 <ContentCard>
-                    <div className="flex gap-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
-                            <Input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari berdasarkan nama, username, atau email..."
-                                className="h-11 pl-10 text-base"
-                            />
+                    <div className="space-y-3">
+                        <div className="flex gap-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+                                <Input
+                                    type="text"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Cari user (nama, username, email, role)..."
+                                    className="h-11 pl-10 text-base"
+                                />
+                            </div>
+                            {search && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setSearch('')}
+                                    className="h-11 gap-2"
+                                >
+                                    <X className="h-5 w-5" />
+                                    Reset
+                                </Button>
+                            )}
                         </div>
-                        {search && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    setSearch('');
-                                    router.post(
-                                        '/users',
-                                        {
-                                            encrypted_filters: encryptFilters(
-                                                {},
-                                            ),
-                                        },
-                                        { preserveState: true },
-                                    );
-                                }}
-                                className="h-11 gap-2"
-                            >
-                                <X className="h-5 w-5" />
-                                Reset
-                            </Button>
-                        )}
                     </div>
                 </ContentCard>
 
                 {/* User List */}
                 <ContentCard padding="none">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedUsers.length)} dari {filteredAndSortedUsers.length} user
+                            {search && ` (difilter dari ${allUsers.length} total)`}
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Nama
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('name')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <UserIcon className="w-4 h-4" />
+                                            Nama
+                                            <SortIcon field="name" />
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('username')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <UserIcon className="w-4 h-4" />
+                                            Username
+                                            <SortIcon field="username" />
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() => handleSort('email')}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <Mail className="w-4 h-4" />
+                                            Email
+                                            <SortIcon field="email" />
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Username
+                                        <div className="flex items-center gap-1.5">
+                                            <UserRoundCog className="w-4 h-4" />
+                                            Role
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Email
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Status
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Role
+                                        <div className="flex items-center gap-1.5">
+                                            <MailQuestion className="w-4 h-4" />
+                                            Verifikasi Email
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Status
-                                    </th>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Email
-                                    </th>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        2FA
+                                        <div className="flex items-center gap-1.5">
+                                            <Shield className="w-4 h-4" />
+                                            2FA
+                                        </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
@@ -182,33 +280,38 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {decryptedUsers.length === 0 ? (
+                                {paginatedUsers.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={8}
-                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
+                                            className="px-6 py-12 text-center"
                                         >
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Search className="h-8 w-8 text-neutral-400" />
-                                                <p>
-                                                    Tidak ada user yang
-                                                    ditemukan
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <UserIcon className="h-12 w-12 opacity-20" />
+                                                <p className="font-medium">
+                                                    Tidak ada user yang ditemukan
                                                 </p>
+                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedUsers.map((user) => (
+                                    paginatedUsers.map((user) => (
                                         <tr
                                             key={user.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-3 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                                                <div
-                                                    className="max-w-xs truncate"
-                                                    title={user.name}
-                                                >
-                                                    {user.name}
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
+                                                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                                                    </div>
+                                                    <div
+                                                        className="max-w-xs truncate font-medium"
+                                                        title={user.name}
+                                                    >
+                                                        {user.name}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
@@ -310,8 +413,8 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                                     type="hidden"
                                                                     name="_token"
                                                                     value={
-                                                                        window
-                                                                            .Laravel
+                                                                        (window as any)
+                                                                            ?.Laravel
                                                                             ?.csrfToken ||
                                                                         document
                                                                             .querySelector(
@@ -355,75 +458,69 @@ export default function Index({ users, filters }: UsersIndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {users?.meta?.last_page > 1 && (
+                    {totalPages > 1 && (
                         <div className="border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
                                 <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Menampilkan{' '}
+                                    Halaman{' '}
                                     <span className="font-medium">
-                                        {users?.meta?.from}
-                                    </span>{' '}
-                                    hingga{' '}
-                                    <span className="font-medium">
-                                        {users?.meta?.to}
+                                        {currentPage}
                                     </span>{' '}
                                     dari{' '}
                                     <span className="font-medium">
-                                        {users?.meta?.total}
-                                    </span>{' '}
-                                    hasil
+                                        {totalPages}
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    {users.links.map((link, index) => {
-                                        const isFirst =
-                                            link.label.includes('Previous');
-                                        const isLast =
-                                            link.label.includes('Next');
+                                    {/* Previous Button */}
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === 1 && 'cursor-not-allowed opacity-50'}`}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
 
-                                        const handlePagination = () => {
-                                            if (!link.url) return;
+                                    {/* Page Numbers */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(page => {
+                                            // Show first page, last page, current page, and pages around current
+                                            return page === 1 || 
+                                                   page === totalPages || 
+                                                   (page >= currentPage - 1 && page <= currentPage + 1);
+                                        })
+                                        .map((page, index, array) => {
+                                            // Add ellipsis
+                                            const prevPage = array[index - 1];
+                                            const showEllipsis = prevPage && page > prevPage + 1;
 
-                                            const url = new URL(link.url, window.location.origin);
-                                            const page = url.searchParams.get('page') || '1';
-
-                                            setCurrentPage(parseInt(page));
-
-                                            const filterParams = { search, page };
-                                            const encryptedFilters = encryptFilters(filterParams);
-
-                                            router.post(
-                                                '/users',
-                                                { encrypted_filters: encryptedFilters },
-                                                {
-                                                    preserveState: true,
-                                                    preserveScroll: false,
-                                                    replace: true,
-                                                    only: ['users', 'filters'],
-                                                },
+                                            return (
+                                                <div key={page} className="flex items-center gap-1">
+                                                    {showEllipsis && (
+                                                        <span className="px-2 text-neutral-500">...</span>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setCurrentPage(page)}
+                                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                                            currentPage === page
+                                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </div>
                                             );
-                                        };
+                                        })}
 
-                                        return (
-                                            <button
-                                                key={index}
-                                                onClick={handlePagination}
-                                                disabled={!link.url}
-                                                className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                                    link.active
-                                                        ? 'bg-blue-600 text-white shadow-sm'
-                                                        : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                                                } ${!link.url && 'cursor-not-allowed opacity-50'}`}
-                                            >
-                                                {isFirst ? (
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                ) : isLast ? (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                ) : (
-                                                    link.label
-                                                )}
-                                            </button>
-                                        );
-                                    })}
+                                    {/* Next Button */}
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === totalPages && 'cursor-not-allowed opacity-50'}`}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
                                 </div>
                             </div>
                         </div>

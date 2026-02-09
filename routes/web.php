@@ -19,6 +19,7 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\ViewAsUserController;
 use App\Http\Controllers\YearSwitchController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -81,59 +82,67 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Admin System Settings
     Route::middleware(['active.role:admin'])->prefix('admin')->group(function () {
         Route::get('dashboard', function () {
-            // Ambil data ringkasan untuk dashboard admin
+            // Statistik sistem untuk dashboard
             $maintenance = app()->isDownForMaintenance();
-            $lastBackup = null;
-            $backupDir = base_path('backup');
-            if (is_dir($backupDir)) {
-                $files = array_filter(scandir($backupDir), fn ($f) => preg_match('/backup_.*\\.sql$/', $f));
-                if ($files) {
-                    $files = array_map(fn ($f) => [
-                        'file' => $f,
-                        'time' => filemtime($backupDir.DIRECTORY_SEPARATOR.$f),
-                    ], $files);
-                    usort($files, fn ($a, $b) => $b['time'] <=> $a['time']);
-                    $lastBackup = [
-                        'filename' => $files[0]['file'],
-                        'created_at' => date('Y-m-d H:i', $files[0]['time']),
-                    ];
-                }
-            }
             $totalUsers = \App\Models\User::count();
+            $totalMitra = \App\Models\Petugas::count();
+            $totalKegiatan = \App\Models\Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count();
+
+            // Informasi backup terakhir
+            $backupService = app(\App\Services\DatabaseBackupService::class);
+            $backups = $backupService->listBackups();
+            $lastBackup = $backups[0] ?? null;
+
+            // Activity log terbaru
+            $recentLogs = \App\Models\ActivityLog::with('user')
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get()
+                ->map(fn ($log) => [
+                    'id' => $log->id,
+                    'user_name' => $log->user_name,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'status' => $log->status,
+                    'type' => $log->type,
+                    'created_at' => $log->created_at->format('Y-m-d H:i:s'),
+                ]);
+
+            // Database info
+            $dbSize = 0;
+            try {
+                $dbName = DB::getDatabaseName();
+                $tables = DB::select('SELECT ROUND(SUM((data_length + index_length) / 1024 / 1024), 2) AS size_mb FROM information_schema.tables WHERE table_schema = ?', [$dbName]);
+                $dbSize = $tables[0]->size_mb ?? 0;
+            } catch (\Exception $e) {
+                // Silent fail
+            }
 
             return Inertia::render('Admin/Dashboard', [
+                'stats' => [
+                    'totalUsers' => $totalUsers,
+                    'totalMitra' => $totalMitra,
+                    'totalKegiatan' => $totalKegiatan,
+                    'dbSize' => round($dbSize, 2),
+                ],
                 'systemStatus' => [
                     'maintenance' => $maintenance,
                     'status' => $maintenance ? 'maintenance' : 'active',
-                    'label' => $maintenance ? 'Maintenance' : 'Active',
+                    'label' => $maintenance ? 'Maintenance' : 'Aktif',
                 ],
                 'lastBackup' => $lastBackup,
-                'totalUsers' => $totalUsers,
+                'recentLogs' => $recentLogs,
             ]);
         })->name('admin.dashboard');
         Route::get('system-settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('admin.system-settings');
         Route::post('system-settings/maintenance', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
-        Route::get('activity-log', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
+        Route::match(['get', 'post'], 'activity-log', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
         Route::get('database-status', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
         Route::post('database-backup', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
         Route::post('database-restore', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
         Route::get('database-list-backups', function () {
-            $backupDir = base_path('backup');
-            $backups = [];
-            if (is_dir($backupDir)) {
-                $files = array_filter(scandir($backupDir), fn ($f) => preg_match('/backup_.*\\.sql$/', $f));
-                foreach ($files as $f) {
-                    $path = $backupDir.DIRECTORY_SEPARATOR.$f;
-                    $backups[] = [
-                        'filename' => $f,
-                        'size' => filesize($path),
-                        'size_formatted' => number_format(filesize($path) / 1024, 1).' KB',
-                        'created_at' => date('Y-m-d H:i', filemtime($path)),
-                        'created_at_formatted' => date('Y-m-d H:i', filemtime($path)),
-                    ];
-                }
-                usort($backups, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
-            }
+            $backupService = app(\App\Services\DatabaseBackupService::class);
+            $backups = $backupService->listBackups();
 
             return response()->json(['success' => true, 'backups' => $backups]);
         })->name('admin.database-list-backups');

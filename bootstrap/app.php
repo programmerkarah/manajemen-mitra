@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/health',
         then: function () {
             // Load maintenance routes with custom middleware
@@ -121,5 +122,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     ]
                 );
             }
+        });
+
+        // Custom error page rendering for Inertia
+        $exceptions->respond(function (\Illuminate\Http\Response $response) {
+            $status = $response->getStatusCode();
+            
+            // Only handle specific error codes with Inertia
+            if (in_array($status, [404, 403, 500, 503]) && request()->wantsJson() === false) {
+                return \Inertia\Inertia::render('Error', ['status' => $status])
+                    ->toResponse(request())
+                    ->setStatusCode($status);
+            }
+
+            return $response;
         });
     })->create();

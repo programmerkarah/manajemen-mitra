@@ -19,6 +19,10 @@ class PreventMaintenanceModeRequests extends Middleware
         'bypass/*',
         'up',
         'up/*',
+        'mt',
+        'mt/*',
+        'admin/system-settings',
+        'admin/system-settings/*',
         'health',
     ];
 
@@ -34,14 +38,17 @@ class PreventMaintenanceModeRequests extends Middleware
             return $next($request);
         }
 
-        // Check if path is excluded (/bypass, /up)
+        // Check if path is excluded (/bypass, /up, /health, /admin/system-settings)
         if ($this->inExceptArray($request)) {
-            // Block non-admin logged users from accessing /bypass and /up
-            if ($this->isLoggedInButNotAdmin($request)) {
-                $data = $this->getMaintenanceData();
-                throw new HttpException(503, $data['message'] ?? 'Service Unavailable', null, $data['retry'] ?? []);
+            // For admin routes, require admin authentication
+            if (str_starts_with($request->path(), 'admin/')) {
+                if (! $this->isAdminUser($request)) {
+                    $data = $this->getMaintenanceData();
+                    throw new HttpException(503, $data['message'] ?? 'Service Unavailable', null, $data['retry'] ?? []);
+                }
             }
 
+            // Allow access to /bypass, /up, /mt and authenticated admin routes
             return $next($request);
         }
 
@@ -121,12 +128,6 @@ class PreventMaintenanceModeRequests extends Middleware
                     }
                 }
             }
-
-            // Debug log
-            \Log::info('isAdminUser check', [
-                'userId' => $userId,
-                'sessionKeys' => array_keys($session->all()),
-            ]);
         }
 
         if (! $userId) {

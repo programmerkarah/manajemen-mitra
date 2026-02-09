@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Plus, Trash2, Calendar, CheckCircle2, DollarSign } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -58,17 +58,23 @@ export default function Index({ year_groups }: Props) {
 
                 {/* Table */}
                 <ContentCard padding="none">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto border rounded-lg">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Tahun Anggaran
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar className="w-4 h-4" />
+                                            Tahun Anggaran
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Status
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Status
+                                        </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                         Aksi
                                     </th>
                                 </tr>
@@ -78,24 +84,35 @@ export default function Index({ year_groups }: Props) {
                                     <tr>
                                         <td
                                             colSpan={3}
-                                            className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
+                                            className="px-6 py-12 text-center"
                                         >
-                                            Belum ada data SBML
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <DollarSign className="h-12 w-12 opacity-20" />
+                                                <p className="font-medium">Belum ada data SBML</p>
+                                                <p className="text-xs">Mulai dengan menambahkan tahun anggaran baru</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    year_groups.map((group) => (
+                                    year_groups.map((group, index) => (
                                         <tr
                                             key={group.tahun_anggaran}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-3 py-3 text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                                {group.tahun_anggaran}
-                                                <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
-                                                    ({group.count} kategori)
-                                                </span>
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                                        {String(group.tahun_anggaran).slice(-2)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium">{group.tahun_anggaran}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {group.count} kategori
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-3 py-3">
                                                 <StatusBadge
                                                     status={group.status}
                                                 />

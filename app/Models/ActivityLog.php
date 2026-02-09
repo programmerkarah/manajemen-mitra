@@ -10,19 +10,24 @@ class ActivityLog extends Model
 {
     protected $fillable = [
         'user_id',
+        'user_name',
         'action',
+        'type',
+        'description',
         'status',
-        'meta',
+        'ip_address',
+        'user_agent',
+        'metadata',
     ];
 
-    public $timestamps = false;
-
-    const CREATED_AT = 'created_at';
-
-    protected $casts = [
-        'meta' => 'array',
-        'created_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'metadata' => 'array',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {
@@ -30,35 +35,53 @@ class ActivityLog extends Model
     }
 
     /**
-     * Log activity helper method
+     * Log activity dengan format yang user-friendly
+     *
+     * @param  string  $action  Aksi yang dilakukan (contoh: "Login", "Tambah Mitra", "Ubah Data Kegiatan")
+     * @param  string  $type  Tipe aktivitas (auth, mitra, kegiatan, user, system, alokasi, sbml, dipa, sk_kpa, bast, spk)
+     * @param  string  $description  Deskripsi lengkap yang mudah dimengerti
+     * @param  string  $status  Status: success, error, warning
+     * @param  array|null  $metadata  Data tambahan yang relevan
      */
     public static function log(string $action, string $type, string $description, string $status = 'success', ?array $metadata = null): void
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        // Combine action and type for the action field
-        $actionText = $action;
-
-        // Build meta data
-        $meta = [
-            'type' => $type,
-            'description' => $description,
-            'user_name' => $user?->name ?? 'System',
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ];
-
-        // Merge additional metadata if provided
-        if ($metadata) {
-            $meta = array_merge($meta, $metadata);
-        }
-
         self::create([
             'user_id' => $user?->id,
-            'action' => $actionText,
+            'user_name' => $user?->name ?? 'System',
+            'action' => $action,
+            'type' => $type,
+            'description' => $description,
             'status' => $status,
-            'meta' => $meta,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'metadata' => $metadata,
         ]);
+    }
+
+    /**
+     * Shorthand untuk log autentikasi
+     */
+    public static function logAuth(string $action, string $description, string $status = 'success', ?array $metadata = null): void
+    {
+        self::log($action, 'auth', $description, $status, $metadata);
+    }
+
+    /**
+     * Shorthand untuk log sistem
+     */
+    public static function logSystem(string $action, string $description, string $status = 'success', ?array $metadata = null): void
+    {
+        self::log($action, 'system', $description, $status, $metadata);
+    }
+
+    /**
+     * Shorthand untuk log error
+     */
+    public static function logError(string $action, string $type, string $description, ?array $metadata = null): void
+    {
+        self::log($action, $type, $description, 'error', $metadata);
     }
 }

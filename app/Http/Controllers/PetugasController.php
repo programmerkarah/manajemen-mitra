@@ -7,6 +7,7 @@ use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StorePetugasRequest;
 use App\Http\Requests\UpdatePetugasRequest;
 use App\Imports\PetugasImport;
+use App\Models\ActivityLog;
 use App\Models\Petugas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,27 +51,25 @@ class PetugasController extends Controller
             $query->where('jenis_petugas', $validated['jenis_petugas']);
         }
 
-        // Get page from validated data
-        $page = ! empty($validated['page']) ? (int) $validated['page'] : 1;
-
-        $petugas = $query->latest()->paginate(15, ['*'], 'page', $page)->withQueryString();
+        // Load ALL data for client-side filtering, sorting, and pagination
+        $petugas = $query->latest()->get();
 
         // Encrypt sensitive data
-        $petugasData = $petugas->items();
-        $encryptedData = encryptData($petugasData);
+        $encryptedData = encryptData($petugas);
+        $totalData = $petugas->count();
 
         return Inertia::render('Petugas/Index', [
             'petugas' => [
                 'encrypted' => $encryptedData,
                 'meta' => [
-                    'current_page' => $petugas->currentPage(),
-                    'last_page' => $petugas->lastPage(),
-                    'per_page' => $petugas->perPage(),
-                    'total' => $petugas->total(),
-                    'from' => $petugas->firstItem(),
-                    'to' => $petugas->lastItem(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $totalData,
+                    'total' => $totalData,
+                    'from' => $totalData > 0 ? 1 : 0,
+                    'to' => $totalData,
                 ],
-                'links' => $petugas->linkCollection()->toArray(),
+                'links' => [],
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),
@@ -92,16 +91,16 @@ class PetugasController extends Controller
      */
     public function store(StorePetugasRequest $request): RedirectResponse
     {
-        \Log::info('StorePetugasRequest received', [
-            'validated' => $request->validated(),
-        ]);
 
         $petugas = Petugas::create($request->validated());
 
-        \Log::info('Petugas created', [
-            'id' => $petugas->id,
-            'nama' => $petugas->nama,
-        ]);
+        ActivityLog::log(
+            'Tambah Mitra',
+            'mitra',
+            "Berhasil menambahkan mitra baru: {$petugas->nama} (NIK: {$petugas->nik})",
+            'success',
+            ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
+        );
 
         return redirect()->route('petugas.index')
             ->with([
@@ -211,6 +210,14 @@ class PetugasController extends Controller
         $petugas = Petugas::findOrFail($id);
         $petugas->update($request->validated());
 
+        ActivityLog::log(
+            'Ubah Data Mitra',
+            'mitra',
+            "Berhasil mengubah data mitra: {$petugas->nama} (NIK: {$petugas->nik})",
+            'success',
+            ['petugas_id' => $petugas->id, 'nama' => $petugas->nama]
+        );
+
         return redirect()->route('petugas.index')
             ->with('success', 'Perubahan data petugas sudah berhasil disimpan.');
     }
@@ -227,7 +234,18 @@ class PetugasController extends Controller
         }
 
         $petugas = Petugas::findOrFail($id);
+        $petugasNama = $petugas->nama;
+        $petugasNik = $petugas->nik;
+        $petugasId = $petugas->id;
         $petugas->delete();
+
+        ActivityLog::log(
+            'Hapus Mitra',
+            'mitra',
+            "Berhasil menghapus data mitra: {$petugasNama} (NIK: {$petugasNik})",
+            'success',
+            ['petugas_id' => $petugasId, 'nama' => $petugasNama, 'nik' => $petugasNik]
+        );
 
         return redirect()->route('petugas.index')
             ->with('success', 'Data petugas sudah berhasil dihapus dari sistem.');
@@ -262,9 +280,25 @@ class PetugasController extends Controller
             $errors = $import->getErrors();
 
             if (count($errors) > 0) {
+                ActivityLog::log(
+                    'Import Mitra',
+                    'mitra',
+                    "Import mitra selesai dengan peringatan: {$successCount} berhasil, ".count($errors).' gagal',
+                    'warning',
+                    ['success_count' => $successCount, 'error_count' => count($errors)]
+                );
+
                 return redirect()->route('petugas.index')
                     ->with('warning', "Import selesai. {$successCount} data berhasil diimport. ".count($errors).' data gagal: '.implode(', ', array_slice($errors, 0, 3)));
             }
+
+            ActivityLog::log(
+                'Import Mitra',
+                'mitra',
+                "Berhasil import {$successCount} data mitra",
+                'success',
+                ['success_count' => $successCount]
+            );
 
             return redirect()->route('petugas.index')
                 ->with('success', "Import berhasil! {$successCount} petugas telah ditambahkan.");
@@ -279,6 +313,13 @@ class PetugasController extends Controller
             return redirect()->route('petugas.index')
                 ->with('error', 'Validasi gagal: '.implode(' | ', array_slice($errorMessages, 0, 5)));
         } catch (\Exception $e) {
+            ActivityLog::logError(
+                'Import Mitra',
+                'mitra',
+                'Gagal import mitra: '.$e->getMessage(),
+                ['error' => $e->getMessage()]
+            );
+
             return redirect()->route('petugas.index')
                 ->with('error', 'Gagal mengimport data: '.$e->getMessage());
         }
