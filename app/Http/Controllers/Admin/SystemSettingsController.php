@@ -54,10 +54,15 @@ class SystemSettingsController
         if ($filters['date']) {
             $query->whereDate('created_at', $filters['date']);
         }
+        
+        // Get page from request, default to 1
+        $page = $request->input('page', 1);
+        
+        // Paginate with 50 items per page, sorted by latest first
         $logs = $query->orderByDesc('created_at')
-            ->limit(100)
-            ->get()
-            ->map(function ($log) {
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'page', $page)
+            ->through(function ($log) {
                 return [
                     'id' => $log->id,
                     'user' => $log->user?->name ?? 'System',
@@ -67,7 +72,7 @@ class SystemSettingsController
                     'status' => $log->status,
                     'ip_address' => $log->ip_address,
                     'user_agent' => $log->user_agent,
-                    'time' => $log->created_at?->format('d M Y H:i:s'),
+                    'time' => $log->created_at?->format('d M Y H:i:s') . ' WIB',
                     'created_at' => $log->created_at?->toISOString(),
                     'properties' => $log->metadata,
                 ];
@@ -78,10 +83,18 @@ class SystemSettingsController
         $encryptedFilters = $this->encryptFilterParams($filters);
 
         // Encrypt logs data for secure transmission
-        $encryptedLogs = encryptData($logs->toArray());
+        $encryptedLogs = encryptData($logs->items());
 
         return Inertia::render('Admin/ActivityLog', [
             'logs' => $encryptedLogs,
+            'pagination' => [
+                'current_page' => $logs->currentPage(),
+                'last_page' => $logs->lastPage(),
+                'per_page' => $logs->perPage(),
+                'total' => $logs->total(),
+                'from' => $logs->firstItem(),
+                'to' => $logs->lastItem(),
+            ],
             'filters' => $encryptedFilters,
             'users' => $users,
         ]);
@@ -130,16 +143,27 @@ class SystemSettingsController
             $result = $this->backupService->createBackup();
 
             if ($result['success']) {
-                ActivityLog::logSystem(
-                    'Backup Database',
-                    'Database berhasil di-backup: '.$result['filename'].' ('.$result['size_formatted'].')',
-                    'success',
-                    [
+                // Create log entry
+                $log = ActivityLog::create([
+                    'user_id' => Auth::id(),
+                    'user_name' => Auth::user()?->name ?? 'System',
+                    'action' => 'Backup Database',
+                    'type' => 'system',
+                    'description' => 'Database berhasil di-backup: '.$result['filename'].' ('.$result['size_formatted'].')',
+                    'status' => 'success',
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'metadata' => [
                         'filename' => $result['filename'],
                         'size' => $result['size'],
                         'method' => 'php_native',
-                    ]
-                );
+                    ],
+                ]);
+
+                // Ensure log is committed to database before returning response
+                if ($log) {
+                    $log->refresh();
+                }
 
                 return response()->json([
                     'success' => true,

@@ -36,7 +36,7 @@ class DatabaseBackupService
             fwrite($handle, '-- MySQL version: '.DB::selectOne('SELECT VERSION() as version')->version."\n\n");
             fwrite($handle, "SET FOREIGN_KEY_CHECKS=0;\n");
             fwrite($handle, "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n");
-            fwrite($handle, "SET time_zone = \"+00:00\";\n\n");
+            fwrite($handle, "SET time_zone = '+07:00';\n\n");
 
             // Ambil semua tabel
             $tables = DB::select('SHOW TABLES');
@@ -118,32 +118,28 @@ class DatabaseBackupService
                 return ['success' => false, 'error' => 'File backup tidak ditemukan'];
             }
 
+            // Set timezone untuk memastikan timestamp diinterpretasi dengan benar
+            DB::statement("SET time_zone = '+07:00'");
+
             // Baca file SQL
             $sql = file_get_contents($filePath);
 
             // Parse SQL statements properly (handle multi-line statements)
             $statements = $this->parseSqlStatements($sql);
 
-            DB::beginTransaction();
-
-            try {
-                foreach ($statements as $statement) {
-                    if (! empty(trim($statement))) {
-                        DB::statement($statement);
-                    }
+            // Execute statements without transaction
+            // DDL statements (CREATE, DROP, ALTER) cause implicit commit in MySQL
+            // So using transaction doesn't provide rollback capability anyway
+            foreach ($statements as $statement) {
+                if (! empty(trim($statement))) {
+                    DB::statement($statement);
                 }
-
-                DB::commit();
-
-                return [
-                    'success' => true,
-                    'message' => 'Database berhasil di-restore dari backup: '.$filename,
-                ];
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
             }
+
+            return [
+                'success' => true,
+                'message' => 'Database berhasil di-restore dari backup: '.$filename,
+            ];
 
         } catch (\Exception $e) {
             return [
@@ -271,6 +267,7 @@ class DatabaseBackupService
             'cache',
             'cache_locks',
             'users',
+            'activity_logs',
         ];
 
         return in_array($tableName, $skipTables);

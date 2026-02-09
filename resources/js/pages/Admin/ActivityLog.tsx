@@ -54,8 +54,18 @@ interface ActivityLog {
     properties?: Record<string, any>;
 }
 
+interface PaginationData {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+}
+
 interface Props {
     logs: string | ActivityLog[]; // Can be encrypted string or array
+    pagination?: PaginationData;
     filters?: any;
     users?: any[];
     [key: string]: unknown;
@@ -63,7 +73,7 @@ interface Props {
 
 export default function ActivityLog() {
     const pageProps = usePage<Props>().props;
-    const { filters = {}, users = [] } = pageProps;
+    const { filters = {}, users = [], pagination } = pageProps;
     
     // Decrypt logs if encrypted
     const [decryptedLogs, setDecryptedLogs] = useState<ActivityLog[]>([]);
@@ -204,6 +214,28 @@ export default function ActivityLog() {
             setSortField(field);
             setSortDirection('desc');
         }
+    };
+
+    const handlePageChange = (page: number) => {
+        // Preserve current filters when changing pages
+        const filterData: Record<string, string> = { page: page.toString() };
+        
+        if (status !== 'all' && status) {
+            filterData.status = status;
+        }
+        if (user !== 'all' && user) {
+            filterData.user = user;
+        }
+        if (date) {
+            filterData.date = date;
+        }
+        
+        router.visit('/admin/activity-log', {
+            method: 'post',
+            data: filterData,
+            preserveState: true,
+            preserveScroll: false,
+        });
     };
 
     const getStatusIcon = (status?: string) => {
@@ -359,8 +391,24 @@ export default function ActivityLog() {
                 </form>
 
                 {/* Results count */}
-                <div className="mb-3 text-sm text-muted-foreground">
-                    Menampilkan <span className="font-semibold text-foreground">{filteredLogs.length}</span> dari {decryptedLogs.length} log
+                <div className="mb-3 text-sm text-muted-foreground flex items-center justify-between">
+                    <div>
+                        {pagination ? (
+                            <>
+                                Menampilkan <span className="font-semibold text-foreground">{pagination.from ?? 0}</span> hingga <span className="font-semibold text-foreground">{pagination.to ?? 0}</span> dari <span className="font-semibold text-foreground">{pagination.total}</span> log
+                                {searchQuery && ` (Filtered: ${filteredLogs.length} shown)`}
+                            </>
+                        ) : (
+                            <>
+                                Menampilkan <span className="font-semibold text-foreground">{filteredLogs.length}</span> dari {decryptedLogs.length} log
+                            </>
+                        )}
+                    </div>
+                    {pagination && pagination.last_page > 1 && (
+                        <div className="text-xs">
+                            Halaman <span className="font-semibold text-foreground">{pagination.current_page}</span> dari <span className="font-semibold text-foreground">{pagination.last_page}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -475,6 +523,78 @@ export default function ActivityLog() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {pagination && pagination.last_page > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <div className="text-sm text-muted-foreground">
+                            Showing {pagination.from ?? 0} to {pagination.to ?? 0} of {pagination.total} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(1)}
+                                disabled={pagination.current_page === 1}
+                            >
+                                First
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(pagination.current_page - 1)}
+                                disabled={pagination.current_page === 1}
+                            >
+                                Previous
+                            </Button>
+                            
+                            <div className="flex items-center gap-1">
+                                {(() => {
+                                    const pages = [];
+                                    const maxVisible = 5;
+                                    let startPage = Math.max(1, pagination.current_page - Math.floor(maxVisible / 2));
+                                    let endPage = Math.min(pagination.last_page, startPage + maxVisible - 1);
+                                    
+                                    if (endPage - startPage + 1 < maxVisible) {
+                                        startPage = Math.max(1, endPage - maxVisible + 1);
+                                    }
+                                    
+                                    for (let i = startPage; i <= endPage; i++) {
+                                        pages.push(
+                                            <Button
+                                                key={i}
+                                                variant={i === pagination.current_page ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => handlePageChange(i)}
+                                                className="w-10"
+                                            >
+                                                {i}
+                                            </Button>
+                                        );
+                                    }
+                                    return pages;
+                                })()}
+                            </div>
+                            
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(pagination.current_page + 1)}
+                                disabled={pagination.current_page === pagination.last_page}
+                            >
+                                Next
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(pagination.last_page)}
+                                disabled={pagination.current_page === pagination.last_page}
+                            >
+                                Last
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </ContentCard>
 
             {/* Detail Dialog */}

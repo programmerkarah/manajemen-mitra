@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ActivityLog extends Model
 {
@@ -45,20 +46,32 @@ class ActivityLog extends Model
      */
     public static function log(string $action, string $type, string $description, string $status = 'success', ?array $metadata = null): void
     {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
+        try {
+            /** @var \App\Models\User|null $user */
+            $user = Auth::user();
 
-        self::create([
-            'user_id' => $user?->id,
-            'user_name' => $user?->name ?? 'System',
-            'action' => $action,
-            'type' => $type,
-            'description' => $description,
-            'status' => $status,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'metadata' => $metadata,
-        ]);
+            self::create([
+                'user_id' => $user?->id,
+                'user_name' => $user?->name ?? 'System',
+                'action' => $action,
+                'type' => $type,
+                'description' => $description,
+                'status' => $status,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'metadata' => $metadata,
+            ]);
+        } catch (\Exception $e) {
+            // Log to Laravel log if activity log insert fails
+            Log::error('Failed to insert activity log', [
+                'action' => $action,
+                'type' => $type,
+                'description' => $description,
+                'status' => $status,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     /**
