@@ -488,7 +488,7 @@ class SpkController extends Controller
 
                 // Check if ALL petugas have signed SPKs and the files exist physically
                 $allSigned = $spksForKegiatan->every(function ($spk) {
-                    return !empty($spk->signed_file_path) && file_exists(public_path($spk->signed_file_path));
+                    return ! empty($spk->signed_file_path) && file_exists(public_path($spk->signed_file_path));
                 });
 
                 return [
@@ -772,9 +772,9 @@ class SpkController extends Controller
         $missingSignedFiles = $allSpks->filter(function ($spk) {
             // For main SPKs (addendum 0), check file_path; for addendum, check signed_file_path
             if ($spk->addendum_number == 0) {
-                return empty($spk->file_path) || !file_exists(public_path($spk->file_path));
+                return empty($spk->file_path) || ! file_exists(public_path($spk->file_path));
             } else {
-                return empty($spk->signed_file_path) || !file_exists(public_path($spk->signed_file_path));
+                return empty($spk->signed_file_path) || ! file_exists(public_path($spk->signed_file_path));
             }
         });
 
@@ -862,7 +862,7 @@ class SpkController extends Controller
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where(function ($q) {
                 $q->whereNotNull('file_path')
-                  ->orWhereNotNull('signed_file_path');
+                    ->orWhereNotNull('signed_file_path');
             })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
@@ -882,7 +882,8 @@ class SpkController extends Controller
             if (empty($spk->signed_file_path)) {
                 return true; // Missing signed file path
             }
-            return !file_exists(public_path($spk->signed_file_path)); // File path exists but file doesn't
+
+            return ! file_exists(public_path($spk->signed_file_path)); // File path exists but file doesn't
         });
 
         if ($missingSignedFiles->isNotEmpty()) {
@@ -910,7 +911,9 @@ class SpkController extends Controller
         foreach ($allSpks as $spk) {
             // Use signed file if available, otherwise use regular file
             $fileToUse = $spk->signed_file_path ?? $spk->file_path;
-            if (!$fileToUse) continue;
+            if (! $fileToUse) {
+                continue;
+            }
 
             $filePath = public_path($fileToUse);
 

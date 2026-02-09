@@ -118,3 +118,96 @@ php artisan up
 - Views: `resources/js/Pages/maintenance/` (bypass.tsx, up.tsx, down.tsx)
 - Config: `config/app.php`
 - Bootstrap: `bootstrap/app.php` (registrasi custom middleware)
+
+## 🔍 Cara Kerja Maintenance Mode (Deep Dive)
+
+### File Eksekusi Maintenance
+
+Laravel menggunakan dua file kunci untuk maintenance mode:
+
+1. **`storage/framework/down`** (JSON file)
+   ```json
+   {
+     "except": ["bypass", "up"],  // Routes dikecualikan dari maintenance block
+     "secret": null,
+     "template": "...",  // HTML template 503
+     "status": 503
+   }
+   ```
+
+2. **`storage/framework/maintenance.php`**
+   - Bootstrap file yang di-require di `public/index.php`
+   - **Dijalankan SEBELUM Laravel bootstrap/middleware**
+   - Check file `down` dan return 503 jika ada
+   - Check array `except` untuk allow specific routes
+
+### Flow Eksekusi Request
+
+```
+1. Browser Request
+   ↓
+2. public/index.php
+   ↓
+3. storage/framework/maintenance.php (if exists)
+   - Read storage/framework/down
+   - Check if request URI in 'except' array
+   - If YES → Continue to #4
+   - If NO → Return 503 template (STOP here, Laravel tidak dijalankan!)
+   ↓
+4. Laravel Bootstrap
+   ↓
+5. Middleware Stack (web group)
+   ↓
+6. PreventMaintenanceModeRequests
+   - Check if app in maintenance
+   - Check if path in $except property
+   - Check if user is logged-in non-admin → Block with 503
+   - Check if user is admin → Auto-bypass
+   - Check bypass cookie validity
+   ↓
+7. Controller (MaintenanceController)
+   - showBypass(): Form React untuk bypass
+   - processBypass(): Process key, set bypass cookie
+   - showUp(): Form React untuk disable maintenance
+   - processUp(): Jalankan php artisan up
+```
+
+### Kenapa Perlu Edit File `down`?
+
+Ketika menjalankan `php artisan down`, Laravel create file `storage/framework/down` dengan `"except": []` (kosong). Ini berarti SEMUA routes di-block di level maintenance.php **sebelum Laravel bootstrap**.
+
+Untuk mengizinkan `/bypass` dan `/up` diakses, kita harus:
+1. Edit file `down` manual, ATAU
+2. Gunakan script `maintenance-down.ps1` yang otomatis add exception
+
+**Contoh:**
+```powershell
+# Script otomatis (recommended)
+.\maintenance-down.ps1
+
+# Manual edit
+$json = Get-Content 'storage/framework/down' -Raw | ConvertFrom-Json
+$json.except = @('bypass', 'up')
+$json | ConvertTo-Json -Depth 10 -Compress | Set-Content 'storage/framework/down'
+```
+
+### Perbedaan dengan Middleware Only Approach
+
+❌ **Middleware Only** (TIDAK BEKERJA):
+- Routes tetap di-block di maintenance.php sebelum middleware jalan
+- Middleware tidak pernah dieksekusi untuk blocked routes
+
+✅ **Exception in down file + Middleware** (BEKERJA):
+- maintenance.php allow /bypass dan /up → lanjut ke Laravel
+- Middleware handle admin auto-bypass dan user authorization
+- Guest users bisa akses form bypass/up
+- Logged-in non-admin tidak bisa akses bypass/up (for security)
+
+## 🎯 Summary Akses saat Maintenance
+
+| User Type | /bypass | /up | Other Routes | Notes |
+|-----------|---------|-----|--------------|-------|
+| **Guest** | ✅ Form | ✅ Form | ❌ 503 | Perlu secret key |
+| **Admin (logged in)** | ✅ Auto-bypass | ✅ Auto-bypass | ✅ Normal | No key needed |
+| **Non-Admin (logged in)** | ❌ 503 | ❌ 503 | ❌ 503 | Blocked completely |
+| **With bypass cookie** | ✅ Normal | ✅ Normal | ✅ Normal | After successful bypass |

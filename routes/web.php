@@ -24,12 +24,6 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
-// Routes untuk maintenance mode - accessible by anyone during maintenance
-Route::get('/bypass', [MaintenanceController::class, 'showBypass'])->name('maintenance.bypass');
-Route::post('/bypass', [MaintenanceController::class, 'processBypass'])->name('maintenance.bypass.process');
-Route::get('/up', [MaintenanceController::class, 'showUp'])->name('maintenance.up');
-Route::post('/up', [MaintenanceController::class, 'processUp'])->name('maintenance.up.process');
-
 // Route untuk masuk ke maintenance mode (di web.php karena harus bisa diakses saat tidak maintenance)
 Route::get('/mt', [MaintenanceController::class, 'showDown'])->name('maintenance.down');
 Route::post('/mt', [MaintenanceController::class, 'processDown']);
