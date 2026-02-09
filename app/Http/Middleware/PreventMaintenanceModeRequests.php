@@ -30,21 +30,18 @@ class PreventMaintenanceModeRequests extends Middleware
      */
     public function handle($request, Closure $next)
     {
-        $path = $request->path();
-        
-        // ALWAYS allow bypass and up routes during maintenance
-        if ($path === 'bypass' || $path === 'up' || 
-            str_starts_with($path, 'bypass/') || 
-            str_starts_with($path, 'up/')) {
+        if (! $this->app->isDownForMaintenance()) {
             return $next($request);
         }
 
-        if (! $this->app->maintenanceMode()->active()) {
-            return $next($request);
-        }
-
-        // Check if path is excluded via parent's method
+        // Check if path is excluded (/bypass, /up)
         if ($this->inExceptArray($request)) {
+            // Block non-admin logged users from accessing /bypass and /up
+            if ($this->isLoggedInButNotAdmin($request)) {
+                $data = $this->getMaintenanceData();
+                throw new HttpException(503, $data['message'] ?? 'Service Unavailable', null, $data['retry'] ?? []);
+            }
+
             return $next($request);
         }
 

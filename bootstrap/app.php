@@ -6,23 +6,40 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/health',
+        then: function () {
+            // Load maintenance routes with custom middleware
+            Route::middleware([
+                \Illuminate\Cookie\Middleware\EncryptCookies::class,
+                \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+                \Illuminate\Session\Middleware\StartSession::class,
+                \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+                \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+                \App\Http\Middleware\PreventMaintenanceModeRequests::class,
+                \App\Http\Middleware\HandleAppearance::class,
+                \App\Http\Middleware\HandleInertiaRequests::class,
+                \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            ])->group(base_path('routes/maintenance.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // Prepend our custom maintenance middleware to run FIRST in global stack
-        $middleware->prepend(\App\Http\Middleware\PreventMaintenanceModeRequests::class);
-        
-        // Remove the default one
-        $middleware->remove(\Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance::class);
+        // Remove global maintenance middlewares first
+        $middleware->remove([
+            \Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode::class,
+            \Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        ]);
 
+        // Append custom middleware AFTER all default web middlewares (including StartSession)
         $middleware->web(append: [
+            \App\Http\Middleware\PreventMaintenanceModeRequests::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
