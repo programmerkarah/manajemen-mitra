@@ -187,24 +187,20 @@ export default function ActivityLog() {
     };
 
     const handleExport = () => {
-        // Export to CSV
-        const headers = ['User', 'Action', 'Status', 'Time', 'IP Address'];
-        const csvContent = [
-            headers.join(','),
-            ...filteredLogs.map(log => [
-                `"${log.user || ''}"`,
-                `"${log.action || ''}"`,
-                `"${log.status || ''}"`,
-                `"${log.time || ''}"`,
-                `"${log.ip_address || ''}"`,
-            ].join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `activity-log-${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
+        const params = new URLSearchParams();
+        
+        if (status && status !== 'all') {
+            params.append('status', status);
+        }
+        if (user && user !== 'all') {
+            params.append('user', user);
+        }
+        if (date) {
+            params.append('date', date);
+        }
+        
+        const url = `/admin/activity-log/export?${params.toString()}`;
+        window.location.href = url;
     };
 
     const handleSort = (field: 'time' | 'user' | 'action') => {
@@ -313,10 +309,10 @@ export default function ActivityLog() {
                             variant="outline" 
                             size="sm"
                             onClick={handleExport}
-                            disabled={filteredLogs.length === 0}
+                            disabled={decryptedLogs.length === 0}
                         >
                             <Download className="w-4 h-4 mr-2" />
-                            Export CSV
+                            Export Excel
                         </Button>
                     </div>
                 </div>

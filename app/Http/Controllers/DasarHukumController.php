@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
+use App\Models\ActivityLog;
 use App\Models\DasarHukum;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,7 +82,15 @@ class DasarHukumController extends Controller
             'status' => 'required|in:aktif,nonaktif',
         ]);
 
-        DasarHukum::create($validated);
+        $dasarHukum = DasarHukum::create($validated);
+
+        ActivityLog::log(
+            'Tambah Dasar Hukum',
+            'dasar_hukum',
+            "Berhasil menambahkan dasar hukum: {$dasarHukum->kategori} Nomor {$dasarHukum->nomor} Tahun {$dasarHukum->tahun}",
+            'success',
+            ['dasar_hukum_id' => $dasarHukum->id, 'kategori' => $dasarHukum->kategori, 'nomor' => $dasarHukum->nomor]
+        );
 
         return redirect()->route('dasar-hukum.index')
             ->with('success', 'Data dasar hukum sudah berhasil disimpan ke sistem.');
@@ -124,12 +133,28 @@ class DasarHukumController extends Controller
 
         $dasarHukum->update($validated);
 
+        ActivityLog::log(
+            'Ubah Dasar Hukum',
+            'dasar_hukum',
+            "Berhasil mengubah dasar hukum: {$dasarHukum->kategori} Nomor {$dasarHukum->nomor} Tahun {$dasarHukum->tahun}",
+            'success',
+            ['dasar_hukum_id' => $dasarHukum->id, 'kategori' => $dasarHukum->kategori, 'nomor' => $dasarHukum->nomor]
+        );
+
         return redirect()->route('dasar-hukum.index')
             ->with('success', 'Perubahan data dasar hukum sudah berhasil disimpan.');
     }
 
     public function destroy(DasarHukum $dasarHukum): RedirectResponse
     {
+        ActivityLog::log(
+            'Hapus Dasar Hukum',
+            'dasar_hukum',
+            "Berhasil menghapus dasar hukum: {$dasarHukum->kategori} Nomor {$dasarHukum->nomor} Tahun {$dasarHukum->tahun}",
+            'success',
+            ['dasar_hukum_id' => $dasarHukum->id, 'kategori' => $dasarHukum->kategori, 'nomor' => $dasarHukum->nomor]
+        );
+
         $dasarHukum->delete();
 
         return redirect()->route('dasar-hukum.index')

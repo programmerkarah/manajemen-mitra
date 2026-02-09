@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Sbml;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -102,6 +103,14 @@ class SbmlController extends Controller
             ]);
         }
 
+        ActivityLog::log(
+            'Tambah SBML',
+            'sbml',
+            "Berhasil menambahkan SBML untuk tahun {$validated['tahun_anggaran']}",
+            'success',
+            ['tahun_anggaran' => $validated['tahun_anggaran'], 'total_entries' => count($validated['entries'])]
+        );
+
         return redirect()->route('sbml.index')
             ->with('success', 'SBML untuk tahun '.$validated['tahun_anggaran'].' berhasil ditambahkan.');
     }
@@ -192,6 +201,14 @@ class SbmlController extends Controller
             ]);
         }
 
+        ActivityLog::log(
+            'Ubah SBML',
+            'sbml',
+            "Berhasil mengubah data SBML untuk tahun {$tahun}",
+            'success',
+            ['tahun_anggaran' => $tahun, 'total_entries' => count($validated['entries'])]
+        );
+
         return redirect()->route('sbml.index')
             ->with('success', 'SBML untuk tahun '.$tahun.' berhasil diupdate.');
     }
@@ -207,6 +224,14 @@ class SbmlController extends Controller
             return redirect()->route('sbml.index')
                 ->with('error', 'SBML untuk tahun '.$tahun.' tidak ditemukan.');
         }
+
+        ActivityLog::log(
+            'Hapus SBML',
+            'sbml',
+            "Berhasil menghapus SBML untuk tahun {$tahun} ({$deleted} entries)",
+            'success',
+            ['tahun_anggaran' => $tahun, 'deleted_count' => $deleted]
+        );
 
         return redirect()->route('sbml.index')
             ->with('success', 'SBML untuk tahun '.$tahun.' berhasil dihapus.');

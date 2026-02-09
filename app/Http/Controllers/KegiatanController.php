@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreKegiatanRequest;
 use App\Http\Requests\UpdateKegiatanRequest;
+use App\Models\ActivityLog;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\RateHonor;
@@ -33,7 +34,7 @@ class KegiatanController extends Controller
         $actualFilters = array_filter([
             'search' => $validated['search'] ?? null,
             'status' => $validated['status'] ?? null,
-        ], fn ($value) => $value !== null && $value !== '');
+        ], fn($value) => $value !== null && $value !== '');
 
         $query = Kegiatan::query()
             ->select('kegiatan.*')
@@ -92,13 +93,13 @@ class KegiatanController extends Controller
      */
     public function create(): Response
     {
-        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for create form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -128,13 +129,13 @@ class KegiatanController extends Controller
         // Authorization via policy
         $this->authorize('view', $kegiatan);
 
-        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for create form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -172,7 +173,7 @@ class KegiatanController extends Controller
         $prefix = "KEG-{$tahunAnggaran}-";
 
         // Get last kegiatan number for this year
-        $lastKegiatan = Kegiatan::where('kode_kegiatan', 'like', $prefix.'%')
+        $lastKegiatan = Kegiatan::where('kode_kegiatan', 'like', $prefix . '%')
             ->orderBy('kode_kegiatan', 'desc')
             ->first();
 
@@ -184,7 +185,7 @@ class KegiatanController extends Controller
             $newNumber = 1;
         }
 
-        return $prefix.str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -220,6 +221,14 @@ class KegiatanController extends Controller
         if (isset($data['pj_lainnya_id'])) {
             $kegiatan->update(['pj_lainnya_id' => $data['pj_lainnya_id']]);
         }
+
+        ActivityLog::log(
+            'Tambah Kegiatan',
+            'kegiatan',
+            "Berhasil menambahkan kegiatan baru: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+        );
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Data kegiatan baru sudah berhasil disimpan ke sistem.');
@@ -281,13 +290,13 @@ class KegiatanController extends Controller
             abort(403, 'Kegiatan hanya bisa diedit jika statusnya draft atau divalidasi.');
         }
 
-        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for edit form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -435,11 +444,26 @@ class KegiatanController extends Controller
                 $periode->update(['sisa_pagu' => $currentSisaPagu]);
             }
 
+            ActivityLog::log(
+                'Ubah Kegiatan',
+                'kegiatan',
+                "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah pagu dari Rp " . number_format($oldPagu, 0, ',', '.') . " menjadi Rp " . number_format($newPagu, 0, ',', '.') . " dan memperbarui sisa pagu periode terkait.",
+                'success',
+                ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+            );
+
             return redirect()->route('kegiatan.index')
                 ->with('success', 'Kegiatan dan sisa pagu periode berhasil diperbarui.');
         }
 
         // Normal update (no pagu change)
+        ActivityLog::log(
+            'Ubah Kegiatan',
+            'kegiatan',
+            "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah dari tanggal {$oldTanggalMulai->format('d-m-Y')} - {$oldTanggalSelesai->format('d-m-Y')} menjadi {$newTanggalMulai->format('d-m-Y')} - {$newTanggalSelesai->format('d-m-Y')}.",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+        );
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Perubahan data kegiatan sudah berhasil disimpan.');
@@ -452,6 +476,14 @@ class KegiatanController extends Controller
     {
         // Authorization via policy
         $this->authorize('delete', $kegiatan);
+
+        ActivityLog::log(
+            'Hapus Kegiatan',
+            'kegiatan',
+            "Berhasil menghapus kegiatan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+        );
 
         $kegiatan->delete();
 
@@ -564,6 +596,14 @@ class KegiatanController extends Controller
             RateHonor::create($data);
         }
 
+        ActivityLog::log(
+            'Kelola Rate Honor',
+            'kegiatan',
+            "Berhasil memperbarui rate honor untuk kegiatan: {$kegiatan->nama_kegiatan}, mengatur rate honor untuk " . count($request->rate_honors) . " posisi.",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+        );
+
         return redirect()->route('kegiatan.show', $kegiatan->hashed_id)
             ->with('success', 'Rate honor berhasil disimpan.');
     }
@@ -579,7 +619,7 @@ class KegiatanController extends Controller
         // Validate that kegiatan is in correct status
         if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
             return redirect()->back()
-                ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat disetujui.');
+                ->with('error', 'Kegiatan dengan status ' . $kegiatan->status . ' tidak dapat disetujui.');
         }
 
         // Update status to divalidasi
@@ -587,6 +627,14 @@ class KegiatanController extends Controller
             'status' => 'divalidasi',
             'tanggal_validasi' => now(),
         ]);
+
+        ActivityLog::log(
+            'Setujui Kegiatan',
+            'kegiatan',
+            "Berhasil menyetujui kegiatan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan, 'status' => 'divalidasi']
+        );
 
         return redirect()->back()
             ->with('success', 'Kegiatan berhasil disetujui dan divalidasi.');
@@ -608,7 +656,7 @@ class KegiatanController extends Controller
         // Validate that kegiatan is in correct status
         if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
             return redirect()->back()
-                ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat ditolak.');
+                ->with('error', 'Kegiatan dengan status ' . $kegiatan->status . ' tidak dapat ditolak.');
         }
 
         // Update status back to draft
@@ -616,6 +664,14 @@ class KegiatanController extends Controller
             'status' => 'draft',
             'catatan' => $request->catatan,
         ]);
+
+        ActivityLog::log(
+            'Tolak Kegiatan',
+            'kegiatan',
+            "Kegiatan ditolak: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan}). Catatan: {$request->catatan}",
+            'warning',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan, 'catatan' => $request->catatan]
+        );
 
         return redirect()->back()
             ->with('success', 'Kegiatan ditolak dan dikembalikan ke status draft.');
@@ -628,8 +684,10 @@ class KegiatanController extends Controller
     {
         // Only the ketua tim or admin/operator can submit
         $effectiveUser = effectiveUser($request);
-        if (! in_array($effectiveUser->active_role, ['admin', 'operator']) &&
-            $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
+        if (
+            ! in_array($effectiveUser->active_role, ['admin', 'operator']) &&
+            $kegiatan->ketua_tim_user_id !== $effectiveUser->id
+        ) {
             abort(403, 'Anda tidak memiliki akses untuk mengajukan kegiatan ini.');
         }
 
@@ -643,6 +701,14 @@ class KegiatanController extends Controller
         $kegiatan->update([
             'status' => 'diajukan',
         ]);
+
+        ActivityLog::log(
+            'Ajukan Kegiatan',
+            'kegiatan',
+            "Berhasil mengajukan kegiatan untuk persetujuan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            'success',
+            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan, 'status' => 'diajukan']
+        );
 
         return redirect()->back()
             ->with('success', 'Kegiatan berhasil diajukan untuk persetujuan.');

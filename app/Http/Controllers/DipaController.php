@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
+use App\Models\ActivityLog;
 use App\Models\Dipa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,7 +118,15 @@ class DipaController extends Controller
             'tanggal_dipa.required' => 'Tanggal DIPA wajib diisi.',
         ]);
 
-        Dipa::create($validated);
+        $dipa = Dipa::create($validated);
+
+        ActivityLog::log(
+            'Tambah DIPA',
+            'dipa',
+            "Berhasil menambahkan DIPA baru: {$dipa->nomor_dipa} Tahun {$dipa->tahun}",
+            'success',
+            ['dipa_id' => $dipa->id, 'nomor_dipa' => $dipa->nomor_dipa, 'tahun' => $dipa->tahun]
+        );
 
         return redirect()->route('dipa.index')
             ->with('success', 'DIPA berhasil ditambahkan.');
@@ -173,6 +182,14 @@ class DipaController extends Controller
 
         $dipa->update($validated);
 
+        ActivityLog::log(
+            'Ubah DIPA',
+            'dipa',
+            "Berhasil mengubah data DIPA: {$dipa->nomor_dipa} Tahun {$dipa->tahun}",
+            'success',
+            ['dipa_id' => $dipa->id, 'nomor_dipa' => $dipa->nomor_dipa, 'tahun' => $dipa->tahun]
+        );
+
         return redirect()->route('dipa.index')
             ->with('success', 'DIPA berhasil diperbarui.');
     }
@@ -182,6 +199,14 @@ class DipaController extends Controller
      */
     public function destroy(Dipa $dipa): RedirectResponse
     {
+        ActivityLog::log(
+            'Hapus DIPA',
+            'dipa',
+            "Berhasil menghapus DIPA: {$dipa->nomor_dipa} Tahun {$dipa->tahun}",
+            'success',
+            ['dipa_id' => $dipa->id, 'nomor_dipa' => $dipa->nomor_dipa, 'tahun' => $dipa->tahun]
+        );
+
         $dipa->delete();
 
         return redirect()->route('dipa.index')

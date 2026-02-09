@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\UpdateUserRolesRequest;
+use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -104,6 +105,16 @@ class UserRoleController extends Controller
 
         // Sync roles
         $user->roles()->sync($request->roles);
+
+        $roleNames = Role::whereIn('id', $request->roles)->pluck('name')->implode(', ');
+
+        ActivityLog::log(
+            'Ubah Role User',
+            'user',
+            "Berhasil mengubah role user: {$user->name} (Email: {$user->email}). Role baru: {$roleNames}",
+            'success',
+            ['user_id' => $user->id, 'username' => $user->username, 'roles' => $roleNames]
+        );
 
         return redirect()->route('users.index')
             ->with('success', 'Role user berhasil diperbarui.');

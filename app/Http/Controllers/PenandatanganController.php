@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
+use App\Models\ActivityLog;
 use App\Models\Penandatangan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -97,7 +98,15 @@ class PenandatanganController extends Controller
             'periode_selesai.after_or_equal' => 'Periode selesai harus setelah atau sama dengan periode mulai.',
         ]);
 
-        Penandatangan::create($validated);
+        $penandatangan = Penandatangan::create($validated);
+
+        ActivityLog::log(
+            'Tambah Penandatangan',
+            'penandatangan',
+            "Berhasil menambahkan penandatangan: {$penandatangan->nama} ({$penandatangan->jabatan})",
+            'success',
+            ['penandatangan_id' => $penandatangan->id, 'nama' => $penandatangan->nama, 'jenis' => $penandatangan->jenis_penandatangan]
+        );
 
         return redirect()->route('penandatangan.index')
             ->with('success', 'Penandatangan berhasil ditambahkan.');
@@ -143,6 +152,14 @@ class PenandatanganController extends Controller
 
         $penandatangan->update($validated);
 
+        ActivityLog::log(
+            'Ubah Penandatangan',
+            'penandatangan',
+            "Berhasil mengubah data penandatangan: {$penandatangan->nama} ({$penandatangan->jabatan})",
+            'success',
+            ['penandatangan_id' => $penandatangan->id, 'nama' => $penandatangan->nama, 'jenis' => $penandatangan->jenis_penandatangan]
+        );
+
         return redirect()->route('penandatangan.index')
             ->with('success', 'Penandatangan berhasil diperbarui.');
     }
@@ -152,6 +169,14 @@ class PenandatanganController extends Controller
      */
     public function destroy(Penandatangan $penandatangan): RedirectResponse
     {
+        ActivityLog::log(
+            'Hapus Penandatangan',
+            'penandatangan',
+            "Berhasil menghapus penandatangan: {$penandatangan->nama} ({$penandatangan->jabatan})",
+            'success',
+            ['penandatangan_id' => $penandatangan->id, 'nama' => $penandatangan->nama, 'jenis' => $penandatangan->jenis_penandatangan]
+        );
+
         $penandatangan->delete();
 
         return redirect()->route('penandatangan.index')

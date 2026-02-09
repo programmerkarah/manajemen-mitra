@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\ActivityLogExport;
 use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
 use App\Services\DatabaseBackupService;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SystemSettingsController
 {
@@ -98,6 +101,25 @@ class SystemSettingsController
             'filters' => $encryptedFilters,
             'users' => $users,
         ]);
+    }
+
+    /**
+     * Export activity log to Excel.
+     */
+    public function exportActivityLog(Request $request): BinaryFileResponse
+    {
+        $filters = [
+            'status' => $request->input('status'),
+            'user' => $request->input('user'),
+            'date' => $request->input('date'),
+        ];
+
+        // Remove null values
+        $filters = array_filter($filters, fn($value) => $value !== null && $value !== '');
+
+        $filename = 'activity-log-' . now()->format('Y-m-d-His') . '.xlsx';
+
+        return Excel::download(new ActivityLogExport($filters), $filename);
     }
 
     public function databaseStatus(): Response

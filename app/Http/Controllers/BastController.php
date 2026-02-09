@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\BastKegiatan;
@@ -2804,6 +2805,22 @@ class BastController extends Controller
             $bast->update(['file_path' => $filePath]);
 
             DB::commit();
+
+            ActivityLog::log(
+                'Buat BAST',
+                'bast',
+                "Berhasil membuat BAST: {$nomorBast} untuk {$kegiatan->nama_kegiatan} periode {$bulanLabel} {$tahunPeriode}",
+                'success',
+                [
+                    'bast_id' => $bast->id,
+                    'nomor_bast' => $nomorBast,
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'bulan' => $bulanLabel,
+                    'tahun' => $tahunPeriode,
+                    'jumlah_petugas' => count($validated['petugas'])
+                ]
+            );
 
             return redirect()->route('bast.index')
                 ->with('success', 'BAST berhasil dibuat');

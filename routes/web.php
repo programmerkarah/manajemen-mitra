@@ -141,6 +141,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('system-settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('admin.system-settings');
         Route::post('system-settings/maintenance', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
         Route::match(['get', 'post'], 'activity-log', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
+        Route::get('activity-log/export', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
         Route::get('database-status', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
         Route::post('database-backup', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
         Route::post('database-restore', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
