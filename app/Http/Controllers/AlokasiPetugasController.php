@@ -67,9 +67,9 @@ class AlokasiPetugasController extends Controller
             $baseQuery->where('bulan', $bulan);
         }
 
-        // Filter for Ketua Tim - only their kegiatan
+        // Filter for Ketua Tim - only their kegiatan (exclude admin)
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim()) {
+        if ($effectiveUser->isKetuaTim() && !$effectiveUser->hasActiveRole('admin')) {
             $baseQuery->whereHas('kegiatan', function ($q) use ($effectiveUser) {
                 $q->where('ketua_tim_user_id', $effectiveUser->id)
                     ->orWhere('pj_lainnya_id', $effectiveUser->id);

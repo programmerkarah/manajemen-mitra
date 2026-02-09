@@ -55,9 +55,9 @@ class KegiatanController extends Controller
             $query->where('status', $validated['status']);
         }
 
-        // Filter by Ketua Tim for ketua_tim role
+        // Filter by Ketua Tim for ketua_tim role (exclude admin)
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim()) {
+        if ($effectiveUser->isKetuaTim() && !$effectiveUser->hasActiveRole('admin')) {
             $query->where('ketua_tim_user_id', $effectiveUser->id)->orWhere('pj_lainnya_id', $effectiveUser->id);
         }
 
