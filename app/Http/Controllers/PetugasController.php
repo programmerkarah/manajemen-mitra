@@ -94,13 +94,17 @@ class PetugasController extends Controller
 
         $petugas = Petugas::create($request->validated());
 
-        ActivityLog::log(
-            'Tambah Mitra',
-            'mitra',
-            "Berhasil menambahkan mitra baru: {$petugas->nama} (NIK: {$petugas->nik})",
-            'success',
-            ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
-        );
+        try {
+            ActivityLog::log(
+                'Tambah Mitra',
+                'mitra',
+                "Berhasil menambahkan mitra baru: {$petugas->nama} (NIK: {$petugas->nik})",
+                'success',
+                ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->route('petugas.index')
             ->with([
@@ -210,13 +214,17 @@ class PetugasController extends Controller
         $petugas = Petugas::findOrFail($id);
         $petugas->update($request->validated());
 
-        ActivityLog::log(
-            'Ubah Data Mitra',
-            'mitra',
-            "Berhasil mengubah data mitra: {$petugas->nama} (NIK: {$petugas->nik})",
-            'success',
-            ['petugas_id' => $petugas->id, 'nama' => $petugas->nama]
-        );
+        try {
+            ActivityLog::log(
+                'Ubah Data Mitra',
+                'mitra',
+                "Berhasil mengubah data mitra: {$petugas->nama} (NIK: {$petugas->nik})",
+                'success',
+                ['petugas_id' => $petugas->id, 'nama' => $petugas->nama]
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->route('petugas.index')
             ->with('success', 'Perubahan data petugas sudah berhasil disimpan.');
@@ -239,13 +247,17 @@ class PetugasController extends Controller
         $petugasId = $petugas->id;
         $petugas->delete();
 
-        ActivityLog::log(
-            'Hapus Mitra',
-            'mitra',
-            "Berhasil menghapus data mitra: {$petugasNama} (NIK: {$petugasNik})",
-            'success',
-            ['petugas_id' => $petugasId, 'nama' => $petugasNama, 'nik' => $petugasNik]
-        );
+        try {
+            ActivityLog::log(
+                'Hapus Mitra',
+                'mitra',
+                "Berhasil menghapus data mitra: {$petugasNama} (NIK: {$petugasNik})",
+                'success',
+                ['petugas_id' => $petugasId, 'nama' => $petugasNama, 'nik' => $petugasNik]
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->route('petugas.index')
             ->with('success', 'Data petugas sudah berhasil dihapus dari sistem.');
@@ -280,25 +292,33 @@ class PetugasController extends Controller
             $errors = $import->getErrors();
 
             if (count($errors) > 0) {
-                ActivityLog::log(
-                    'Import Mitra',
-                    'mitra',
-                    "Import mitra selesai dengan peringatan: {$successCount} berhasil, ".count($errors).' gagal',
-                    'warning',
-                    ['success_count' => $successCount, 'error_count' => count($errors)]
-                );
+                try {
+                    ActivityLog::log(
+                        'Import Mitra',
+                        'mitra',
+                        "Import mitra selesai dengan peringatan: {$successCount} berhasil, ".count($errors).' gagal',
+                        'warning',
+                        ['success_count' => $successCount, 'error_count' => count($errors)]
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+                }
 
                 return redirect()->route('petugas.index')
                     ->with('warning', "Import selesai. {$successCount} data berhasil diimport. ".count($errors).' data gagal: '.implode(', ', array_slice($errors, 0, 3)));
             }
 
-            ActivityLog::log(
-                'Import Mitra',
-                'mitra',
-                "Berhasil import {$successCount} data mitra",
-                'success',
-                ['success_count' => $successCount]
-            );
+            try {
+                ActivityLog::log(
+                    'Import Mitra',
+                    'mitra',
+                    "Berhasil import {$successCount} data mitra",
+                    'success',
+                    ['success_count' => $successCount]
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+            }
 
             return redirect()->route('petugas.index')
                 ->with('success', "Import berhasil! {$successCount} petugas telah ditambahkan.");
@@ -313,12 +333,16 @@ class PetugasController extends Controller
             return redirect()->route('petugas.index')
                 ->with('error', 'Validasi gagal: '.implode(' | ', array_slice($errorMessages, 0, 5)));
         } catch (\Exception $e) {
-            ActivityLog::logError(
-                'Import Mitra',
-                'mitra',
-                'Gagal import mitra: '.$e->getMessage(),
-                ['error' => $e->getMessage()]
-            );
+            try {
+                ActivityLog::logError(
+                    'Import Mitra',
+                    'mitra',
+                    'Gagal import mitra: '.$e->getMessage(),
+                    ['error' => $e->getMessage()]
+                );
+            } catch (\Exception $logErr) {
+                \Log::warning('Failed to log error', ['error' => $logErr->getMessage()]);
+            }
 
             return redirect()->route('petugas.index')
                 ->with('error', 'Gagal mengimport data: '.$e->getMessage());

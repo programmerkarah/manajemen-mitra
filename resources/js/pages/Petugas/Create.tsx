@@ -59,10 +59,18 @@ export default function Create() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        console.log('🚀 handleSubmit called');
+        console.log('📦 Form data:', data);
+        console.log('⚙️ Processing:', processing);
+        
         setShowError(false);
         
         post('/petugas', {
             preserveScroll: true,
+            onStart: () => {
+                console.log('⏳ Request starting...');
+            },
             onSuccess: (page) => {
                 console.log('✅ Form submitted successfully', page);
             },
@@ -70,6 +78,9 @@ export default function Create() {
                 console.log('❌ Form submission error:', errors);
                 setShowError(true);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+            onFinish: () => {
+                console.log('🏁 Request finished');
             },
         });
     };

@@ -413,6 +413,7 @@
                 }
                 @endphp
                 {{ strtoupper($kategoriKeputusan) }} KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
+                NOMOR {{ $nomorSk }} TAHUN {{ $tahunSk }}
                 TENTANG {{ $revisionText }} KEPUTUSAN KEPALA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO
                 NOMOR {{ $firstSkNumber }} TENTANG PETUGAS {{ strtoupper($namaKegiatanWithYear) }}
                 BADAN PUSAT STATISTIK KOTA SAWAHLUNTO TAHUN ANGGARAN {{ $periode->tahun }}.
