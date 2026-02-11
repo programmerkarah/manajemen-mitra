@@ -25,57 +25,6 @@ class Petugas extends Model
         'no_rekening',
     ];
 
-    /**
-     * Boot the model and attach event listeners.
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::creating(function ($petugas) {
-            \Log::info('🔧 [MODEL] Petugas::creating event', [
-                'attributes' => $petugas->getAttributes(),
-                'nama' => $petugas->nama,
-                'email' => $petugas->email,
-                'tahun_bergabung' => $petugas->tahun_bergabung,
-                'pendidikan' => $petugas->pendidikan,
-                'jenis_petugas' => $petugas->jenis_petugas
-            ]);
-        });
-
-        static::created(function ($petugas) {
-            \Log::info('✅ [MODEL] Petugas::created event', [
-                'id' => $petugas->id,
-                'nama' => $petugas->nama,
-                'email' => $petugas->email,
-                'tahun_bergabung' => $petugas->tahun_bergabung,
-                'attributes' => $petugas->getAttributes()
-            ]);
-        });
-
-        static::updating(function ($petugas) {
-            \Log::info('🔧 [MODEL] Petugas::updating event', [
-                'id' => $petugas->id,
-                'changes' => $petugas->getDirty(),
-                'original' => $petugas->getOriginal()
-            ]);
-        });
-
-        static::updated(function ($petugas) {
-            \Log::info('✅ [MODEL] Petugas::updated event', [
-                'id' => $petugas->id,
-                'changes' => $petugas->getChanges()
-            ]);
-        });
-
-        static::deleted(function ($petugas) {
-            \Log::info('🗑️ [MODEL] Petugas::deleted event', [
-                'id' => $petugas->id,
-                'nama' => $petugas->nama
-            ]);
-        });
-    }
-
     protected function casts(): array
     {
         return [

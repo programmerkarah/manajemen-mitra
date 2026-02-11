@@ -11,6 +11,7 @@ use App\Models\ActivityLog;
 use App\Models\Petugas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -91,35 +92,12 @@ class PetugasController extends Controller
      */
     public function store(StorePetugasRequest $request): RedirectResponse
     {
-        // Log 1: Raw request data
-        \Log::info('🚀 [PETUGAS STORE] Request received', [
-            'all_data' => $request->all(),
-            'user_id' => auth()->id(),
-            'ip' => $request->ip()
-        ]);
 
         try {
             // Log 2: Validated data
             $validated = $request->validated();
-            \Log::info('✅ [PETUGAS STORE] Validation passed', [
-                'validated_data' => $validated
-            ]);
-
-            // Log 3: Before database insert
-            \Log::info('💾 [PETUGAS STORE] Attempting database insert...');
 
             $petugas = Petugas::create($validated);
-
-            // Log 4: Success - petugas created
-            \Log::info('✅ [PETUGAS STORE] Petugas created successfully', [
-                'petugas_id' => $petugas->id,
-                'nama' => $petugas->nama,
-                'email' => $petugas->email,
-                'nik_encrypted' => substr($petugas->nik, 0, 50) . '...',
-                'tahun_bergabung' => $petugas->tahun_bergabung,
-                'pendidikan' => $petugas->pendidikan,
-                'jenis_petugas' => $petugas->jenis_petugas
-            ]);
 
             // Activity Log
             try {
@@ -130,12 +108,10 @@ class PetugasController extends Controller
                     'success',
                     ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
                 );
-                \Log::info('✅ [PETUGAS STORE] Activity log recorded');
+                Log::info('✅ [PETUGAS STORE] Activity log recorded');
             } catch (\Exception $e) {
-                \Log::warning('⚠️ [PETUGAS STORE] Failed to log activity', ['error' => $e->getMessage()]);
+                Log::warning('⚠️ [PETUGAS STORE] Failed to log activity', ['error' => $e->getMessage()]);
             }
-
-            \Log::info('🎉 [PETUGAS STORE] Redirecting to index with success message');
 
             return redirect()->route('petugas.index')
                 ->with([
@@ -143,15 +119,6 @@ class PetugasController extends Controller
                 ]);
 
         } catch (\Illuminate\Database\QueryException $e) {
-            // Database error
-            \Log::error('❌ [PETUGAS STORE] Database error', [
-                'error_message' => $e->getMessage(),
-                'error_code' => $e->getCode(),
-                'sql' => $e->getSql() ?? 'N/A',
-                'bindings' => $e->getBindings() ?? [],
-                'trace' => $e->getTraceAsString()
-            ]);
-
             // Activity Log for error
             try {
                 ActivityLog::log(
@@ -162,7 +129,7 @@ class PetugasController extends Controller
                     ['request_data' => $request->all(), 'error' => $e->getMessage()]
                 );
             } catch (\Exception $logError) {
-                \Log::error('Failed to log database error to activity log', ['error' => $logError->getMessage()]);
+                Log::error('Failed to log database error to activity log', ['error' => $logError->getMessage()]);
             }
 
             return redirect()->back()
@@ -170,14 +137,6 @@ class PetugasController extends Controller
                 ->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);
 
         } catch (\Exception $e) {
-            // General error
-            \Log::error('❌ [PETUGAS STORE] Unexpected error', [
-                'error_message' => $e->getMessage(),
-                'error_code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             // Activity Log for error
             try {
@@ -189,7 +148,7 @@ class PetugasController extends Controller
                     ['request_data' => $request->all(), 'error' => $e->getMessage()]
                 );
             } catch (\Exception $logError) {
-                \Log::error('Failed to log error to activity log', ['error' => $logError->getMessage()]);
+                Log::error('Failed to log error to activity log', ['error' => $logError->getMessage()]);
             }
 
             return redirect()->back()
@@ -309,7 +268,7 @@ class PetugasController extends Controller
                 ['petugas_id' => $petugas->id, 'nama' => $petugas->nama]
             );
         } catch (\Exception $e) {
-            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+            Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
         }
 
         return redirect()->route('petugas.index')
@@ -342,7 +301,7 @@ class PetugasController extends Controller
                 ['petugas_id' => $petugasId, 'nama' => $petugasNama, 'nik' => $petugasNik]
             );
         } catch (\Exception $e) {
-            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+            Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
         }
 
         return redirect()->route('petugas.index')
@@ -387,7 +346,7 @@ class PetugasController extends Controller
                         ['success_count' => $successCount, 'error_count' => count($errors)]
                     );
                 } catch (\Exception $e) {
-                    \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+                    Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
                 }
 
                 return redirect()->route('petugas.index')
@@ -403,7 +362,7 @@ class PetugasController extends Controller
                     ['success_count' => $successCount]
                 );
             } catch (\Exception $e) {
-                \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+                Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
             }
 
             return redirect()->route('petugas.index')
@@ -427,7 +386,7 @@ class PetugasController extends Controller
                     ['error' => $e->getMessage()]
                 );
             } catch (\Exception $logErr) {
-                \Log::warning('Failed to log error', ['error' => $logErr->getMessage()]);
+                Log::warning('Failed to log error', ['error' => $logErr->getMessage()]);
             }
 
             return redirect()->route('petugas.index')

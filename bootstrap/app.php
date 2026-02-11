@@ -1,12 +1,31 @@
 <?php
 
+use App\Http\Middleware\BypassTwoFactorIfTrustedDevice;
+use App\Http\Middleware\CheckActiveRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\PreventMaintenanceModeRequests;
+use App\Models\ActivityLog;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode;
+use Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,15 +36,15 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // Load maintenance routes with custom middleware
             Route::middleware([
-                \Illuminate\Cookie\Middleware\EncryptCookies::class,
-                \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-                \Illuminate\Session\Middleware\StartSession::class,
-                \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-                \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
-                \App\Http\Middleware\PreventMaintenanceModeRequests::class,
-                \App\Http\Middleware\HandleAppearance::class,
-                \App\Http\Middleware\HandleInertiaRequests::class,
-                \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+                StartSession::class,
+                ShareErrorsFromSession::class,
+                ValidateCsrfToken::class,
+                PreventMaintenanceModeRequests::class,
+                HandleAppearance::class,
+                HandleInertiaRequests::class,
+                AddLinkHeadersForPreloadedAssets::class,
             ])->group(base_path('routes/maintenance.php'));
         },
     )
@@ -34,39 +53,30 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Remove global maintenance middlewares first
         $middleware->remove([
-            \Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode::class,
-            \Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance::class,
+            CheckForMaintenanceMode::class,
+            PreventRequestsDuringMaintenance::class,
         ]);
 
         // Append custom middleware AFTER all default web middlewares (including StartSession)
         $middleware->web(append: [
-            \App\Http\Middleware\LogRequests::class,
-            \App\Http\Middleware\PreventMaintenanceModeRequests::class,
+            LogRequests::class,
+            PreventMaintenanceModeRequests::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
-            'active.role' => \App\Http\Middleware\CheckActiveRole::class,
+            'active.role' => CheckActiveRole::class,
+            'bypass.2fa' => BypassTwoFactorIfTrustedDevice::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Log authorization failures
-        $exceptions->reportable(function (\Illuminate\Auth\Access\AuthorizationException $e) {
-            \Log::warning('🚫 [AUTHORIZATION EXCEPTION] User not authorized', [
-                'message' => $e->getMessage(),
-                'user_id' => auth()->id(),
-                'user_email' => auth()->user()?->email,
-                'active_role' => auth()->user()?->active_role ?? null,
-                'url' => request()->fullUrl(),
-                'method' => request()->method(),
-                'trace' => $e->getTraceAsString()
-            ]);
+        $exceptions->reportable(function (AuthorizationException $e) {
 
             try {
-                \App\Models\ActivityLog::log(
+                ActivityLog::log(
                     action: 'Akses Ditolak',
                     type: 'security',
                     description: 'Percobaan akses tanpa otorisasi: ' . $e->getMessage(),
@@ -77,13 +87,13 @@ return Application::configure(basePath: dirname(__DIR__))
                         'ip' => request()->ip()
                     ]
                 );
-            } catch (\Exception $logError) {
-                \Log::error('Failed to log authorization error', ['error' => $logError->getMessage()]);
+            } catch (Exception $logError) {
+                Log::error('Failed to log authorization error', ['error' => $logError->getMessage()]);
             }
         });
 
         // Log database errors to activity log for admin review
-        $exceptions->reportable(function (\Illuminate\Database\QueryException $e) {
+        $exceptions->reportable(function (QueryException $e) {
             $errorMessage = $e->getMessage();
 
             // Simplify common database errors for non-technical admins
@@ -117,7 +127,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $description = 'Terjadi kesalahan saat menyimpan data ke database';
             }
 
-            \App\Models\ActivityLog::log(
+            ActivityLog::log(
                 action: 'Kesalahan Database',
                 type: 'database',
                 description: $description,
@@ -136,8 +146,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Log other critical exceptions
         $exceptions->reportable(function (\Throwable $e) {
             // Log 500 errors and other critical exceptions
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException && $e->getStatusCode() >= 500) {
-                \App\Models\ActivityLog::log(
+            if ($e instanceof HttpException && $e->getStatusCode() >= 500) {
+                ActivityLog::log(
                     action: 'Kesalahan Sistem',
                     type: 'error',
                     description: 'Terjadi kesalahan pada server (Kode: '.$e->getStatusCode().')',
@@ -155,12 +165,17 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Custom error page rendering for Inertia
-        $exceptions->respond(function (\Illuminate\Http\Response $response) {
+        $exceptions->respond(function (HttpFoundationResponse $response) {
+            // Skip redirects and non-Response types
+            if ($response instanceof RedirectResponse) {
+                return $response;
+            }
+
             $status = $response->getStatusCode();
             
             // Only handle specific error codes with Inertia
             if (in_array($status, [404, 403, 500, 503]) && request()->wantsJson() === false) {
-                return \Inertia\Inertia::render('Error', ['status' => $status])
+                return Inertia::render('Error', ['status' => $status])
                     ->toResponse(request())
                     ->setStatusCode($status);
             }

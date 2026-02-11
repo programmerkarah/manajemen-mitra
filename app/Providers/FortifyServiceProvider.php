@@ -6,6 +6,8 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Events\SessionInvalidated;
 use App\Models\TrustedDevice;
+use App\Models\User;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,11 +54,16 @@ class FortifyServiceProvider extends ServiceProvider
 
         // Authenticate using username instead of email
         Fortify::authenticateUsing(function (Request $request) {
-            $user = \App\Models\User::where('username', $request->username)->first();
+            $user = User::where('username', $request->username)->first();
 
             if ($user && Hash::check($request->password, $user->password)) {
                 return $user;
             }
+
+            // Throw validation exception with Indonesian message
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                Fortify::username() => ['Username atau password yang Anda masukkan salah.'],
+            ]);
         });
     }
 
@@ -116,7 +123,7 @@ class FortifyServiceProvider extends ServiceProvider
             // Check if this device is trusted
             $deviceToken = $request->cookie('trusted_device');
             $user = $request->session()->get('login.id')
-                ? \App\Models\User::find($request->session()->get('login.id'))
+                ? User::find($request->session()->get('login.id'))
                 : null;
 
             if ($user && $deviceToken) {
@@ -161,7 +168,7 @@ class FortifyServiceProvider extends ServiceProvider
                         $currentSessionId = $request->session()->getId();
 
                         // Delete all other sessions except current one
-                        \DB::table('sessions')
+                        DB::table('sessions')
                             ->where('user_id', $user->id)
                             ->where('id', '!=', $currentSessionId)
                             ->delete();
@@ -272,8 +279,8 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureRegularLoginResponse(): void
     {
         // Use Laravel's Login event to handle post-authentication for regular logins
-        \Illuminate\Support\Facades\Event::listen(
-            \Illuminate\Auth\Events\Login::class,
+        Event::listen(
+            Login::class,
             function ($event) {
                 $user = $event->user;
                 $request = request();
@@ -292,10 +299,99 @@ class FortifyServiceProvider extends ServiceProvider
                     // Broadcast session invalidation to all devices
                     broadcast(new SessionInvalidated($user->id))->toOthers();
 
-                    // Also expire all old trusted devices
-                    TrustedDevice::where('user_id', $user->id)->delete();
+                    // Expire all other trusted devices (different fingerprint)
+                    // Keep current device trusted so 2FA won't be required on every login
+                    TrustedDevice::where('user_id', $user->id)
+                        ->where(function ($query) use ($request) {
+                            $query->where('user_agent', '!=', $request->userAgent())
+                                ->orWhere('ip_address', '!=', $request->ip());
+                        })
+                        ->update([
+                            'expires_at' => now()->subDay(), // Expire old devices
+                        ]);
+
+                    // Check if current device already exists and is trusted
+                    $existingDevice = TrustedDevice::where('user_id', $user->id)
+                        ->where('user_agent', $request->userAgent())
+                        ->where('ip_address', $request->ip())
+                        ->first();
+
+                    if ($existingDevice) {
+                        // Update existing device
+                        $existingDevice->update([
+                            'last_used_at' => now(),
+                            'expires_at' => now()->addDays(30),
+                        ]);
+
+                        cookie()->queue(
+                            'trusted_device',
+                            $existingDevice->device_token,
+                            60 * 24 * 30,
+                            null,
+                            null,
+                            true,
+                            true,
+                            false,
+                            'strict'
+                        );
+                    } else {
+                        // Generate unique device token
+                        $deviceToken = Str::random(64);
+
+                        // Save trusted device
+                        TrustedDevice::create([
+                            'user_id' => $user->id,
+                            'device_token' => $deviceToken,
+                            'device_name' => $this->getDeviceNameFromUserAgent($request->userAgent()),
+                            'user_agent' => $request->userAgent(),
+                            'ip_address' => $request->ip(),
+                            'last_used_at' => now(),
+                            'expires_at' => now()->addDays(30),
+                        ]);
+
+                        // Set cookie
+                        cookie()->queue(
+                            'trusted_device',
+                            $deviceToken,
+                            60 * 24 * 30, // 30 days
+                            null,
+                            null,
+                            true, // secure
+                            true, // httpOnly
+                            false, // raw
+                            'strict' // sameSite
+                        );
+                    }
                 }
             }
         );
+    }
+
+    /**
+     * Get device name from user agent string.
+     */
+    private function getDeviceNameFromUserAgent(?string $userAgent): string
+    {
+        if (! $userAgent) {
+            return 'Unknown Device';
+        }
+
+        if (str_contains($userAgent, 'Mobile') || str_contains($userAgent, 'Android') || str_contains($userAgent, 'iPhone')) {
+            return 'Mobile Device';
+        }
+
+        if (str_contains($userAgent, 'Windows')) {
+            return 'Windows PC';
+        }
+
+        if (str_contains($userAgent, 'Mac')) {
+            return 'Mac';
+        }
+
+        if (str_contains($userAgent, 'Linux')) {
+            return 'Linux PC';
+        }
+
+        return 'Desktop';
     }
 }

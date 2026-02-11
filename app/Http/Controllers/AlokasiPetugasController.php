@@ -14,6 +14,7 @@ use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Sbml;
 use App\Services\ActiveYearService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -633,7 +634,7 @@ class AlokasiPetugasController extends Controller
             // Log the activity (use first periode for logging summary)
             if (! empty($periodeGroups)) {
                 $firstPeriode = $periodeGroups[0];
-                $bulanName = \Carbon\Carbon::create()->month($firstPeriode['bulan'])->translatedFormat('F');
+                $bulanName = Carbon::create()->month($firstPeriode['bulan'])->translatedFormat('F');
 
                 ActivityLog::log(
                     'Buat Alokasi Periode',
@@ -868,8 +869,8 @@ class AlokasiPetugasController extends Controller
 
                             if ($sourcePeriodeData && $sourcePeriodeData->alokasiPetugas->isNotEmpty()) {
                                 // Calculate kegiatan duration
-                                $tanggalMulai = \Carbon\Carbon::parse($kegiatan->tanggal_mulai);
-                                $tanggalSelesai = \Carbon\Carbon::parse($kegiatan->tanggal_selesai);
+                                $tanggalMulai = Carbon::parse($kegiatan->tanggal_mulai);
+                                $tanggalSelesai = Carbon::parse($kegiatan->tanggal_selesai);
                                 $durationMonths = $tanggalMulai->diffInMonths($tanggalSelesai) + 1;
 
                                 // Only allow copy if kegiatan spans multiple months
@@ -1196,7 +1197,7 @@ class AlokasiPetugasController extends Controller
             'submitted_at' => now(),
         ]);
 
-        $bulanName = \Carbon\Carbon::create()->month($bulan)->translatedFormat('F');
+        $bulanName = Carbon::create()->month($bulan)->translatedFormat('F');
         $totalPetugas = $periode->alokasiPetugas()->count();
 
         ActivityLog::log(
@@ -2039,7 +2040,7 @@ class AlokasiPetugasController extends Controller
         });
 
         $honorMaxList = $uniqueKombinasi->map(function ($kombinasi) use ($tahun) {
-            $sbml = \App\Models\Sbml::where('tahun_anggaran', $tahun)
+            $sbml = Sbml::where('tahun_anggaran', $tahun)
                 ->where('jenis_kegiatan', $kombinasi['jenis_kegiatan'])
                 ->where('status_kepegawaian', $kombinasi['status_kepegawaian'])
                 ->where('jenis_penugasan', $kombinasi['jenis_penugasan'])
@@ -2059,7 +2060,7 @@ class AlokasiPetugasController extends Controller
             return sprintf(
                 'Total honor petugas %s di bulan %s %d (Rp %s) melebihi batas maksimal SBML terendah (Rp %s). Honor yang sudah dialokasikan: Rp %s, Honor baru: Rp %s.',
                 $petugas->nama,
-                \Carbon\Carbon::create()->month($bulan)->translatedFormat('F'),
+                Carbon::create()->month($bulan)->translatedFormat('F'),
                 $tahun,
                 number_format($totalHonorInMonth, 0, ',', '.'),
                 number_format($minAllowed, 0, ',', '.'),

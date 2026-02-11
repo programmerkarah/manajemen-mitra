@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Log;
 
 class StorePetugasRequest extends FormRequest
 {
@@ -14,17 +15,8 @@ class StorePetugasRequest extends FormRequest
         $user = $this->user();
         $hasRole = $user ? $user->hasActiveRole('admin') : false;
 
-        \Log::info('🔐 [AUTHORIZATION] StorePetugasRequest::authorize()', [
-            'user_id' => $user?->id,
-            'user_email' => $user?->email,
-            'active_role' => $user?->active_role ?? null,
-            'has_admin_role' => $hasRole,
-            'request_url' => $this->url(),
-            'request_method' => $this->method()
-        ]);
-
         if (!$hasRole) {
-            \Log::warning('❌ [AUTHORIZATION] User not authorized - missing admin role', [
+            Log::warning('❌ [AUTHORIZATION] User not authorized - missing admin role', [
                 'user_id' => $user?->id,
                 'active_role' => $user?->active_role ?? null
             ]);
@@ -38,11 +30,6 @@ class StorePetugasRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        \Log::info('📝 [VALIDATION] prepareForValidation - BEFORE', [
-            'raw_data' => $this->all(),
-            'tahun_bergabung_raw' => $this->tahun_bergabung,
-            'tahun_bergabung_type' => gettype($this->tahun_bergabung)
-        ]);
 
         $this->merge([
             'tahun_bergabung' => (int) $this->tahun_bergabung,
@@ -53,11 +40,6 @@ class StorePetugasRequest extends FormRequest
             'catatan' => $this->catatan ?: null,
         ]);
 
-        \Log::info('📝 [VALIDATION] prepareForValidation - AFTER', [
-            'merged_data' => $this->all(),
-            'tahun_bergabung_converted' => $this->tahun_bergabung,
-            'tahun_bergabung_type' => gettype($this->tahun_bergabung)
-        ]);
     }
 
     /**
@@ -65,7 +47,7 @@ class StorePetugasRequest extends FormRequest
      */
     protected function passedValidation(): void
     {
-        \Log::info('✅ [VALIDATION] Validation passed', [
+        Log::info('✅ [VALIDATION] Validation passed', [
             'validated_data' => $this->validated(),
             'user_id' => $this->user()->id
         ]);
@@ -76,11 +58,6 @@ class StorePetugasRequest extends FormRequest
      */
     protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator): void
     {
-        \Log::error('❌ [VALIDATION] Validation failed', [
-            'errors' => $validator->errors()->toArray(),
-            'input_data' => $this->all(),
-            'user_id' => $this->user()->id ?? null
-        ]);
 
         parent::failedValidation($validator);
     }

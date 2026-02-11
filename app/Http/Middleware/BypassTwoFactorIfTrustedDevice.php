@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\TrustedDevice;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,25 +24,6 @@ class BypassTwoFactorIfTrustedDevice
             $currentIp = $request->ip();
             $deviceToken = $request->cookie('trusted_device');
 
-            // Check if user has any trusted devices with different fingerprint
-            // If device changed (different user agent OR IP), expire all old trusted devices
-            $existingDevices = TrustedDevice::where('user_id', $loginId)
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->get();
-
-            foreach ($existingDevices as $device) {
-                // If user agent OR IP changed, this is a different device
-                if ($device->user_agent !== $currentUserAgent || $device->ip_address !== $currentIp) {
-                    // Expire the old device
-                    $device->update([
-                        'expires_at' => now()->subDay(), // Set to past date to expire
-                    ]);
-                }
-            }
-
             if ($deviceToken) {
                 // Check if current device is trusted and matches fingerprint
                 $trustedDevice = TrustedDevice::where('device_token', $deviceToken)
@@ -59,7 +41,7 @@ class BypassTwoFactorIfTrustedDevice
                     $trustedDevice->updateLastUsed();
 
                     // Get the user
-                    $user = \App\Models\User::find($loginId);
+                    $user = User::find($loginId);
 
                     if ($user) {
                         // Log the user in directly, bypassing 2FA

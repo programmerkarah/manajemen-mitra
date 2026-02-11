@@ -18,16 +18,6 @@ class LogRequests
         $requestId = uniqid('req_', true);
         $request->attributes->set('request_id', $requestId);
 
-        Log::info('📨 [REQUEST IN] ' . $requestId, [
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'path' => $request->path(),
-            'ip' => $request->ip(),
-            'user_id' => auth()->id(),
-            'user_agent' => $request->userAgent(),
-            'input' => $request->except(['password', '_token']),
-        ]);
-
         $startTime = microtime(true);
 
         try {
@@ -44,14 +34,6 @@ class LogRequests
             return $response;
         } catch (\Throwable $e) {
             $duration = round((microtime(true) - $startTime) * 1000, 2);
-
-            Log::error('💥 [REQUEST ERROR] ' . $requestId, [
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'duration_ms' => $duration,
-            ]);
 
             throw $e;
         }

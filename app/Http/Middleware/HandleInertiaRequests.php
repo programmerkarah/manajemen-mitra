@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Services\ActiveYearService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -62,7 +63,7 @@ class HandleInertiaRequests extends Middleware
 
         // If session has view_as_user_id, set viewAsUser and originalUser
         if (session()->has('view_as_user_id')) {
-            $viewAsUser = \App\Models\User::find(session('view_as_user_id'));
+            $viewAsUser = User::find(session('view_as_user_id'));
             $originalUser = $user;
         }
 

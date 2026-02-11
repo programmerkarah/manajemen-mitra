@@ -10,13 +10,18 @@ use App\Models\BastPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use App\Models\Spk;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class BastController extends Controller
 {
@@ -191,7 +196,7 @@ class BastController extends Controller
     /**
      * List all BAST for a specific month with filter
      */
-    public function listByMonth(Request $request): \Illuminate\Http\RedirectResponse
+    public function listByMonth(Request $request): RedirectResponse
     {
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
@@ -229,7 +234,7 @@ class BastController extends Controller
      * Show form to create BAST for a specific month
      * List all SPK in that month that don't have BAST yet
      */
-    public function create(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function create(Request $request): Response|RedirectResponse
     {
 
         $bulan = $request->input('bulan');
@@ -506,12 +511,12 @@ class BastController extends Controller
                 if (! empty($tanggalSelesai)) {
                     try {
                         // Convert to string if it's already a Carbon instance
-                        $dateString = $tanggalSelesai instanceof \Carbon\Carbon
+                        $dateString = $tanggalSelesai instanceof Carbon
                             ? $tanggalSelesai->format('Y-m-d')
                             : $tanggalSelesai;
 
                         if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
-                            $tanggalSelesaiLabel = \Carbon\Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
+                            $tanggalSelesaiLabel = Carbon::parse($dateString)->locale('id')->isoFormat('D MMMM YYYY');
                         }
                     } catch (\Exception $e) {
                         $tanggalSelesaiLabel = '';
@@ -550,7 +555,7 @@ class BastController extends Controller
             // Generate nomor BAST untuk SPK ini dengan nomor urut yang increment
             $nomorUrut = $nomorUrutStart + $index;
             $nomorBastPreview = $tanggalBerakhirPetugasIni
-                ? sprintf('PPIS/13730/%d/BAST/%d', $nomorUrut, $tanggalBerakhirPetugasIni instanceof \Carbon\Carbon ? $tanggalBerakhirPetugasIni->year : \Carbon\Carbon::parse($tanggalBerakhirPetugasIni)->year)
+                ? sprintf('PPIS/13730/%d/BAST/%d', $nomorUrut, $tanggalBerakhirPetugasIni instanceof Carbon ? $tanggalBerakhirPetugasIni->year : Carbon::parse($tanggalBerakhirPetugasIni)->year)
                 : null;
 
             return [
@@ -561,7 +566,7 @@ class BastController extends Controller
                 'tanggal_spk' => $spk->tanggal_spk?->format('Y-m-d'),
                 'tanggal_mulai_kerja' => $spk->tanggal_mulai_kerja?->format('Y-m-d'),
                 'tanggal_selesai_kerja_asli' => $spk->tanggal_selesai_kerja?->format('Y-m-d'),
-                'tanggal_berakhir_paling_akhir' => $tanggalBerakhirPetugasIni instanceof \Carbon\Carbon ? $tanggalBerakhirPetugasIni->format('Y-m-d') : $tanggalBerakhirPetugasIni,
+                'tanggal_berakhir_paling_akhir' => $tanggalBerakhirPetugasIni instanceof Carbon ? $tanggalBerakhirPetugasIni->format('Y-m-d') : $tanggalBerakhirPetugasIni,
                 'nama_ppk' => $spk->nama_ppk,
                 'nip_ppk' => $spk->nip_ppk,
                 'petugas' => [
@@ -596,7 +601,7 @@ class BastController extends Controller
      * Generate BAST secara batch untuk multiple SPK
      * Prinsip: 1 SPK = 1 BAST dengan lampiran per kegiatan
      */
-    public function generateBatch(Request $request): \Illuminate\Http\RedirectResponse
+    public function generateBatch(Request $request): RedirectResponse
     {
         // Decrypt payload
         $decrypted = [];
@@ -623,7 +628,7 @@ class BastController extends Controller
             $tahunA = date('Y', strtotime($a->tanggal_mulai_kerja));
             $petugasA = $a->alokasiPetugas?->petugas;
 
-            $allAlokasiA = \App\Models\AlokasiPetugas::where('petugas_id', $petugasA?->id)
+            $allAlokasiA = AlokasiPetugas::where('petugas_id', $petugasA?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($bulanA, $tahunA) {
                     $q->where('bulan', $bulanA)
                         ->where('tahun', $tahunA)
@@ -675,7 +680,7 @@ class BastController extends Controller
             $tahunB = date('Y', strtotime($b->tanggal_mulai_kerja));
             $petugasB = $b->alokasiPetugas?->petugas;
 
-            $allAlokasiB = \App\Models\AlokasiPetugas::where('petugas_id', $petugasB?->id)
+            $allAlokasiB = AlokasiPetugas::where('petugas_id', $petugasB?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($bulanB, $tahunB) {
                     $q->where('bulan', $bulanB)
                         ->where('tahun', $tahunB)
@@ -745,7 +750,7 @@ class BastController extends Controller
             $firstTahun = date('Y', strtotime($firstSpk->tanggal_mulai_kerja));
 
             // Get tanggal berakhir for first SPK to determine bulan/tahun BAST
-            $firstAllAlokasi = \App\Models\AlokasiPetugas::where('petugas_id', $firstPetugas?->id)
+            $firstAllAlokasi = AlokasiPetugas::where('petugas_id', $firstPetugas?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($firstBulan, $firstTahun) {
                     $q->where('bulan', $firstBulan)
                         ->where('tahun', $firstTahun)
@@ -790,11 +795,11 @@ class BastController extends Controller
             }
 
             // Convert and adjust for weekend
-            if ($firstTanggalBerakhir instanceof \Carbon\Carbon) {
+            if ($firstTanggalBerakhir instanceof Carbon) {
                 $firstTanggalBerakhir = $firstTanggalBerakhir->format('Y-m-d');
             }
 
-            $carbonTarget = \Carbon\Carbon::parse($firstTanggalBerakhir);
+            $carbonTarget = Carbon::parse($firstTanggalBerakhir);
             while (in_array($carbonTarget->dayOfWeekIso, [6, 7])) {
                 $carbonTarget->subDay();
             }
@@ -837,7 +842,7 @@ class BastController extends Controller
                     $periodeAlokasiId = $alokasi?->periode_alokasi_id;
                     $bastSudahAda = false;
                     if ($petugasId && $periodeAlokasiId) {
-                        $bastSudahAda = \App\Models\Bast::where('periode_alokasi_id', $periodeAlokasiId)
+                        $bastSudahAda = Bast::where('periode_alokasi_id', $periodeAlokasiId)
                             ->whereHas('spk.alokasiPetugas', function ($q) use ($petugasId) {
                                 $q->where('petugas_id', $petugasId);
                             })->exists();
@@ -894,7 +899,7 @@ class BastController extends Controller
                     $petugasUtama = $spk->alokasiPetugas->petugas;
                     $bulanUtama = date('m', strtotime($spk->tanggal_mulai_kerja));
                     $tahunUtama = date('Y', strtotime($spk->tanggal_mulai_kerja));
-                    $allAlokasi = \App\Models\AlokasiPetugas::where('petugas_id', $petugasUtama->id)
+                    $allAlokasi = AlokasiPetugas::where('petugas_id', $petugasUtama->id)
                         ->whereHas('periodeAlokasi', function ($q) use ($bulanUtama, $tahunUtama) {
                             $q->where('bulan', $bulanUtama)
                                 ->where('tahun', $tahunUtama)
@@ -952,13 +957,13 @@ class BastController extends Controller
                     if (! $tanggalBerakhirPalingAkhir) {
                         $tanggalBerakhirPalingAkhir = $spk->tanggal_mulai_kerja;
                     }
-                    if ($tanggalBerakhirPalingAkhir instanceof \Carbon\Carbon) {
+                    if ($tanggalBerakhirPalingAkhir instanceof Carbon) {
                         $tanggalBerakhirPalingAkhir = $tanggalBerakhirPalingAkhir->format('Y-m-d');
                     }
                     if (empty($tanggalBerakhirPalingAkhir) || $tanggalBerakhirPalingAkhir === '-') {
-                        $tanggalBerakhirPalingAkhir = \Carbon\Carbon::now()->format('Y-m-d');
+                        $tanggalBerakhirPalingAkhir = Carbon::now()->format('Y-m-d');
                     }
-                    $carbonTarget = \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir);
+                    $carbonTarget = Carbon::parse($tanggalBerakhirPalingAkhir);
                     while (in_array($carbonTarget->dayOfWeekIso, [6, 7])) {
                         $carbonTarget->subDay();
                     }
@@ -986,7 +991,7 @@ class BastController extends Controller
                     $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
 
                     // Ambil PPK aktif
-                    $ppk = \App\Models\Penandatangan::where('jenis_penandatangan', 'ppk')
+                    $ppk = Penandatangan::where('jenis_penandatangan', 'ppk')
                         ->where('is_active', true)
                         ->first();
 
@@ -1001,10 +1006,10 @@ class BastController extends Controller
 
                     // Generate PDF terlebih dahulu sebelum simpan ke database
                     try {
-                        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewData)
+                        $pdfMain = Pdf::loadView('bast', $viewData)
                             ->setPaper('a4', 'portrait');
 
-                        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran-spk', $viewData)
+                        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
                             ->setPaper('a4', 'landscape');
 
                         $tempPath = storage_path('app/temp');
@@ -1235,7 +1240,7 @@ class BastController extends Controller
             $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
             // Cari SPK dari petugas ini saja, bukan per kegiatan
-            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $spkPetugas = Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
             // Kumpulkan semua tanggal selesai yang relevan (listing & pencacahan)
@@ -1281,12 +1286,12 @@ class BastController extends Controller
             if (! empty($tanggalSelesaiKegiatan) && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
                 try {
                     // Convert to string if it's already a Carbon instance
-                    $dateString = $tanggalSelesaiKegiatan instanceof \Carbon\Carbon
+                    $dateString = $tanggalSelesaiKegiatan instanceof Carbon
                         ? $tanggalSelesaiKegiatan->format('Y-m-d')
                         : $tanggalSelesaiKegiatan;
 
                     if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
-                        $carbonDate = \Carbon\Carbon::parse($dateString);
+                        $carbonDate = Carbon::parse($dateString);
 
                         // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
                         while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
@@ -1299,12 +1304,12 @@ class BastController extends Controller
                     // Try fallback to tanggal BAST utama
                     if (! empty($tanggalBerakhir)) {
                         try {
-                            $dateString = $tanggalBerakhir instanceof \Carbon\Carbon
+                            $dateString = $tanggalBerakhir instanceof Carbon
                                 ? $tanggalBerakhir->format('Y-m-d')
                                 : $tanggalBerakhir;
 
                             if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dateString)) {
-                                $carbonDate = \Carbon\Carbon::parse($dateString);
+                                $carbonDate = Carbon::parse($dateString);
 
                                 // Adjust ke hari kerja terakhir sebelum tanggal tersebut jika weekend
                                 while (in_array($carbonDate->dayOfWeekIso, [6, 7])) {
@@ -1422,15 +1427,15 @@ class BastController extends Controller
         $bastObject = (object) $bastData;
 
         // Get Kepala BPS
-        $kepala = \App\Models\Penandatangan::where('jenis_penandatangan', 'kepala')
+        $kepala = Penandatangan::where('jenis_penandatangan', 'kepala')
             ->where('is_active', true)
             ->first();
 
         return [
             'bast' => $bastObject,
             'nomor_bast' => $bastData['nomor_bast'],
-            'tanggal_akhir_kegiatan' => \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY'),
-            'hari' => \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('dddd'),
+            'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY'),
+            'hari' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('dddd'),
             'menggunakan_fasih' => false,
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
@@ -1475,7 +1480,7 @@ class BastController extends Controller
             $hasListing = ($keg->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
             // Cari SPK dari petugas ini saja, bukan per kegiatan
-            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $spkPetugas = Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $alokasi = $spkKegiatan->alokasiPetugas;
             $keg = $alokasi?->periodeAlokasi?->kegiatan;
             $periode = $alokasi?->periodeAlokasi;
@@ -1494,7 +1499,7 @@ class BastController extends Controller
             $hasListing = ($keg->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
 
             // Cari SPK dari petugas ini saja, bukan per kegiatan
-            $spkPetugas = \App\Models\Spk::where('alokasi_petugas_id', $alokasi->id)->first();
+            $spkPetugas = Spk::where('alokasi_petugas_id', $alokasi->id)->first();
             $nomorSpk = $spkPetugas?->nomor_spk ?? 'Belum ada SPK';
 
             $tanggalSelesaiKegiatan = $periode->tanggal_selesai ?? ($spkPetugas?->tanggal_selesai_kerja ?? ($alokasi->tanggal_selesai ?? 'Belum ada SPK'));
@@ -1504,14 +1509,14 @@ class BastController extends Controller
             $tanggalSelesaiFormatted = '-';
             if (! empty($tanggalSelesaiKegiatan) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalSelesaiKegiatan)) {
                 try {
-                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
+                    $tanggalSelesaiFormatted = Carbon::parse($tanggalSelesaiKegiatan)->locale('id')->isoFormat('D MMMM YYYY');
                 } catch (\Exception $e) {
                     $tanggalSelesaiFormatted = '-';
                 }
             } elseif (! empty($tanggalBerakhir) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalBerakhir)) {
                 // Fallback ke tanggal BAST utama jika tanggal selesai tidak valid
                 try {
-                    $tanggalSelesaiFormatted = \Carbon\Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
+                    $tanggalSelesaiFormatted = Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY');
                 } catch (\Exception $e) {
                     $tanggalSelesaiFormatted = '-';
                 }
@@ -1617,7 +1622,7 @@ class BastController extends Controller
         }
 
         // Get Kepala BPS
-        $kepala = \App\Models\Penandatangan::where('jenis_penandatangan', 'kepala')
+        $kepala = Penandatangan::where('jenis_penandatangan', 'kepala')
             ->where('is_active', true)
             ->first();
 
@@ -1649,7 +1654,7 @@ class BastController extends Controller
     /**
      * Generate nomor BAST otomatis untuk SPK
      */
-    private function generateNomorBastForSpk(\Carbon\Carbon $tanggalBast): string
+    private function generateNomorBastForSpk(Carbon $tanggalBast): string
     {
         $tahun = $tanggalBast->year;
         $bulan = $tanggalBast->month;
@@ -1859,7 +1864,7 @@ class BastController extends Controller
 
             // Cari SPK dari petugas ini untuk kegiatan yang sama di bulan yang sama
             // Tidak harus dari alokasi_id yang sama karena bisa jadi SPK dibuat dari periode lain yang sudah direvisi
-            $spkPetugas = \App\Models\Spk::whereHas('alokasiPetugas', function ($q) use ($petugas, $kegiatan, $periode) {
+            $spkPetugas = Spk::whereHas('alokasiPetugas', function ($q) use ($petugas, $kegiatan, $periode) {
                 $q->where('petugas_id', $petugas->id)
                     ->whereHas('periodeAlokasi', function ($qq) use ($kegiatan, $periode) {
                         $qq->where('kegiatan_id', $kegiatan->id)
@@ -1976,7 +1981,7 @@ class BastController extends Controller
             // Tanggal hari kerja terdekat dari tanggal selesai
             $tanggalSelesaiFinal = $tanggalSelesaiKegiatan;
             if ($tanggalSelesaiKegiatan && $tanggalSelesaiKegiatan !== 'Belum ada SPK') {
-                $carbonTanggal = \Carbon\Carbon::parse($tanggalSelesaiKegiatan);
+                $carbonTanggal = Carbon::parse($tanggalSelesaiKegiatan);
                 // Jika Sabtu (6) atau Minggu (7), fallback ke Jumat atau hari kerja sebelumnya
                 while (in_array($carbonTanggal->dayOfWeekIso, [6, 7])) {
                     $carbonTanggal->subDay();
@@ -1990,7 +1995,7 @@ class BastController extends Controller
                 'nomor_spk' => $nomorSpk,
                 'tanggal_selesai' => $tanggalSelesaiFinal,
                 'tanggal_selesai_formatted' => ($tanggalSelesaiFinal && $tanggalSelesaiFinal !== 'Belum ada SPK')
-                    ? \Carbon\Carbon::parse($tanggalSelesaiFinal)->locale('id')->isoFormat('D MMMM YYYY')
+                    ? Carbon::parse($tanggalSelesaiFinal)->locale('id')->isoFormat('D MMMM YYYY')
                     : '-',
                 'uraian_pekerjaan' => $uraianPekerjaan,
                 'uraian_listing' => $uraianListing,
@@ -2020,7 +2025,7 @@ class BastController extends Controller
         $bastObject = (object) $bastData;
 
         // Get Kepala BPS
-        $kepala = \App\Models\Penandatangan::where('jenis_penandatangan', 'kepala')
+        $kepala = Penandatangan::where('jenis_penandatangan', 'kepala')
             ->where('is_active', true)
             ->first();
 
@@ -2028,8 +2033,8 @@ class BastController extends Controller
         $viewData = [
             'bast' => $bastObject,
             'nomor_bast' => $bastData['nomor_bast'],
-            'tanggal_akhir_kegiatan' => \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('D MMMM YYYY'),
-            'hari' => \Carbon\Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('dddd'),
+            'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('D MMMM YYYY'),
+            'hari' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('dddd'),
             'menggunakan_fasih' => false,
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
@@ -2042,10 +2047,10 @@ class BastController extends Controller
         $htmlContent .= '<div style="page-break-after: always;"></div>';
         $htmlContent .= view('bast-lampiran-spk', $viewData)->render();
 
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewData)
+        $pdfMain = Pdf::loadView('bast', $viewData)
             ->setPaper('a4', 'portrait');
 
-        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran-spk', $viewData)
+        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
             ->setPaper('a4', 'landscape');
 
         $tempPath = storage_path('app/temp');
@@ -2161,7 +2166,7 @@ class BastController extends Controller
         $viewData = [
             'bast' => $bastObject,
             'nomor_bast' => $bastData['nomor_bast'],
-            'hari' => \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd'),
+            'hari' => Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd'),
             'menggunakan_fasih' => false,
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
@@ -2172,7 +2177,7 @@ class BastController extends Controller
         $htmlContent .= '<div style="page-break-after: always;"></div>';
         $htmlContent .= view('bast-lampiran-spk', ['bast' => $bastObject])->render();
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($htmlContent);
+        $pdf = Pdf::loadHTML($htmlContent);
         $pdf->setPaper('a4', 'portrait');
 
         $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
@@ -2348,7 +2353,7 @@ class BastController extends Controller
 
         // Nomor dan tanggal
         $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
-        $tanggalBast = \Carbon\Carbon::parse($validated['tanggal_bast']);
+        $tanggalBast = Carbon::parse($validated['tanggal_bast']);
         $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
         $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
 
@@ -2368,7 +2373,7 @@ class BastController extends Controller
         // Periode
         $targetPeriode = $this->getTargetPeriode($validated['kegiatan_id']);
         $bulanLabel = $targetPeriode?->bulan
-            ? \Carbon\Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
+            ? Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
             : $tanggalBast->isoFormat('MMMM');
         $tahunPeriode = $targetPeriode?->tahun ?? (int) $tanggalBast->year;
 
@@ -2391,7 +2396,7 @@ class BastController extends Controller
 
         // Prioritas: cari dari data petugas dengan nama yang sama
         if ($namaKetuaTim !== 'N/A') {
-            $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+            $petugasKetuaTim = Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
             if ($petugasKetuaTim && $petugasKetuaTim->nip) {
                 $nipKetuaTim = $petugasKetuaTim->nip;
             }
@@ -2420,12 +2425,12 @@ class BastController extends Controller
         ];
 
         // PDF utama
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewData)
+        $pdfMain = Pdf::loadView('bast', $viewData)
             ->setPaper('a4', 'portrait');
         $mainContent = $pdfMain->output();
 
         // PDF lampiran: selalu render sebagai halaman terpisah
-        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran', $viewData)
+        $pdfLampiran = Pdf::loadView('bast-lampiran', $viewData)
             ->setPaper('a4', 'landscape');
         $lampiranContent = $pdfLampiran->output();
 
@@ -2562,8 +2567,8 @@ class BastController extends Controller
                 throw new \RuntimeException('Periode alokasi tidak ditemukan untuk kegiatan ini.');
             }
 
-            if (! ($targetPeriode instanceof \App\Models\PeriodeAlokasi)) {
-                \Illuminate\Support\Facades\Log::error('Invalid targetPeriode type', [
+            if (! ($targetPeriode instanceof PeriodeAlokasi)) {
+                Log::error('Invalid targetPeriode type', [
                     'type' => gettype($targetPeriode),
                     'class' => is_object($targetPeriode) ? get_class($targetPeriode) : null,
                 ]);
@@ -2589,9 +2594,9 @@ class BastController extends Controller
             $nomorBast = $this->generateNomorBast($validated['kegiatan_id']);
 
             $bulanLabel = $targetPeriode?->bulan
-                ? \Carbon\Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
-                : \Carbon\Carbon::parse($validated['tanggal_bast'])->isoFormat('MMMM');
-            $tahunPeriode = $targetPeriode?->tahun ?? (int) \Carbon\Carbon::parse($validated['tanggal_bast'])->year;
+                ? Carbon::create((int) $targetPeriode->tahun, (int) $targetPeriode->bulan)->isoFormat('MMMM')
+                : Carbon::parse($validated['tanggal_bast'])->isoFormat('MMMM');
+            $tahunPeriode = $targetPeriode?->tahun ?? (int) Carbon::parse($validated['tanggal_bast'])->year;
 
             // Ambil data petugas dari AlokasiPetugas untuk periode ini
             // Fetch ALL allocations for each petugas in the same bulan/tahun across all kegiatan
@@ -2599,13 +2604,13 @@ class BastController extends Controller
             $tahunTarget = $targetPeriode->tahun;
 
             // Get all periode alokasi in the same bulan/tahun
-            $allPeriodeInMonth = \App\Models\PeriodeAlokasi::where('bulan', $bulanTarget)
+            $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanTarget)
                 ->where('tahun', $tahunTarget)
                 ->whereIn('status', ['dikirim', 'perubahan', 'disetujui'])
                 ->pluck('id');
 
             // Get all alokasi petugas in that period
-            $allAlokasiPetugas = \App\Models\AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            $allAlokasiPetugas = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
                 ->whereHas('petugas', function ($q) {
                     $q->where('jenis_petugas', 'non-organik');
                 })
@@ -2730,7 +2735,7 @@ class BastController extends Controller
 
             // Prioritas: cari dari data petugas dengan nama yang sama
             if ($namaKetuaTim) {
-                $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+                $petugasKetuaTim = Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
                 if ($petugasKetuaTim && $petugasKetuaTim->nip) {
                     $nipKetuaTim = $petugasKetuaTim->nip;
                 }
@@ -3076,7 +3081,7 @@ class BastController extends Controller
      */
     private function generateBastPdf(Kegiatan $kegiatan, array $data, string $nomorBast, ?Penandatangan $ppk, ?string $bulanLabel = null, ?int $tahunPeriode = null): string
     {
-        $tanggalBast = \Carbon\Carbon::parse($data['tanggal_bast']);
+        $tanggalBast = Carbon::parse($data['tanggal_bast']);
         $hari = $this->getHariIndonesia($tanggalBast->dayOfWeek);
         $tanggalFormatted = $tanggalBast->isoFormat('D MMMM YYYY');
 
@@ -3122,7 +3127,7 @@ class BastController extends Controller
 
         // Prioritas: cari dari data petugas dengan nama yang sama
         if ($namaKetuaTim !== 'N/A') {
-            $petugasKetuaTim = \App\Models\Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
+            $petugasKetuaTim = Petugas::whereRaw('LOWER(nama) = ?', [strtolower($namaKetuaTim)])->first();
             if ($petugasKetuaTim && $petugasKetuaTim->nip) {
                 $nipKetuaTim = $petugasKetuaTim->nip;
             } else {
@@ -3183,7 +3188,7 @@ class BastController extends Controller
 
         // Render main (without lampiran)
         $viewDataMain = $viewData;
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast', $viewDataMain)
+        $pdfMain = Pdf::loadView('bast', $viewDataMain)
             ->setPaper('a4', 'portrait');
         $mainContent = $pdfMain->output();
 
@@ -3208,7 +3213,7 @@ class BastController extends Controller
         $viewDataLamp = $viewData;
         $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pengolahan_listing'] || ($viewData['has_pendataan'] ?? false) ? 'landscape' : 'portrait';
-        $pdfLamp = \Barryvdh\DomPDF\Facade\Pdf::loadView('bast-lampiran', $viewDataLamp)
+        $pdfLamp = Pdf::loadView('bast-lampiran', $viewDataLamp)
             ->setPaper('a4', $lampOrientation);
         $lampContent = $pdfLamp->output();
 
