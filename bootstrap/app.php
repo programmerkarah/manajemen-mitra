@@ -40,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Append custom middleware AFTER all default web middlewares (including StartSession)
         $middleware->web(append: [
+            \App\Http\Middleware\LogRequests::class,
             \App\Http\Middleware\PreventMaintenanceModeRequests::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
@@ -52,6 +53,35 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Log authorization failures
+        $exceptions->reportable(function (\Illuminate\Auth\Access\AuthorizationException $e) {
+            \Log::warning('🚫 [AUTHORIZATION EXCEPTION] User not authorized', [
+                'message' => $e->getMessage(),
+                'user_id' => auth()->id(),
+                'user_email' => auth()->user()?->email,
+                'active_role' => auth()->user()?->active_role ?? null,
+                'url' => request()->fullUrl(),
+                'method' => request()->method(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            try {
+                \App\Models\ActivityLog::log(
+                    action: 'Akses Ditolak',
+                    type: 'security',
+                    description: 'Percobaan akses tanpa otorisasi: ' . $e->getMessage(),
+                    status: 'error',
+                    metadata: [
+                        'url' => request()->fullUrl(),
+                        'method' => request()->method(),
+                        'ip' => request()->ip()
+                    ]
+                );
+            } catch (\Exception $logError) {
+                \Log::error('Failed to log authorization error', ['error' => $logError->getMessage()]);
+            }
+        });
+
         // Log database errors to activity log for admin review
         $exceptions->reportable(function (\Illuminate\Database\QueryException $e) {
             $errorMessage = $e->getMessage();

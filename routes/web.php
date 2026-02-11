@@ -173,7 +173,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // View routes (Admin, PJ, and Administrator for read-only access)
     Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
-        Route::match(['get', 'post'], 'petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
         Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 
@@ -228,7 +228,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['active.role:admin,operator,ketua_tim,approver,pj'])->group(function () {
         // View routes accessible by all roles (including PJ for read-only)
-        Route::match(['get', 'post'], 'alokasi', [AlokasiPetugasController::class, 'index'])->name('alokasi.index');
+        Route::get('alokasi', [AlokasiPetugasController::class, 'index'])->name('alokasi.index');
         Route::get('alokasi/{alokasi}', [AlokasiPetugasController::class, 'show'])->name('alokasi.show');
         // Show periode detail (read-only) - accessible by PJ
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'showPeriode'])

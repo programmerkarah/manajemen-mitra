@@ -91,25 +91,111 @@ class PetugasController extends Controller
      */
     public function store(StorePetugasRequest $request): RedirectResponse
     {
-
-        $petugas = Petugas::create($request->validated());
+        // Log 1: Raw request data
+        \Log::info('🚀 [PETUGAS STORE] Request received', [
+            'all_data' => $request->all(),
+            'user_id' => auth()->id(),
+            'ip' => $request->ip()
+        ]);
 
         try {
-            ActivityLog::log(
-                'Tambah Mitra',
-                'mitra',
-                "Berhasil menambahkan mitra baru: {$petugas->nama} (NIK: {$petugas->nik})",
-                'success',
-                ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
-            );
-        } catch (\Exception $e) {
-            \Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
-        }
-
-        return redirect()->route('petugas.index')
-            ->with([
-                'success' => 'Data petugas baru sudah berhasil disimpan ke sistem.',
+            // Log 2: Validated data
+            $validated = $request->validated();
+            \Log::info('✅ [PETUGAS STORE] Validation passed', [
+                'validated_data' => $validated
             ]);
+
+            // Log 3: Before database insert
+            \Log::info('💾 [PETUGAS STORE] Attempting database insert...');
+
+            $petugas = Petugas::create($validated);
+
+            // Log 4: Success - petugas created
+            \Log::info('✅ [PETUGAS STORE] Petugas created successfully', [
+                'petugas_id' => $petugas->id,
+                'nama' => $petugas->nama,
+                'email' => $petugas->email,
+                'nik_encrypted' => substr($petugas->nik, 0, 50) . '...',
+                'tahun_bergabung' => $petugas->tahun_bergabung,
+                'pendidikan' => $petugas->pendidikan,
+                'jenis_petugas' => $petugas->jenis_petugas
+            ]);
+
+            // Activity Log
+            try {
+                ActivityLog::log(
+                    'Tambah Mitra',
+                    'mitra',
+                    "Berhasil menambahkan mitra baru: {$petugas->nama} (NIK: {$petugas->nik})",
+                    'success',
+                    ['petugas_id' => $petugas->id, 'nama' => $petugas->nama, 'nik' => $petugas->nik]
+                );
+                \Log::info('✅ [PETUGAS STORE] Activity log recorded');
+            } catch (\Exception $e) {
+                \Log::warning('⚠️ [PETUGAS STORE] Failed to log activity', ['error' => $e->getMessage()]);
+            }
+
+            \Log::info('🎉 [PETUGAS STORE] Redirecting to index with success message');
+
+            return redirect()->route('petugas.index')
+                ->with([
+                    'success' => 'Data petugas baru sudah berhasil disimpan ke sistem.',
+                ]);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Database error
+            \Log::error('❌ [PETUGAS STORE] Database error', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'sql' => $e->getSql() ?? 'N/A',
+                'bindings' => $e->getBindings() ?? [],
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Activity Log for error
+            try {
+                ActivityLog::log(
+                    'Tambah Mitra - ERROR',
+                    'mitra',
+                    "GAGAL menambahkan mitra: Database error - " . $e->getMessage(),
+                    'error',
+                    ['request_data' => $request->all(), 'error' => $e->getMessage()]
+                );
+            } catch (\Exception $logError) {
+                \Log::error('Failed to log database error to activity log', ['error' => $logError->getMessage()]);
+            }
+
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);
+
+        } catch (\Exception $e) {
+            // General error
+            \Log::error('❌ [PETUGAS STORE] Unexpected error', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Activity Log for error
+            try {
+                ActivityLog::log(
+                    'Tambah Mitra - ERROR',
+                    'mitra',
+                    "GAGAL menambahkan mitra: " . $e->getMessage(),
+                    'error',
+                    ['request_data' => $request->all(), 'error' => $e->getMessage()]
+                );
+            } catch (\Exception $logError) {
+                \Log::error('Failed to log error to activity log', ['error' => $logError->getMessage()]);
+            }
+
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+        }
     }
 
     /**
