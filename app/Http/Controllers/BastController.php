@@ -2232,6 +2232,7 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
 
+        $filesAdded = 0;
         // Add each BAST file to ZIP - prioritize signed_file_path if available
         foreach ($allBast as $bast) {
             // Prioritize signed file if exists, otherwise use regular file
@@ -2242,11 +2243,25 @@ class BastController extends Controller
                 if (file_exists($filePath)) {
                     $fileName = basename($fileToDownload);
                     $zip->addFile($filePath, $fileName);
+                    $filesAdded++;
                 }
             }
         }
 
+        // Check if any files were actually added
+        if ($filesAdded === 0) {
+            $zip->close();
+            @unlink($zipPath); // Delete empty zip
+
+            return redirect()->back()->with('error', 'Tidak ada file BAST yang valid untuk diunduh. File mungkin sudah dihapus atau dipindahkan.');
+        }
+
         $zip->close();
+
+        // Verify ZIP file was created successfully
+        if (! file_exists($zipPath)) {
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
+        }
 
         // Download and delete temp file
         return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
@@ -2823,7 +2838,7 @@ class BastController extends Controller
                     'kegiatan_nama' => $kegiatan->nama_kegiatan,
                     'bulan' => $bulanLabel,
                     'tahun' => $tahunPeriode,
-                    'jumlah_petugas' => count($validated['petugas'])
+                    'jumlah_petugas' => count($validated['petugas']),
                 ]
             );
 

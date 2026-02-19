@@ -678,6 +678,7 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
 
+        $filesAdded = 0;
         // Masukkan SPK utama
         foreach ($mainSpks as $spk) {
             $fileToUse = $spk->signed_file_path ?? $spk->file_path;
@@ -685,6 +686,7 @@ class SpkController extends Controller
             if (file_exists($filePath)) {
                 $fileName = basename($fileToUse);
                 $zip->addFile($filePath, $fileName);
+                $filesAdded++;
             }
         }
 
@@ -696,10 +698,24 @@ class SpkController extends Controller
                 // Tambahkan keterangan addendum pada nama file
                 $zipFileNameInArchive = preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
                 $zip->addFile($filePath, $zipFileNameInArchive);
+                $filesAdded++;
             }
         }
 
+        // Check if any files were actually added
+        if ($filesAdded === 0) {
+            $zip->close();
+            @unlink($zipPath);
+
+            return redirect()->back()->with('error', 'Tidak ada file SPK yang valid untuk diunduh. File mungkin sudah dihapus atau dipindahkan.');
+        }
+
         $zip->close();
+
+        // Verify ZIP file was created successfully
+        if (! file_exists($zipPath)) {
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
+        }
 
         // Download and delete temp file
         return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
@@ -804,6 +820,7 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
 
+        $filesAdded = 0;
         // Masukkan SPK utama
         foreach ($mainSpks as $spk) {
             $fileToUse = $spk->signed_file_path ?? $spk->file_path;
@@ -813,6 +830,7 @@ class SpkController extends Controller
                 $fileName = basename($fileToUse);
                 $zipFileNameInArchive = "{$petugasName}_{$fileName}";
                 $zip->addFile($filePath, $zipFileNameInArchive);
+                $filesAdded++;
             }
         }
 
@@ -828,11 +846,19 @@ class SpkController extends Controller
                     $baseFileName = preg_replace('/\.pdf$/i', '', $fileName);
                     $zipFileNameInArchive = "{$petugasName}_{$baseFileName}_ADDENDUM_{$spk->addendum_number}.pdf";
                     $zip->addFile($filePath, $zipFileNameInArchive);
+                    $filesAdded++;
                 }
             }
         }
 
         $zip->close();
+
+        // Verify ZIP was created
+        if ($filesAdded === 0 || ! file_exists($zipPath)) {
+            @unlink($zipPath);
+
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
+        }
 
         // Download and delete temp file
         return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
@@ -951,6 +977,13 @@ class SpkController extends Controller
         }
 
         $zip->close();
+
+        // Verify ZIP was created
+        if ($filesAdded === 0 || ! file_exists($zipPath)) {
+            @unlink($zipPath);
+
+            return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
+        }
 
         // Download and delete temp file
         return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
