@@ -120,7 +120,7 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureTwoFactorChallenge(): void
     {
         Fortify::twoFactorChallengeView(function (Request $request) {
-            // Check if this device is trusted
+            // Check if this device is trusted (based on IP only)
             $deviceToken = $request->cookie('trusted_device');
             $user = $request->session()->get('login.id')
                 ? User::find($request->session()->get('login.id'))
@@ -129,6 +129,7 @@ class FortifyServiceProvider extends ServiceProvider
             if ($user && $deviceToken) {
                 $trustedDevice = $user->trustedDevices()
                     ->where('device_token', $deviceToken)
+                    ->where('ip_address', $request->ip())
                     ->where(function ($query) {
                         $query->whereNull('expires_at')
                             ->orWhere('expires_at', '>', now());
@@ -136,7 +137,11 @@ class FortifyServiceProvider extends ServiceProvider
                     ->first();
 
                 if ($trustedDevice) {
-                    $trustedDevice->updateLastUsed();
+                    // Update last used and current user agent
+                    $trustedDevice->update([
+                        'last_used_at' => now(),
+                        'user_agent' => $request->userAgent(),
+                    ]);
 
                     return Inertia::render('auth/two-factor-challenge', [
                         'isTrustedDevice' => true,
@@ -177,19 +182,15 @@ class FortifyServiceProvider extends ServiceProvider
                         broadcast(new SessionInvalidated($user->id))->toOthers();
 
                         // ALWAYS save trusted device (no checkbox required)
-                        // Expire all other trusted devices
+                        // Expire all other trusted devices (based on IP, not user agent)
                         TrustedDevice::where('user_id', $user->id)
-                            ->where(function ($query) use ($request) {
-                                $query->where('user_agent', '!=', $request->userAgent())
-                                    ->orWhere('ip_address', '!=', $request->ip());
-                            })
+                            ->where('ip_address', '!=', $request->ip())
                             ->update([
                                 'expires_at' => now()->subDay(), // Expire old devices
                             ]);
 
-                        // Check if current device already exists
+                        // Check if current device already exists (based on IP only)
                         $existingDevice = TrustedDevice::where('user_id', $user->id)
-                            ->where('user_agent', $request->userAgent())
                             ->where('ip_address', $request->ip())
                             ->first();
 
@@ -299,28 +300,25 @@ class FortifyServiceProvider extends ServiceProvider
                     // Broadcast session invalidation to all devices
                     broadcast(new SessionInvalidated($user->id))->toOthers();
 
-                    // Expire all other trusted devices (different fingerprint)
+                    // Expire all other trusted devices (based on IP, not user agent)
                     // Keep current device trusted so 2FA won't be required on every login
                     TrustedDevice::where('user_id', $user->id)
-                        ->where(function ($query) use ($request) {
-                            $query->where('user_agent', '!=', $request->userAgent())
-                                ->orWhere('ip_address', '!=', $request->ip());
-                        })
+                        ->where('ip_address', '!=', $request->ip())
                         ->update([
                             'expires_at' => now()->subDay(), // Expire old devices
                         ]);
 
-                    // Check if current device already exists and is trusted
+                    // Check if current device already exists and is trusted (based on IP only)
                     $existingDevice = TrustedDevice::where('user_id', $user->id)
-                        ->where('user_agent', $request->userAgent())
                         ->where('ip_address', $request->ip())
                         ->first();
 
                     if ($existingDevice) {
-                        // Update existing device
+                        // Update existing device (update user agent to current browser)
                         $existingDevice->update([
                             'last_used_at' => now(),
                             'expires_at' => now()->addDays(30),
+                            'user_agent' => $request->userAgent(), // Update to current browser
                         ]);
 
                         cookie()->queue(

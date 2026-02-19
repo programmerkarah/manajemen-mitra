@@ -20,15 +20,14 @@ class BypassTwoFactorIfTrustedDevice
         $loginId = $request->session()->get('login.id');
 
         if ($loginId) {
-            $currentUserAgent = $request->userAgent();
             $currentIp = $request->ip();
             $deviceToken = $request->cookie('trusted_device');
 
             if ($deviceToken) {
-                // Check if current device is trusted and matches fingerprint
+                // Check if current device is trusted (based on IP only, not user agent)
+                // This allows same device with different browsers to bypass 2FA
                 $trustedDevice = TrustedDevice::where('device_token', $deviceToken)
                     ->where('user_id', $loginId)
-                    ->where('user_agent', $currentUserAgent)
                     ->where('ip_address', $currentIp)
                     ->where(function ($query) {
                         $query->whereNull('expires_at')
@@ -37,8 +36,11 @@ class BypassTwoFactorIfTrustedDevice
                     ->first();
 
                 if ($trustedDevice) {
-                    // Update last used timestamp
-                    $trustedDevice->updateLastUsed();
+                    // Update last used timestamp and current user agent
+                    $trustedDevice->update([
+                        'last_used_at' => now(),
+                        'user_agent' => $request->userAgent(), // Update to current browser
+                    ]);
 
                     // Get the user
                     $user = User::find($loginId);

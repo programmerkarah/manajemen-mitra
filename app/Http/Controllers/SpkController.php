@@ -749,10 +749,14 @@ class SpkController extends Controller
             ->orderBy('nomor_spk')
             ->get();
 
-        // Ambil semua addendum yang sudah signed (addendum_number > 0 dan signed_file_path != null)
+        // Ambil semua addendum (addendum_number > 0) yang memiliki file
         $addendumSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where('addendum_number', '>', 0)
-            ->whereNotNull('signed_file_path')
+            ->where(function ($query) {
+                // Ambil addendum yang memiliki signed_file_path ATAU file_path
+                $query->whereNotNull('signed_file_path')
+                    ->orWhereNotNull('file_path');
+            })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
             ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
                 $query->select('id')
@@ -760,6 +764,7 @@ class SpkController extends Controller
                     ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
             })
             ->orderBy('nomor_spk')
+            ->orderBy('addendum_number')
             ->get();
 
         if ($mainSpks->isEmpty() && $addendumSpks->isEmpty()) {
@@ -811,14 +816,19 @@ class SpkController extends Controller
             }
         }
 
-        // Masukkan addendum yang sudah signed
+        // Masukkan addendum (gunakan signed_file_path jika ada, fallback ke file_path)
         foreach ($addendumSpks as $spk) {
-            $filePath = public_path($spk->signed_file_path);
-            if (file_exists($filePath)) {
-                $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
-                $fileName = basename($spk->signed_file_path);
-                $zipFileNameInArchive = "{$petugasName}_".preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
-                $zip->addFile($filePath, $zipFileNameInArchive);
+            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            if ($fileToUse) {
+                $filePath = public_path($fileToUse);
+                if (file_exists($filePath)) {
+                    $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
+                    $fileName = basename($fileToUse);
+                    // Add ADDENDUM suffix to filename for clarity
+                    $baseFileName = preg_replace('/\.pdf$/i', '', $fileName);
+                    $zipFileNameInArchive = "{$petugasName}_{$baseFileName}_ADDENDUM_{$spk->addendum_number}.pdf";
+                    $zip->addFile($filePath, $zipFileNameInArchive);
+                }
             }
         }
 
@@ -872,23 +882,27 @@ class SpkController extends Controller
                     ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
             })
             ->orderBy('nomor_spk')
+            ->orderBy('addendum_number')
             ->get();
 
         if ($allSpks->isEmpty()) {
             return redirect()->back()->with('error', 'Tidak ada SPK untuk kegiatan ini di periode tersebut.');
         }
 
-        // Check if all petugas have signed files that exist physically
-        $missingSignedFiles = $allSpks->filter(function ($spk) {
-            if (empty($spk->signed_file_path)) {
-                return true; // Missing signed file path
+        // Check if all SPKs have files that exist physically
+        $missingFiles = $allSpks->filter(function ($spk) {
+            // Check either signed_file_path or file_path
+            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+
+            if (empty($fileToUse)) {
+                return true; // Missing file
             }
 
-            return ! file_exists(public_path($spk->signed_file_path)); // File path exists but file doesn't
+            return ! file_exists(public_path($fileToUse)); // File path exists but file doesn't
         });
 
-        if ($missingSignedFiles->isNotEmpty()) {
-            return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua petugas pada kegiatan ini harus memiliki file Perjanjian Kerja yang sudah ditandatangani dan tersimpan.');
+        if ($missingFiles->isNotEmpty()) {
+            return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua SPK pada kegiatan ini harus memiliki file Perjanjian Kerja yang tersimpan.');
         }
 
         // Create ZIP file
@@ -922,7 +936,15 @@ class SpkController extends Controller
                 $fileName = basename($fileToUse);
                 // Add file with petugas name in the filename for better organization
                 $petugasName = preg_replace('/[\/\\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
-                $zipFileNameInArchive = "{$petugasName}_{$fileName}";
+
+                // Add ADDENDUM suffix for addendum SPKs
+                if ($spk->addendum_number > 0) {
+                    $baseFileName = preg_replace('/\.pdf$/i', '', $fileName);
+                    $zipFileNameInArchive = "{$petugasName}_{$baseFileName}_ADDENDUM_{$spk->addendum_number}.pdf";
+                } else {
+                    $zipFileNameInArchive = "{$petugasName}_{$fileName}";
+                }
+
                 $zip->addFile($filePath, $zipFileNameInArchive);
                 $filesAdded++;
             }
