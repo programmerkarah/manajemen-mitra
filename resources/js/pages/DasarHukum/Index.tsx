@@ -175,7 +175,7 @@ export default function Index({ dasarHukum }: Props) {
         }
     };
 
-    const SortIcon = ({ field }: { field: 'nomor' | 'tahun' | 'tentang' }) => {
+    const renderSortIcon = (field: 'nomor' | 'tahun' | 'tentang') => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
             <ChevronUp className="h-4 w-4" />
@@ -304,7 +304,7 @@ export default function Index({ dasarHukum }: Props) {
                                         <div className="flex items-center gap-1.5">
                                             <FileText className="h-4 w-4" />
                                             Dasar Hukum
-                                            <SortIcon field="nomor" />
+                                            {renderSortIcon('nomor')}
                                         </div>
                                     </th>
                                     <th
@@ -314,7 +314,7 @@ export default function Index({ dasarHukum }: Props) {
                                         <div className="flex items-center gap-1.5">
                                             <Calendar className="h-4 w-4" />
                                             Tahun
-                                            <SortIcon field="tahun" />
+                                            {renderSortIcon('tahun')}
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
@@ -351,7 +351,7 @@ export default function Index({ dasarHukum }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    paginatedDasarHukum?.map((item, index) => {
+                                    paginatedDasarHukum?.map((item) => {
                                         // Format dengan atau tanpa instansi
                                         const formatNamaLengkap = () => {
                                             let kategoriLabel = '';

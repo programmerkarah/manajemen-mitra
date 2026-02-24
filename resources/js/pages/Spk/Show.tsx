@@ -36,17 +36,6 @@ interface Petugas {
     alamat: string | null;
 }
 
-interface Kegiatan {
-    id: number;
-    hashed_id: string;
-    kode_kegiatan: string;
-    nama_kegiatan: string;
-    jenis_kegiatan: 'sensus' | 'survei';
-    tahun_anggaran: number;
-    peran: string;
-    total_honor: number;
-}
-
 interface PeriodeAlokasi {
     id: number;
     hashed_id: string;

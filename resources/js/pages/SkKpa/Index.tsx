@@ -192,15 +192,13 @@ export default function Index({ kegiatan }: IndexProps) {
         }
     };
 
-    const SortIcon = ({
-        field,
-    }: {
+    const renderSortIcon = (
         field:
             | 'nama_kegiatan'
             | 'jenis_kegiatan'
             | 'tahun_anggaran'
-            | 'sk_count';
-    }) => {
+            | 'sk_count',
+    ) => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
             <ChevronUp className="h-4 w-4" />
@@ -352,7 +350,7 @@ export default function Index({ kegiatan }: IndexProps) {
                                     >
                                         <div className="flex items-center gap-1">
                                             Kegiatan
-                                            <SortIcon field="nama_kegiatan" />
+                                            {renderSortIcon('nama_kegiatan')}
                                         </div>
                                     </th>
                                     <th
@@ -363,7 +361,7 @@ export default function Index({ kegiatan }: IndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Jenis
-                                            <SortIcon field="jenis_kegiatan" />
+                                            {renderSortIcon('jenis_kegiatan')}
                                         </div>
                                     </th>
                                     <th
@@ -374,7 +372,7 @@ export default function Index({ kegiatan }: IndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tahun
-                                            <SortIcon field="tahun_anggaran" />
+                                            {renderSortIcon('tahun_anggaran')}
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">

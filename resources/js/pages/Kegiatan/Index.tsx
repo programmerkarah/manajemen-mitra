@@ -202,11 +202,9 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
         }
     };
 
-    const SortIcon = ({
-        field,
-    }: {
-        field: 'nama_kegiatan' | 'tahun_anggaran' | 'status';
-    }) => {
+    const renderSortIcon = (
+        field: 'nama_kegiatan' | 'tahun_anggaran' | 'status',
+    ) => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
             <ChevronUp className="h-4 w-4" />
@@ -498,7 +496,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Nama Kegiatan
-                                            <SortIcon field="nama_kegiatan" />
+                                            {renderSortIcon('nama_kegiatan')}
                                         </div>
                                     </th>
                                     <th
@@ -509,7 +507,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tahun
-                                            <SortIcon field="tahun_anggaran" />
+                                            {renderSortIcon('tahun_anggaran')}
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
@@ -524,7 +522,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Status
-                                            <SortIcon field="status" />
+                                            {renderSortIcon('status')}
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">

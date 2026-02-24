@@ -186,11 +186,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
         }
     };
 
-    const SortIcon = ({
-        field,
-    }: {
-        field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa';
-    }) => {
+    const renderSortIcon = (field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa') => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
             <ChevronUp className="h-4 w-4" />
@@ -356,7 +352,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Nomor DIPA
-                                            <SortIcon field="nomor_dipa" />
+                                            {renderSortIcon('nomor_dipa')}
                                         </div>
                                     </th>
                                     <th
@@ -365,7 +361,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tahun
-                                            <SortIcon field="tahun" />
+                                            {renderSortIcon('tahun')}
                                         </div>
                                     </th>
                                     <th
@@ -376,7 +372,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tanggal DIPA
-                                            <SortIcon field="tanggal_dipa" />
+                                            {renderSortIcon('tanggal_dipa')}
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
