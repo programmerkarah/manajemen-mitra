@@ -476,9 +476,12 @@ export default function Index({ users }: UsersIndexProps) {
                                                                     type="hidden"
                                                                     name="_token"
                                                                     value={
-                                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                                         (
-                                                                            window as any
+                                                                            window as Window & {
+                                                                                Laravel?: {
+                                                                                    csrfToken?: string;
+                                                                                };
+                                                                            }
                                                                         )
                                                                             ?.Laravel
                                                                             ?.csrfToken ||
