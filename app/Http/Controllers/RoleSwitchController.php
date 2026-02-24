@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Role;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,14 @@ class RoleSwitchController extends Controller
         // Set active role in session
         $role = Role::find($validated['role_id']);
         $targetUser->setActiveRole($validated['role_id']);
+
+        ActivityLog::log(
+            'Switch Role',
+            'user',
+            "Ganti role aktif menjadi: {$role->display_name}",
+            'success',
+            ['role_id' => $role->id, 'role_name' => $role->name, 'role_display_name' => $role->display_name]
+        );
 
         $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
 

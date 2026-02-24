@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\ActivityLog;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,11 +35,21 @@ class ProfileController extends Controller
 
         $targetUser->fill($request->validated());
 
-        if ($targetUser->isDirty('email')) {
+        $emailChanged = $targetUser->isDirty('email');
+
+        if ($emailChanged) {
             $targetUser->email_verified_at = null;
         }
 
         $targetUser->save();
+
+        ActivityLog::log(
+            'Ubah Profil',
+            'user',
+            'Berhasil memperbarui data profil'.($emailChanged ? ' (email berubah, verifikasi ulang diperlukan)' : ''),
+            'success',
+            ['changed_fields' => array_keys($request->validated())]
+        );
 
         return to_route('profile.edit');
     }
@@ -53,6 +64,14 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        ActivityLog::log(
+            'Hapus Akun',
+            'user',
+            "Akun dihapus oleh pemilik: {$user->name} ({$user->username})",
+            'success',
+            ['user_id' => $user->id, 'user_name' => $user->name, 'username' => $user->username]
+        );
 
         Auth::logout();
 

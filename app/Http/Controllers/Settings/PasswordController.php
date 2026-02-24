@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -32,6 +33,13 @@ class PasswordController extends Controller
         $request->user()->update([
             'password' => $validated['password'],
         ]);
+
+        ActivityLog::log(
+            'Ubah Password',
+            'auth',
+            'Berhasil mengubah password akun',
+            'success'
+        );
 
         return back();
     }

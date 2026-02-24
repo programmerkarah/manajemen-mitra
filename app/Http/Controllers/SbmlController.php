@@ -249,6 +249,14 @@ class SbmlController extends Controller
                 ->with('error', 'SBML untuk tahun '.$tahun.' tidak ditemukan.');
         }
 
+        ActivityLog::log(
+            'Hapus SBML Tahun',
+            'sbml',
+            "Berhasil menghapus semua data SBML untuk tahun {$tahun} ({$deleted} entries)",
+            'success',
+            ['tahun_anggaran' => $tahun, 'deleted_count' => $deleted]
+        );
+
         return redirect()->route('sbml.index')
             ->with('success', 'SBML untuk tahun '.$tahun.' berhasil dihapus.');
     }

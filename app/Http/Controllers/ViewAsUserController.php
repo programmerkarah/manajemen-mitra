@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,14 @@ class ViewAsUserController extends Controller
 
         session(['view_as_user_id' => $viewAsUser->id]);
 
+        ActivityLog::log(
+            'View As User',
+            'user',
+            "Mulai viewing sebagai user: {$viewAsUser->name} ({$viewAsUser->username})",
+            'success',
+            ['target_user_id' => $viewAsUser->id, 'target_user_name' => $viewAsUser->name, 'target_username' => $viewAsUser->username]
+        );
+
         $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
 
         return redirect($redirectUrl)
@@ -45,6 +54,13 @@ class ViewAsUserController extends Controller
         }
 
         session()->forget('view_as_user_id');
+
+        ActivityLog::log(
+            'Clear View As User',
+            'user',
+            'Mengakhiri sesi view-as-user, kembali sebagai user asli',
+            'success'
+        );
 
         $redirectUrl = $request->headers->get('referer') ?? route('dashboard');
 
