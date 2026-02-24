@@ -517,7 +517,8 @@ export default function Create({
                 }
 
                 // Ensure numeric values are properly parsed
-                const estimasiHonor = parseFloat(String(alokasi.total_honor)) || 0;
+                const estimasiHonor =
+                    parseFloat(String(alokasi.total_honor)) || 0;
                 const estimasiHonorListing =
                     parseFloat(String(alokasi.total_honor_listing ?? 0)) || 0;
 
