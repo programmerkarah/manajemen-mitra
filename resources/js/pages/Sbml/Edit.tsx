@@ -47,7 +47,7 @@ export default function Edit({
     const [keterangan, setKeterangan] = useState(initialKeterangan || '');
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>(initialStatus);
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Initialize form entries from fetched data
     const [formEntries, setFormEntries] = useState<SbmlEntry[]>(

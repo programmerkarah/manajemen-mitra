@@ -201,7 +201,7 @@ export default function Generate({
         document.body.removeChild(form);
     };
 
-    const handlePreviewMain = (alokasi: any) => {
+    const handlePreviewMain = (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
                 'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
@@ -293,7 +293,7 @@ export default function Generate({
         document.body.removeChild(form);
     };
 
-    const handlePreviewLampiran = (alokasi: any) => {
+    const handlePreviewLampiran = (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
                 'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',

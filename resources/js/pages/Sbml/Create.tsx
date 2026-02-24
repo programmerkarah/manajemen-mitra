@@ -141,7 +141,7 @@ export default function Create({ tahun_options }: CreateProps) {
 
     const [entries, setEntries] = useState<SbmlEntry[]>(initialEntries);
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const getJenisKegiatanLabel = (jenis: string) => {
         return jenis === 'sensus' ? 'Sensus' : 'Survei';

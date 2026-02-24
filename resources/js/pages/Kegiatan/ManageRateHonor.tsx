@@ -9,6 +9,22 @@ import {
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
+interface RateHonorEntry {
+    status_kepegawaian: 'non_organik' | 'organik';
+    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    rate: number;
+    satuan_id?: number | null;
+    satuan_listing_id?: number | null;
+    rate_listing?: number;
+}
+
+interface RateHonorPayload {
+    rate_honors: RateHonorEntry[];
+    satuan_id: number | null;
+    kode_coa: string | null;
+    satuan_listing_id?: number | null;
+}
+
 interface Props {
     kegiatan: Kegiatan & {
         rate_honors?: RateHonor[];
@@ -310,7 +326,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             .map((combo) => {
                 const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
                 const rateValue = parseInt(formData[key], 10);
-                const entry: any = {
+                const entry: RateHonorEntry = {
                     status_kepegawaian: combo.status_kepegawaian,
                     jenis_penugasan: combo.jenis_penugasan,
                     rate: isNaN(rateValue) ? 0 : rateValue,
@@ -368,7 +384,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             });
 
         const satuanId = parseInt(formData['satuan_id'], 10);
-        const payload: any = {
+        const payload: RateHonorPayload = {
             rate_honors: rateHonors,
             satuan_id: isNaN(satuanId) ? null : satuanId,
             kode_coa: formData['kode_coa'] || null,
@@ -619,7 +635,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                             <option value="">
                                                 Pilih Satuan
                                             </option>
-                                            {satuans.map((satuan: any) => (
+                                            {satuans.map((satuan) => (
                                                 <option
                                                     key={satuan.id}
                                                     value={satuan.id}
@@ -654,7 +670,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 <option value="">
                                                     Pilih Satuan
                                                 </option>
-                                                {satuans.map((satuan: any) => (
+                                                {satuans.map((satuan) => (
                                                     <option
                                                         key={satuan.id}
                                                         value={satuan.id}
@@ -808,7 +824,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 >
                                     <option value="">Pilih Satuan</option>
-                                    {satuans.map((satuan: any) => (
+                                    {satuans.map((satuan) => (
                                         <option
                                             key={satuan.id}
                                             value={satuan.id}
@@ -841,7 +857,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                     >
                                         <option value="">Pilih Satuan</option>
-                                        {satuans.map((satuan: any) => (
+                                        {satuans.map((satuan) => (
                                             <option
                                                 key={satuan.id}
                                                 value={satuan.id}

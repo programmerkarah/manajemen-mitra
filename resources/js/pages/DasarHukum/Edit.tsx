@@ -54,7 +54,7 @@ export default function Edit({ dasarHukum, kategoriOptions }: Props) {
     );
 
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Kategori yang memerlukan instansi
     const kategoriDenganInstansi = [

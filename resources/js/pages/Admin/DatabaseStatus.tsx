@@ -32,7 +32,9 @@ export default function DatabaseStatus() {
     const [restoreResult, setRestoreResult] = React.useState<string | null>(
         null,
     );
-    const [backups, setBackups] = React.useState<any[]>([]);
+    const [backups, setBackups] = React.useState<
+        Array<{ name: string; size: string; modified: string }>
+    >([]);
     const [showBackupConfirm, setShowBackupConfirm] = React.useState(false);
     const [showRestoreConfirm, setShowRestoreConfirm] = React.useState(false);
 

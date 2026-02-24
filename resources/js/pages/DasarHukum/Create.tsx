@@ -43,7 +43,7 @@ export default function Create({ kategoriOptions }: CreateProps) {
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Kategori yang memerlukan instansi
     const kategoriDenganInstansi = [

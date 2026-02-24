@@ -148,7 +148,7 @@ export default function CreateForMonth({
     };
 
     const handlePreviewSpk = (spkId: number) => {
-        const payload: Record<string, any> = {
+        const payload: Record<string, number> = {
             spk_id: spkId,
         };
 

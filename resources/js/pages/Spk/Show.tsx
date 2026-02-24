@@ -164,11 +164,15 @@ export default function Show({
     };
 
     const handleDownloadAllByPeriode = () => {
-        window.location.href = `/spk/periode/${periode.hashed_id}/download-all`;
+        window.location.assign(
+            `/spk/periode/${periode.hashed_id}/download-all`,
+        );
     };
 
     const handleDownloadAllByKegiatan = (kegiatanHashedId: string) => {
-        window.location.href = `/spk/periode/${periode.hashed_id}/kegiatan/${kegiatanHashedId}/download-all`;
+        window.location.assign(
+            `/spk/periode/${periode.hashed_id}/kegiatan/${kegiatanHashedId}/download-all`,
+        );
     };
 
     const handleUploadSigned = (e: React.ChangeEvent<HTMLInputElement>) => {

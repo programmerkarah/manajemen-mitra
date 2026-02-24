@@ -124,7 +124,7 @@ interface SharedData {
             name: string;
         };
     };
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface ShowByMonthProps {
@@ -174,8 +174,6 @@ export default function ShowByMonth({
     spk_documents,
     petugas,
     kegiatan_list,
-    addendums = [],
-    periode,
     bast,
     petugas_list,
     unique_kegiatan_list,
@@ -886,7 +884,7 @@ export default function ShowByMonth({
                                     </thead>
                                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                         {decryptedKegiatanList.map(
-                                            (kegiatan, idx) => {
+                                            (kegiatan) => {
                                                 const changed =
                                                     kegiatan.has_change;
                                                 return (

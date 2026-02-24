@@ -118,8 +118,8 @@ export default function Index({ kegiatan }: IndexProps) {
 
         // Sort
         result.sort((a: KegiatanItem, b: KegiatanItem) => {
-            let aVal: any = '',
-                bVal: any = '';
+            let aVal: string | number = '',
+                bVal: string | number = '';
             switch (sortField) {
                 case 'sk_count':
                     aVal = a.sk_count || 0;

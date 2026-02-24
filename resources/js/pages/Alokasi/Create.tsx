@@ -15,7 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -79,7 +79,7 @@ interface AlokasiCreateProps {
     petugas: Petugas[];
     selectedKegiatan?: Kegiatan | null;
     active_year: number;
-    copiedAlokasi?: any[] | null;
+    copiedAlokasi?: AlokasiItem[] | null;
     sourcePeriode?: {
         bulan: string;
         tahun: number;
@@ -245,10 +245,13 @@ export default function Create({
         setJadwalPengolahanPencacahanSelesai,
     ] = useState('');
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<any>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Combine local errors with backend errors
-    const allErrors = { ...backendErrors, ...errors };
+    const allErrors = useMemo(
+        () => ({ ...backendErrors, ...errors }),
+        [backendErrors, errors],
+    );
 
     // Debug: log errors to console
     useEffect(() => {
@@ -438,11 +441,12 @@ export default function Create({
     const current_total_spent = currentBudget.current_total_spent;
     const pagu_listing =
         'pagu_listing' in currentBudget
-            ? (currentBudget as any).pagu_listing
+            ? (currentBudget as { pagu_listing: number }).pagu_listing
             : selectedKegiatan?.pagu_listing || 0;
     const current_total_spent_listing =
         'current_total_spent_listing' in currentBudget
-            ? (currentBudget as any).current_total_spent_listing
+            ? (currentBudget as { current_total_spent_listing: number })
+                  .current_total_spent_listing
             : 0;
 
     // Get used months for selected kegiatan
@@ -474,6 +478,7 @@ export default function Create({
                 estimasi_honor_listing:
                     parseFloat(alokasi.total_honor_listing) || 0,
             }));
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setOriginalAlokasiValues(originalValues);
 
             const initialItems = copiedAlokasi.map((alokasi) => {
@@ -544,12 +549,85 @@ export default function Create({
         }
     }, [copiedAlokasi]);
 
+    // Calculate estimasi honor for a petugas (pencacahan)
+    const calculateEstimasi = useCallback(
+        (petugasId: string, peran: string, jumlahSatuan: string) => {
+            if (!petugasId || !peran || !jumlahSatuan || !selectedKegiatan)
+                return 0;
+            const selectedPetugas = petugas.find(
+                (p) => String(p.id) === String(petugasId),
+            );
+            if (!selectedPetugas) return 0;
+            const statusKepegawaian =
+                selectedPetugas.jenis_petugas === 'organik'
+                    ? 'organik'
+                    : 'non_organik';
+            let jenisPenugasan = '';
+            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
+            else if (peran === 'PML') jenisPenugasan = 'pml';
+            else if (peran === 'Petugas Pengolahan')
+                jenisPenugasan = 'pengolahan';
+            else if (peran === 'Pengawas Pengolahan')
+                jenisPenugasan = 'pengawas_pengolahan';
+            if (!jenisPenugasan) return 0;
+            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
+                (r) =>
+                    r.status_kepegawaian === statusKepegawaian &&
+                    r.jenis_penugasan === jenisPenugasan,
+            );
+            if (!matchingRateHonor) return 0;
+            const parsedJumlah = parseFloat(jumlahSatuan) || 0;
+            return matchingRateHonor.rate * parsedJumlah;
+        },
+        [selectedKegiatan, petugas],
+    );
+
+    // Calculate estimasi honor for listing phase
+    const calculateEstimasiListing = useCallback(
+        (petugasId: string, peran: string, jumlahSatuanListing: string) => {
+            if (
+                !petugasId ||
+                !peran ||
+                !jumlahSatuanListing ||
+                !selectedKegiatan ||
+                !selectedKegiatan.has_listing_updating
+            )
+                return 0;
+            const selectedPetugas = petugas.find(
+                (p) => String(p.id) === String(petugasId),
+            );
+            if (!selectedPetugas) return 0;
+            const statusKepegawaian =
+                selectedPetugas.jenis_petugas === 'organik'
+                    ? 'organik'
+                    : 'non_organik';
+            let jenisPenugasan = '';
+            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
+            else if (peran === 'PML') jenisPenugasan = 'pml';
+            else if (peran === 'Petugas Pengolahan')
+                jenisPenugasan = 'pengolahan';
+            else if (peran === 'Pengawas Pengolahan')
+                jenisPenugasan = 'pengawas_pengolahan';
+            if (!jenisPenugasan) return 0;
+            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
+                (r) =>
+                    r.status_kepegawaian === statusKepegawaian &&
+                    r.jenis_penugasan === jenisPenugasan,
+            );
+            if (!matchingRateHonor || !matchingRateHonor.rate_listing) return 0;
+            const parsedJumlahListing = parseFloat(jumlahSatuanListing) || 0;
+            return matchingRateHonor.rate_listing * parsedJumlahListing;
+        },
+        [selectedKegiatan, petugas],
+    );
+
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
     useEffect(() => {
         if (!selectedKegiatan) return;
 
         // Update jenis kegiatan from selected kegiatan
         const newJenisKegiatan = selectedKegiatan.jenis_kegiatan;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setJenisKegiatan(newJenisKegiatan);
 
         // Recalculate estimasi for all items using the calculateEstimasi function
@@ -596,12 +674,18 @@ export default function Create({
 
             return newItems;
         });
-    }, [selectedKegiatanId, selectedKegiatan]);
+    }, [
+        selectedKegiatanId,
+        selectedKegiatan,
+        calculateEstimasi,
+        calculateEstimasiListing,
+    ]);
 
     // Handle tahapan change - clear/restore values based on tahapan
     useEffect(() => {
         if (originalAlokasiValues.length === 0) return; // Wait until original values are loaded
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setAlokasiItems((prevItems) => {
             return prevItems.map((item, index) => {
                 const updates: Partial<AlokasiItem> = {};
@@ -637,83 +721,6 @@ export default function Create({
             });
         });
     }, [tahapan, originalAlokasiValues]);
-
-    // Calculate estimasi honor for a petugas
-    // Calculate estimasi honor for a petugas (pencacahan)
-    const calculateEstimasi = (
-        petugasId: string,
-        peran: string,
-        jumlahSatuan: string,
-    ) => {
-        if (!petugasId || !peran || !jumlahSatuan || !selectedKegiatan)
-            return 0;
-        const selectedPetugas = petugas.find(
-            (p) => String(p.id) === String(petugasId),
-        );
-        if (!selectedPetugas) return 0;
-        const statusKepegawaian =
-            selectedPetugas.jenis_petugas === 'organik'
-                ? 'organik'
-                : 'non_organik';
-        let jenisPenugasan = '';
-        if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-        else if (peran === 'PML') jenisPenugasan = 'pml';
-        else if (peran === 'Petugas Pengolahan') jenisPenugasan = 'pengolahan';
-        else if (peran === 'Pengawas Pengolahan')
-            jenisPenugasan = 'pengawas_pengolahan';
-        if (!jenisPenugasan) return 0;
-        const matchingRateHonor = selectedKegiatan.rate_honors?.find(
-            (r) =>
-                r.status_kepegawaian === statusKepegawaian &&
-                r.jenis_penugasan === jenisPenugasan,
-        );
-        if (!matchingRateHonor) return 0;
-
-        // Parse safely with fallback to 0
-        const parsedJumlah = parseFloat(jumlahSatuan) || 0;
-        return matchingRateHonor.rate * parsedJumlah;
-    };
-
-    // Calculate estimasi honor for listing phase
-    const calculateEstimasiListing = (
-        petugasId: string,
-        peran: string,
-        jumlahSatuanListing: string,
-    ) => {
-        if (
-            !petugasId ||
-            !peran ||
-            !jumlahSatuanListing ||
-            !selectedKegiatan ||
-            !selectedKegiatan.has_listing_updating
-        )
-            return 0;
-        const selectedPetugas = petugas.find(
-            (p) => String(p.id) === String(petugasId),
-        );
-        if (!selectedPetugas) return 0;
-        const statusKepegawaian =
-            selectedPetugas.jenis_petugas === 'organik'
-                ? 'organik'
-                : 'non_organik';
-        let jenisPenugasan = '';
-        if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-        else if (peran === 'PML') jenisPenugasan = 'pml';
-        else if (peran === 'Petugas Pengolahan') jenisPenugasan = 'pengolahan';
-        else if (peran === 'Pengawas Pengolahan')
-            jenisPenugasan = 'pengawas_pengolahan';
-        if (!jenisPenugasan) return 0;
-        const matchingRateHonor = selectedKegiatan.rate_honors?.find(
-            (r) =>
-                r.status_kepegawaian === statusKepegawaian &&
-                r.jenis_penugasan === jenisPenugasan,
-        );
-        if (!matchingRateHonor || !matchingRateHonor.rate_listing) return 0;
-
-        // Parse safely with fallback to 0
-        const parsedJumlahListing = parseFloat(jumlahSatuanListing) || 0;
-        return matchingRateHonor.rate_listing * parsedJumlahListing;
-    };
 
     // Handle jumlah petugas change
     const handleJumlahPetugasChange = (value: number) => {
@@ -802,7 +809,7 @@ export default function Create({
     const updateAlokasiItem = (
         index: number,
         field: keyof AlokasiItem,
-        value: any,
+        value: AlokasiItem[keyof AlokasiItem],
     ) => {
         // Guard: Don't update peran with empty value if item already has a peran
         if (field === 'peran' && !value && alokasiItems[index]?.peran) {
@@ -1075,20 +1082,23 @@ export default function Create({
         }
     };
 
-    const months = [
-        { value: 1, label: 'Januari' },
-        { value: 2, label: 'Februari' },
-        { value: 3, label: 'Maret' },
-        { value: 4, label: 'April' },
-        { value: 5, label: 'Mei' },
-        { value: 6, label: 'Juni' },
-        { value: 7, label: 'Juli' },
-        { value: 8, label: 'Agustus' },
-        { value: 9, label: 'September' },
-        { value: 10, label: 'Oktober' },
-        { value: 11, label: 'November' },
-        { value: 12, label: 'Desember' },
-    ];
+    const months = useMemo(
+        () => [
+            { value: 1, label: 'Januari' },
+            { value: 2, label: 'Februari' },
+            { value: 3, label: 'Maret' },
+            { value: 4, label: 'April' },
+            { value: 5, label: 'Mei' },
+            { value: 6, label: 'Juni' },
+            { value: 7, label: 'Juli' },
+            { value: 8, label: 'Agustus' },
+            { value: 9, label: 'September' },
+            { value: 10, label: 'Oktober' },
+            { value: 11, label: 'November' },
+            { value: 12, label: 'Desember' },
+        ],
+        [],
+    );
 
     // Filter months based on kegiatan's tanggal_mulai and tanggal_selesai
     const filteredMonths = useMemo(() => {
@@ -1197,13 +1207,22 @@ export default function Create({
             const firstAvailableMonth = availableMonths[0].value;
             // Only update if current bulan is not in available months
             if (!availableMonths.some((m) => m.value === bulan)) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setBulan(firstAvailableMonth);
             }
         } else if (filteredMonths.length > 0) {
             // If all months are used, use the first month from filteredMonths
+
             setBulan(filteredMonths[0].value);
         }
-    }, [filteredMonths, usedMonths, isEditMode, sourcePeriode]);
+    }, [
+        filteredMonths,
+        usedMonths,
+        isEditMode,
+        sourcePeriode,
+        availableMonthsForTahapan,
+        bulan,
+    ]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

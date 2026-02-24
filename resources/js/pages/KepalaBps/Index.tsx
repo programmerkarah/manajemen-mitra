@@ -50,7 +50,7 @@ interface KepalaBpsIndexProps {
     kepalaBpsList: {
         data: KepalaBps[];
         links: Array<{ url: string | null; label: string; active: boolean }>;
-        meta: any;
+        meta: Record<string, unknown>;
     };
     filters: {
         search?: string;
@@ -308,7 +308,14 @@ export default function Index({ kepalaBpsList, filters }: KepalaBpsIndexProps) {
                     {kepalaBpsList.links.length > 3 && (
                         <div className="mt-6 flex items-center justify-center gap-2">
                             {kepalaBpsList.links.map(
-                                (link: any, index: number) => {
+                                (
+                                    link: {
+                                        url: string | null;
+                                        label: string;
+                                        active: boolean;
+                                    },
+                                    index: number,
+                                ) => {
                                     const isFirst =
                                         link.label.includes('Previous');
                                     const isLast = link.label.includes('Next');
