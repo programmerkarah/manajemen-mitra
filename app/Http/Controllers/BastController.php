@@ -2263,9 +2263,24 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
 
+        // Ensure downloads directory exists and is writable
+        $downloadsDir = public_path('downloads');
+        if (! file_exists($downloadsDir)) {
+            mkdir($downloadsDir, 0755, true);
+        }
+
         // Move file to public/downloads directory
         $publicPath = public_path('downloads/'.$zipFileName);
-        rename($zipPath, $publicPath);
+        if (! copy($zipPath, $publicPath)) {
+            @unlink($zipPath);
+            Log::error('Failed to copy ZIP file to downloads directory', [
+                'source' => $zipPath,
+                'destination' => $publicPath,
+            ]);
+
+            return redirect()->back()->with('error', 'Gagal menyimpan file untuk download. Silakan coba lagi.');
+        }
+        @unlink($zipPath);
 
         // Redirect to serve-download route
         return redirect()->route('serve.download', ['filename' => $zipFileName]);
