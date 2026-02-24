@@ -430,7 +430,7 @@ export default function Show({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                        {kegiatan_list.map((kegiatan, idx) => {
+                                        {kegiatan_list.map((kegiatan) => {
                                             const changed = kegiatan.has_change;
                                             return (
                                                 <tr

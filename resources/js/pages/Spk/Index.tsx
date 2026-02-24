@@ -79,7 +79,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Perjanjian Kerja', href: '/spk' },
 ];
 
-export default function Index({ periodeList, filters }: IndexProps) {
+export default function Index({ periodeList }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem>(
         periodeList.encrypted,
@@ -210,233 +210,227 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    decryptedPeriodeList.map(
-                                        (monthData, index) => (
-                                            <tr
-                                                key={`${monthData.tahun}-${monthData.bulan}`}
-                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                                            >
-                                                <td className="px-4 py-4 text-center text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {monthData.bulan_label}{' '}
-                                                    {monthData.tahun}
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <div className="max-w-md space-y-1">
-                                                        {monthData.kegiatan_list.map(
-                                                            (
-                                                                kegiatan,
-                                                                kegIndex,
-                                                            ) => (
-                                                                <div
-                                                                    key={
-                                                                        kegiatan.periode_id
-                                                                    }
-                                                                    className="text-sm"
-                                                                >
-                                                                    <div className="font-medium break-words text-neutral-900 dark:text-white">
-                                                                        {
-                                                                            kegiatan.nama_kegiatan
-                                                                        }
-                                                                    </div>
-                                                                    <div className="text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                                        {
-                                                                            kegiatan.kode_kegiatan
-                                                                        }{' '}
-                                                                        •{' '}
-                                                                        {
-                                                                            kegiatan.jumlah_petugas_non_organik
-                                                                        }{' '}
-                                                                        petugas
-                                                                        non-organik
-                                                                    </div>
-                                                                </div>
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {
-                                                        monthData.total_petugas_non_organik
-                                                    }{' '}
-                                                    petugas
-                                                </td>
-                                                <td className="px-4 py-4 text-center text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {monthData.total_spk} SPK
-                                                </td>
-                                                <td className="px-4 py-4 text-center whitespace-nowrap">
-                                                    <StatusBadge
-                                                        status={
-                                                            monthData.spk_status_type
-                                                        }
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <div className="flex flex-col items-end gap-1.5">
-                                                        {/* Copy Petugas Names - Show if there are petugas */}
-                                                        {monthData.total_petugas_non_organik >
-                                                            0 && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    handleCopyPetugasNames(
-                                                                        monthData.bulan,
-                                                                        monthData.tahun,
-                                                                        monthData.bulan_label,
-                                                                    )
+                                    decryptedPeriodeList.map((monthData) => (
+                                        <tr
+                                            key={`${monthData.tahun}-${monthData.bulan}`}
+                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                        >
+                                            <td className="px-4 py-4 text-center text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-white">
+                                                {monthData.bulan_label}{' '}
+                                                {monthData.tahun}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="max-w-md space-y-1">
+                                                    {monthData.kegiatan_list.map(
+                                                        (kegiatan) => (
+                                                            <div
+                                                                key={
+                                                                    kegiatan.periode_id
                                                                 }
-                                                                disabled={
-                                                                    copyingMonth ===
-                                                                    `${monthData.tahun}-${monthData.bulan}`
-                                                                }
-                                                                className="w-full justify-start gap-1"
+                                                                className="text-sm"
                                                             >
-                                                                <Copy className="h-3.5 w-3.5" />
-                                                                {copyingMonth ===
+                                                                <div className="font-medium break-words text-neutral-900 dark:text-white">
+                                                                    {
+                                                                        kegiatan.nama_kegiatan
+                                                                    }
+                                                                </div>
+                                                                <div className="text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                                    {
+                                                                        kegiatan.kode_kegiatan
+                                                                    }{' '}
+                                                                    •{' '}
+                                                                    {
+                                                                        kegiatan.jumlah_petugas_non_organik
+                                                                    }{' '}
+                                                                    petugas
+                                                                    non-organik
+                                                                </div>
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                {
+                                                    monthData.total_petugas_non_organik
+                                                }{' '}
+                                                petugas
+                                            </td>
+                                            <td className="px-4 py-4 text-center text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                {monthData.total_spk} SPK
+                                            </td>
+                                            <td className="px-4 py-4 text-center whitespace-nowrap">
+                                                <StatusBadge
+                                                    status={
+                                                        monthData.spk_status_type
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex flex-col items-end gap-1.5">
+                                                    {/* Copy Petugas Names - Show if there are petugas */}
+                                                    {monthData.total_petugas_non_organik >
+                                                        0 && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                handleCopyPetugasNames(
+                                                                    monthData.bulan,
+                                                                    monthData.tahun,
+                                                                    monthData.bulan_label,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                copyingMonth ===
                                                                 `${monthData.tahun}-${monthData.bulan}`
-                                                                    ? 'Menyalin...'
-                                                                    : 'Salin Nama Petugas'}
-                                                            </Button>
-                                                        )}
+                                                            }
+                                                            className="w-full justify-start gap-1"
+                                                        >
+                                                            <Copy className="h-3.5 w-3.5" />
+                                                            {copyingMonth ===
+                                                            `${monthData.tahun}-${monthData.bulan}`
+                                                                ? 'Menyalin...'
+                                                                : 'Salin Nama Petugas'}
+                                                        </Button>
+                                                    )}
 
-                                                        {/* Generate SPK - Show if:
+                                                    {/* Generate SPK - Show if:
                                                         1. No SPK exists at all (total_spk === 0), OR
                                                         2. Some petugas don't have SPK yet (total_spk < total_petugas_non_organik)
                                                         This will show form with ONLY petugas who don't have SPK
                                                     */}
-                                                        {canCreateSpk &&
-                                                            (monthData.total_spk ===
-                                                                0 ||
-                                                                monthData.total_spk <
-                                                                    monthData.total_petugas_non_organik) &&
-                                                            monthData
-                                                                .kegiatan_list
-                                                                .length > 0 && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    asChild
-                                                                    className="w-full justify-start gap-1"
+                                                    {canCreateSpk &&
+                                                        (monthData.total_spk ===
+                                                            0 ||
+                                                            monthData.total_spk <
+                                                                monthData.total_petugas_non_organik) &&
+                                                        monthData.kegiatan_list
+                                                            .length > 0 && (
+                                                            <Button
+                                                                size="sm"
+                                                                asChild
+                                                                className="w-full justify-start gap-1"
+                                                            >
+                                                                <Link
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
                                                                 >
-                                                                    <Link
-                                                                        href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
-                                                                    >
-                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                        Generate
-                                                                        Perjanjian
-                                                                        Kerja
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
+                                                                    <Plus className="h-3.5 w-3.5" />
+                                                                    Generate
+                                                                    Perjanjian
+                                                                    Kerja
+                                                                </Link>
+                                                            </Button>
+                                                        )}
 
-                                                        {/* Re-generate SPK - Show if:
+                                                    {/* Re-generate SPK - Show if:
                                                         1. All petugas have SPK (total_spk >= total_petugas_non_organik)
                                                         2. AND there are new kegiatan added after SPK was generated
                                                         3. AND has NOT been regenerated before
                                                         This will show form with ONLY petugas who have allocation changes
                                                     */}
-                                                        {canCreateSpk &&
-                                                            monthData.total_spk >=
-                                                                monthData.total_petugas_non_organik &&
-                                                            monthData.has_new_kegiatan_after_spk &&
-                                                            !monthData.has_been_regenerated && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="default"
-                                                                    asChild
-                                                                    className="w-full justify-start gap-1 bg-orange-600 hover:bg-orange-700"
-                                                                >
-                                                                    <Link
-                                                                        href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
-                                                                    >
-                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                        Re-generate
-                                                                        Perjanjian
-                                                                        Kerja
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
-
-                                                        {/* View SPK Details - Always show if SPK exists */}
-                                                        {monthData.total_spk >
-                                                            0 && (
+                                                    {canCreateSpk &&
+                                                        monthData.total_spk >=
+                                                            monthData.total_petugas_non_organik &&
+                                                        monthData.has_new_kegiatan_after_spk &&
+                                                        !monthData.has_been_regenerated && (
                                                             <Button
                                                                 size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    router.post(
-                                                                        '/spk/month',
-                                                                        {
-                                                                            bulan: monthData.bulan,
-                                                                            tahun: monthData.tahun,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                className="w-full justify-start gap-1"
+                                                                variant="default"
+                                                                asChild
+                                                                className="w-full justify-start gap-1 bg-orange-600 hover:bg-orange-700"
                                                             >
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                                Lihat Detail
+                                                                <Link
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
+                                                                >
+                                                                    <Plus className="h-3.5 w-3.5" />
+                                                                    Re-generate
+                                                                    Perjanjian
+                                                                    Kerja
+                                                                </Link>
                                                             </Button>
                                                         )}
 
-                                                        {/* Addendum SPK - Show if:
+                                                    {/* View SPK Details - Always show if SPK exists */}
+                                                    {monthData.total_spk >
+                                                        0 && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    '/spk/month',
+                                                                    {
+                                                                        bulan: monthData.bulan,
+                                                                        tahun: monthData.tahun,
+                                                                    },
+                                                                )
+                                                            }
+                                                            className="w-full justify-start gap-1"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                            Lihat Detail
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Addendum SPK - Show if:
                                                         1. Has revisions AND
                                                         2. Some petugas don't have addendum yet (has_incomplete_addendum) AND
                                                         3. No allocation changes to existing addendum petugas (!has_addendum_changes)
                                                         This will show form with ONLY petugas who don't have addendum
                                                     */}
-                                                        {canCreateSpk &&
-                                                            monthData.total_spk >
-                                                                0 &&
-                                                            monthData.has_revision &&
-                                                            monthData.has_incomplete_addendum &&
-                                                            !monthData.has_addendum_changes && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="default"
-                                                                    asChild
-                                                                    className="w-full justify-start gap-1"
+                                                    {canCreateSpk &&
+                                                        monthData.total_spk >
+                                                            0 &&
+                                                        monthData.has_revision &&
+                                                        monthData.has_incomplete_addendum &&
+                                                        !monthData.has_addendum_changes && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                asChild
+                                                                className="w-full justify-start gap-1"
+                                                            >
+                                                                <Link
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
                                                                 >
-                                                                    <Link
-                                                                        href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
-                                                                    >
-                                                                        <FileEdit className="h-3.5 w-3.5" />
-                                                                        Addendum
-                                                                        Perjanjian
-                                                                        Kerja
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
+                                                                    <FileEdit className="h-3.5 w-3.5" />
+                                                                    Addendum
+                                                                    Perjanjian
+                                                                    Kerja
+                                                                </Link>
+                                                            </Button>
+                                                        )}
 
-                                                        {/* Re-generate Addendum - Show if:
+                                                    {/* Re-generate Addendum - Show if:
                                                         1. Has revisions AND
                                                         2. There are allocation changes to petugas who already have addendum
                                                         This will show form with ONLY petugas who have allocation changes
                                                     */}
-                                                        {canCreateSpk &&
-                                                            monthData.total_spk >
-                                                                0 &&
-                                                            monthData.has_revision &&
-                                                            monthData.has_addendum_changes && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="default"
-                                                                    asChild
-                                                                    className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
+                                                    {canCreateSpk &&
+                                                        monthData.total_spk >
+                                                            0 &&
+                                                        monthData.has_revision &&
+                                                        monthData.has_addendum_changes && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                asChild
+                                                                className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
+                                                            >
+                                                                <Link
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
                                                                 >
-                                                                    <Link
-                                                                        href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
-                                                                    >
-                                                                        <FileEdit className="h-3.5 w-3.5" />
-                                                                        Re-generate
-                                                                        Addendum
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ),
-                                    )
+                                                                    <FileEdit className="h-3.5 w-3.5" />
+                                                                    Re-generate
+                                                                    Addendum
+                                                                </Link>
+                                                            </Button>
+                                                        )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
                                 )}
                             </tbody>
                         </table>

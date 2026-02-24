@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, Eye } from 'lucide-react';
 import { useState } from 'react';
 
@@ -41,40 +41,8 @@ interface ListProps {
     bulan_label: string;
 }
 
-const bulanLabels: Record<number, string> = {
-    1: 'Januari',
-    2: 'Februari',
-    3: 'Maret',
-    4: 'April',
-    5: 'Mei',
-    6: 'Juni',
-    7: 'Juli',
-    8: 'Agustus',
-    9: 'September',
-    10: 'Oktober',
-    11: 'November',
-    12: 'Desember',
-};
-
-export default function List({
-    spk_list,
-    bulan,
-    tahun,
-    bulan_label,
-}: ListProps) {
-    const [selectedSpkId, setSelectedSpkId] = useState<number | null>(
-        spk_list[0]?.id || null,
-    );
-    const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadingSpkHashedId, setUploadingSpkHashedId] = useState<
-        string | null
-    >(null);
-
-    const { data, setData, post, processing, errors, reset } = useForm<{
-        file: File | null;
-    }>({
-        file: null,
-    });
+export default function List({ spk_list, tahun, bulan_label }: ListProps) {
+    const [selectedSpkId] = useState<number | null>(spk_list[0]?.id || null);
 
     const selectedSpk = spk_list.find((spk) => spk.id === selectedSpkId);
 
@@ -108,33 +76,6 @@ export default function List({
             pengawas_pengolahan: 'Pemeriksa Pengolahan',
         };
         return labels[peran] || peran;
-    };
-
-    const handleUploadClick = (spkHashedId: string) => {
-        setUploadingSpkHashedId(spkHashedId);
-        setShowUploadModal(true);
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setData('file', e.target.files[0]);
-        }
-    };
-
-    const handleUploadSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!uploadingSpkHashedId || !data.file) return;
-
-        const formData = new FormData();
-        formData.append('file', data.file);
-
-        post(`/spk/${uploadingSpkHashedId}/upload-signed`, {
-            onSuccess: () => {
-                setShowUploadModal(false);
-                setUploadingSpkHashedId(null);
-                reset();
-            },
-        });
     };
 
     if (!selectedSpk && spk_list.length > 0) {

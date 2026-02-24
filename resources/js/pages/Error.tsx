@@ -6,7 +6,6 @@ interface ErrorProps {
 }
 
 export default function Error({ status }: ErrorProps) {
-
     const title =
         {
             503: 'Service Unavailable',
@@ -35,7 +34,7 @@ export default function Error({ status }: ErrorProps) {
                     <div className="floating-circle-slow absolute top-1/2 left-1/4 h-24 w-24 rounded-full bg-pink-200 opacity-20 blur-xl"></div>
                 </div>
 
-                <div className="relative z-10 w-full max-w-2xl animate-fade-in text-center">
+                <div className="animate-fade-in relative z-10 w-full max-w-2xl text-center">
                     {/* Error Code Badge
                     <div className="mb-8 inline-block">
                         <div className="text-8xl font-bold text-blue-600 opacity-90 animate-pulse-slow">

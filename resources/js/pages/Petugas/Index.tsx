@@ -93,7 +93,7 @@ interface PetugasIndexProps {
     };
 }
 
-export default function Index({ petugas, filters }: PetugasIndexProps) {
+export default function Index({ petugas }: PetugasIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 
@@ -436,7 +436,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    paginatedPetugas.map((Petugas, index) => (
+                                    paginatedPetugas.map((Petugas) => (
                                         <tr
                                             key={Petugas.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"

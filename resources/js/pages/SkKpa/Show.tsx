@@ -77,7 +77,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
     const [isUploading, setIsUploading] = useState(false);
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post } = useForm({
         signed_file: null as File | null,
     });
 

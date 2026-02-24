@@ -74,10 +74,7 @@ interface DipaIndexProps {
     };
 }
 
-export default function Index({
-    dipaList,
-    tahunOptions,
-}: DipaIndexProps) {
+export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 

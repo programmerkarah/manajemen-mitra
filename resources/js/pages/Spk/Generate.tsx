@@ -62,21 +62,6 @@ interface GenerateProps {
     uses_suffix_for_new_petugas: boolean;
 }
 
-const bulanLabels: Record<number, string> = {
-    1: 'Januari',
-    2: 'Februari',
-    3: 'Maret',
-    4: 'April',
-    5: 'Mei',
-    6: 'Juni',
-    7: 'Juli',
-    8: 'Agustus',
-    9: 'September',
-    10: 'Oktober',
-    11: 'November',
-    12: 'Desember',
-};
-
 export default function Generate({
     periode,
     petugas_list,
@@ -427,7 +412,7 @@ export default function Generate({
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
+                onSuccess: () => {
                     setProcessing(false);
                     // page.props will not have the response, so use event.detail if available
                     // But inertiajs router.post with JSON response will set event.detail.response
@@ -437,7 +422,7 @@ export default function Generate({
                     );
                     setShowSuccessModal(true);
                 },
-                onError: (errors) => {
+                onError: () => {
                     setProcessing(false);
                     setModalMessage(
                         'Terjadi error saat generate Perjanjian Kerja.',

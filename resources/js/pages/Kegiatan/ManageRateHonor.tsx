@@ -18,7 +18,6 @@ interface Props {
 
 // Kombinasi rate honor berdasarkan jenis kegiatan
 const getCombinations = (jenisKegiatan: 'sensus' | 'survei') => {
-    const statusKepegawaian = ['non_organik', 'organik'] as const;
     const combinations: Array<{
         status_kepegawaian: 'non_organik' | 'organik';
         jenis_penugasan:
@@ -215,13 +214,6 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             }
         });
         return data;
-    });
-
-    // State untuk satuan_id - satu satuan untuk seluruh kegiatan
-    const [selectedSatuan, setSelectedSatuan] = useState<string>(() => {
-        // Ambil satuan dari rate honor yang pertama kali ditemukan
-        const existingSatuan = kegiatan.rate_honors?.[0]?.satuan_id;
-        return existingSatuan || defaultSatuan?.id || '';
     });
 
     // Ambil error dari Inertia props jika ada (untuk flash message error backend)

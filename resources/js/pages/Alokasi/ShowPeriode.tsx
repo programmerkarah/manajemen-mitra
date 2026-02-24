@@ -753,13 +753,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
 
                         <div className="space-y-6">
                             {revisions.map((revision, revIdx) => {
-                                // For comparison, get the previous revision (or current if this is the oldest)
-                                const comparedWith =
-                                    revIdx < revisions.length - 1
-                                        ? revisions[revIdx + 1]
-                                        : null;
-                                const isOldest = !comparedWith;
-
                                 return (
                                     <div
                                         key={revision.id}

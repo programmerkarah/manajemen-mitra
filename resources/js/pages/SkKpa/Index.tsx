@@ -80,7 +80,7 @@ interface IndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
-export default function Index({ kegiatan, filters }: IndexProps) {
+export default function Index({ kegiatan }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const allKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
 
@@ -219,19 +219,6 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         setSearch('');
         setJenisKegiatan('all');
         setCurrentPage(1);
-    };
-
-    const getStatusBadgeColor = (type: string) => {
-        switch (type) {
-            case 'not_created':
-                return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
-            case 'created':
-                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-            case 'revision':
-                return 'bg-blue-100 text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300';
-            default:
-                return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
-        }
     };
 
     const handleDownload = (keg: KegiatanItem) => {

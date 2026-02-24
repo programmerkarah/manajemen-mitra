@@ -67,7 +67,6 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
     const [modalMessage, setModalMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const [generatedCount, setGeneratedCount] = useState(0);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },

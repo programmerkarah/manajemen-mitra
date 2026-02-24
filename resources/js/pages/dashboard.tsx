@@ -218,7 +218,6 @@ export default function Dashboard({
     honorInequalitySummary,
     currentMonth,
     currentYear,
-    userRole,
 }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
     return (
@@ -835,7 +834,9 @@ export default function Dashboard({
                                                 'honor_2501rb_3500rb',
                                                 'honor_lebih_3501rb',
                                             ];
-                                            return order.indexOf(item.dataKey as string);
+                                            return order.indexOf(
+                                                item.dataKey as string,
+                                            );
                                         }}
                                     />
                                     <Legend
@@ -850,7 +851,9 @@ export default function Dashboard({
                                                 'honor_2501rb_3500rb',
                                                 'honor_lebih_3501rb',
                                             ];
-                                            return order.indexOf(item.dataKey as string);
+                                            return order.indexOf(
+                                                item.dataKey as string,
+                                            );
                                         }}
                                     />
                                     <Bar
@@ -1307,11 +1310,6 @@ export default function Dashboard({
                                             'operator',
                                             'approver',
                                         ].includes(auth.activeRole?.name ?? '');
-
-                                        const hasActions =
-                                            canEditAlokasi ||
-                                            canEditSk ||
-                                            canEditSpk;
 
                                         return (
                                             <div

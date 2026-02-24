@@ -107,7 +107,7 @@ export default function Index({ year_groups }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    year_groups.map((group, index) => (
+                                    year_groups.map((group) => (
                                         <tr
                                             key={group.tahun_anggaran}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"

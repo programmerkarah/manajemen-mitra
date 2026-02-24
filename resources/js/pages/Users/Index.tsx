@@ -101,7 +101,7 @@ interface UsersIndexProps {
     };
 }
 
-export default function Index({ users, filters }: UsersIndexProps) {
+export default function Index({ users }: UsersIndexProps) {
     const allUsers = useDecryptedData<User>(users.encrypted);
 
     const [search, setSearch] = useState('');

@@ -100,9 +100,7 @@ interface PenandatanganIndexProps {
     };
 }
 
-export default function Index({
-    PenandatanganList,
-}: PenandatanganIndexProps) {
+export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 

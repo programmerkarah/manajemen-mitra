@@ -42,15 +42,13 @@ export default function ViewAsUserSwitcher() {
             })
                 .then((res) => res.json())
                 .then((data) => {
-                     
                     setUsers(data);
-                     
+
                     setLoading(false);
                 })
                 .catch((error) => {
                     // Ignore abort errors
                     if (error.name !== 'AbortError') {
-                         
                         setLoading(false);
                     }
                 });

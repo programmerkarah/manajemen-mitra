@@ -73,7 +73,7 @@ interface Props {
     };
 }
 
-export default function Index({ dasarHukum, filters }: Props) {
+export default function Index({ dasarHukum }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 

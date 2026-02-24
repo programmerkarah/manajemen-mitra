@@ -87,7 +87,7 @@ interface KegiatanIndexProps {
     };
 }
 
-export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
+export default function Index({ kegiatans }: KegiatanIndexProps) {
     const { auth } = usePage<SharedData>().props;
 
     // Check if user can create kegiatan based on active role

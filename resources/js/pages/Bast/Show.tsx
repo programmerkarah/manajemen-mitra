@@ -118,8 +118,6 @@ export default function Show({
     spk,
     petugas,
     kegiatan,
-    bast_petugas,
-    bast_history,
     bast_list,
     bulan,
     tahun,

@@ -65,19 +65,6 @@ export default function Show({
         }
     };
 
-    // Group entries by jenis_kegiatan and status_kepegawaian
-    const groupedEntries = sbmlEntries.reduce(
-        (acc, entry) => {
-            const key = `${entry.jenis_kegiatan}_${entry.status_kepegawaian}`;
-            if (!acc[key]) {
-                acc[key] = [];
-            }
-            acc[key].push(entry);
-            return acc;
-        },
-        {} as Record<string, Sbml[]>,
-    );
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Detail SBML - Tahun ${tahun}`} />

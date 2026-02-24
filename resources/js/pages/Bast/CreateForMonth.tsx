@@ -147,7 +147,7 @@ export default function CreateForMonth({
         );
     };
 
-    const handlePreviewSpk = (spkId: number, nomorBast: string | null) => {
+    const handlePreviewSpk = (spkId: number) => {
         const payload: Record<string, any> = {
             spk_id: spkId,
         };
@@ -340,7 +340,6 @@ export default function CreateForMonth({
                                                     e.stopPropagation();
                                                     handlePreviewSpk(
                                                         spk.spk_id,
-                                                        spk.nomor_bast_preview,
                                                     );
                                                 }}
                                             >

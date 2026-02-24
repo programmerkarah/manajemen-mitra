@@ -43,37 +43,34 @@ export function FlashMessage() {
                     text: flash.success,
                     title: 'Berhasil!',
                 });
-                 
+
                 setVisible(true);
                 previousFlashRef.current = currentFlashKey;
             } else if (flash.error) {
-                 
                 setMessage({
                     type: 'error',
                     text: flash.error,
                     title: 'Perhatian!',
                 });
-                 
+
                 setVisible(true);
                 previousFlashRef.current = currentFlashKey;
             } else if (flash.warning) {
-                 
                 setMessage({
                     type: 'warning',
                     text: flash.warning,
                     title: 'Peringatan!',
                 });
-                 
+
                 setVisible(true);
                 previousFlashRef.current = currentFlashKey;
             } else if (flash.info) {
-                 
                 setMessage({
                     type: 'info',
                     text: flash.info,
                     title: 'Informasi',
                 });
-                 
+
                 setVisible(true);
                 previousFlashRef.current = currentFlashKey;
             }
@@ -84,7 +81,6 @@ export function FlashMessage() {
         if (visible) {
             // Durasi 6 detik - cukup untuk dibaca tapi tidak terlalu lama
             const timer = setTimeout(() => {
-                 
                 setVisible(false);
             }, 6000);
 

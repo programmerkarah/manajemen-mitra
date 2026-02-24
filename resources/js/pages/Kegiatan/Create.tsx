@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
-
 
 interface User {
     id: number;
@@ -68,7 +67,7 @@ export default function Create({
         return value.replace(/\./g, '');
     };
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, processing, errors } = useForm({
         nama_kegiatan: copyData?.nama_kegiatan || '',
         jenis_kegiatan:
             copyData?.jenis_kegiatan || ('survei' as 'sensus' | 'survei'),
