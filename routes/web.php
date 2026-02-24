@@ -47,6 +47,17 @@ Route::get('/debug', function () {
     ]);
 });
 
+// Route untuk serve dan cleanup download file
+Route::get('/serve-download/{filename}', function ($filename) {
+    $filePath = public_path('downloads/'.$filename);
+
+    if (! file_exists($filePath)) {
+        abort(404, 'File tidak ditemukan');
+    }
+
+    return response()->download($filePath, $filename)->deleteFileAfterSend(true);
+})->middleware('auth')->name('serve.download');
+
 // Simple HTML test without Inertia
 Route::get('/simple', function () {
     return view('simple-test');

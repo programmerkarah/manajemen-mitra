@@ -2263,8 +2263,12 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
 
-        // Download and delete temp file
-        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+        // Move file to public/downloads directory
+        $publicPath = public_path('downloads/'.$zipFileName);
+        rename($zipPath, $publicPath);
+
+        // Redirect to serve-download route
+        return redirect()->route('serve.download', ['filename' => $zipFileName]);
     }
 
     /**
