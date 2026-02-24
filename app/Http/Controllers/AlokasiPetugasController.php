@@ -68,9 +68,9 @@ class AlokasiPetugasController extends Controller
             $baseQuery->where('bulan', $bulan);
         }
 
-        // Filter for Ketua Tim - only their kegiatan (exclude admin)
+        // Filter for Ketua Tim - only their kegiatan (only applies when active role is ketua_tim)
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && ! $effectiveUser->hasActiveRole('admin')) {
+        if ($effectiveUser->hasActiveRole('ketua_tim')) {
             $baseQuery->whereHas('kegiatan', function ($q) use ($effectiveUser) {
                 $q->where('ketua_tim_user_id', $effectiveUser->id)
                     ->orWhere('pj_lainnya_id', $effectiveUser->id);
@@ -242,7 +242,7 @@ class AlokasiPetugasController extends Controller
 
         // Check if any kegiatan exists
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
-            ->when($effectiveUser->isKetuaTim(), function ($query) use ($effectiveUser) {
+            ->when($effectiveUser->hasActiveRole('ketua_tim'), function ($query) use ($effectiveUser) {
                 $query->where('ketua_tim_user_id', $effectiveUser->id)
                     ->orWhere('pj_lainnya_id', $effectiveUser->id);
             })
@@ -287,7 +287,7 @@ class AlokasiPetugasController extends Controller
 
         // Ketua Tim dapat menambah alokasi jika dia adalah ketua_tim_user_id atau pj_lainnya_id
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && ! ($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
+        if ($effectiveUser->hasActiveRole('ketua_tim') && ! ($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
             abort(403, 'Anda tidak memiliki akses untuk menambahkan alokasi pada kegiatan ini.');
         }
         // Validate that kegiatan has rate honors
@@ -674,7 +674,7 @@ class AlokasiPetugasController extends Controller
         $effectiveUser = effectiveUser($request);
 
         // Check if any kegiatan exists before allowing access
-        if ($effectiveUser->isKetuaTim()) {
+        if ($effectiveUser->hasActiveRole('ketua_tim')) {
             $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
                 ->where(function ($q) use ($effectiveUser) {
                     $q->where('ketua_tim_user_id', $effectiveUser->id)
@@ -690,7 +690,7 @@ class AlokasiPetugasController extends Controller
                 ->with('error', 'Tidak ada kegiatan yang tersedia untuk membuat periode alokasi.');
         }
 
-        if ($effectiveUser->isKetuaTim()) {
+        if ($effectiveUser->hasActiveRole('ketua_tim')) {
             $kegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
                 ->where(function ($q) use ($effectiveUser) {
                     $q->where('ketua_tim_user_id', $effectiveUser->id)
@@ -858,7 +858,7 @@ class AlokasiPetugasController extends Controller
                     if ($kegiatan) {
                         // Ketua Tim can only copy from their own kegiatan
                         $effectiveUser = effectiveUser($request);
-                        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
+                        if ($effectiveUser->hasActiveRole('ketua_tim') && ! ($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
                             // Don't copy data if ketua_tim tries to copy from other's kegiatan
                             $copiedAlokasi = null;
                             $sourcePeriode = null;
@@ -1545,7 +1545,7 @@ class AlokasiPetugasController extends Controller
 
         // Ketua Tim can only update alokasi for their own kegiatan
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && $kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
+        if ($effectiveUser->hasActiveRole('ketua_tim') && ! ($kegiatan->ketua_tim_user_id === $effectiveUser->id || $kegiatan->pj_lainnya_id === $effectiveUser->id)) {
             abort(403, 'Anda tidak memiliki akses untuk memperbarui alokasi kegiatan ini.');
         }
 
