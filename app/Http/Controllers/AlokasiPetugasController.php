@@ -1636,9 +1636,7 @@ class AlokasiPetugasController extends Controller
                 // Mark parent as 'direvisi'
                 $parentPeriode->update(['status' => 'direvisi']);
 
-                // Clear session
-                $request->session()->forget(['is_revisi_mode', 'revisi_parent_periode_id', 'revisi_kegiatan_id', 'revisi_tahun', 'revisi_bulan']);
-
+                // Session is cleared after commit to preserve revisi state if validation fails
                 // Now create alokasi for new periode (continue to loop below)
             } else {
                 // Normal edit - find existing periode
@@ -1781,6 +1779,21 @@ class AlokasiPetugasController extends Controller
             if (! empty($errors)) {
                 DB::rollBack();
 
+                $bulanNameErr = Carbon::create()->month((int) $bulan)->translatedFormat('F');
+                ActivityLog::logError(
+                    $isRevision ? 'Gagal Revisi Alokasi Periode' : 'Gagal Update Alokasi Periode',
+                    'alokasi',
+                    'Validasi alokasi gagal untuk '.$kegiatan->nama_kegiatan.' ('.$bulanNameErr.' '.$tahun.'): '.implode(' | ', $errors),
+                    [
+                        'kegiatan_id' => $kegiatan->id,
+                        'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                        'bulan' => $bulan,
+                        'tahun' => $tahun,
+                        'errors' => $errors,
+                        'is_revision' => $isRevision,
+                    ]
+                );
+
                 return redirect()->back()->withErrors([
                     'error' => 'Terdapat kesalahan pada alokasi petugas: '.implode(' | ', $errors),
                 ]);
@@ -1896,6 +1909,27 @@ class AlokasiPetugasController extends Controller
             }
 
             DB::commit();
+
+            // Clear revisi session only after successful commit
+            if ($isRevision) {
+                $request->session()->forget(['is_revisi_mode', 'revisi_parent_periode_id', 'revisi_kegiatan_id', 'revisi_tahun', 'revisi_bulan']);
+            }
+
+            $bulanName = Carbon::create()->month((int) $bulan)->translatedFormat('F');
+            ActivityLog::log(
+                $isRevision ? 'Revisi Alokasi Periode' : 'Update Alokasi Periode',
+                'alokasi',
+                'Berhasil '.($isRevision ? 'merevisi' : 'memperbarui').' alokasi '.$kegiatan->nama_kegiatan.' untuk '.$bulanName.' '.$tahun.' ('.$created.' petugas)',
+                'success',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                    'total_petugas' => $created,
+                    'is_revision' => $isRevision,
+                ]
+            );
 
             if (count($errors) > 0) {
                 return back()->withErrors(['validation' => $errors])
