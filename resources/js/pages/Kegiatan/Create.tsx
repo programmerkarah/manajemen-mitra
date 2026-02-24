@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
 
 
@@ -103,7 +103,7 @@ export default function Create({
             tanggal_selesai: data.tanggal_selesai,
         };
 
-        post('/kegiatan/store', transformedData, {
+        router.post('/kegiatan/store', transformedData, {
             preserveScroll: true,
         });
     };

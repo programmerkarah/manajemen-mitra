@@ -94,6 +94,14 @@ export default function Edit({
         return 0;
     }, [data.kegiatan_id, data.jumlah_satuan, kegiatans]);
 
+    // Get satuan name from selected kegiatan
+    const satuanName = useMemo(() => {
+        const selectedKegiatan = kegiatans.find(
+            (k) => k.id === data.kegiatan_id,
+        );
+        return selectedKegiatan?.rate_honor?.satuan?.nama || 'Satuan';
+    }, [data.kegiatan_id, kegiatans]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(`/alokasi/${alokasi.hashed_id}`);
@@ -316,8 +324,7 @@ export default function Edit({
                                 htmlFor="jumlah_satuan"
                                 className="text-base font-semibold"
                             >
-                                Jumlah{' '}
-                                {selectedRateHonor?.satuan.nama || 'Satuan'}{' '}
+                                Jumlah {satuanName}{' '}
                                 <span className="text-red-500">*</span>
                             </Label>
                             <Input

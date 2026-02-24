@@ -68,8 +68,10 @@ interface User {
 
 interface Filters {
     user_id?: string;
+    user?: string;
     action?: string;
     status?: string;
+    date?: string;
     date_from?: string;
     date_to?: string;
 }

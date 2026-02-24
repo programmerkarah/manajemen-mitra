@@ -827,7 +827,7 @@ export default function Dashboard({
                                             marginBottom: '4px',
                                         }}
                                         itemStyle={{ fontSize: '12px' }}
-                                        itemSorter={(item: { dataKey: string }) => {
+                                        itemSorter={(item) => {
                                             const order = [
                                                 'honor_0_500rb',
                                                 'honor_501rb_1500rb',
@@ -835,14 +835,14 @@ export default function Dashboard({
                                                 'honor_2501rb_3500rb',
                                                 'honor_lebih_3501rb',
                                             ];
-                                            return order.indexOf(item.dataKey);
+                                            return order.indexOf(item.dataKey as string);
                                         }}
                                     />
                                     <Legend
                                         wrapperStyle={{ paddingTop: '12px' }}
                                         iconType="square"
                                         iconSize={8}
-                                        itemSorter={(item: { dataKey: string }) => {
+                                        itemSorter={(item) => {
                                             const order = [
                                                 'honor_0_500rb',
                                                 'honor_501rb_1500rb',
@@ -850,7 +850,7 @@ export default function Dashboard({
                                                 'honor_2501rb_3500rb',
                                                 'honor_lebih_3501rb',
                                             ];
-                                            return order.indexOf(item.dataKey);
+                                            return order.indexOf(item.dataKey as string);
                                         }}
                                     />
                                     <Bar
