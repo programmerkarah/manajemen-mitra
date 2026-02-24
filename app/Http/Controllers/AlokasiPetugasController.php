@@ -439,12 +439,14 @@ class AlokasiPetugasController extends Controller
             }
 
             // Check petugas total honor in month across all assignments (skip if honor is 0)
-            if ($totalHonor > 0) {
+            // Include listing honor so the cumulative check uses the complete payout amount
+            $combinedNewHonor = $totalHonor + $totalHonorListing;
+            if ($combinedNewHonor > 0) {
                 $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
                     $alokasiData['petugas_id'],
                     $alokasiData['tahun'],
                     $alokasiData['bulan'],
-                    $totalHonor,
+                    $combinedNewHonor,
                     null,
                     $jenisPenugasan,
                     $alokasiData['jenis_kegiatan'],
@@ -957,6 +959,24 @@ class AlokasiPetugasController extends Controller
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
         }
 
+        // Check petugas monthly total honor across all kegiatan (including listing)
+        $combinedNewHonor = $totalHonor + ($totalHonorListing ?? 0);
+        if ($combinedNewHonor > 0) {
+            $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
+                $data['petugas_id'],
+                $data['tahun'],
+                $data['bulan'],
+                $combinedNewHonor,
+                null,
+                $rateHonor->jenis_penugasan,
+                $data['jenis_kegiatan'],
+                $rateHonor->status_kepegawaian
+            );
+            if ($petugasTotalError) {
+                return back()->withErrors(['sbml_constraint' => $petugasTotalError])->withInput();
+            }
+        }
+
         // Optionally check SBML for listing phase if needed
 
         $data['total_honor'] = $totalHonor;
@@ -1046,6 +1066,25 @@ class AlokasiPetugasController extends Controller
         );
         if ($constraintError) {
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
+        }
+
+        // Check petugas monthly total honor across all kegiatan (including listing)
+        // Exclude current alokasi's periode so it doesn't double-count itself
+        $combinedNewHonor = $totalHonor + ($totalHonorListing ?? 0);
+        if ($combinedNewHonor > 0) {
+            $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
+                $data['petugas_id'],
+                $data['tahun'],
+                $data['bulan'],
+                $combinedNewHonor,
+                $alokasi->periode_alokasi_id,
+                $rateHonor->jenis_penugasan,
+                $data['jenis_kegiatan'],
+                $rateHonor->status_kepegawaian
+            );
+            if ($petugasTotalError) {
+                return back()->withErrors(['sbml_constraint' => $petugasTotalError])->withInput();
+            }
         }
 
         $data['total_honor'] = $totalHonor;
@@ -1701,12 +1740,14 @@ class AlokasiPetugasController extends Controller
 
                 // Check petugas total honor in month across all assignments (skip if honor is 0)
                 // For edit/revision, exclude current periode from calculation
-                if ($totalHonor > 0) {
+                // Include listing honor so the cumulative check uses the complete payout amount
+                $combinedNewHonor = $totalHonor + $totalHonorListing;
+                if ($combinedNewHonor > 0) {
                     $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
                         $alokasiData['petugas_id'],
                         (int) $tahun,
                         (int) $bulan,
-                        $totalHonor,
+                        $combinedNewHonor,
                         $periode->id,
                         $jenisPenugasan,
                         $kegiatan->jenis_kegiatan,
@@ -1995,8 +2036,8 @@ class AlokasiPetugasController extends Controller
             ->where('petugas_id', $petugasId)
             ->get();
 
-        // Calculate existing total honor
-        $existingTotalHonor = $existingAlokasis->sum('total_honor');
+        // Calculate existing total honor — include both pencacahan AND listing honor
+        $existingTotalHonor = $existingAlokasis->sum(fn ($a) => ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0));
         $totalHonorInMonth = $existingTotalHonor + $newHonor;
 
         // Collect all jenis penugasan (peran) from existing allocations
