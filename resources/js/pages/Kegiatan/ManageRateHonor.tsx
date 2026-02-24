@@ -399,7 +399,8 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
 
         router.post(
             `/kegiatan/${kegiatan.hashed_id}/rate-honor/bulk`,
-            payload,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload as unknown as any,
             {
                 preserveScroll: true,
                 onSuccess: () => {

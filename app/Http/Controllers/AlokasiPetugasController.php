@@ -633,8 +633,8 @@ class AlokasiPetugasController extends Controller
 
             // Log the activity (use first periode for logging summary)
             if (! empty($periodeGroups)) {
-                $firstPeriode = $periodeGroups[0];
-                $bulanName = Carbon::create()->month($firstPeriode['bulan'])->translatedFormat('F');
+                $firstPeriode = array_values($periodeGroups)[0];
+                $bulanName = Carbon::create()->month((int) $firstPeriode['bulan'])->translatedFormat('F');
 
                 ActivityLog::log(
                     'Buat Alokasi Periode',
@@ -1197,7 +1197,7 @@ class AlokasiPetugasController extends Controller
             'submitted_at' => now(),
         ]);
 
-        $bulanName = Carbon::create()->month($bulan)->translatedFormat('F');
+        $bulanName = Carbon::create()->month((int) $bulan)->translatedFormat('F');
         $totalPetugas = $periode->alokasiPetugas()->count();
 
         ActivityLog::log(

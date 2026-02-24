@@ -33,7 +33,13 @@ export default function DatabaseStatus() {
         null,
     );
     const [backups, setBackups] = React.useState<
-        Array<{ name: string; size: string; modified: string }>
+        Array<{
+            filename: string;
+            size: string;
+            size_formatted: string;
+            modified: string;
+            created_at_formatted: string;
+        }>
     >([]);
     const [showBackupConfirm, setShowBackupConfirm] = React.useState(false);
     const [showRestoreConfirm, setShowRestoreConfirm] = React.useState(false);
