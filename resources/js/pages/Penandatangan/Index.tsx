@@ -21,31 +21,48 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    ChevronLeft,
-    ChevronRight,
-    Pencil,
-    Plus,
-    Search,
-    Trash2,
-    X,
-    User as UserIcon,
-    CreditCard,
     Briefcase,
     Calendar,
     CheckCircle2,
-    RefreshCw,
-    ChevronUp,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    CreditCard,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
+    User as UserIcon,
+    X,
 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
     { title: 'Penandatangan', href: '/penandatangan' },
 ];
+
+// SortIcon component declared outside to avoid recreation on each render
+const SortIcon = ({
+    field,
+    sortField,
+    sortDirection,
+}: {
+    field: string;
+    sortField: string;
+    sortDirection: 'asc' | 'desc';
+}) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+        <ChevronUp className="h-4 w-4" />
+    ) : (
+        <ChevronDown className="h-4 w-4" />
+    );
+};
 
 interface Penandatangan {
     id: number;
@@ -71,7 +88,7 @@ interface PenandatanganIndexProps {
             from: number;
             to: number;
         };
-        links: any[];
+        links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     filters: {
         encrypted?: string;
@@ -97,7 +114,9 @@ export default function Index({
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('');
     const [jenis, setJenis] = useState('');
-    const [sortField, setSortField] = useState<'nama' | 'nip' | 'jabatan'>('nama');
+    const [sortField, setSortField] = useState<'nama' | 'nip' | 'jabatan'>(
+        'nama',
+    );
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -114,27 +133,33 @@ export default function Index({
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: Penandatangan) => 
-                item.nama?.toLowerCase().includes(query) ||
-                item.nip?.toLowerCase().includes(query) ||
-                item.jabatan?.toLowerCase().includes(query)
+            result = result.filter(
+                (item: Penandatangan) =>
+                    item.nama?.toLowerCase().includes(query) ||
+                    item.nip?.toLowerCase().includes(query) ||
+                    item.jabatan?.toLowerCase().includes(query),
             );
         }
 
         // Filter by jenis
         if (jenis) {
-            result = result.filter((item: Penandatangan) => item.jenis_penandatangan === jenis);
+            result = result.filter(
+                (item: Penandatangan) => item.jenis_penandatangan === jenis,
+            );
         }
 
         // Filter by status
         if (status) {
             const isActive = status === 'aktif';
-            result = result.filter((item: Penandatangan) => item.is_active === isActive);
+            result = result.filter(
+                (item: Penandatangan) => item.is_active === isActive,
+            );
         }
 
         // Sort
         result.sort((a: Penandatangan, b: Penandatangan) => {
-            let aVal = '', bVal = '';
+            let aVal = '',
+                bVal = '';
             switch (sortField) {
                 case 'nip':
                     aVal = a.nip?.toLowerCase() || '';
@@ -159,7 +184,9 @@ export default function Index({
     }, [allPenandatangan, search, jenis, status, sortField, sortDirection]);
 
     // Client-side pagination
-    const totalPages = Math.ceil(filteredAndSortedPenandatangan.length / perPage);
+    const totalPages = Math.ceil(
+        filteredAndSortedPenandatangan.length / perPage,
+    );
     const paginatedPenandatangan = useMemo(() => {
         const start = (currentPage - 1) * perPage;
         const end = start + perPage;
@@ -176,7 +203,7 @@ export default function Index({
         router.reload({
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
-            }
+            },
         });
     };
 
@@ -187,13 +214,6 @@ export default function Index({
             setSortField(field);
             setSortDirection('asc');
         }
-    };
-
-    const SortIcon = ({ field }: { field: 'nama' | 'nip' | 'jabatan' }) => {
-        if (sortField !== field) return null;
-        return sortDirection === 'asc' ? 
-            <ChevronUp className="w-4 h-4" /> : 
-            <ChevronDown className="w-4 h-4" />;
     };
 
     const handleDeleteClick = (Penandatangan: Penandatangan) => {
@@ -240,13 +260,15 @@ export default function Index({
                     description="Kelola data Penandatangan untuk dokumen SK"
                 >
                     <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                         {!isPJ && (
@@ -323,67 +345,85 @@ export default function Index({
                     </div>
 
                     {/* Table */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex items-center justify-between">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPenandatangan.length)} dari {filteredAndSortedPenandatangan.length} data
-                            {(search || jenis || status) && ` (difilter dari ${allPenandatangan.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedPenandatangan.length,
+                            )}{' '}
+                            dari {filteredAndSortedPenandatangan.length} data
+                            {(search || jenis || status) &&
+                                ` (difilter dari ${allPenandatangan.length} total)`}
                         </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nama')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <UserIcon className="w-4 h-4" />
+                                            <UserIcon className="h-4 w-4" />
                                             Nama
-                                            <SortIcon field="nama" />
+                                            <SortIcon
+                                                field="nama"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nip')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <CreditCard className="w-4 h-4" />
+                                            <CreditCard className="h-4 w-4" />
                                             NIP
-                                            <SortIcon field="nip" />
+                                            <SortIcon
+                                                field="nip"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <Briefcase className="w-4 h-4" />
+                                            <Briefcase className="h-4 w-4" />
                                             Jenis
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('jabatan')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <Briefcase className="w-4 h-4" />
+                                            <Briefcase className="h-4 w-4" />
                                             Jabatan
-                                            <SortIcon field="jabatan" />
+                                            <SortIcon
+                                                field="jabatan"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-4 h-4" />
+                                            <Calendar className="h-4 w-4" />
                                             Periode Mulai
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-4 h-4" />
+                                            <Calendar className="h-4 w-4" />
                                             Periode Selesai
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <CheckCircle2 className="w-4 h-4" />
+                                            <CheckCircle2 className="h-4 w-4" />
                                             Status
                                         </div>
                                     </th>
@@ -403,8 +443,13 @@ export default function Index({
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                 <UserIcon className="h-12 w-12 opacity-20" />
-                                                <p className="font-medium">Tidak ada data penandatangan</p>
-                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                                <p className="font-medium">
+                                                    Tidak ada data penandatangan
+                                                </p>
+                                                <p className="text-xs">
+                                                    Coba ubah filter atau
+                                                    kriteria pencarian
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
@@ -417,8 +462,11 @@ export default function Index({
                                             >
                                                 <td className="px-3 py-3 text-sm">
                                                     <div className="flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                                                            {Penandatangan.nama?.charAt(0).toUpperCase() || 'P'}
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                            {Penandatangan.nama
+                                                                ?.charAt(0)
+                                                                .toUpperCase() ||
+                                                                'P'}
                                                         </div>
                                                         <div
                                                             className="max-w-xs truncate font-medium"
@@ -539,32 +587,54 @@ export default function Index({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.max(1, prev - 1),
+                                        )
+                                    }
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
 
                                 {/* Page Numbers */}
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter(page => {
-                                        return page === 1 || 
-                                               page === totalPages || 
-                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                )
+                                    .filter((page) => {
+                                        return (
+                                            page === 1 ||
+                                            page === totalPages ||
+                                            (page >= currentPage - 1 &&
+                                                page <= currentPage + 1)
+                                        );
                                     })
                                     .map((page, index, array) => {
                                         const prevPage = array[index - 1];
-                                        const showEllipsis = prevPage && page > prevPage + 1;
+                                        const showEllipsis =
+                                            prevPage && page > prevPage + 1;
 
                                         return (
-                                            <div key={page} className="flex items-center gap-1">
+                                            <div
+                                                key={page}
+                                                className="flex items-center gap-1"
+                                            >
                                                 {showEllipsis && (
-                                                    <span className="px-2 text-neutral-500">...</span>
+                                                    <span className="px-2 text-neutral-500">
+                                                        ...
+                                                    </span>
                                                 )}
                                                 <Button
-                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    variant={
+                                                        currentPage === page
+                                                            ? 'default'
+                                                            : 'outline'
+                                                    }
                                                     size="sm"
-                                                    onClick={() => setCurrentPage(page)}
+                                                    onClick={() =>
+                                                        setCurrentPage(page)
+                                                    }
                                                 >
                                                     {page}
                                                 </Button>
@@ -576,7 +646,11 @@ export default function Index({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.min(totalPages, prev + 1),
+                                        )
+                                    }
                                     disabled={currentPage === totalPages}
                                 >
                                     <ChevronRight className="h-4 w-4" />

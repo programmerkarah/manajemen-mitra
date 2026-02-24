@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Home, ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Home, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface ErrorProps {
@@ -13,35 +13,41 @@ export default function Error({ status }: ErrorProps) {
         setIsVisible(true);
     }, []);
 
-    const title = {
-        503: 'Service Unavailable',
-        500: 'Server Error',
-        404: 'Page Not Found',
-        403: 'Forbidden',
-    }[status] || 'An Error Occurred';
+    const title =
+        {
+            503: 'Service Unavailable',
+            500: 'Server Error',
+            404: 'Page Not Found',
+            403: 'Forbidden',
+        }[status] || 'An Error Occurred';
 
-    const description = {
-        503: 'Maaf, sistem sedang dalam perbaikan. Silakan coba lagi nanti.',
-        500: 'Maaf, terjadi kesalahan pada server. Tim kami sedang memperbaikinya.',
-        404: 'Maaf, halaman yang Anda cari tidak ditemukan atau telah dipindahkan.',
-        403: 'Maaf, Anda tidak memiliki izin untuk mengakses halaman ini.',
-    }[status] || 'Terjadi kesalahan yang tidak terduga.';
+    const description =
+        {
+            503: 'Maaf, sistem sedang dalam perbaikan. Silakan coba lagi nanti.',
+            500: 'Maaf, terjadi kesalahan pada server. Tim kami sedang memperbaikinya.',
+            404: 'Maaf, halaman yang Anda cari tidak ditemukan atau telah dipindahkan.',
+            403: 'Maaf, Anda tidak memiliki izin untuk mengakses halaman ini.',
+        }[status] || 'Terjadi kesalahan yang tidak terduga.';
 
     return (
         <>
             <Head title={`${status} - ${title}`} />
-            
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4 py-8 overflow-hidden relative">
+
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-8">
                 {/* Floating background elements */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="floating-circle absolute top-20 left-10 w-32 h-32 bg-blue-200 rounded-full opacity-20 blur-xl"></div>
-                    <div className="floating-circle-delayed absolute bottom-20 right-20 w-40 h-40 bg-purple-200 rounded-full opacity-20 blur-xl"></div>
-                    <div className="floating-circle-slow absolute top-1/2 left-1/4 w-24 h-24 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
+                <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <div className="floating-circle absolute top-20 left-10 h-32 w-32 rounded-full bg-blue-200 opacity-20 blur-xl"></div>
+                    <div className="floating-circle-delayed absolute right-20 bottom-20 h-40 w-40 rounded-full bg-purple-200 opacity-20 blur-xl"></div>
+                    <div className="floating-circle-slow absolute top-1/2 left-1/4 h-24 w-24 rounded-full bg-pink-200 opacity-20 blur-xl"></div>
                 </div>
 
-                <div className={`max-w-2xl w-full text-center relative z-10 transition-all duration-1000 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-                }`}>
+                <div
+                    className={`relative z-10 w-full max-w-2xl text-center transition-all duration-1000 ${
+                        isVisible
+                            ? 'translate-y-0 opacity-100'
+                            : 'translate-y-10 opacity-0'
+                    }`}
+                >
                     {/* Error Code Badge
                     <div className="mb-8 inline-block">
                         <div className="text-8xl font-bold text-blue-600 opacity-90 animate-pulse-slow">
@@ -53,11 +59,11 @@ export default function Error({ status }: ErrorProps) {
                     {status === 503 && (
                         <div className="mb-8 flex justify-center">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20 animate-pulse-slow"></div>
-                                <img 
-                                    src="/503.png" 
-                                    alt="503 Service Unavailable" 
-                                    className="w-64 h-64 object-contain relative z-10 animate-float"
+                                <div className="animate-pulse-slow absolute inset-0 rounded-full bg-blue-400 opacity-20 blur-3xl"></div>
+                                <img
+                                    src="/503.png"
+                                    alt="503 Service Unavailable"
+                                    className="animate-float relative z-10 h-64 w-64 object-contain"
                                 />
                             </div>
                         </div>
@@ -67,11 +73,11 @@ export default function Error({ status }: ErrorProps) {
                     {status === 404 && (
                         <div className="mb-8 flex justify-center">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20 animate-pulse-slow"></div>
-                                <img 
-                                    src="/404.png" 
-                                    alt="404 Not Found" 
-                                    className="w-64 h-64 object-contain relative z-10 animate-float"
+                                <div className="animate-pulse-slow absolute inset-0 rounded-full bg-blue-400 opacity-20 blur-3xl"></div>
+                                <img
+                                    src="/404.png"
+                                    alt="404 Not Found"
+                                    className="animate-float relative z-10 h-64 w-64 object-contain"
                                 />
                             </div>
                         </div>
@@ -81,11 +87,11 @@ export default function Error({ status }: ErrorProps) {
                     {status === 403 && (
                         <div className="mb-8 flex justify-center">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20 animate-pulse-slow"></div>
-                                <img 
-                                    src="/403.png" 
-                                    alt="403 Forbidden" 
-                                    className="w-64 h-64 object-contain relative z-10 animate-float"
+                                <div className="animate-pulse-slow absolute inset-0 rounded-full bg-blue-400 opacity-20 blur-3xl"></div>
+                                <img
+                                    src="/403.png"
+                                    alt="403 Forbidden"
+                                    className="animate-float relative z-10 h-64 w-64 object-contain"
                                 />
                             </div>
                         </div>
@@ -95,55 +101,55 @@ export default function Error({ status }: ErrorProps) {
                     {status === 500 && (
                         <div className="mb-8 flex justify-center">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20 animate-pulse-slow"></div>
-                                <img 
-                                    src="/500.png" 
-                                    alt="500 Server Error" 
-                                    className="w-64 h-64 object-contain relative z-10 animate-float"
+                                <div className="animate-pulse-slow absolute inset-0 rounded-full bg-blue-400 opacity-20 blur-3xl"></div>
+                                <img
+                                    src="/500.png"
+                                    alt="500 Server Error"
+                                    className="animate-float relative z-10 h-64 w-64 object-contain"
                                 />
                             </div>
                         </div>
                     )}
 
                     {/* Title */}
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4 animate-fade-in-up">
+                    <h1 className="animate-fade-in-up mb-4 text-4xl font-bold text-gray-800 md:text-5xl">
                         {title}
                     </h1>
 
                     {/* Description */}
-                    <p className="text-lg text-gray-600 mb-8 animate-fade-in-up animation-delay-200">
+                    <p className="animate-fade-in-up animation-delay-200 mb-8 text-lg text-gray-600">
                         {description}
                     </p>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up animation-delay-400">
+                    <div className="animate-fade-in-up animation-delay-400 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link
                             href="/"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                            className="inline-flex transform items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-blue-700 hover:shadow-xl"
                         >
-                            <Home className="w-5 h-5" />
+                            <Home className="h-5 w-5" />
                             Kembali ke Dashboard
                         </Link>
 
                         <button
                             onClick={() => window.history.back()}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-gray-200"
+                            className="inline-flex transform items-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 font-semibold text-gray-700 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-gray-50 hover:shadow-xl"
                         >
-                            <ArrowLeft className="w-5 h-5" />
+                            <ArrowLeft className="h-5 w-5" />
                             Halaman Sebelumnya
                         </button>
 
                         <button
                             onClick={() => window.location.reload()}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-gray-200"
+                            className="inline-flex transform items-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 font-semibold text-gray-700 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-gray-50 hover:shadow-xl"
                         >
-                            <RefreshCw className="w-5 h-5" />
+                            <RefreshCw className="h-5 w-5" />
                             Refresh
                         </button>
                     </div>
 
                     {/* Additional Help Text */}
-                    <div className="mt-12 text-sm text-gray-500 animate-fade-in animation-delay-600">
+                    <div className="animate-fade-in animation-delay-600 mt-12 text-sm text-gray-500">
                         <p>Butuh bantuan? Hubungi administrator sistem.</p>
                     </div>
                 </div>

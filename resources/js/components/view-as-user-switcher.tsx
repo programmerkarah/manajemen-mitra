@@ -31,11 +31,6 @@ export default function ViewAsUserSwitcher() {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Only show for rhmtzikri
-    if (!auth.canViewAsUser) {
-        return null;
-    }
-
     useEffect(() => {
         if (open && search.length > 0) {
             setLoading(true);
@@ -50,6 +45,11 @@ export default function ViewAsUserSwitcher() {
                 });
         }
     }, [search, open]);
+
+    // Only show for authorized users
+    if (!auth.canViewAsUser) {
+        return null;
+    }
 
     const handleSelectUser = (userId: number) => {
         router.post(

@@ -79,12 +79,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 ActivityLog::log(
                     action: 'Akses Ditolak',
                     type: 'security',
-                    description: 'Percobaan akses tanpa otorisasi: ' . $e->getMessage(),
+                    description: 'Percobaan akses tanpa otorisasi: '.$e->getMessage(),
                     status: 'error',
                     metadata: [
                         'url' => request()->fullUrl(),
                         'method' => request()->method(),
-                        'ip' => request()->ip()
+                        'ip' => request()->ip(),
                     ]
                 );
             } catch (Exception $logError) {
@@ -172,7 +172,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             $status = $response->getStatusCode();
-            
+
             // Only handle specific error codes with Inertia
             if (in_array($status, [404, 403, 500, 503]) && request()->wantsJson() === false) {
                 return Inertia::render('Error', ['status' => $status])

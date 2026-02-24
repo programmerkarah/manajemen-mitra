@@ -7,20 +7,24 @@ import { Key, LoaderCircle, ShieldCheck } from 'lucide-react';
 
 export default function Bypass() {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 px-4">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 px-4 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900">
             <Head title="Bypass Maintenance Mode" />
 
             <div className="w-full max-w-md">
-                <div className="bg-white dark:bg-zinc-800 shadow-xl rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden">
+                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 p-6 text-center">
-                        <div className="flex justify-center mb-3">
-                            <div className="bg-white/20 p-3 rounded-full">
-                                <ShieldCheck className="w-8 h-8 text-white" />
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center dark:from-blue-500 dark:to-blue-600">
+                        <div className="mb-3 flex justify-center">
+                            <div className="rounded-full bg-white/20 p-3">
+                                <ShieldCheck className="h-8 w-8 text-white" />
                             </div>
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-2">Bypass Maintenance Mode</h1>
-                        <p className="text-blue-100 text-sm">Masukkan kunci bypass untuk mengakses sistem</p>
+                        <h1 className="mb-2 text-2xl font-bold text-white">
+                            Bypass Maintenance Mode
+                        </h1>
+                        <p className="text-sm text-blue-100">
+                            Masukkan kunci bypass untuk mengakses sistem
+                        </p>
                     </div>
 
                     {/* Form */}
@@ -33,8 +37,11 @@ export default function Bypass() {
                             {({ processing, errors }) => (
                                 <>
                                     <div className="space-y-2">
-                                        <Label htmlFor="key" className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-2">
-                                            <Key className="w-4 h-4" />
+                                        <Label
+                                            htmlFor="key"
+                                            className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300"
+                                        >
+                                            <Key className="h-4 w-4" />
                                             Kunci Bypass
                                         </Label>
                                         <Input
@@ -44,31 +51,34 @@ export default function Bypass() {
                                             required
                                             autoFocus
                                             placeholder="Masukkan kunci bypass"
-                                            className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-zinc-600 focus:border-blue-500 focus:ring-blue-500/20 dark:focus:border-blue-400"
+                                            className="h-12 border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:focus:border-blue-400"
                                         />
                                         <InputError message={errors.key} />
                                     </div>
 
-                                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
                                         <p className="text-sm text-amber-800 dark:text-amber-200">
-                                            <strong>Informasi:</strong> Setelah bypass berhasil, Anda dapat mengakses sistem secara sementara. 
-                                            Sistem tetap dalam maintenance mode untuk pengguna lain.
+                                            <strong>Informasi:</strong> Setelah
+                                            bypass berhasil, Anda dapat
+                                            mengakses sistem secara sementara.
+                                            Sistem tetap dalam maintenance mode
+                                            untuk pengguna lain.
                                         </p>
                                     </div>
 
                                     <Button
                                         type="submit"
                                         disabled={processing}
-                                        className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold text-base shadow-lg transition-all"
+                                        className="h-12 w-full bg-blue-600 text-base font-semibold text-white shadow-lg transition-all hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                                     >
                                         {processing ? (
                                             <>
-                                                <LoaderCircle className="w-5 h-5 mr-2 animate-spin" />
+                                                <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
                                                 Memproses...
                                             </>
                                         ) : (
                                             <>
-                                                <ShieldCheck className="w-5 h-5 mr-2" />
+                                                <ShieldCheck className="mr-2 h-5 w-5" />
                                                 Bypass Sekarang
                                             </>
                                         )}
@@ -80,7 +90,7 @@ export default function Bypass() {
                 </div>
 
                 {/* Footer */}
-                <div className="text-center mt-6">
+                <div className="mt-6 text-center">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                         Akses terbatas hanya untuk administrator
                     </p>

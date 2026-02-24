@@ -11,13 +11,13 @@ import { useMemo } from 'react';
  * @example
  * const decryptedItems = useDecryptedData<ItemType>(data.encrypted);
  */
-export function useDecryptedData<T = any>(
+export function useDecryptedData<T = unknown>(
     encryptedData: string | null | undefined,
 ): T[] {
     return useMemo(() => {
         if (!encryptedData) return [];
 
-        const decrypted = decryptData(encryptedData);
+        const decrypted = decryptData<T[] | T>(encryptedData);
 
         if (!decrypted) {
             console.error('Failed to decrypt data');
@@ -37,13 +37,13 @@ export function useDecryptedData<T = any>(
  * @example
  * const decryptedItem = useDecryptedObject<ItemType>(data.encrypted);
  */
-export function useDecryptedObject<T = any>(
+export function useDecryptedObject<T = unknown>(
     encryptedData: string | null | undefined,
 ): T | null {
     return useMemo(() => {
         if (!encryptedData) return null;
 
-        const decrypted = decryptData(encryptedData);
+        const decrypted = decryptData<T>(encryptedData);
 
         if (!decrypted) {
             console.error('Failed to decrypt data');

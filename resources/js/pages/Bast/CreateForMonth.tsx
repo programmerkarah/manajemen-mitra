@@ -89,7 +89,7 @@ export default function CreateForMonth({
     spk_list,
 }: CreateForMonthProps) {
     const decryptedSpkList = useDecryptedData<SpkItem>(spk_list.encrypted);
-    
+
     // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir (ASC) kemudian nama petugas (A-Z)
     const sortedSpkList = [...decryptedSpkList].sort((a, b) => {
         // Compare by tanggal_berakhir_paling_akhir first
@@ -217,12 +217,12 @@ export default function CreateForMonth({
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
-                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Daftar Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                {sortedSpkList.length} Perjanjian Kerja belum memiliki BAST di
-                                periode ini
+                                {sortedSpkList.length} Perjanjian Kerja belum
+                                memiliki BAST di periode ini
                             </p>
                         </div>
                         <Button variant="outline" onClick={handleSelectAll}>
@@ -266,7 +266,8 @@ export default function CreateForMonth({
                                                     </Badge>
                                                 </div>
                                                 <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                                    Perjanjian Kerja: {spk.nomor_spk}
+                                                    Perjanjian Kerja:{' '}
+                                                    {spk.nomor_spk}
                                                 </p>
                                             </div>
                                             <div className="text-right">

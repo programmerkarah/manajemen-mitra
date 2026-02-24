@@ -15,10 +15,10 @@ class StorePetugasRequest extends FormRequest
         $user = $this->user();
         $hasRole = $user ? $user->hasActiveRole('admin') : false;
 
-        if (!$hasRole) {
+        if (! $hasRole) {
             Log::warning('❌ [AUTHORIZATION] User not authorized - missing admin role', [
                 'user_id' => $user?->id,
-                'active_role' => $user?->active_role ?? null
+                'active_role' => $user?->active_role ?? null,
             ]);
         }
 
@@ -49,7 +49,7 @@ class StorePetugasRequest extends FormRequest
     {
         Log::info('✅ [VALIDATION] Validation passed', [
             'validated_data' => $this->validated(),
-            'user_id' => $this->user()->id
+            'user_id' => $this->user()->id,
         ]);
     }
 

@@ -139,15 +139,15 @@ function formatDateTime(dateString: string | null): string {
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
     const { auth } = usePage<SharedData>().props;
-    const isKetuaTim = auth.activeRole?.name === 'ketua_tim' || auth.activeRole?.name === 'admin' || auth.activeRole?.name === 'operator';
+    const isKetuaTim =
+        auth.activeRole?.name === 'ketua_tim' ||
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'operator';
 
     // State untuk edit mode
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedData, setEditedData] = useState<
-        Record<
-            number,
-            { non_response?: number; non_response_listing?: number }
-        >
+        Record<number, { non_response?: number; non_response_listing?: number }>
     >({});
 
     // Check if ada alokasi dengan peran pendataan
@@ -366,10 +366,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                             <X className="mr-2 h-4 w-4" />
                                             Batal
                                         </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={handleSave}
-                                        >
+                                        <Button size="sm" onClick={handleSave}>
                                             <Save className="mr-2 h-4 w-4" />
                                             Simpan Non Response
                                         </Button>
@@ -519,7 +516,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                                 alokasi.peran ===
                                                                                     'pengawas_pengolahan'
                                                                             }
-                                                                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-700"
+                                                                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
                                                                         />
                                                                     ) : (
                                                                         <span className="text-neutral-900 dark:text-white">
@@ -631,7 +628,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                         alokasi.peran ===
                                                                             'pengawas_pengolahan'
                                                                     }
-                                                                    className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white disabled:bg-neutral-100 disabled:cursor-not-allowed dark:disabled:bg-neutral-700"
+                                                                    className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
                                                                 />
                                                             ) : (
                                                                 <span className="text-neutral-900 dark:text-white">

@@ -49,7 +49,7 @@ interface KepalaBps {
 interface KepalaBpsIndexProps {
     kepalaBpsList: {
         data: KepalaBps[];
-        links: any[];
+        links: Array<{ url: string | null; label: string; active: boolean }>;
         meta: any;
     };
     filters: {

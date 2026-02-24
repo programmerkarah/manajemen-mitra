@@ -180,7 +180,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             }
 
             const result = await response.json();
-            
+
             if (result.success) {
                 setSuccessMessage(
                     `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
@@ -191,7 +191,8 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 }, 2000);
             } else {
                 setModalMessage(
-                    result?.message || 'Gagal generate addendum Perjanjian Kerja',
+                    result?.message ||
+                        'Gagal generate addendum Perjanjian Kerja',
                 );
                 setShowFormModal(true);
             }
@@ -267,7 +268,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     failCount++;
                 }
             } catch (error) {
-                console.error('Error generating addendum for', petugasData.petugas.nama, error);
+                console.error(
+                    'Error generating addendum for',
+                    petugasData.petugas.nama,
+                    error,
+                );
                 failCount++;
             }
         }
@@ -286,7 +291,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         }
         setShowSuccessModal(true);
         setSelectedPetugas([]);
-        
+
         // Redirect to SPK index instead of reloading
         setTimeout(() => {
             window.location.href = '/spk';
@@ -332,9 +337,10 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         <div className="rounded-md border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <strong>Catatan:</strong> Anda akan membuat
-                                addendum Perjanjian Kerja untuk petugas yang sudah memiliki
-                                Perjanjian Kerja di bulan ini. Addendum akan mereferensikan
-                                Perjanjian Kerja asli dan menyimpan perubahan sebagai dokumen
+                                addendum Perjanjian Kerja untuk petugas yang
+                                sudah memiliki Perjanjian Kerja di bulan ini.
+                                Addendum akan mereferensikan Perjanjian Kerja
+                                asli dan menyimpan perubahan sebagai dokumen
                                 baru.
                             </p>
                         </div>

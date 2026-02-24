@@ -520,7 +520,8 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 <InputError message={errors['kode_coa']} />
                             )}
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Kode CoA akan digunakan dalam lampiran Perjanjian Kerja
+                                Kode CoA akan digunakan dalam lampiran
+                                Perjanjian Kerja
                             </p>
                         </div>
                     </div>

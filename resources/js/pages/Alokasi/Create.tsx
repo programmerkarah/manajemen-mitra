@@ -120,7 +120,8 @@ export default function Create({
     isViewMode = false,
 }: AlokasiCreateProps) {
     // Debug: Log petugas data
-    const pageProps = usePage<SharedData & { errors: Record<string, string> }>().props;
+    const pageProps = usePage<SharedData & { errors: Record<string, string> }>()
+        .props;
     const { auth, errors: backendErrors = {} } = pageProps;
     const errorAlertRef = useRef<HTMLDivElement>(null);
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
@@ -231,10 +232,18 @@ export default function Create({
         sourcePeriode?.tanggal_selesai_listing || '',
     );
     // Jadwal Pengolahan states
-    const [jadwalPengolahanListingMulai, setJadwalPengolahanListingMulai] = useState('');
-    const [jadwalPengolahanListingSelesai, setJadwalPengolahanListingSelesai] = useState('');
-    const [jadwalPengolahanPencacahanMulai, setJadwalPengolahanPencacahanMulai] = useState('');
-    const [jadwalPengolahanPencacahanSelesai, setJadwalPengolahanPencacahanSelesai] = useState('');
+    const [jadwalPengolahanListingMulai, setJadwalPengolahanListingMulai] =
+        useState('');
+    const [jadwalPengolahanListingSelesai, setJadwalPengolahanListingSelesai] =
+        useState('');
+    const [
+        jadwalPengolahanPencacahanMulai,
+        setJadwalPengolahanPencacahanMulai,
+    ] = useState('');
+    const [
+        jadwalPengolahanPencacahanSelesai,
+        setJadwalPengolahanPencacahanSelesai,
+    ] = useState('');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
@@ -659,7 +668,7 @@ export default function Create({
                 r.jenis_penugasan === jenisPenugasan,
         );
         if (!matchingRateHonor) return 0;
-        
+
         // Parse safely with fallback to 0
         const parsedJumlah = parseFloat(jumlahSatuan) || 0;
         return matchingRateHonor.rate * parsedJumlah;
@@ -700,7 +709,7 @@ export default function Create({
                 r.jenis_penugasan === jenisPenugasan,
         );
         if (!matchingRateHonor || !matchingRateHonor.rate_listing) return 0;
-        
+
         // Parse safely with fallback to 0
         const parsedJumlahListing = parseFloat(jumlahSatuanListing) || 0;
         return matchingRateHonor.rate_listing * parsedJumlahListing;
@@ -743,21 +752,24 @@ export default function Create({
 
                     const petugasId = String(alokasi.petugas_id || '');
                     const jumlahSatuan = String(alokasi.jumlah_satuan || 0);
-                    const jumlahSatuanListing = String(alokasi.jumlah_satuan_listing || 0);
-                    
+                    const jumlahSatuanListing = String(
+                        alokasi.jumlah_satuan_listing || 0,
+                    );
+
                     // Recalculate estimasi honor instead of using stored values
                     const recalculatedEstimasi = calculateEstimasi(
                         petugasId,
                         peranDisplay,
                         jumlahSatuan,
                     );
-                    
-                    const recalculatedEstimasiListing = calculateEstimasiListing(
-                        petugasId,
-                        peranDisplay,
-                        jumlahSatuanListing,
-                    );
-                    
+
+                    const recalculatedEstimasiListing =
+                        calculateEstimasiListing(
+                            petugasId,
+                            peranDisplay,
+                            jumlahSatuanListing,
+                        );
+
                     currentItems.push({
                         petugas_id: petugasId,
                         peran: peranDisplay,
@@ -941,10 +953,14 @@ export default function Create({
                 tahapan === 'both' || tahapan === 'listing_only'
                     ? tanggalSelesaiListing || undefined
                     : undefined,
-            jadwal_pengolahan_listing_mulai: jadwalPengolahanListingMulai || undefined,
-            jadwal_pengolahan_listing_selesai: jadwalPengolahanListingSelesai || undefined,
-            jadwal_pengolahan_pencacahan_mulai: jadwalPengolahanPencacahanMulai || undefined,
-            jadwal_pengolahan_pencacahan_selesai: jadwalPengolahanPencacahanSelesai || undefined,
+            jadwal_pengolahan_listing_mulai:
+                jadwalPengolahanListingMulai || undefined,
+            jadwal_pengolahan_listing_selesai:
+                jadwalPengolahanListingSelesai || undefined,
+            jadwal_pengolahan_pencacahan_mulai:
+                jadwalPengolahanPencacahanMulai || undefined,
+            jadwal_pengolahan_pencacahan_selesai:
+                jadwalPengolahanPencacahanSelesai || undefined,
             alokasi: alokasiItems.map((item) => {
                 const base = {
                     petugas_id: item.petugas_id,
@@ -1264,11 +1280,18 @@ export default function Create({
                                 Validasi Gagal
                             </h3>
                             <div className="mt-2 space-y-1">
-                                {Object.entries(allErrors).map(([key, value]) => (
-                                    <div key={key} className="text-sm whitespace-pre-line text-red-700 dark:text-red-400">
-                                        {typeof value === 'string' ? value : JSON.stringify(value)}
-                                    </div>
-                                ))}
+                                {Object.entries(allErrors).map(
+                                    ([key, value]) => (
+                                        <div
+                                            key={key}
+                                            className="text-sm whitespace-pre-line text-red-700 dark:text-red-400"
+                                        >
+                                            {typeof value === 'string'
+                                                ? value
+                                                : JSON.stringify(value)}
+                                        </div>
+                                    ),
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1647,95 +1670,129 @@ export default function Create({
                                 </div>
 
                                 {/* Jadwal Pengolahan Section - Show conditionally based on rate honor having pengolahan role */}
-                                {selectedKegiatan?.rate_honors?.some(r => 
-                                    r.jenis_penugasan === 'pengolahan' || r.jenis_penugasan === 'pengawas_pengolahan'
+                                {selectedKegiatan?.rate_honors?.some(
+                                    (r) =>
+                                        r.jenis_penugasan === 'pengolahan' ||
+                                        r.jenis_penugasan ===
+                                            'pengawas_pengolahan',
                                 ) && (
                                     <>
                                         {/* Jadwal Pengolahan Listing */}
-                                        {(tahapan === 'both' || tahapan === 'listing_only') && selectedKegiatan?.has_listing_updating && (
-                                            <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
-                                                <h5 className="mb-3 text-sm font-semibold text-purple-900 dark:text-purple-300">
-                                                    Jadwal Pengolahan Listing (Opsional)
-                                                </h5>
-                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="jadwal_pengolahan_listing_mulai">
-                                                            Tanggal Mulai Pengolahan Listing
-                                                        </Label>
-                                                        <Input
-                                                            type="date"
-                                                            id="jadwal_pengolahan_listing_mulai"
-                                                            value={jadwalPengolahanListingMulai}
-                                                            onChange={(e) =>
-                                                                setJadwalPengolahanListingMulai(
-                                                                    e.target.value,
-                                                                )
-                                                            }
-                                                            disabled={isViewMode}
-                                                            className={
-                                                                isViewMode
-                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                    : ''
-                                                            }
-                                                        />
-                                                        {allErrors.jadwal_pengolahan_listing_mulai && (
-                                                            <p className="text-sm text-red-500">
-                                                                {allErrors.jadwal_pengolahan_listing_mulai}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="jadwal_pengolahan_listing_selesai">
-                                                            Tanggal Selesai Pengolahan Listing
-                                                        </Label>
-                                                        <Input
-                                                            type="date"
-                                                            id="jadwal_pengolahan_listing_selesai"
-                                                            value={jadwalPengolahanListingSelesai}
-                                                            onChange={(e) =>
-                                                                setJadwalPengolahanListingSelesai(
-                                                                    e.target.value,
-                                                                )
-                                                            }
-                                                            min={jadwalPengolahanListingMulai}
-                                                            disabled={isViewMode}
-                                                            className={
-                                                                isViewMode
-                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                    : ''
-                                                            }
-                                                        />
-                                                        {allErrors.jadwal_pengolahan_listing_selesai && (
-                                                            <p className="text-sm text-red-500">
-                                                                {allErrors.jadwal_pengolahan_listing_selesai}
-                                                            </p>
-                                                        )}
+                                        {(tahapan === 'both' ||
+                                            tahapan === 'listing_only') &&
+                                            selectedKegiatan?.has_listing_updating && (
+                                                <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+                                                    <h5 className="mb-3 text-sm font-semibold text-purple-900 dark:text-purple-300">
+                                                        Jadwal Pengolahan
+                                                        Listing (Opsional)
+                                                    </h5>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="jadwal_pengolahan_listing_mulai">
+                                                                Tanggal Mulai
+                                                                Pengolahan
+                                                                Listing
+                                                            </Label>
+                                                            <Input
+                                                                type="date"
+                                                                id="jadwal_pengolahan_listing_mulai"
+                                                                value={
+                                                                    jadwalPengolahanListingMulai
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setJadwalPengolahanListingMulai(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                                className={
+                                                                    isViewMode
+                                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                        : ''
+                                                                }
+                                                            />
+                                                            {allErrors.jadwal_pengolahan_listing_mulai && (
+                                                                <p className="text-sm text-red-500">
+                                                                    {
+                                                                        allErrors.jadwal_pengolahan_listing_mulai
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="jadwal_pengolahan_listing_selesai">
+                                                                Tanggal Selesai
+                                                                Pengolahan
+                                                                Listing
+                                                            </Label>
+                                                            <Input
+                                                                type="date"
+                                                                id="jadwal_pengolahan_listing_selesai"
+                                                                value={
+                                                                    jadwalPengolahanListingSelesai
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setJadwalPengolahanListingSelesai(
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                min={
+                                                                    jadwalPengolahanListingMulai
+                                                                }
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                                className={
+                                                                    isViewMode
+                                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                        : ''
+                                                                }
+                                                            />
+                                                            {allErrors.jadwal_pengolahan_listing_selesai && (
+                                                                <p className="text-sm text-red-500">
+                                                                    {
+                                                                        allErrors.jadwal_pengolahan_listing_selesai
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
 
                                         {/* Jadwal Pengolahan Pencacahan */}
-                                        {(tahapan === 'both' || tahapan === 'pencacahan_only') && (
+                                        {(tahapan === 'both' ||
+                                            tahapan === 'pencacahan_only') && (
                                             <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
                                                 <h5 className="mb-3 text-sm font-semibold text-orange-900 dark:text-orange-300">
-                                                    Jadwal Pengolahan Pencacahan Lapangan (Opsional)
+                                                    Jadwal Pengolahan Pencacahan
+                                                    Lapangan (Opsional)
                                                 </h5>
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                     <div className="space-y-2">
                                                         <Label htmlFor="jadwal_pengolahan_pencacahan_mulai">
-                                                            Tanggal Mulai Pengolahan
+                                                            Tanggal Mulai
+                                                            Pengolahan
                                                         </Label>
                                                         <Input
                                                             type="date"
                                                             id="jadwal_pengolahan_pencacahan_mulai"
-                                                            value={jadwalPengolahanPencacahanMulai}
+                                                            value={
+                                                                jadwalPengolahanPencacahanMulai
+                                                            }
                                                             onChange={(e) =>
                                                                 setJadwalPengolahanPencacahanMulai(
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
-                                                            disabled={isViewMode}
+                                                            disabled={
+                                                                isViewMode
+                                                            }
                                                             className={
                                                                 isViewMode
                                                                     ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
@@ -1744,25 +1801,35 @@ export default function Create({
                                                         />
                                                         {allErrors.jadwal_pengolahan_pencacahan_mulai && (
                                                             <p className="text-sm text-red-500">
-                                                                {allErrors.jadwal_pengolahan_pencacahan_mulai}
+                                                                {
+                                                                    allErrors.jadwal_pengolahan_pencacahan_mulai
+                                                                }
                                                             </p>
                                                         )}
                                                     </div>
                                                     <div className="space-y-2">
                                                         <Label htmlFor="jadwal_pengolahan_pencacahan_selesai">
-                                                            Tanggal Selesai Pengolahan
+                                                            Tanggal Selesai
+                                                            Pengolahan
                                                         </Label>
                                                         <Input
                                                             type="date"
                                                             id="jadwal_pengolahan_pencacahan_selesai"
-                                                            value={jadwalPengolahanPencacahanSelesai}
+                                                            value={
+                                                                jadwalPengolahanPencacahanSelesai
+                                                            }
                                                             onChange={(e) =>
                                                                 setJadwalPengolahanPencacahanSelesai(
-                                                                    e.target.value,
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
-                                                            min={jadwalPengolahanPencacahanMulai}
-                                                            disabled={isViewMode}
+                                                            min={
+                                                                jadwalPengolahanPencacahanMulai
+                                                            }
+                                                            disabled={
+                                                                isViewMode
+                                                            }
                                                             className={
                                                                 isViewMode
                                                                     ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
@@ -1771,7 +1838,9 @@ export default function Create({
                                                         />
                                                         {allErrors.jadwal_pengolahan_pencacahan_selesai && (
                                                             <p className="text-sm text-red-500">
-                                                                {allErrors.jadwal_pengolahan_pencacahan_selesai}
+                                                                {
+                                                                    allErrors.jadwal_pengolahan_pencacahan_selesai
+                                                                }
                                                             </p>
                                                         )}
                                                     </div>

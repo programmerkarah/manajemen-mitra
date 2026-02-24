@@ -25,7 +25,7 @@ class LogRequests
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
-            Log::info('📤 [RESPONSE OUT] ' . $requestId, [
+            Log::info('📤 [RESPONSE OUT] '.$requestId, [
                 'status' => $response->getStatusCode(),
                 'duration_ms' => $duration,
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),

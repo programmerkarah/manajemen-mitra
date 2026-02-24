@@ -622,12 +622,17 @@ export default function Show({
                                 {spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            {spk.signed_file_path ? 'Perjanjian Kerja Bertandatangan' : 'Perjanjian Kerja Terbaru'}
+                                            {spk.signed_file_path
+                                                ? 'Perjanjian Kerja Bertandatangan'
+                                                : 'Perjanjian Kerja Terbaru'}
                                         </Label>
                                         <Button
                                             variant="default"
                                             onClick={() =>
-                                                handleDownload(spk.signed_file_path || spk.file_path!)
+                                                handleDownload(
+                                                    spk.signed_file_path ||
+                                                        spk.file_path!,
+                                                )
                                             }
                                             className="w-full"
                                         >
@@ -641,19 +646,19 @@ export default function Show({
                                 {spk.signed_file_path && spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            Perjanjian Kerja Terbaru (Belum Ditandatangani)
+                                            Perjanjian Kerja Terbaru (Belum
+                                            Ditandatangani)
                                         </Label>
                                         <Button
                                             variant="outline"
                                             onClick={() =>
-                                                handleDownload(
-                                                    spk.file_path!,
-                                                )
+                                                handleDownload(spk.file_path!)
                                             }
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download Perjanjian Kerja Belum Bertanda Tangan
+                                            Download Perjanjian Kerja Belum
+                                            Bertanda Tangan
                                         </Button>
                                     </div>
                                 )}
@@ -662,7 +667,8 @@ export default function Show({
                                 {spk.previous_file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            Perjanjian Kerja Bertanda Tangan Sebelumnya
+                                            Perjanjian Kerja Bertanda Tangan
+                                            Sebelumnya
                                         </Label>
                                         <Button
                                             variant="outline"
@@ -689,7 +695,8 @@ export default function Show({
                                 {canEdit && spk.file_path && (
                                     <div className="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                                         <Label className="mb-2 block text-xs text-neutral-600 dark:text-neutral-400">
-                                            Upload Perjanjian Kerja yang Sudah Ditandatangani
+                                            Upload Perjanjian Kerja yang Sudah
+                                            Ditandatangani
                                         </Label>
                                         <label
                                             htmlFor="upload-signed"
@@ -757,8 +764,8 @@ export default function Show({
                                 Download Semua Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Download semua Perjanjian Kerja untuk semua petugas di
-                                periode {bulanLabels[periode.bulan]}{' '}
+                                Download semua Perjanjian Kerja untuk semua
+                                petugas di periode {bulanLabels[periode.bulan]}{' '}
                                 {periode.tahun}
                             </p>
                             <Button
@@ -779,7 +786,9 @@ export default function Show({
                                     Download Perjanjian Kerja per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Download Perjanjian Kerja yang sudah ditandatangani untuk petugas pada kegiatan tertentu
+                                    Download Perjanjian Kerja yang sudah
+                                    ditandatangani untuk petugas pada kegiatan
+                                    tertentu
                                 </p>
                                 <div className="space-y-2">
                                     {kegiatanListForDownload.map((kegiatan) => (
@@ -798,10 +807,19 @@ export default function Show({
                                                     <Download className="mr-2 h-4 w-4" />
                                                     <div className="flex-1 text-left">
                                                         <div className="font-medium">
-                                                            {kegiatan.nama_kegiatan}
+                                                            {
+                                                                kegiatan.nama_kegiatan
+                                                            }
                                                         </div>
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {kegiatan.kode_kegiatan} • {kegiatan.jumlah_spk} Perjanjian Kerja
+                                                            {
+                                                                kegiatan.kode_kegiatan
+                                                            }{' '}
+                                                            •{' '}
+                                                            {
+                                                                kegiatan.jumlah_spk
+                                                            }{' '}
+                                                            Perjanjian Kerja
                                                         </div>
                                                     </div>
                                                 </Button>
@@ -809,14 +827,24 @@ export default function Show({
                                                 <div className="flex w-full items-center justify-between rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-700">
                                                     <div className="flex-1">
                                                         <div className="font-medium text-neutral-700 dark:text-neutral-300">
-                                                            {kegiatan.nama_kegiatan}
+                                                            {
+                                                                kegiatan.nama_kegiatan
+                                                            }
                                                         </div>
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {kegiatan.kode_kegiatan} • {kegiatan.jumlah_spk} Perjanjian Kerja
+                                                            {
+                                                                kegiatan.kode_kegiatan
+                                                            }{' '}
+                                                            •{' '}
+                                                            {
+                                                                kegiatan.jumlah_spk
+                                                            }{' '}
+                                                            Perjanjian Kerja
                                                         </div>
                                                     </div>
                                                     <span className="text-xs text-orange-600 dark:text-orange-400">
-                                                        Belum semua bertanda tangan
+                                                        Belum semua bertanda
+                                                        tangan
                                                     </span>
                                                 </div>
                                             )}

@@ -193,7 +193,8 @@ export default function List({
                                             colSpan={7}
                                             className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
                                         >
-                                            Tidak ada Perjanjian Kerja untuk periode ini
+                                            Tidak ada Perjanjian Kerja untuk
+                                            periode ini
                                         </td>
                                     </tr>
                                 ) : (

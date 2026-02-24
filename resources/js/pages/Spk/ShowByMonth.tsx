@@ -358,8 +358,6 @@ export default function ShowByMonth({
                 title={`Detail Perjanjian Kerja ${bulan_label} ${tahun}`}
             ></PageHeader>
 
-
-
             <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
                 {/* Sidebar - Petugas List */}
                 <div className="w-full min-w-0 md:col-span-1">

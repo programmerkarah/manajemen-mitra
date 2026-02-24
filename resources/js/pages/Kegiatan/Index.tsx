@@ -11,25 +11,24 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    Select,
-    SelectTrigger,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
-import {
     Check,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ChevronUp,
-    ChevronDown,
     Copy,
     Eye,
     Pencil,
@@ -40,7 +39,7 @@ import {
     Send,
     X,
 } from 'lucide-react';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -77,7 +76,7 @@ interface KegiatanIndexProps {
             from: number;
             to: number;
         };
-        links: any[];
+        links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     filters: {
         encrypted?: string;
@@ -101,7 +100,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('');
-    const [sortField, setSortField] = useState<'nama_kegiatan' | 'tahun_anggaran' | 'status'>('nama_kegiatan');
+    const [sortField, setSortField] = useState<
+        'nama_kegiatan' | 'tahun_anggaran' | 'status'
+    >('nama_kegiatan');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -122,10 +123,11 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: Kegiatan) => 
-                item.nama_kegiatan?.toLowerCase().includes(query) ||
-                item.kode_kegiatan?.toLowerCase().includes(query) ||
-                item.ketua_tim?.name?.toLowerCase().includes(query)
+            result = result.filter(
+                (item: Kegiatan) =>
+                    item.nama_kegiatan?.toLowerCase().includes(query) ||
+                    item.kode_kegiatan?.toLowerCase().includes(query) ||
+                    item.ketua_tim?.name?.toLowerCase().includes(query),
             );
         }
 
@@ -136,7 +138,8 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
         // Sort
         result.sort((a: Kegiatan, b: Kegiatan) => {
-            let aVal: any = '', bVal: any = '';
+            let aVal: any = '',
+                bVal: any = '';
             switch (sortField) {
                 case 'tahun_anggaran':
                     aVal = a.tahun_anggaran || 0;
@@ -182,7 +185,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         });
     };
 
-    const handleSort = (field: 'nama_kegiatan' | 'tahun_anggaran' | 'status') => {
+    const handleSort = (
+        field: 'nama_kegiatan' | 'tahun_anggaran' | 'status',
+    ) => {
         if (sortField === field) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
@@ -191,12 +196,16 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
         }
     };
 
-    const SortIcon = ({ field }: { field: 'nama_kegiatan' | 'tahun_anggaran' | 'status' }) => {
+    const SortIcon = ({
+        field,
+    }: {
+        field: 'nama_kegiatan' | 'tahun_anggaran' | 'status';
+    }) => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="h-4 w-4" />
         ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="h-4 w-4" />
         );
     };
 
@@ -401,15 +410,28 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                 >
                                     Status
                                 </Label>
-                                <Select value={status || 'all'} onValueChange={v => setStatus(v === 'all' ? '' : v)}>
+                                <Select
+                                    value={status || 'all'}
+                                    onValueChange={(v) =>
+                                        setStatus(v === 'all' ? '' : v)
+                                    }
+                                >
                                     <SelectTrigger className="h-10 w-full">
                                         <SelectValue placeholder="Semua Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Semua Status</SelectItem>
-                                        <SelectItem value="draft">Draft</SelectItem>
-                                        <SelectItem value="divalidasi">Divalidasi</SelectItem>
-                                        <SelectItem value="selesai">Selesai</SelectItem>
+                                        <SelectItem value="all">
+                                            Semua Status
+                                        </SelectItem>
+                                        <SelectItem value="draft">
+                                            Draft
+                                        </SelectItem>
+                                        <SelectItem value="divalidasi">
+                                            Divalidasi
+                                        </SelectItem>
+                                        <SelectItem value="selesai">
+                                            Selesai
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -432,9 +454,15 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-
-                            {Math.min(currentPage * perPage, filteredAndSortedKegiatans.length)} dari {filteredAndSortedKegiatans.length} data
-                            {filteredAndSortedKegiatans.length !== allKegiatans.length && ` (difilter dari ${allKegiatans.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedKegiatans.length,
+                            )}{' '}
+                            dari {filteredAndSortedKegiatans.length} data
+                            {filteredAndSortedKegiatans.length !==
+                                allKegiatans.length &&
+                                ` (difilter dari ${allKegiatans.length} total)`}
                         </p>
                         <Button
                             type="button"
@@ -443,7 +471,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                     </div>
@@ -454,18 +484,22 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Kode
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('nama_kegiatan')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('nama_kegiatan')
+                                        }
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Nama Kegiatan
                                             <SortIcon field="nama_kegiatan" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('tahun_anggaran')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('tahun_anggaran')
+                                        }
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tahun
@@ -478,8 +512,8 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('status')}
                                     >
                                         <div className="flex items-center justify-center gap-1">
@@ -502,7 +536,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             <div className="flex flex-col items-center gap-2">
                                                 <Search className="h-8 w-8 text-neutral-400" />
                                                 <p>
-                                                    {filteredAndSortedKegiatans.length === 0 && allKegiatans.length > 0
+                                                    {filteredAndSortedKegiatans.length ===
+                                                        0 &&
+                                                    allKegiatans.length > 0
                                                         ? 'Tidak ada data yang sesuai dengan filter'
                                                         : 'Tidak ada kegiatan yang ditemukan'}
                                                 </p>
@@ -528,7 +564,12 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-3 py-3 text-right text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {formatCurrency(
-                                                    (Number(kegiatan.pagu_pencacahan) || 0) + (Number(kegiatan.pagu_listing) || 0),
+                                                    (Number(
+                                                        kegiatan.pagu_pencacahan,
+                                                    ) || 0) +
+                                                        (Number(
+                                                            kegiatan.pagu_listing,
+                                                        ) || 0),
                                                 )}
                                             </td>
                                             <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400">
@@ -668,16 +709,25 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    onClick={() =>
+                                        setCurrentPage(currentPage - 1)
+                                    }
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((page) => (
                                     <Button
                                         key={page}
                                         type="button"
-                                        variant={currentPage === page ? 'default' : 'outline'}
+                                        variant={
+                                            currentPage === page
+                                                ? 'default'
+                                                : 'outline'
+                                        }
                                         size="sm"
                                         onClick={() => setCurrentPage(page)}
                                     >
@@ -688,7 +738,9 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    onClick={() =>
+                                        setCurrentPage(currentPage + 1)
+                                    }
                                     disabled={currentPage === totalPages}
                                 >
                                     <ChevronRight className="h-4 w-4" />

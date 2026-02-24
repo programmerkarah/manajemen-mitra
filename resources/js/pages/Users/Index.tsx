@@ -16,15 +16,47 @@ import { Input } from '@/components/ui/input';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Pencil, Search, X, User as UserIcon, Mail, Shield, CheckCircle2, Clock, RefreshCw, UserRoundCog, MailQuestion, ChevronUp, ChevronDown } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import {
+    CheckCircle2,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    Mail,
+    MailQuestion,
+    Pencil,
+    RefreshCw,
+    Search,
+    Shield,
+    User as UserIcon,
+    UserRoundCog,
+    X,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Manajemen User', href: '/users' },
 ];
+
+// SortIcon component declared outside to avoid recreation on each render
+const SortIcon = ({
+    field,
+    sortField,
+    sortDirection,
+}: {
+    field: string;
+    sortField: string;
+    sortDirection: 'asc' | 'desc';
+}) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+        <ChevronUp className="h-4 w-4" />
+    ) : (
+        <ChevronDown className="h-4 w-4" />
+    );
+};
 
 interface Role {
     id: number;
@@ -73,7 +105,9 @@ export default function Index({ users, filters }: UsersIndexProps) {
     const allUsers = useDecryptedData<User>(users.encrypted);
 
     const [search, setSearch] = useState('');
-    const [sortField, setSortField] = useState<'name' | 'username' | 'email'>('name');
+    const [sortField, setSortField] = useState<'name' | 'username' | 'email'>(
+        'name',
+    );
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -86,17 +120,21 @@ export default function Index({ users, filters }: UsersIndexProps) {
         // Filter
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((user: User) => 
-                user.name?.toLowerCase().includes(query) ||
-                user.username?.toLowerCase().includes(query) ||
-                user.email?.toLowerCase().includes(query) ||
-                user.roles?.some((role: Role) => role.display_name?.toLowerCase().includes(query))
+            result = result.filter(
+                (user: User) =>
+                    user.name?.toLowerCase().includes(query) ||
+                    user.username?.toLowerCase().includes(query) ||
+                    user.email?.toLowerCase().includes(query) ||
+                    user.roles?.some((role: Role) =>
+                        role.display_name?.toLowerCase().includes(query),
+                    ),
             );
         }
 
         // Sort
         result.sort((a: User, b: User) => {
-            let aVal = '', bVal = '';
+            let aVal = '',
+                bVal = '';
             switch (sortField) {
                 case 'username':
                     aVal = a.username?.toLowerCase() || '';
@@ -138,7 +176,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
         router.reload({
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
-            }
+            },
         });
     };
 
@@ -151,13 +189,6 @@ export default function Index({ users, filters }: UsersIndexProps) {
         }
     };
 
-    const SortIcon = ({ field }: { field: 'name' | 'username' | 'email' }) => {
-        if (sortField !== field) return null;
-        return sortDirection === 'asc' ? 
-            <ChevronUp className="w-4 h-4" /> : 
-            <ChevronDown className="w-4 h-4" />;
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Manajemen User" />
@@ -168,13 +199,15 @@ export default function Index({ users, filters }: UsersIndexProps) {
                     title="Manajemen User"
                     description="Kelola role dan hak akses pengguna sistem"
                 >
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleRefresh}
                         disabled={isRefreshing}
                     >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                            className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                        />
                         Refresh
                     </Button>
                 </PageHeader>
@@ -212,65 +245,83 @@ export default function Index({ users, filters }: UsersIndexProps) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedUsers.length)} dari {filteredAndSortedUsers.length} user
-                            {search && ` (difilter dari ${allUsers.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedUsers.length,
+                            )}{' '}
+                            dari {filteredAndSortedUsers.length} user
+                            {search &&
+                                ` (difilter dari ${allUsers.length} total)`}
                         </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('name')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <UserIcon className="w-4 h-4" />
+                                            <UserIcon className="h-4 w-4" />
                                             Nama
-                                            <SortIcon field="name" />
+                                            <SortIcon
+                                                field="name"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('username')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <UserIcon className="w-4 h-4" />
+                                            <UserIcon className="h-4 w-4" />
                                             Username
-                                            <SortIcon field="username" />
+                                            <SortIcon
+                                                field="username"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('email')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <Mail className="w-4 h-4" />
+                                            <Mail className="h-4 w-4" />
                                             Email
-                                            <SortIcon field="email" />
+                                            <SortIcon
+                                                field="email"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <UserRoundCog className="w-4 h-4" />
+                                            <UserRoundCog className="h-4 w-4" />
                                             Role
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <CheckCircle2 className="w-4 h-4" />
+                                            <CheckCircle2 className="h-4 w-4" />
                                             Status
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <MailQuestion className="w-4 h-4" />
+                                            <MailQuestion className="h-4 w-4" />
                                             Verifikasi Email
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <Shield className="w-4 h-4" />
+                                            <Shield className="h-4 w-4" />
                                             2FA
                                         </div>
                                     </th>
@@ -289,9 +340,13 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                 <UserIcon className="h-12 w-12 opacity-20" />
                                                 <p className="font-medium">
-                                                    Tidak ada user yang ditemukan
+                                                    Tidak ada user yang
+                                                    ditemukan
                                                 </p>
-                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                                <p className="text-xs">
+                                                    Coba ubah filter atau
+                                                    kriteria pencarian
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
@@ -303,8 +358,11 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                         >
                                             <td className="px-3 py-3 text-sm">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                                                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                        {user.name
+                                                            ?.charAt(0)
+                                                            .toUpperCase() ||
+                                                            'U'}
                                                     </div>
                                                     <div
                                                         className="max-w-xs truncate font-medium"
@@ -413,7 +471,9 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                                                     type="hidden"
                                                                     name="_token"
                                                                     value={
-                                                                        (window as any)
+                                                                        (
+                                                                            window as any
+                                                                        )
                                                                             ?.Laravel
                                                                             ?.csrfToken ||
                                                                         document
@@ -474,33 +534,51 @@ export default function Index({ users, filters }: UsersIndexProps) {
                                 <div className="flex items-center gap-1">
                                     {/* Previous Button */}
                                     <button
-                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        onClick={() =>
+                                            setCurrentPage((prev) =>
+                                                Math.max(1, prev - 1),
+                                            )
+                                        }
                                         disabled={currentPage === 1}
-                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === 1 && 'cursor-not-allowed opacity-50'}`}
+                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === 1 && 'cursor-not-allowed opacity-50'}`}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </button>
 
                                     {/* Page Numbers */}
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                        .filter(page => {
+                                    {Array.from(
+                                        { length: totalPages },
+                                        (_, i) => i + 1,
+                                    )
+                                        .filter((page) => {
                                             // Show first page, last page, current page, and pages around current
-                                            return page === 1 || 
-                                                   page === totalPages || 
-                                                   (page >= currentPage - 1 && page <= currentPage + 1);
+                                            return (
+                                                page === 1 ||
+                                                page === totalPages ||
+                                                (page >= currentPage - 1 &&
+                                                    page <= currentPage + 1)
+                                            );
                                         })
                                         .map((page, index, array) => {
                                             // Add ellipsis
                                             const prevPage = array[index - 1];
-                                            const showEllipsis = prevPage && page > prevPage + 1;
+                                            const showEllipsis =
+                                                prevPage && page > prevPage + 1;
 
                                             return (
-                                                <div key={page} className="flex items-center gap-1">
+                                                <div
+                                                    key={page}
+                                                    className="flex items-center gap-1"
+                                                >
                                                     {showEllipsis && (
-                                                        <span className="px-2 text-neutral-500">...</span>
+                                                        <span className="px-2 text-neutral-500">
+                                                            ...
+                                                        </span>
                                                     )}
                                                     <button
-                                                        onClick={() => setCurrentPage(page)}
+                                                        onClick={() =>
+                                                            setCurrentPage(page)
+                                                        }
                                                         className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                                             currentPage === page
                                                                 ? 'bg-blue-600 text-white shadow-sm'
@@ -515,9 +593,13 @@ export default function Index({ users, filters }: UsersIndexProps) {
 
                                     {/* Next Button */}
                                     <button
-                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        onClick={() =>
+                                            setCurrentPage((prev) =>
+                                                Math.min(totalPages, prev + 1),
+                                            )
+                                        }
                                         disabled={currentPage === totalPages}
-                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === totalPages && 'cursor-not-allowed opacity-50'}`}
+                                        className={`min-w-[2.5rem] rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 ${currentPage === totalPages && 'cursor-not-allowed opacity-50'}`}
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </button>

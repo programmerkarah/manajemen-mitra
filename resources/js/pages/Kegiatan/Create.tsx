@@ -281,7 +281,10 @@ export default function Create({
                                     }))}
                                     value={data.tahun_anggaran.toString()}
                                     onValueChange={(value) =>
-                                        setData('tahun_anggaran', parseInt(value))
+                                        setData(
+                                            'tahun_anggaran',
+                                            parseInt(value),
+                                        )
                                     }
                                     placeholder="Pilih tahun anggaran"
                                     searchPlaceholder="Cari tahun..."
@@ -406,7 +409,10 @@ export default function Create({
                                     </label>
                                     <SearchableSelect
                                         options={[
-                                            { value: '', label: 'Pilih Ketua Tim' },
+                                            {
+                                                value: '',
+                                                label: 'Pilih Ketua Tim',
+                                            },
                                             ...ketuaTimUsers.map((user) => ({
                                                 value: user.id.toString(),
                                                 label: `${user.name} - ${user.email}`,
@@ -438,7 +444,10 @@ export default function Create({
                                 </label>
                                 <SearchableSelect
                                     options={[
-                                        { value: '', label: 'Pilih Ketua Tim Lainnya (opsional)' },
+                                        {
+                                            value: '',
+                                            label: 'Pilih Ketua Tim Lainnya (opsional)',
+                                        },
                                         ...pjLainnyaUsers.map((user: User) => ({
                                             value: user.id.toString(),
                                             label: `${user.name} - ${user.email}`,

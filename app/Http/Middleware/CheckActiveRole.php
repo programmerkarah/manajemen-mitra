@@ -15,7 +15,7 @@ class CheckActiveRole
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        
+
         $user = effectiveUser($request);
 
         if (! $user) {
@@ -30,14 +30,13 @@ class CheckActiveRole
 
         // Always load roles
         $user->load(['roles']);
-        
 
         // If no roles specified, just ensure user has active role
         if (empty($roles)) {
             if (! $user->getActiveRole()) {
                 abort(403, 'Anda tidak memiliki role aktif.');
             }
-            
+
             return $next($request);
         }
 
@@ -46,6 +45,7 @@ class CheckActiveRole
             return redirect()->route('dashboard')
                 ->with('error', 'Anda tidak memiliki akses ke halaman tersebut dengan role saat ini.');
         }
+
         return $next($request);
     }
 }

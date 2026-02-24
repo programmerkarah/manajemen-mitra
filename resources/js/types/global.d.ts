@@ -1,7 +1,7 @@
 // Global window type for Pusher
 declare global {
     interface Window {
-        Pusher: any;
+        Pusher: typeof import('pusher-js').default;
     }
 }
 

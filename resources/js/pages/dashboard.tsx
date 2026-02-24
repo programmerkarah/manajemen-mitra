@@ -2,7 +2,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Activity,
@@ -220,7 +220,7 @@ export default function Dashboard({
     currentYear,
     userRole,
 }: DashboardProps) {
-    const { auth } = usePage<{ auth: any }>().props;
+    const { auth } = usePage<SharedData>().props;
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
@@ -1469,7 +1469,8 @@ export default function Dashboard({
                                                                                 .spk
                                                                                 .count
                                                                         }{' '}
-                                                                        Perjanjian Kerja
+                                                                        Perjanjian
+                                                                        Kerja
                                                                     </span>
                                                                     {canEditSpk &&
                                                                         kegiatan.sk && (

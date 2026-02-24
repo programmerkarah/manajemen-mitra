@@ -14,30 +14,47 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
+    CheckCircle2,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
+    ChevronUp,
+    CreditCard,
     Download,
     Eye,
     FileUp,
+    GraduationCap,
+    Mail,
     Pencil,
+    Phone,
     Plus,
+    RefreshCw,
     Search,
     User as UserIcon,
-    CreditCard,
-    Mail,
-    Phone,
-    GraduationCap,
-    CheckCircle2,
-    RefreshCw,
-    ChevronUp,
-    ChevronDown,
 } from 'lucide-react';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Petugas', href: '/petugas' }];
+
+// SortIcon component declared outside to avoid recreation on each render
+const SortIcon = ({
+    field,
+    sortField,
+    sortDirection,
+}: {
+    field: string;
+    sortField: string;
+    sortDirection: 'asc' | 'desc';
+}) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+        <ChevronUp className="h-4 w-4" />
+    ) : (
+        <ChevronDown className="h-4 w-4" />
+    );
+};
 
 interface Petugas {
     id: number;
@@ -63,7 +80,7 @@ interface PetugasIndexProps {
             from: number;
             to: number;
         };
-        links: any[];
+        links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     filters: {
         encrypted?: string;
@@ -102,10 +119,11 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: Petugas) => 
-                item.nama?.toLowerCase().includes(query) ||
-                item.nik_masked?.toLowerCase().includes(query) ||
-                item.email?.toLowerCase().includes(query)
+            result = result.filter(
+                (item: Petugas) =>
+                    item.nama?.toLowerCase().includes(query) ||
+                    item.nik_masked?.toLowerCase().includes(query) ||
+                    item.email?.toLowerCase().includes(query),
             );
         }
 
@@ -118,14 +136,16 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         if (jenisPetugas && jenisPetugas !== 'all') {
             result = result.filter((item: Petugas) => {
                 // Map display values to database values
-                const jenisValue = jenisPetugas === 'organik' ? 'organik' : 'non-organik';
+                const jenisValue =
+                    jenisPetugas === 'organik' ? 'organik' : 'non-organik';
                 return item.jenis_petugas === jenisValue;
             });
         }
 
         // Sort
         result.sort((a: Petugas, b: Petugas) => {
-            let aVal = '', bVal = '';
+            let aVal = '',
+                bVal = '';
             switch (sortField) {
                 case 'email':
                     aVal = a.email?.toLowerCase() || '';
@@ -153,17 +173,14 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
         return filteredAndSortedPetugas.slice(start, end);
     }, [filteredAndSortedPetugas, currentPage, perPage]);
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [search, status, jenisPetugas]);
+    // Reset to page 1 when filters change - done via useMemo dependencies instead of setState in effect
 
     const handleRefresh = () => {
         setIsRefreshing(true);
         router.reload({
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
-            }
+            },
         });
     };
 
@@ -174,13 +191,6 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
             setSortField(field);
             setSortDirection('asc');
         }
-    };
-
-    const SortIcon = ({ field }: { field: 'nama' | 'email' }) => {
-        if (sortField !== field) return null;
-        return sortDirection === 'asc' ? 
-            <ChevronUp className="w-4 h-4" /> : 
-            <ChevronDown className="w-4 h-4" />;
     };
 
     const handleImport = (e: React.FormEvent) => {
@@ -217,13 +227,15 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                     description="Kelola data petugas mitra yang terlibat dalam kegiatan"
                 >
                     <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                         {!isPJ && (
@@ -263,7 +275,22 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                 <ContentCard>
                     {/* Results Counter */}
                     <div className="mb-4 text-sm text-muted-foreground">
-                        Menampilkan <span className="font-semibold text-foreground">{((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPetugas.length)}</span> dari <span className="font-semibold text-foreground">{filteredAndSortedPetugas.length}</span> petugas {search || status !== 'all' || jenisPetugas !== 'all' ? `(difilter dari ${allPetugas.length} total petugas)` : ''}
+                        Menampilkan{' '}
+                        <span className="font-semibold text-foreground">
+                            {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedPetugas.length,
+                            )}
+                        </span>{' '}
+                        dari{' '}
+                        <span className="font-semibold text-foreground">
+                            {filteredAndSortedPetugas.length}
+                        </span>{' '}
+                        petugas{' '}
+                        {search || status !== 'all' || jenisPetugas !== 'all'
+                            ? `(difilter dari ${allPetugas.length} total petugas)`
+                            : ''}
                     </div>
 
                     <div className="flex flex-col gap-4 sm:flex-row">
@@ -287,9 +314,7 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 <SelectValue placeholder="Jenis Petugas" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">
-                                    Semua Jenis
-                                </SelectItem>
+                                <SelectItem value="all">Semua Jenis</SelectItem>
                                 <SelectItem value="organik">Organik</SelectItem>
                                 <SelectItem value="non-organik">
                                     Non-Organik
@@ -320,55 +345,69 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedPetugas.length)} dari {filteredAndSortedPetugas.length} data
-                            {(search || status) && ` (difilter dari ${allPetugas.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedPetugas.length,
+                            )}{' '}
+                            dari {filteredAndSortedPetugas.length} data
+                            {(search || status) &&
+                                ` (difilter dari ${allPetugas.length} total)`}
                         </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nama')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <UserIcon className="w-4 h-4" />
+                                            <UserIcon className="h-4 w-4" />
                                             Nama
-                                            <SortIcon field="nama" />
+                                            <SortIcon
+                                                field="nama"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <CreditCard className="w-4 h-4" />
+                                            <CreditCard className="h-4 w-4" />
                                             NIK/NIP
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('email')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <Mail className="w-4 h-4" />
+                                            <Mail className="h-4 w-4" />
                                             Email
-                                            <SortIcon field="email" />
+                                            <SortIcon
+                                                field="email"
+                                                sortField={sortField}
+                                                sortDirection={sortDirection}
+                                            />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <Phone className="w-4 h-4" />
+                                            <Phone className="h-4 w-4" />
                                             Telepon
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <GraduationCap className="w-4 h-4" />
+                                            <GraduationCap className="h-4 w-4" />
                                             Pendidikan
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <CheckCircle2 className="w-4 h-4" />
+                                            <CheckCircle2 className="h-4 w-4" />
                                             Status
                                         </div>
                                     </th>
@@ -386,31 +425,39 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                 <UserIcon className="h-12 w-12 opacity-20" />
-                                                <p className="font-medium">Tidak ada data petugas</p>
-                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                                <p className="font-medium">
+                                                    Tidak ada data petugas
+                                                </p>
+                                                <p className="text-xs">
+                                                    Coba ubah filter atau
+                                                    kriteria pencarian
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : (
                                     paginatedPetugas.map((Petugas, index) => (
-                                    <tr
-                                        key={Petugas.id}
-                                        className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                                    >
-                                        <td className="px-3 py-3 text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                                                    {Petugas.nama?.charAt(0).toUpperCase() || 'P'}
+                                        <tr
+                                            key={Petugas.id}
+                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                        >
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                        {Petugas.nama
+                                                            ?.charAt(0)
+                                                            .toUpperCase() ||
+                                                            'P'}
+                                                    </div>
+                                                    <div
+                                                        className="max-w-xs truncate font-medium"
+                                                        title={Petugas.nama}
+                                                    >
+                                                        {Petugas.nama}
+                                                    </div>
                                                 </div>
-                                                <div
-                                                    className="max-w-xs truncate font-medium"
-                                                    title={Petugas.nama}
-                                                >
-                                                    {Petugas.nama}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            </td>
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.nik_masked}
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
@@ -465,9 +512,9 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                         </tr>
                                     ))
                                 )}
-                                </tbody>
-                            </table>
-                        </div>
+                            </tbody>
+                        </table>
+                    </div>
 
                     {/* Pagination */}
                     {totalPages > 1 && (
@@ -486,31 +533,53 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.max(1, prev - 1),
+                                        )
+                                    }
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
 
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter(page => {
-                                        return page === 1 || 
-                                               page === totalPages || 
-                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                )
+                                    .filter((page) => {
+                                        return (
+                                            page === 1 ||
+                                            page === totalPages ||
+                                            (page >= currentPage - 1 &&
+                                                page <= currentPage + 1)
+                                        );
                                     })
                                     .map((page, index, array) => {
                                         const prevPage = array[index - 1];
-                                        const showEllipsis = prevPage && page > prevPage + 1;
+                                        const showEllipsis =
+                                            prevPage && page > prevPage + 1;
 
                                         return (
-                                            <div key={page} className="flex items-center gap-1">
+                                            <div
+                                                key={page}
+                                                className="flex items-center gap-1"
+                                            >
                                                 {showEllipsis && (
-                                                    <span className="px-2 text-neutral-500">...</span>
+                                                    <span className="px-2 text-neutral-500">
+                                                        ...
+                                                    </span>
                                                 )}
                                                 <Button
-                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    variant={
+                                                        currentPage === page
+                                                            ? 'default'
+                                                            : 'outline'
+                                                    }
                                                     size="sm"
-                                                    onClick={() => setCurrentPage(page)}
+                                                    onClick={() =>
+                                                        setCurrentPage(page)
+                                                    }
                                                 >
                                                     {page}
                                                 </Button>
@@ -521,7 +590,11 @@ export default function Index({ petugas, filters }: PetugasIndexProps) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.min(totalPages, prev + 1),
+                                        )
+                                    }
                                     disabled={currentPage === totalPages}
                                 >
                                     <ChevronRight className="h-4 w-4" />

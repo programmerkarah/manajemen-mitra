@@ -13,10 +13,18 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Download, Eye, Plus, Search, X, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import {
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    Download,
+    Eye,
+    Plus,
+    RefreshCw,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface LatestSk {
     id: number;
@@ -74,13 +82,13 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
 export default function Index({ kegiatan, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const allKegiatan = useDecryptedData<KegiatanItem>(
-        kegiatan.encrypted,
-    );
+    const allKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
 
     const [search, setSearch] = useState('');
     const [jenisKegiatan, setJenisKegiatan] = useState('all');
-    const [sortField, setSortField] = useState<'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'>('nama_kegiatan');
+    const [sortField, setSortField] = useState<
+        'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'
+    >('nama_kegiatan');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -93,20 +101,24 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: KegiatanItem) => 
-                item.nama_kegiatan?.toLowerCase().includes(query) ||
-                item.kode_kegiatan?.toLowerCase().includes(query)
+            result = result.filter(
+                (item: KegiatanItem) =>
+                    item.nama_kegiatan?.toLowerCase().includes(query) ||
+                    item.kode_kegiatan?.toLowerCase().includes(query),
             );
         }
 
         // Filter by jenis kegiatan
         if (jenisKegiatan && jenisKegiatan !== 'all') {
-            result = result.filter((item: KegiatanItem) => item.jenis_kegiatan === jenisKegiatan);
+            result = result.filter(
+                (item: KegiatanItem) => item.jenis_kegiatan === jenisKegiatan,
+            );
         }
 
         // Sort
         result.sort((a: KegiatanItem, b: KegiatanItem) => {
-            let aVal: any = '', bVal: any = '';
+            let aVal: any = '',
+                bVal: any = '';
             switch (sortField) {
                 case 'sk_count':
                     aVal = a.sk_count || 0;
@@ -156,7 +168,13 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         });
     };
 
-    const handleSort = (field: 'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count') => {
+    const handleSort = (
+        field:
+            | 'nama_kegiatan'
+            | 'jenis_kegiatan'
+            | 'tahun_anggaran'
+            | 'sk_count',
+    ) => {
         if (sortField === field) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
@@ -165,12 +183,20 @@ export default function Index({ kegiatan, filters }: IndexProps) {
         }
     };
 
-    const SortIcon = ({ field }: { field: 'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count' }) => {
+    const SortIcon = ({
+        field,
+    }: {
+        field:
+            | 'nama_kegiatan'
+            | 'jenis_kegiatan'
+            | 'tahun_anggaran'
+            | 'sk_count';
+    }) => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="h-4 w-4" />
         ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="h-4 w-4" />
         );
     };
 
@@ -295,9 +321,15 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-
-                            {Math.min(currentPage * perPage, filteredAndSortedKegiatan.length)} dari {filteredAndSortedKegiatan.length} data
-                            {filteredAndSortedKegiatan.length !== allKegiatan.length && ` (difilter dari ${allKegiatan.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedKegiatan.length,
+                            )}{' '}
+                            dari {filteredAndSortedKegiatan.length} data
+                            {filteredAndSortedKegiatan.length !==
+                                allKegiatan.length &&
+                                ` (difilter dari ${allKegiatan.length} total)`}
                         </p>
                         <Button
                             type="button"
@@ -306,7 +338,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                     </div>
@@ -314,27 +348,33 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('nama_kegiatan')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('nama_kegiatan')
+                                        }
                                     >
                                         <div className="flex items-center gap-1">
                                             Kegiatan
                                             <SortIcon field="nama_kegiatan" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('jenis_kegiatan')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('jenis_kegiatan')
+                                        }
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Jenis
                                             <SortIcon field="jenis_kegiatan" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('tahun_anggaran')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('tahun_anggaran')
+                                        }
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tahun
@@ -362,7 +402,8 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             colSpan={7}
                                             className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
-                                            {filteredAndSortedKegiatan.length === 0 && allKegiatan.length > 0
+                                            {filteredAndSortedKegiatan.length ===
+                                                0 && allKegiatan.length > 0
                                                 ? 'Tidak ada data yang sesuai dengan filter'
                                                 : 'Tidak ada kegiatan yang memerlukan SK KPA'}
                                         </td>
@@ -378,22 +419,22 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                     <div className="font-medium text-neutral-900 dark:text-white">
                                                         {keg.nama_kegiatan}
                                                     </div>
-                                                    <div className="text-sm text-neutral-600 dark:text-neutral-400 mt-0.5">
+                                                    <div className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-400">
                                                         {keg.latest_sk
                                                             ? `SK Nomor ${keg.latest_sk.nomor_sk} Tahun ${keg.latest_sk.tahun}`
                                                             : 'Belum dibuat SK KPA'}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                                            <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 <span className="capitalize">
                                                     {keg.jenis_kegiatan}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm font-semibold text-neutral-900 dark:text-white whitespace-nowrap">
+                                            <td className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
                                                 {keg.tahun_anggaran}
                                             </td>
-                                            <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {keg.ketua_tim}
                                             </td>
                                             <td className="px-3 py-3 text-center">
@@ -403,7 +444,8 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                             </td>
                                             <td className="px-3 py-3 text-center">
                                                 {keg.latest_sk ? (
-                                                    keg.latest_sk.signed_file_path ? (
+                                                    keg.latest_sk
+                                                        .signed_file_path ? (
                                                         <StatusBadge
                                                             status="signed"
                                                             label="Ditandatangani"
@@ -415,7 +457,9 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                         />
                                                     )
                                                 ) : (
-                                                    <span className="text-neutral-400 dark:text-neutral-500">-</span>
+                                                    <span className="text-neutral-400 dark:text-neutral-500">
+                                                        -
+                                                    </span>
                                                 )}
                                             </td>
                                             <td className="px-3 py-3">
@@ -423,7 +467,8 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                     {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (
                                                         <>
-                                                            {keg.sk_count === 0 && (
+                                                            {keg.sk_count ===
+                                                                0 && (
                                                                 <Button
                                                                     size="sm"
                                                                     asChild
@@ -468,11 +513,16 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                    {keg.latest_sk?.file_path && (
+                                                    {keg.latest_sk
+                                                        ?.file_path && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleDownload(keg)}
+                                                            onClick={() =>
+                                                                handleDownload(
+                                                                    keg,
+                                                                )
+                                                            }
                                                             title="Download SK"
                                                         >
                                                             <Download className="h-3.5 w-3.5" />
@@ -490,42 +540,53 @@ export default function Index({ kegiatan, filters }: IndexProps) {
                     {/* Pagination */}
                     {totalPages > 1 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
-                                <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                    Halaman {currentPage} dari {totalPages}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                        <Button
-                                            key={page}
-                                            type="button"
-                                            variant={currentPage === page ? 'default' : 'outline'}
-                                            size="sm"
-                                            onClick={() => setCurrentPage(page)}
-                                        >
-                                            {page}
-                                        </Button>
-                                    ))}
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                                Halaman {currentPage} dari {totalPages}
                             </div>
-                        )}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage(currentPage - 1)
+                                    }
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((page) => (
+                                    <Button
+                                        key={page}
+                                        type="button"
+                                        variant={
+                                            currentPage === page
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        size="sm"
+                                        onClick={() => setCurrentPage(page)}
+                                    >
+                                        {page}
+                                    </Button>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage(currentPage + 1)
+                                    }
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </ContentCard>
             </div>
         </AppLayout>

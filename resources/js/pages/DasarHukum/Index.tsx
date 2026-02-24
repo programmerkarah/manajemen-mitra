@@ -13,23 +13,22 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    ChevronLeft,
-    ChevronRight,
-    Pencil,
-    Plus,
-    Search,
-    Trash2,
-    FileText,
     Calendar,
     CheckCircle2,
-    RefreshCw,
-    ChevronUp,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    FileText,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -78,13 +77,13 @@ export default function Index({ dasarHukum, filters }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
 
-    const allDasarHukum = useDecryptedData<DasarHukum>(
-        dasarHukum.encrypted,
-    );
+    const allDasarHukum = useDecryptedData<DasarHukum>(dasarHukum.encrypted);
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
-    const [sortField, setSortField] = useState<'nomor' | 'tahun' | 'tentang'>('tahun');
+    const [sortField, setSortField] = useState<'nomor' | 'tahun' | 'tentang'>(
+        'tahun',
+    );
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -97,21 +96,25 @@ export default function Index({ dasarHukum, filters }: Props) {
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: DasarHukum) => 
-                item.nomor?.toLowerCase().includes(query) ||
-                item.tentang?.toLowerCase().includes(query) ||
-                item.kategori?.toLowerCase().includes(query)
+            result = result.filter(
+                (item: DasarHukum) =>
+                    item.nomor?.toLowerCase().includes(query) ||
+                    item.tentang?.toLowerCase().includes(query) ||
+                    item.kategori?.toLowerCase().includes(query),
             );
         }
 
         // Filter by status
         if (status && status !== 'all') {
-            result = result.filter((item: DasarHukum) => item.status === status);
+            result = result.filter(
+                (item: DasarHukum) => item.status === status,
+            );
         }
 
         // Sort
         result.sort((a: DasarHukum, b: DasarHukum) => {
-            let aVal: any = '', bVal: any = '';
+            let aVal: any = '',
+                bVal: any = '';
             switch (sortField) {
                 case 'nomor':
                     aVal = a.nomor?.toLowerCase() || '';
@@ -153,7 +156,7 @@ export default function Index({ dasarHukum, filters }: Props) {
         router.reload({
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
-            }
+            },
         });
     };
 
@@ -168,9 +171,11 @@ export default function Index({ dasarHukum, filters }: Props) {
 
     const SortIcon = ({ field }: { field: 'nomor' | 'tahun' | 'tentang' }) => {
         if (sortField !== field) return null;
-        return sortDirection === 'asc' ? 
-            <ChevronUp className="w-4 h-4" /> : 
-            <ChevronDown className="w-4 h-4" />;
+        return sortDirection === 'asc' ? (
+            <ChevronUp className="h-4 w-4" />
+        ) : (
+            <ChevronDown className="h-4 w-4" />
+        );
     };
 
     const handleDelete = (id: number, nomor: string) => {
@@ -192,13 +197,15 @@ export default function Index({ dasarHukum, filters }: Props) {
                     description="Kelola dasar hukum yang digunakan pada SK KPA"
                 >
                     <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                         {!isPJ && (
@@ -216,7 +223,22 @@ export default function Index({ dasarHukum, filters }: Props) {
                 <ContentCard>
                     {/* Results Counter */}
                     <div className="mb-4 text-sm text-muted-foreground">
-                        Menampilkan <span className="font-semibold text-foreground">{((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedDasarHukum.length)}</span> dari <span className="font-semibold text-foreground">{filteredAndSortedDasarHukum.length}</span> dasar hukum {search || status !== 'all' ? `(difilter dari ${allDasarHukum.length} total data)` : ''}
+                        Menampilkan{' '}
+                        <span className="font-semibold text-foreground">
+                            {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedDasarHukum.length,
+                            )}
+                        </span>{' '}
+                        dari{' '}
+                        <span className="font-semibold text-foreground">
+                            {filteredAndSortedDasarHukum.length}
+                        </span>{' '}
+                        dasar hukum{' '}
+                        {search || status !== 'all'
+                            ? `(difilter dari ${allDasarHukum.length} total data)`
+                            : ''}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -255,37 +277,43 @@ export default function Index({ dasarHukum, filters }: Props) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAndSortedDasarHukum.length)} dari {filteredAndSortedDasarHukum.length} data
-                            {(search || status !== 'all') && ` (difilter dari ${allDasarHukum.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedDasarHukum.length,
+                            )}{' '}
+                            dari {filteredAndSortedDasarHukum.length} data
+                            {(search || status !== 'all') &&
+                                ` (difilter dari ${allDasarHukum.length} total)`}
                         </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nomor')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <FileText className="w-4 h-4" />
+                                            <FileText className="h-4 w-4" />
                                             Dasar Hukum
                                             <SortIcon field="nomor" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('tahun')}
                                     >
                                         <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-4 h-4" />
+                                            <Calendar className="h-4 w-4" />
                                             Tahun
                                             <SortIcon field="tahun" />
                                         </div>
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
-                                            <CheckCircle2 className="w-4 h-4" />
+                                            <CheckCircle2 className="h-4 w-4" />
                                             Status
                                         </div>
                                     </th>
@@ -306,8 +334,13 @@ export default function Index({ dasarHukum, filters }: Props) {
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                 <FileText className="h-12 w-12 opacity-20" />
-                                                <p className="font-medium">Belum ada data dasar hukum</p>
-                                                <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                                <p className="font-medium">
+                                                    Belum ada data dasar hukum
+                                                </p>
+                                                <p className="text-xs">
+                                                    Coba ubah filter atau
+                                                    kriteria pencarian
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
@@ -456,31 +489,53 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.max(1, prev - 1),
+                                        )
+                                    }
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
 
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter(page => {
-                                        return page === 1 || 
-                                               page === totalPages || 
-                                               (page >= currentPage - 1 && page <= currentPage + 1);
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                )
+                                    .filter((page) => {
+                                        return (
+                                            page === 1 ||
+                                            page === totalPages ||
+                                            (page >= currentPage - 1 &&
+                                                page <= currentPage + 1)
+                                        );
                                     })
                                     .map((page, index, array) => {
                                         const prevPage = array[index - 1];
-                                        const showEllipsis = prevPage && page > prevPage + 1;
+                                        const showEllipsis =
+                                            prevPage && page > prevPage + 1;
 
                                         return (
-                                            <div key={page} className="flex items-center gap-1">
+                                            <div
+                                                key={page}
+                                                className="flex items-center gap-1"
+                                            >
                                                 {showEllipsis && (
-                                                    <span className="px-2 text-neutral-500">...</span>
+                                                    <span className="px-2 text-neutral-500">
+                                                        ...
+                                                    </span>
                                                 )}
                                                 <Button
-                                                    variant={currentPage === page ? 'default' : 'outline'}
+                                                    variant={
+                                                        currentPage === page
+                                                            ? 'default'
+                                                            : 'outline'
+                                                    }
                                                     size="sm"
-                                                    onClick={() => setCurrentPage(page)}
+                                                    onClick={() =>
+                                                        setCurrentPage(page)
+                                                    }
                                                 >
                                                     {page}
                                                 </Button>
@@ -491,7 +546,11 @@ export default function Index({ dasarHukum, filters }: Props) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.min(totalPages, prev + 1),
+                                        )
+                                    }
                                     disabled={currentPage === totalPages}
                                 >
                                     <ChevronRight className="h-4 w-4" />

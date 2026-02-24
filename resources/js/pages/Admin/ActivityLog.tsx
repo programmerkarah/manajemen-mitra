@@ -1,39 +1,45 @@
-import React from 'react';
-import { Head } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { ContentCard } from '@/components/content-card';
+import AppLayout from '@/layouts/app-layout';
 import { decryptData } from '@/utils/encryption';
+import { Head } from '@inertiajs/react';
+import React from 'react';
 
-import { usePage, router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogDescription, 
-    DialogHeader, 
-    DialogTitle 
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
-import { 
-    Search, 
-    RefreshCw, 
-    Download, 
-    ChevronUp, 
-    ChevronDown,
-    Eye,
-    AlertCircle,
-    CheckCircle2,
-    AlertTriangle,
-    Info,
-    Calendar,
-    User as UserIcon,
-    Clock,
-    Activity
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { BreadcrumbItem } from '@/types';
+import { router, usePage } from '@inertiajs/react';
+import {
+    Activity,
+    AlertCircle,
+    AlertTriangle,
+    Calendar,
+    CheckCircle2,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    Download,
+    Eye,
+    Info,
+    RefreshCw,
+    Search,
+    User as UserIcon,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Administrasi', href: '/admin/dashboard' },
@@ -74,10 +80,10 @@ interface Props {
 export default function ActivityLog() {
     const pageProps = usePage<Props>().props;
     const { filters = {}, users = [], pagination } = pageProps;
-    
+
     // Decrypt logs if encrypted
     const [decryptedLogs, setDecryptedLogs] = useState<ActivityLog[]>([]);
-    
+
     useEffect(() => {
         if (typeof pageProps.logs === 'string') {
             // Logs are encrypted, decrypt them
@@ -86,7 +92,9 @@ export default function ActivityLog() {
                 if (decrypted && Array.isArray(decrypted)) {
                     setDecryptedLogs(decrypted);
                 } else {
-                    console.error('❌ Failed to decrypt logs or invalid format');
+                    console.error(
+                        '❌ Failed to decrypt logs or invalid format',
+                    );
                     setDecryptedLogs([]);
                 }
             } catch (error) {
@@ -100,7 +108,7 @@ export default function ActivityLog() {
             setDecryptedLogs([]);
         }
     }, [pageProps.logs]);
-    
+
     const [status, setStatus] = useState(filters.status || 'all');
     const [user, setUser] = useState(filters.user || 'all');
     const [date, setDate] = useState(filters.date || '');
@@ -108,28 +116,31 @@ export default function ActivityLog() {
     const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>([]);
     const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [sortField, setSortField] = useState<'time' | 'user' | 'action'>('time');
+    const [sortField, setSortField] = useState<'time' | 'user' | 'action'>(
+        'time',
+    );
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Filter logs based on search query
     useEffect(() => {
         let filtered = [...decryptedLogs];
-        
+
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(log => 
-                log.user?.toLowerCase().includes(query) ||
-                log.action?.toLowerCase().includes(query) ||
-                log.description?.toLowerCase().includes(query) ||
-                log.ip_address?.toLowerCase().includes(query)
+            filtered = filtered.filter(
+                (log) =>
+                    log.user?.toLowerCase().includes(query) ||
+                    log.action?.toLowerCase().includes(query) ||
+                    log.description?.toLowerCase().includes(query) ||
+                    log.ip_address?.toLowerCase().includes(query),
             );
         }
 
         // Apply sorting
         filtered.sort((a, b) => {
             let aVal, bVal;
-            
+
             switch (sortField) {
                 case 'user':
                     aVal = a.user?.toLowerCase() || '';
@@ -156,10 +167,10 @@ export default function ActivityLog() {
 
     const handleFilter = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Prepare filter data with Laravel encrypt() helper
         const filterData: Record<string, string> = {};
-        
+
         if (status !== 'all' && status) {
             filterData.status = status;
         }
@@ -169,7 +180,7 @@ export default function ActivityLog() {
         if (date) {
             filterData.date = date;
         }
-        
+
         router.visit('/admin/activity-log', {
             method: 'post',
             data: filterData,
@@ -182,13 +193,13 @@ export default function ActivityLog() {
         router.reload({
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
-            }
+            },
         });
     };
 
     const handleExport = () => {
         const params = new URLSearchParams();
-        
+
         if (status && status !== 'all') {
             params.append('status', status);
         }
@@ -198,7 +209,7 @@ export default function ActivityLog() {
         if (date) {
             params.append('date', date);
         }
-        
+
         const url = `/admin/activity-log/export?${params.toString()}`;
         window.location.href = url;
     };
@@ -215,7 +226,7 @@ export default function ActivityLog() {
     const handlePageChange = (page: number) => {
         // Preserve current filters when changing pages
         const filterData: Record<string, string> = { page: page.toString() };
-        
+
         if (status !== 'all' && status) {
             filterData.status = status;
         }
@@ -225,7 +236,7 @@ export default function ActivityLog() {
         if (date) {
             filterData.date = date;
         }
-        
+
         router.visit('/admin/activity-log', {
             method: 'post',
             data: filterData,
@@ -237,108 +248,131 @@ export default function ActivityLog() {
     const getStatusIcon = (status?: string) => {
         switch (status) {
             case 'success':
-                return <CheckCircle2 className="w-4 h-4" />;
+                return <CheckCircle2 className="h-4 w-4" />;
             case 'error':
-                return <AlertCircle className="w-4 h-4" />;
+                return <AlertCircle className="h-4 w-4" />;
             case 'warning':
-                return <AlertTriangle className="w-4 h-4" />;
+                return <AlertTriangle className="h-4 w-4" />;
             case 'info':
-                return <Info className="w-4 h-4" />;
+                return <Info className="h-4 w-4" />;
             default:
-                return <Activity className="w-4 h-4" />;
+                return <Activity className="h-4 w-4" />;
         }
     };
 
     const getStatusBadge = (status?: string) => {
         switch (status) {
             case 'success':
-                return <Badge variant="default" className="bg-green-600 hover:bg-green-700 gap-1">
-                    {getStatusIcon(status)} Success
-                </Badge>;
+                return (
+                    <Badge
+                        variant="default"
+                        className="gap-1 bg-green-600 hover:bg-green-700"
+                    >
+                        {getStatusIcon(status)} Success
+                    </Badge>
+                );
             case 'error':
-                return <Badge variant="destructive" className="gap-1">
-                    {getStatusIcon(status)} Error
-                </Badge>;
+                return (
+                    <Badge variant="destructive" className="gap-1">
+                        {getStatusIcon(status)} Error
+                    </Badge>
+                );
             case 'warning':
-                return <Badge variant="default" className="bg-yellow-600 hover:bg-yellow-700 gap-1">
-                    {getStatusIcon(status)} Warning
-                </Badge>;
+                return (
+                    <Badge
+                        variant="default"
+                        className="gap-1 bg-yellow-600 hover:bg-yellow-700"
+                    >
+                        {getStatusIcon(status)} Warning
+                    </Badge>
+                );
             case 'info':
-                return <Badge variant="secondary" className="gap-1">
-                    {getStatusIcon(status)} Info
-                </Badge>;
+                return (
+                    <Badge variant="secondary" className="gap-1">
+                        {getStatusIcon(status)} Info
+                    </Badge>
+                );
             default:
-                return <Badge variant="outline" className="gap-1">
-                    {getStatusIcon(status)} -
-                </Badge>;
+                return (
+                    <Badge variant="outline" className="gap-1">
+                        {getStatusIcon(status)} -
+                    </Badge>
+                );
         }
     };
 
     const SortIcon = ({ field }: { field: 'time' | 'user' | 'action' }) => {
         if (sortField !== field) return null;
-        return sortDirection === 'asc' ? 
-            <ChevronUp className="w-4 h-4 inline ml-1" /> : 
-            <ChevronDown className="w-4 h-4 inline ml-1" />;
+        return sortDirection === 'asc' ? (
+            <ChevronUp className="ml-1 inline h-4 w-4" />
+        ) : (
+            <ChevronDown className="ml-1 inline h-4 w-4" />
+        );
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Activity Log" />
             <ContentCard>
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-bold flex items-center gap-2">
-                            <Activity className="w-6 h-6" />
+                        <h2 className="flex items-center gap-2 text-2xl font-bold">
+                            <Activity className="h-6 w-6" />
                             Activity Log
                         </h2>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             Monitor dan tracking aktivitas user dalam sistem
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleExport}
                             disabled={decryptedLogs.length === 0}
                         >
-                            <Download className="w-4 h-4 mr-2" />
+                            <Download className="mr-2 h-4 w-4" />
                             Export Excel
                         </Button>
                     </div>
                 </div>
 
                 {/* Filters */}
-                <form className="flex flex-wrap gap-3 mb-6 p-4 bg-muted/30 rounded-lg" onSubmit={handleFilter}>
-                    <div className="flex-1 min-w-[200px]">
-                        <label className="block text-xs font-medium mb-1.5 flex items-center gap-1">
-                            <Search className="w-3 h-3" />
+                <form
+                    className="mb-6 flex flex-wrap gap-3 rounded-lg bg-muted/30 p-4"
+                    onSubmit={handleFilter}
+                >
+                    <div className="min-w-[200px] flex-1">
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <Search className="h-3 w-3" />
                             Search
                         </label>
-                        <Input 
-                            type="text" 
-                            placeholder="Cari user, action, IP..." 
+                        <Input
+                            type="text"
+                            placeholder="Cari user, action, IP..."
                             value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="h-9"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium mb-1.5 flex items-center gap-1">
-                            <Activity className="w-3 h-3" />
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <Activity className="h-3 w-3" />
                             Status
                         </label>
                         <Select value={status} onValueChange={setStatus}>
-                            <SelectTrigger className="w-36 h-9">
+                            <SelectTrigger className="h-9 w-36">
                                 <SelectValue placeholder="Semua" />
                             </SelectTrigger>
                             <SelectContent>
@@ -351,32 +385,38 @@ export default function ActivityLog() {
                         </Select>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium mb-1.5 flex items-center gap-1">
-                            <UserIcon className="w-3 h-3" />
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <UserIcon className="h-3 w-3" />
                             User
                         </label>
                         <Select value={user} onValueChange={setUser}>
-                            <SelectTrigger className="w-44 h-9">
+                            <SelectTrigger className="h-9 w-44">
                                 <SelectValue placeholder="Semua" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Semua User</SelectItem>
-                                {users && users.map(u => (
-                                    <SelectItem key={u.id} value={u.id+''}>{u.name}</SelectItem>
-                                ))}
+                                {users &&
+                                    users.map((u) => (
+                                        <SelectItem
+                                            key={u.id}
+                                            value={u.id + ''}
+                                        >
+                                            {u.name}
+                                        </SelectItem>
+                                    ))}
                             </SelectContent>
                         </Select>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium mb-1.5 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <Calendar className="h-3 w-3" />
                             Tanggal
                         </label>
-                        <Input 
-                            type="date" 
-                            value={date} 
-                            onChange={e => setDate(e.target.value)} 
-                            className="w-40 h-9" 
+                        <Input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="h-9 w-40"
                         />
                     </div>
                     <div className="flex items-end">
@@ -387,104 +427,146 @@ export default function ActivityLog() {
                 </form>
 
                 {/* Results count */}
-                <div className="mb-3 text-sm text-muted-foreground flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
                     <div>
                         {pagination ? (
                             <>
-                                Menampilkan <span className="font-semibold text-foreground">{pagination.from ?? 0}</span> hingga <span className="font-semibold text-foreground">{pagination.to ?? 0}</span> dari <span className="font-semibold text-foreground">{pagination.total}</span> log
-                                {searchQuery && ` (Filtered: ${filteredLogs.length} shown)`}
+                                Menampilkan{' '}
+                                <span className="font-semibold text-foreground">
+                                    {pagination.from ?? 0}
+                                </span>{' '}
+                                hingga{' '}
+                                <span className="font-semibold text-foreground">
+                                    {pagination.to ?? 0}
+                                </span>{' '}
+                                dari{' '}
+                                <span className="font-semibold text-foreground">
+                                    {pagination.total}
+                                </span>{' '}
+                                log
+                                {searchQuery &&
+                                    ` (Filtered: ${filteredLogs.length} shown)`}
                             </>
                         ) : (
                             <>
-                                Menampilkan <span className="font-semibold text-foreground">{filteredLogs.length}</span> dari {decryptedLogs.length} log
+                                Menampilkan{' '}
+                                <span className="font-semibold text-foreground">
+                                    {filteredLogs.length}
+                                </span>{' '}
+                                dari {decryptedLogs.length} log
                             </>
                         )}
                     </div>
                     {pagination && pagination.last_page > 1 && (
                         <div className="text-xs">
-                            Halaman <span className="font-semibold text-foreground">{pagination.current_page}</span> dari <span className="font-semibold text-foreground">{pagination.last_page}</span>
+                            Halaman{' '}
+                            <span className="font-semibold text-foreground">
+                                {pagination.current_page}
+                            </span>{' '}
+                            dari{' '}
+                            <span className="font-semibold text-foreground">
+                                {pagination.last_page}
+                            </span>
                         </div>
                     )}
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto border rounded-lg">
+                <div className="overflow-x-auto rounded-lg border">
                     <table className="min-w-full text-sm">
                         <thead className="bg-muted/50">
                             <tr>
-                                <th 
-                                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-muted/70 transition-colors"
+                                <th
+                                    className="cursor-pointer px-4 py-3 text-left font-semibold transition-colors hover:bg-muted/70"
                                     onClick={() => handleSort('user')}
                                 >
                                     <div className="flex items-center gap-1">
-                                        <UserIcon className="w-4 h-4" />
+                                        <UserIcon className="h-4 w-4" />
                                         User
                                         <SortIcon field="user" />
                                     </div>
                                 </th>
-                                <th 
-                                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-muted/70 transition-colors"
+                                <th
+                                    className="cursor-pointer px-4 py-3 text-left font-semibold transition-colors hover:bg-muted/70"
                                     onClick={() => handleSort('action')}
                                 >
                                     <div className="flex items-center gap-1">
-                                        <Activity className="w-4 h-4" />
+                                        <Activity className="h-4 w-4" />
                                         Action
                                         <SortIcon field="action" />
                                     </div>
                                 </th>
                                 <th className="px-4 py-3 text-left font-semibold">
                                     <div className="flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
+                                        <AlertCircle className="h-4 w-4" />
                                         Status
                                     </div>
                                 </th>
                                 <th className="px-4 py-3 text-left font-semibold">
                                     IP Address
                                 </th>
-                                <th 
-                                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-muted/70 transition-colors"
+                                <th
+                                    className="cursor-pointer px-4 py-3 text-left font-semibold transition-colors hover:bg-muted/70"
                                     onClick={() => handleSort('time')}
                                 >
                                     <div className="flex items-center gap-1">
-                                        <Clock className="w-4 h-4" />
+                                        <Clock className="h-4 w-4" />
                                         Time
                                         <SortIcon field="time" />
                                     </div>
                                 </th>
-                                <th className="px-4 py-3 text-center font-semibold">Action</th>
+                                <th className="px-4 py-3 text-center font-semibold">
+                                    Action
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredLogs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-12 text-center">
+                                    <td
+                                        colSpan={6}
+                                        className="px-4 py-12 text-center"
+                                    >
                                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                            <Activity className="w-12 h-12 opacity-20" />
-                                            <p className="font-medium">Tidak ada log ditemukan</p>
-                                            <p className="text-xs">Coba ubah filter atau kriteria pencarian</p>
+                                            <Activity className="h-12 w-12 opacity-20" />
+                                            <p className="font-medium">
+                                                Tidak ada log ditemukan
+                                            </p>
+                                            <p className="text-xs">
+                                                Coba ubah filter atau kriteria
+                                                pencarian
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredLogs.map((log, index) => (
-                                    <tr 
-                                        key={log.id} 
-                                        className={`border-t hover:bg-muted/30 transition-colors ${
-                                            index % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                                    <tr
+                                        key={log.id}
+                                        className={`border-t transition-colors hover:bg-muted/30 ${
+                                            index % 2 === 0
+                                                ? 'bg-background'
+                                                : 'bg-muted/10'
                                         }`}
                                     >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                                                    {log.user?.charAt(0).toUpperCase() || '?'}
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                                    {log.user
+                                                        ?.charAt(0)
+                                                        .toUpperCase() || '?'}
                                                 </div>
-                                                <div className="font-medium">{log.user || 'Unknown'}</div>
+                                                <div className="font-medium">
+                                                    {log.user || 'Unknown'}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="font-medium">{log.action}</div>
+                                            <div className="font-medium">
+                                                {log.action}
+                                            </div>
                                             {log.description && (
-                                                <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                                <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                                                     {log.description}
                                                 </div>
                                             )}
@@ -510,7 +592,7 @@ export default function ActivityLog() {
                                                     setIsDetailOpen(true);
                                                 }}
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Eye className="h-4 w-4" />
                                             </Button>
                                         </td>
                                     </tr>
@@ -522,9 +604,10 @@ export default function ActivityLog() {
 
                 {/* Pagination */}
                 {pagination && pagination.last_page > 1 && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div className="mt-4 flex items-center justify-between border-t pt-4">
                         <div className="text-sm text-muted-foreground">
-                            Showing {pagination.from ?? 0} to {pagination.to ?? 0} of {pagination.total} entries
+                            Showing {pagination.from ?? 0} to{' '}
+                            {pagination.to ?? 0} of {pagination.total} entries
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
@@ -538,53 +621,86 @@ export default function ActivityLog() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handlePageChange(pagination.current_page - 1)}
+                                onClick={() =>
+                                    handlePageChange(
+                                        pagination.current_page - 1,
+                                    )
+                                }
                                 disabled={pagination.current_page === 1}
                             >
                                 Previous
                             </Button>
-                            
+
                             <div className="flex items-center gap-1">
                                 {(() => {
                                     const pages = [];
                                     const maxVisible = 5;
-                                    let startPage = Math.max(1, pagination.current_page - Math.floor(maxVisible / 2));
-                                    let endPage = Math.min(pagination.last_page, startPage + maxVisible - 1);
-                                    
+                                    let startPage = Math.max(
+                                        1,
+                                        pagination.current_page -
+                                            Math.floor(maxVisible / 2),
+                                    );
+                                    const endPage = Math.min(
+                                        pagination.last_page,
+                                        startPage + maxVisible - 1,
+                                    );
+
                                     if (endPage - startPage + 1 < maxVisible) {
-                                        startPage = Math.max(1, endPage - maxVisible + 1);
+                                        startPage = Math.max(
+                                            1,
+                                            endPage - maxVisible + 1,
+                                        );
                                     }
-                                    
+
                                     for (let i = startPage; i <= endPage; i++) {
                                         pages.push(
                                             <Button
                                                 key={i}
-                                                variant={i === pagination.current_page ? "default" : "outline"}
+                                                variant={
+                                                    i ===
+                                                    pagination.current_page
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
                                                 size="sm"
-                                                onClick={() => handlePageChange(i)}
+                                                onClick={() =>
+                                                    handlePageChange(i)
+                                                }
                                                 className="w-10"
                                             >
                                                 {i}
-                                            </Button>
+                                            </Button>,
                                         );
                                     }
                                     return pages;
                                 })()}
                             </div>
-                            
+
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handlePageChange(pagination.current_page + 1)}
-                                disabled={pagination.current_page === pagination.last_page}
+                                onClick={() =>
+                                    handlePageChange(
+                                        pagination.current_page + 1,
+                                    )
+                                }
+                                disabled={
+                                    pagination.current_page ===
+                                    pagination.last_page
+                                }
                             >
                                 Next
                             </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handlePageChange(pagination.last_page)}
-                                disabled={pagination.current_page === pagination.last_page}
+                                onClick={() =>
+                                    handlePageChange(pagination.last_page)
+                                }
+                                disabled={
+                                    pagination.current_page ===
+                                    pagination.last_page
+                                }
                             >
                                 Last
                             </Button>
@@ -595,37 +711,47 @@ export default function ActivityLog() {
 
             {/* Detail Dialog */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Activity className="w-5 h-5" />
+                            <Activity className="h-5 w-5" />
                             Activity Detail
                         </DialogTitle>
                         <DialogDescription>
                             Informasi lengkap tentang aktivitas ini
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {selectedLog && (
-                        <div className="space-y-4 mt-4">
+                        <div className="mt-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">User</label>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        User
+                                    </label>
                                     <div className="mt-1 flex items-center gap-2">
-                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                                            {selectedLog.user?.charAt(0).toUpperCase() || '?'}
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                                            {selectedLog.user
+                                                ?.charAt(0)
+                                                .toUpperCase() || '?'}
                                         </div>
                                         <div>
-                                            <div className="font-medium">{selectedLog.user || 'Unknown'}</div>
+                                            <div className="font-medium">
+                                                {selectedLog.user || 'Unknown'}
+                                            </div>
                                             {selectedLog.user_id && (
-                                                <div className="text-xs text-muted-foreground">ID: {selectedLog.user_id}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    ID: {selectedLog.user_id}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">Status</label>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Status
+                                    </label>
                                     <div className="mt-1">
                                         {getStatusBadge(selectedLog.status)}
                                     </div>
@@ -633,16 +759,20 @@ export default function ActivityLog() {
                             </div>
 
                             <div>
-                                <label className="text-xs font-medium text-muted-foreground">Action</label>
-                                <div className="mt-1 p-3 bg-muted/30 rounded-lg font-medium">
+                                <label className="text-xs font-medium text-muted-foreground">
+                                    Action
+                                </label>
+                                <div className="mt-1 rounded-lg bg-muted/30 p-3 font-medium">
                                     {selectedLog.action}
                                 </div>
                             </div>
 
                             {selectedLog.description && (
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">Description</label>
-                                    <div className="mt-1 p-3 bg-muted/30 rounded-lg text-sm">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Description
+                                    </label>
+                                    <div className="mt-1 rounded-lg bg-muted/30 p-3 text-sm">
                                         {selectedLog.description}
                                     </div>
                                 </div>
@@ -651,16 +781,20 @@ export default function ActivityLog() {
                             <div className="grid grid-cols-2 gap-4">
                                 {selectedLog.ip_address && (
                                     <div>
-                                        <label className="text-xs font-medium text-muted-foreground">IP Address</label>
-                                        <div className="mt-1 p-2 bg-muted/30 rounded font-mono text-sm">
+                                        <label className="text-xs font-medium text-muted-foreground">
+                                            IP Address
+                                        </label>
+                                        <div className="mt-1 rounded bg-muted/30 p-2 font-mono text-sm">
                                             {selectedLog.ip_address}
                                         </div>
                                     </div>
                                 )}
-                                
+
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">Timestamp</label>
-                                    <div className="mt-1 p-2 bg-muted/30 rounded text-sm">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Timestamp
+                                    </label>
+                                    <div className="mt-1 rounded bg-muted/30 p-2 text-sm">
                                         {selectedLog.time}
                                     </div>
                                 </div>
@@ -668,23 +802,33 @@ export default function ActivityLog() {
 
                             {selectedLog.user_agent && (
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground">User Agent</label>
-                                    <div className="mt-1 p-3 bg-muted/30 rounded-lg text-xs font-mono break-all">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        User Agent
+                                    </label>
+                                    <div className="mt-1 rounded-lg bg-muted/30 p-3 font-mono text-xs break-all">
                                         {selectedLog.user_agent}
                                     </div>
                                 </div>
                             )}
 
-                            {selectedLog.properties && Object.keys(selectedLog.properties).length > 0 && (
-                                <div>
-                                    <label className="text-xs font-medium text-muted-foreground">Additional Data</label>
-                                    <div className="mt-1 p-3 bg-muted/30 rounded-lg text-xs font-mono">
-                                        <pre className="overflow-x-auto">
-                                            {JSON.stringify(selectedLog.properties, null, 2)}
-                                        </pre>
+                            {selectedLog.properties &&
+                                Object.keys(selectedLog.properties).length >
+                                    0 && (
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground">
+                                            Additional Data
+                                        </label>
+                                        <div className="mt-1 rounded-lg bg-muted/30 p-3 font-mono text-xs">
+                                            <pre className="overflow-x-auto">
+                                                {JSON.stringify(
+                                                    selectedLog.properties,
+                                                    null,
+                                                    2,
+                                                )}
+                                            </pre>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
                         </div>
                     )}
                 </DialogContent>

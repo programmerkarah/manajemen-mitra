@@ -240,7 +240,10 @@ export default function Edit({ petugas }: EditProps) {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {pendidikanOptions.map((option) => (
-                                            <SelectItem key={option} value={option}>
+                                            <SelectItem
+                                                key={option}
+                                                value={option}
+                                            >
                                                 {option}
                                             </SelectItem>
                                         ))}
@@ -280,7 +283,9 @@ export default function Edit({ petugas }: EditProps) {
                                                     2,
                                             },
                                             (_, i) =>
-                                                new Date().getFullYear() + 1 - i,
+                                                new Date().getFullYear() +
+                                                1 -
+                                                i,
                                         ).map((year) => (
                                             <SelectItem
                                                 key={year}
@@ -314,8 +319,12 @@ export default function Edit({ petugas }: EditProps) {
                                         <SelectValue placeholder="Pilih Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="aktif">Aktif</SelectItem>
-                                        <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                                        <SelectItem value="aktif">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="nonaktif">
+                                            Nonaktif
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                                 {errors.status && (
@@ -335,9 +344,7 @@ export default function Edit({ petugas }: EditProps) {
                                     value={data.jenis_petugas}
                                     onValueChange={(value) =>
                                         handleJenisPetugasChange(
-                                            value as
-                                                | 'organik'
-                                                | 'non-organik',
+                                            value as 'organik' | 'non-organik',
                                         )
                                     }
                                 >
@@ -345,7 +352,9 @@ export default function Edit({ petugas }: EditProps) {
                                         <SelectValue placeholder="Pilih Jenis Petugas" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="organik">Organik</SelectItem>
+                                        <SelectItem value="organik">
+                                            Organik
+                                        </SelectItem>
                                         <SelectItem value="non-organik">
                                             Non-Organik
                                         </SelectItem>

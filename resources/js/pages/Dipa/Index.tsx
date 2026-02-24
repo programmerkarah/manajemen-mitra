@@ -20,13 +20,12 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ChevronUp,
-    ChevronDown,
     Pencil,
     Plus,
     RefreshCw,
@@ -34,7 +33,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -62,7 +61,7 @@ interface DipaIndexProps {
             from: number;
             to: number;
         };
-        links: any[];
+        links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     tahunOptions: number[];
     filters: {
@@ -88,7 +87,9 @@ export default function Index({
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('');
     const [tahun, setTahun] = useState('');
-    const [sortField, setSortField] = useState<'nomor_dipa' | 'tahun' | 'tanggal_dipa'>('tahun');
+    const [sortField, setSortField] = useState<
+        'nomor_dipa' | 'tahun' | 'tanggal_dipa'
+    >('tahun');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
@@ -104,8 +105,8 @@ export default function Index({
         // Filter by search
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((item: Dipa) => 
-                item.nomor_dipa?.toLowerCase().includes(query)
+            result = result.filter((item: Dipa) =>
+                item.nomor_dipa?.toLowerCase().includes(query),
             );
         }
 
@@ -123,7 +124,8 @@ export default function Index({
 
         // Sort
         result.sort((a: Dipa, b: Dipa) => {
-            let aVal: any = '', bVal: any = '';
+            let aVal: any = '',
+                bVal: any = '';
             switch (sortField) {
                 case 'tahun':
                     aVal = a.tahun || 0;
@@ -178,12 +180,16 @@ export default function Index({
         }
     };
 
-    const SortIcon = ({ field }: { field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa' }) => {
+    const SortIcon = ({
+        field,
+    }: {
+        field: 'nomor_dipa' | 'tahun' | 'tanggal_dipa';
+    }) => {
         if (sortField !== field) return null;
         return sortDirection === 'asc' ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="h-4 w-4" />
         ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="h-4 w-4" />
         );
     };
 
@@ -310,11 +316,16 @@ export default function Index({
                     </div>
 
                     {/* Table */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex items-center justify-between">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-
-                            {Math.min(currentPage * perPage, filteredAndSortedDipa.length)} dari {filteredAndSortedDipa.length} data
-                            {filteredAndSortedDipa.length !== allDipa.length && ` (difilter dari ${allDipa.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedDipa.length,
+                            )}{' '}
+                            dari {filteredAndSortedDipa.length} data
+                            {filteredAndSortedDipa.length !== allDipa.length &&
+                                ` (difilter dari ${allDipa.length} total)`}
                         </p>
                         <Button
                             type="button"
@@ -323,7 +334,9 @@ export default function Index({
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                            />
                             Refresh
                         </Button>
                     </div>
@@ -331,8 +344,8 @@ export default function Index({
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nomor_dipa')}
                                     >
                                         <div className="flex items-center justify-center gap-1">
@@ -340,8 +353,8 @@ export default function Index({
                                             <SortIcon field="nomor_dipa" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('tahun')}
                                     >
                                         <div className="flex items-center justify-center gap-1">
@@ -349,9 +362,11 @@ export default function Index({
                                             <SortIcon field="tahun" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('tanggal_dipa')}
+                                    <th
+                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        onClick={() =>
+                                            handleSort('tanggal_dipa')
+                                        }
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             Tanggal DIPA
@@ -375,7 +390,8 @@ export default function Index({
                                             colSpan={isPJ ? 4 : 5}
                                             className="px-4 py-8 text-center text-sm text-muted-foreground"
                                         >
-                                            {filteredAndSortedDipa.length === 0 && allDipa.length > 0
+                                            {filteredAndSortedDipa.length ===
+                                                0 && allDipa.length > 0
                                                 ? 'Tidak ada data yang sesuai dengan filter'
                                                 : 'Tidak ada data'}
                                         </td>
@@ -458,16 +474,25 @@ export default function Index({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    onClick={() =>
+                                        setCurrentPage(currentPage - 1)
+                                    }
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((page) => (
                                     <Button
                                         key={page}
                                         type="button"
-                                        variant={currentPage === page ? 'default' : 'outline'}
+                                        variant={
+                                            currentPage === page
+                                                ? 'default'
+                                                : 'outline'
+                                        }
                                         size="sm"
                                         onClick={() => setCurrentPage(page)}
                                     >
@@ -478,7 +503,9 @@ export default function Index({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    onClick={() =>
+                                        setCurrentPage(currentPage + 1)
+                                    }
                                     disabled={currentPage === totalPages}
                                 >
                                     <ChevronRight className="h-4 w-4" />

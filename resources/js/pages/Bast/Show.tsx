@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Check, Download, FileText, FolderDown, Upload, User } from 'lucide-react';
+import { ArrowLeft, Check, Download, FolderDown, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 interface Bast {
@@ -127,12 +127,12 @@ export default function Show({
 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Urutkan bast_list berdasarkan nama petugas (A-Z)
-    const sortedBastList = [...bast_list].sort((a, b) => 
-        a.petugas_nama.localeCompare(b.petugas_nama)
+    const sortedBastList = [...bast_list].sort((a, b) =>
+        a.petugas_nama.localeCompare(b.petugas_nama),
     );
-    
+
     const canEdit =
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
@@ -386,8 +386,8 @@ export default function Show({
                                         Upload BAST Bertanda Tangan
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Upload file BAST yang sudah ditandatangani
-                                        (PDF, max 10MB)
+                                        Upload file BAST yang sudah
+                                        ditandatangani (PDF, max 10MB)
                                     </p>
                                 </div>
 
@@ -423,11 +423,8 @@ export default function Show({
                             </div>
                         </ContentCard>
                     )}
-
-                    
                 </div>
             </div>
         </AppLayout>
     );
 }
-   

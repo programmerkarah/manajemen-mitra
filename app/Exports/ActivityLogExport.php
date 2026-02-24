@@ -4,17 +4,16 @@ namespace App\Exports;
 
 use App\Models\ActivityLog;
 use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithStyles, WithTitle, WithColumnWidths
+class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $filters;
 
@@ -27,15 +26,15 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithSty
     {
         $query = ActivityLog::query()->with('user');
 
-        if (!empty($this->filters['status'])) {
+        if (! empty($this->filters['status'])) {
             $query->where('status', $this->filters['status']);
         }
 
-        if (!empty($this->filters['user'])) {
+        if (! empty($this->filters['user'])) {
             $query->where('user_id', $this->filters['user']);
         }
 
-        if (!empty($this->filters['date'])) {
+        if (! empty($this->filters['date'])) {
             $query->whereDate('created_at', $this->filters['date']);
         }
 
@@ -66,7 +65,7 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithSty
             ucfirst($log->status ?? 'info'),
             $log->ip_address,
             $log->user_agent,
-            $log->created_at?->format('d M Y H:i:s') . ' WIB',
+            $log->created_at?->format('d M Y H:i:s').' WIB',
         ];
     }
 
@@ -74,9 +73,9 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithSty
     {
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
-        
+
         // Style for header row
-        $sheet->getStyle('A1:' . $highestColumn . '1')->applyFromArray([
+        $sheet->getStyle('A1:'.$highestColumn.'1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'size' => 12,
@@ -97,10 +96,10 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithSty
                 ],
             ],
         ]);
-        
+
         // Style for all data rows
         if ($highestRow > 1) {
-            $sheet->getStyle('A2:' . $highestColumn . $highestRow)->applyFromArray([
+            $sheet->getStyle('A2:'.$highestColumn.$highestRow)->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
@@ -112,20 +111,20 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping, WithSty
                     'wrapText' => true,
                 ],
             ]);
-            
+
             // Center align for ID and Status columns
-            $sheet->getStyle('A2:A' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('E2:E' . $highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A2:A'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E2:E'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
-        
+
         // Set row height for header
         $sheet->getRowDimension(1)->setRowHeight(25);
-        
+
         // Set minimum row height for data rows with auto-size
         for ($row = 2; $row <= $highestRow; $row++) {
             $sheet->getRowDimension($row)->setRowHeight(-1); // Auto height
         }
-        
+
         return [];
     }
 

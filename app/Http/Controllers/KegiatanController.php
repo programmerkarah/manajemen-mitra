@@ -34,7 +34,7 @@ class KegiatanController extends Controller
         $actualFilters = array_filter([
             'search' => $validated['search'] ?? null,
             'status' => $validated['status'] ?? null,
-        ], fn($value) => $value !== null && $value !== '');
+        ], fn ($value) => $value !== null && $value !== '');
 
         $query = Kegiatan::query()
             ->select('kegiatan.*')
@@ -57,7 +57,7 @@ class KegiatanController extends Controller
 
         // Filter by Ketua Tim for ketua_tim role (exclude admin)
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim() && !$effectiveUser->hasActiveRole('admin')) {
+        if ($effectiveUser->isKetuaTim() && ! $effectiveUser->hasActiveRole('admin')) {
             $query->where('ketua_tim_user_id', $effectiveUser->id)->orWhere('pj_lainnya_id', $effectiveUser->id);
         }
 
@@ -93,13 +93,13 @@ class KegiatanController extends Controller
      */
     public function create(): Response
     {
-        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for create form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -129,13 +129,13 @@ class KegiatanController extends Controller
         // Authorization via policy
         $this->authorize('view', $kegiatan);
 
-        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for create form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -173,7 +173,7 @@ class KegiatanController extends Controller
         $prefix = "KEG-{$tahunAnggaran}-";
 
         // Get last kegiatan number for this year
-        $lastKegiatan = Kegiatan::where('kode_kegiatan', 'like', $prefix . '%')
+        $lastKegiatan = Kegiatan::where('kode_kegiatan', 'like', $prefix.'%')
             ->orderBy('kode_kegiatan', 'desc')
             ->first();
 
@@ -185,7 +185,7 @@ class KegiatanController extends Controller
             $newNumber = 1;
         }
 
-        return $prefix . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+        return $prefix.str_pad($newNumber, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -290,13 +290,13 @@ class KegiatanController extends Controller
             abort(403, 'Kegiatan hanya bisa diedit jika statusnya draft atau divalidasi.');
         }
 
-        $ketuaTimUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for edit form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn($q) => $q->where('name', 'ketua_tim'))
+        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
             ->where('is_active', true)
             ->select('id', 'name', 'email')
             ->get();
@@ -447,7 +447,7 @@ class KegiatanController extends Controller
             ActivityLog::log(
                 'Ubah Kegiatan',
                 'kegiatan',
-                "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah pagu dari Rp " . number_format($oldPagu, 0, ',', '.') . " menjadi Rp " . number_format($newPagu, 0, ',', '.') . " dan memperbarui sisa pagu periode terkait.",
+                "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah pagu dari Rp ".number_format($oldPagu, 0, ',', '.').' menjadi Rp '.number_format($newPagu, 0, ',', '.').' dan memperbarui sisa pagu periode terkait.',
                 'success',
                 ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
             );
@@ -599,7 +599,7 @@ class KegiatanController extends Controller
         ActivityLog::log(
             'Kelola Rate Honor',
             'kegiatan',
-            "Berhasil memperbarui rate honor untuk kegiatan: {$kegiatan->nama_kegiatan}, mengatur rate honor untuk " . count($request->rate_honors) . " posisi.",
+            "Berhasil memperbarui rate honor untuk kegiatan: {$kegiatan->nama_kegiatan}, mengatur rate honor untuk ".count($request->rate_honors).' posisi.',
             'success',
             ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
         );
@@ -619,7 +619,7 @@ class KegiatanController extends Controller
         // Validate that kegiatan is in correct status
         if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
             return redirect()->back()
-                ->with('error', 'Kegiatan dengan status ' . $kegiatan->status . ' tidak dapat disetujui.');
+                ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat disetujui.');
         }
 
         // Update status to divalidasi
@@ -656,7 +656,7 @@ class KegiatanController extends Controller
         // Validate that kegiatan is in correct status
         if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
             return redirect()->back()
-                ->with('error', 'Kegiatan dengan status ' . $kegiatan->status . ' tidak dapat ditolak.');
+                ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat ditolak.');
         }
 
         // Update status back to draft

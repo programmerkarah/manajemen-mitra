@@ -439,7 +439,9 @@ export default function Generate({
                 },
                 onError: (errors) => {
                     setProcessing(false);
-                    setModalMessage('Terjadi error saat generate Perjanjian Kerja.');
+                    setModalMessage(
+                        'Terjadi error saat generate Perjanjian Kerja.',
+                    );
                     setShowFormModal(true);
                 },
             },
@@ -524,16 +526,18 @@ export default function Generate({
                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
                                 <p className="text-sm text-blue-800 dark:text-blue-200">
                                     <strong>Mode Regenerate:</strong> Tanggal
-                                    Perjanjian Kerja dan Sampai Tanggal menggunakan data yang
-                                    sudah ada di database dan tidak dapat
-                                    diubah.
+                                    Perjanjian Kerja dan Sampai Tanggal
+                                    menggunakan data yang sudah ada di database
+                                    dan tidak dapat diubah.
                                 </p>
                             </div>
                         )}
 
                         <div className="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label htmlFor="tanggal_spk">Tanggal Perjanjian Kerja</Label>
+                                <Label htmlFor="tanggal_spk">
+                                    Tanggal Perjanjian Kerja
+                                </Label>
                                 <Input
                                     id="tanggal_spk"
                                     type="date"
@@ -548,13 +552,16 @@ export default function Generate({
                                     required
                                 />
                                 <p className="mt-1 text-xs text-neutral-500">
-                                    Tanggal mulai pelaksanaan Perjanjian Kerja (Pasal 3). Tanggal akhir akan otomatis dihitung dari periode kegiatan.
+                                    Tanggal mulai pelaksanaan Perjanjian Kerja
+                                    (Pasal 3). Tanggal akhir akan otomatis
+                                    dihitung dari periode kegiatan.
                                 </p>
                             </div>
                         </div>
 
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Format Nomor Perjanjian Kerja: PPIS/13730/[No Urut]/K/[Tahun]
+                            Format Nomor Perjanjian Kerja: PPIS/13730/[No
+                            Urut]/K/[Tahun]
                             <br />
                             Contoh: PPIS/13730/1/K/
                             {formData.tanggal_spk

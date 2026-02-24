@@ -86,12 +86,12 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                             {item.total_spk}
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
-                                            <span className="text-green-600 dark:text-green-400 font-medium">
+                                            <span className="font-medium text-green-600 dark:text-green-400">
                                                 {item.spk_with_bast}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
-                                            <span className="text-orange-600 dark:text-orange-400 font-medium">
+                                            <span className="font-medium text-orange-600 dark:text-orange-400">
                                                 {item.spk_without_bast}
                                             </span>
                                         </td>
@@ -142,7 +142,8 @@ export default function Index({ data, filters, active_year }: IndexProps) {
                                                     )}
                                                 {item.has_spk &&
                                                     item.all_completed &&
-                                                    item.spk_with_bast === 0 && (
+                                                    item.spk_with_bast ===
+                                                        0 && (
                                                         <span className="text-xs text-neutral-500 dark:text-neutral-400">
                                                             Tidak ada BAST
                                                         </span>

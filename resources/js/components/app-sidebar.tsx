@@ -74,7 +74,6 @@ export function AppSidebar() {
                 title: 'Administrasi',
                 href: '/admin/dashboard',
                 icon: LayoutGrid,
-                
             },
         );
     } else if (hasActiveRole('operator')) {

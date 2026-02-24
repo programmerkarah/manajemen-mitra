@@ -59,13 +59,13 @@ export default function Create() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         console.log('🚀 handleSubmit called');
         console.log('📦 Form data:', data);
         console.log('⚙️ Processing:', processing);
-        
+
         setShowError(false);
-        
+
         post('/petugas', {
             preserveScroll: true,
             onStart: () => {
@@ -113,16 +113,19 @@ export default function Create() {
                         <AlertCircle className="h-5 w-5" />
                         <AlertTitle>Terjadi Kesalahan</AlertTitle>
                         <AlertDescription>
-                            Mohon periksa kembali form Anda. Ada beberapa field yang perlu diperbaiki:
-                            <ul className="list-disc list-inside mt-2 space-y-1">
-                                {Object.entries(errors).map(([field, message]) => (
-                                    <li key={field} className="text-sm">
-                                        <span className="font-medium capitalize">
-                                            {field.replace(/_/g, ' ')}:
-                                        </span>{' '}
-                                        {message}
-                                    </li>
-                                ))}
+                            Mohon periksa kembali form Anda. Ada beberapa field
+                            yang perlu diperbaiki:
+                            <ul className="mt-2 list-inside list-disc space-y-1">
+                                {Object.entries(errors).map(
+                                    ([field, message]) => (
+                                        <li key={field} className="text-sm">
+                                            <span className="font-medium capitalize">
+                                                {field.replace(/_/g, ' ')}:
+                                            </span>{' '}
+                                            {message}
+                                        </li>
+                                    ),
+                                )}
                             </ul>
                         </AlertDescription>
                     </Alert>
@@ -263,7 +266,9 @@ export default function Create() {
                                                     2,
                                             },
                                             (_, i) =>
-                                                new Date().getFullYear() + 1 - i,
+                                                new Date().getFullYear() +
+                                                1 -
+                                                i,
                                         ).map((year) => (
                                             <SelectItem
                                                 key={year}
@@ -294,8 +299,12 @@ export default function Create() {
                                         <SelectValue placeholder="Pilih Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="aktif">Aktif</SelectItem>
-                                        <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                                        <SelectItem value="aktif">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="nonaktif">
+                                            Nonaktif
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <InputError message={errors.status} />
@@ -318,7 +327,9 @@ export default function Create() {
                                         <SelectValue placeholder="Pilih Jenis Petugas" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="organik">Organik</SelectItem>
+                                        <SelectItem value="organik">
+                                            Organik
+                                        </SelectItem>
                                         <SelectItem value="non-organik">
                                             Non-Organik
                                         </SelectItem>

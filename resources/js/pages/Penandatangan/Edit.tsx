@@ -136,7 +136,8 @@ export default function Edit({ Penandatangan }: EditProps) {
                                             Kepala (untuk SK Petugas)
                                         </SelectItem>
                                         <SelectItem value="ppk">
-                                            PPK (untuk Perjanjian Kerja dan BAST)
+                                            PPK (untuk Perjanjian Kerja dan
+                                            BAST)
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>

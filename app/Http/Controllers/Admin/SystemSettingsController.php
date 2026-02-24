@@ -57,10 +57,10 @@ class SystemSettingsController
         if ($filters['date']) {
             $query->whereDate('created_at', $filters['date']);
         }
-        
+
         // Get page from request, default to 1
         $page = $request->input('page', 1);
-        
+
         // Paginate with 50 items per page, sorted by latest first
         $logs = $query->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -75,7 +75,7 @@ class SystemSettingsController
                     'status' => $log->status,
                     'ip_address' => $log->ip_address,
                     'user_agent' => $log->user_agent,
-                    'time' => $log->created_at?->format('d M Y H:i:s') . ' WIB',
+                    'time' => $log->created_at?->format('d M Y H:i:s').' WIB',
                     'created_at' => $log->created_at?->toISOString(),
                     'properties' => $log->metadata,
                 ];
@@ -115,9 +115,9 @@ class SystemSettingsController
         ];
 
         // Remove null values
-        $filters = array_filter($filters, fn($value) => $value !== null && $value !== '');
+        $filters = array_filter($filters, fn ($value) => $value !== null && $value !== '');
 
-        $filename = 'activity-log-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'activity-log-'.now()->format('Y-m-d-His').'.xlsx';
 
         return Excel::download(new ActivityLogExport($filters), $filename);
     }

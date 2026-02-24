@@ -9,7 +9,7 @@ const SECRET_KEY =
  * Encrypt data using AES encryption
  * Compatible with Laravel's AES decryption
  */
-export function encryptData(data: any): string {
+export function encryptData(data: unknown): string {
     const jsonString = JSON.stringify(data);
     const encrypted = CryptoJS.AES.encrypt(jsonString, SECRET_KEY).toString();
     return encrypted;
@@ -18,11 +18,11 @@ export function encryptData(data: any): string {
 /**
  * Decrypt data encrypted with AES
  */
-export function decryptData(encryptedData: string): any {
+export function decryptData<T = unknown>(encryptedData: string): T | null {
     try {
         const bytes = CryptoJS.AES.decrypt(encryptedData, SECRET_KEY);
         const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-        return JSON.parse(decryptedString);
+        return JSON.parse(decryptedString) as T;
     } catch (error) {
         console.error('Decryption failed:', error);
         return null;
@@ -32,11 +32,11 @@ export function decryptData(encryptedData: string): any {
 /**
  * Encrypt filter parameters before sending to backend
  */
-export function encryptFilters(filters: Record<string, any>): string {
+export function encryptFilters(filters: Record<string, unknown>): string {
     // Remove empty values
     const cleanFilters = Object.fromEntries(
         Object.entries(filters).filter(
-            ([_, value]) =>
+            ([, value]) =>
                 value !== null && value !== '' && value !== undefined,
         ),
     );
@@ -47,6 +47,8 @@ export function encryptFilters(filters: Record<string, any>): string {
 /**
  * Decrypt filter parameters received from backend
  */
-export function decryptFilters(encryptedFilters: string): Record<string, any> {
-    return decryptData(encryptedFilters) || {};
+export function decryptFilters(
+    encryptedFilters: string,
+): Record<string, unknown> {
+    return decryptData<Record<string, unknown>>(encryptedFilters) || {};
 }

@@ -124,7 +124,7 @@ class PetugasController extends Controller
                 ActivityLog::log(
                     'Tambah Mitra - ERROR',
                     'mitra',
-                    "GAGAL menambahkan mitra: Database error - " . $e->getMessage(),
+                    'GAGAL menambahkan mitra: Database error - '.$e->getMessage(),
                     'error',
                     ['request_data' => $request->all(), 'error' => $e->getMessage()]
                 );
@@ -134,7 +134,7 @@ class PetugasController extends Controller
 
             return redirect()->back()
                 ->withInput()
-                ->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Gagal menyimpan data: '.$e->getMessage()]);
 
         } catch (\Exception $e) {
 
@@ -143,7 +143,7 @@ class PetugasController extends Controller
                 ActivityLog::log(
                     'Tambah Mitra - ERROR',
                     'mitra',
-                    "GAGAL menambahkan mitra: " . $e->getMessage(),
+                    'GAGAL menambahkan mitra: '.$e->getMessage(),
                     'error',
                     ['request_data' => $request->all(), 'error' => $e->getMessage()]
                 );
@@ -153,7 +153,7 @@ class PetugasController extends Controller
 
             return redirect()->back()
                 ->withInput()
-                ->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Terjadi kesalahan: '.$e->getMessage()]);
         }
     }
 

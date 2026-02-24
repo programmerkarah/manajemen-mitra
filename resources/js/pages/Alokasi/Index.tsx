@@ -28,7 +28,6 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
@@ -46,7 +45,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface AlokasiPeriod {
     kegiatan_id: number;
@@ -118,9 +117,14 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         // Filter by search (kegiatan name or code)
         if (search) {
             const query = search.toLowerCase();
-            result = result.filter((periode) =>
-                periode.kegiatan.nama_kegiatan.toLowerCase().includes(query) ||
-                periode.kegiatan.kode_kegiatan.toLowerCase().includes(query)
+            result = result.filter(
+                (periode) =>
+                    periode.kegiatan.nama_kegiatan
+                        .toLowerCase()
+                        .includes(query) ||
+                    periode.kegiatan.kode_kegiatan
+                        .toLowerCase()
+                        .includes(query),
             );
         }
 
@@ -183,23 +187,27 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
         const now = new Date();
         const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
         const currentYear = now.getFullYear();
-        
+
         const periodeMonth = parseInt(bulan);
         const periodeYear = tahun;
-        
+
         // Check if it's current month
         if (periodeYear === currentYear && periodeMonth === currentMonth) {
             return true;
         }
-        
+
         // Check if it's previous month
         const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-        const previousMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-        
-        if (periodeYear === previousMonthYear && periodeMonth === previousMonth) {
+        const previousMonthYear =
+            currentMonth === 1 ? currentYear - 1 : currentYear;
+
+        if (
+            periodeYear === previousMonthYear &&
+            periodeMonth === previousMonth
+        ) {
             return true;
         }
-        
+
         return false;
     };
 
@@ -461,7 +469,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                         colSpan={7}
                                         className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
                                     >
-                                        {filteredAlokasi.length === 0 && decryptedAlokasi.length > 0
+                                        {filteredAlokasi.length === 0 &&
+                                        decryptedAlokasi.length > 0
                                             ? 'Tidak ada data yang sesuai dengan filter'
                                             : 'Tidak ada data alokasi'}
                                     </td>
@@ -672,25 +681,42 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
                         <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, filteredAlokasi.length)} dari {filteredAlokasi.length} data
-                            {(search || status !== 'all' || bulan !== 'all') && ` (difilter dari ${decryptedAlokasi.length} total)`}
+                            Menampilkan {(currentPage - 1) * perPage + 1}-
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAlokasi.length,
+                            )}{' '}
+                            dari {filteredAlokasi.length} data
+                            {(search || status !== 'all' || bulan !== 'all') &&
+                                ` (difilter dari ${decryptedAlokasi.length} total)`}
                         </div>
                         <div className="flex gap-1">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                onClick={() =>
+                                    setCurrentPage((prev) =>
+                                        Math.max(1, prev - 1),
+                                    )
+                                }
                                 disabled={currentPage === 1}
                                 className="h-9 gap-1"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                                 Previous
                             </Button>
-                            
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+
+                            {Array.from(
+                                { length: totalPages },
+                                (_, i) => i + 1,
+                            ).map((page) => (
                                 <Button
                                     key={page}
-                                    variant={currentPage === page ? 'default' : 'outline'}
+                                    variant={
+                                        currentPage === page
+                                            ? 'default'
+                                            : 'outline'
+                                    }
                                     size="sm"
                                     onClick={() => setCurrentPage(page)}
                                     className="h-9 w-9"
@@ -698,11 +724,15 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                     {page}
                                 </Button>
                             ))}
-                            
+
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                onClick={() =>
+                                    setCurrentPage((prev) =>
+                                        Math.min(totalPages, prev + 1),
+                                    )
+                                }
                                 disabled={currentPage === totalPages}
                                 className="h-9 gap-1"
                             >
@@ -779,7 +809,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 Data akan digunakan untuk SK KPA
                                             </li>
                                             <li>
-                                                Data akan digunakan untuk Perjanjian Kerja
+                                                Data akan digunakan untuk
+                                                Perjanjian Kerja
                                             </li>
                                             <li>
                                                 Dapat direvisi jika diperlukan
@@ -976,7 +1007,8 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
                                                 dibuat SK Perubahan
                                             </li>
                                             <li>
-                                                Perjanjian Kerja akan ditambahkan Addendum
+                                                Perjanjian Kerja akan
+                                                ditambahkan Addendum
                                             </li>
                                         </ul>
                                     </div>

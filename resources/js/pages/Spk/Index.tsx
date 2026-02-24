@@ -14,7 +14,14 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Copy, Eye, FileEdit, Plus } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Copy,
+    Eye,
+    FileEdit,
+    Plus,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface KegiatanItem {
@@ -68,7 +75,9 @@ interface IndexProps {
     };
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Perjanjian Kerja', href: '/spk' }];
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Perjanjian Kerja', href: '/spk' },
+];
 
 export default function Index({ periodeList, filters }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
@@ -88,7 +97,11 @@ export default function Index({ periodeList, filters }: IndexProps) {
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
 
-    const handleCopyPetugasNames = async (bulan: number, tahun: number, bulanLabel: string) => {
+    const handleCopyPetugasNames = async (
+        bulan: number,
+        tahun: number,
+        bulanLabel: string,
+    ) => {
         const monthKey = `${tahun}-${bulan}`;
         setCopyingMonth(monthKey);
 
@@ -97,7 +110,10 @@ export default function Index({ periodeList, filters }: IndexProps) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN':
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({ bulan, tahun }),
             });
@@ -257,16 +273,29 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                 <td className="px-4 py-4">
                                                     <div className="flex flex-col items-end gap-1.5">
                                                         {/* Copy Petugas Names - Show if there are petugas */}
-                                                        {monthData.total_petugas_non_organik > 0 && (
+                                                        {monthData.total_petugas_non_organik >
+                                                            0 && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => handleCopyPetugasNames(monthData.bulan, monthData.tahun, monthData.bulan_label)}
-                                                                disabled={copyingMonth === `${monthData.tahun}-${monthData.bulan}`}
+                                                                onClick={() =>
+                                                                    handleCopyPetugasNames(
+                                                                        monthData.bulan,
+                                                                        monthData.tahun,
+                                                                        monthData.bulan_label,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    copyingMonth ===
+                                                                    `${monthData.tahun}-${monthData.bulan}`
+                                                                }
                                                                 className="w-full justify-start gap-1"
                                                             >
                                                                 <Copy className="h-3.5 w-3.5" />
-                                                                {copyingMonth === `${monthData.tahun}-${monthData.bulan}` ? 'Menyalin...' : 'Salin Nama Petugas'}
+                                                                {copyingMonth ===
+                                                                `${monthData.tahun}-${monthData.bulan}`
+                                                                    ? 'Menyalin...'
+                                                                    : 'Salin Nama Petugas'}
                                                             </Button>
                                                         )}
 
@@ -293,7 +322,8 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <Plus className="h-3.5 w-3.5" />
                                                                         Generate
-                                                                        Perjanjian Kerja
+                                                                        Perjanjian
+                                                                        Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}
@@ -320,7 +350,8 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <Plus className="h-3.5 w-3.5" />
                                                                         Re-generate
-                                                                        Perjanjian Kerja
+                                                                        Perjanjian
+                                                                        Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}
@@ -370,7 +401,8 @@ export default function Index({ periodeList, filters }: IndexProps) {
                                                                     >
                                                                         <FileEdit className="h-3.5 w-3.5" />
                                                                         Addendum
-                                                                        Perjanjian Kerja
+                                                                        Perjanjian
+                                                                        Kerja
                                                                     </Link>
                                                                 </Button>
                                                             )}
@@ -460,7 +492,11 @@ export default function Index({ periodeList, filters }: IndexProps) {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle
-                                className={modalContent.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}
+                                className={
+                                    modalContent.type === 'error'
+                                        ? 'text-red-600 dark:text-red-400'
+                                        : 'text-green-600 dark:text-green-400'
+                                }
                             >
                                 {modalContent.title}
                             </DialogTitle>
