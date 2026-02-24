@@ -74,8 +74,9 @@ export default function DatabaseStatus() {
                     'Backup gagal: ' + (data.error || 'Unknown error'),
                 );
             }
-        } catch (e: any) {
-            setBackupResult('Backup gagal: ' + e.message);
+        } catch (e: unknown) {
+            const error = e as Error;
+            setBackupResult('Backup gagal: ' + error.message);
         }
         setLoading(false);
     };
@@ -105,8 +106,9 @@ export default function DatabaseStatus() {
                     'Restore gagal: ' + (data.error || 'Unknown error'),
                 );
             }
-        } catch (e: any) {
-            setRestoreResult('Restore gagal: ' + e.message);
+        } catch (e: unknown) {
+            const error = e as Error;
+            setRestoreResult('Restore gagal: ' + error.message);
         }
         setLoading(false);
     };

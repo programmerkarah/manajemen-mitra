@@ -24,7 +24,7 @@ import {
     Plus,
     RefreshCw,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface LatestSk {
     id: number;
@@ -93,6 +93,7 @@ export default function Index({ kegiatan, filters }: IndexProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const prevFiltersRef = useRef({ search, jenisKegiatan });
 
     // Client-side filtering and sorting
     const filteredAndSortedKegiatan = useMemo(() => {
@@ -156,7 +157,15 @@ export default function Index({ kegiatan, filters }: IndexProps) {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (
+            prevFilters.search !== search ||
+            prevFilters.jenisKegiatan !== jenisKegiatan
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, jenisKegiatan };
+        }
     }, [search, jenisKegiatan]);
 
     const handleRefresh = () => {

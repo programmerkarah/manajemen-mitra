@@ -1,17 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Home, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 interface ErrorProps {
     status: number;
 }
 
 export default function Error({ status }: ErrorProps) {
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-        setIsVisible(true);
-    }, []);
 
     const title =
         {
@@ -41,13 +35,7 @@ export default function Error({ status }: ErrorProps) {
                     <div className="floating-circle-slow absolute top-1/2 left-1/4 h-24 w-24 rounded-full bg-pink-200 opacity-20 blur-xl"></div>
                 </div>
 
-                <div
-                    className={`relative z-10 w-full max-w-2xl text-center transition-all duration-1000 ${
-                        isVisible
-                            ? 'translate-y-0 opacity-100'
-                            : 'translate-y-10 opacity-0'
-                    }`}
-                >
+                <div className="relative z-10 w-full max-w-2xl animate-fade-in text-center">
                     {/* Error Code Badge
                     <div className="mb-8 inline-block">
                         <div className="text-8xl font-bold text-blue-600 opacity-90 animate-pulse-slow">

@@ -45,7 +45,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface AlokasiPeriod {
     kegiatan_id: number;
@@ -96,7 +96,7 @@ interface Props {
     hasKegiatans: boolean;
 }
 
-export default function Index({ alokasi, filters, hasKegiatans }: Props) {
+export default function Index({ alokasi, hasKegiatans }: Props) {
     const { auth } = usePage<SharedData>().props;
 
     // Decrypt data once with memoization for filtering/sorting
@@ -109,6 +109,7 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
     const [bulan, setBulan] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const perPage = 15;
+    const prevFiltersRef = useRef({ search, status, bulan });
 
     // Client-side filtering
     const filteredAlokasi = useMemo(() => {
@@ -152,7 +153,16 @@ export default function Index({ alokasi, filters, hasKegiatans }: Props) {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (
+            prevFilters.search !== search ||
+            prevFilters.status !== status ||
+            prevFilters.bulan !== bulan
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, status, bulan };
+        }
     }, [search, status, bulan]);
 
     // Modal states

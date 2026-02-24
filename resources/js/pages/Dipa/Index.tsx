@@ -33,7 +33,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -77,7 +77,6 @@ interface DipaIndexProps {
 export default function Index({
     dipaList,
     tahunOptions,
-    filters,
 }: DipaIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
@@ -94,6 +93,7 @@ export default function Index({
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const prevFiltersRef = useRef({ search, status, tahun });
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [selectedDipa, setSelectedDipa] = useState<Dipa | null>(null);
     const [processing, setProcessing] = useState(false);
@@ -124,8 +124,8 @@ export default function Index({
 
         // Sort
         result.sort((a: Dipa, b: Dipa) => {
-            let aVal: any = '',
-                bVal: any = '';
+            let aVal: string | number = '';
+            let bVal: string | number = '';
             switch (sortField) {
                 case 'tahun':
                     aVal = a.tahun || 0;
@@ -159,7 +159,16 @@ export default function Index({
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (
+            prevFilters.search !== search ||
+            prevFilters.status !== status ||
+            prevFilters.tahun !== tahun
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, status, tahun };
+        }
     }, [search, status, tahun]);
 
     const handleRefresh = () => {

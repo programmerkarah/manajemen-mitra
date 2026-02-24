@@ -46,7 +46,6 @@ export function GenerateSkDialog({
     bulan,
     dasarHukumList,
 }: GenerateSkDialogProps) {
-    const currentYear = new Date().getFullYear();
     const currentDate = new Date().toISOString().split('T')[0];
 
     const [nomorSk, setNomorSk] = useState('');

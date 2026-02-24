@@ -17,7 +17,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type AlokasiPetugas, type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -68,7 +68,6 @@ export default function Edit({
     alokasi,
     kegiatans,
     petugas,
-    rateHonors,
 }: AlokasiEditProps) {
     // Debug: log petugas data
     const { data, setData, put, processing, errors } = useForm({
@@ -80,12 +79,8 @@ export default function Edit({
         catatan: alokasi.catatan || '',
     });
 
-    const [selectedRateHonor, setSelectedRateHonor] =
-        useState<RateHonor | null>(null);
-    const [estimatedTotal, setEstimatedTotal] = useState(0);
-
-    // Calculate total based on kegiatan's rate honor
-    useEffect(() => {
+    // Calculate total based on kegiatan's rate honor (computed value)
+    const estimatedTotal = useMemo(() => {
         const selectedKegiatan = kegiatans.find(
             (k) => k.id === data.kegiatan_id,
         );
@@ -94,10 +89,9 @@ export default function Edit({
         const jumlahSatuan = parseFloat(data.jumlah_satuan) || 0;
 
         if (selectedKegiatan?.rate_honor && jumlahSatuan > 0) {
-            setEstimatedTotal(selectedKegiatan.rate_honor.rate * jumlahSatuan);
-        } else {
-            setEstimatedTotal(0);
+            return selectedKegiatan.rate_honor.rate * jumlahSatuan;
         }
+        return 0;
     }, [data.kegiatan_id, data.jumlah_satuan, kegiatans]);
 
     const handleSubmit = (e: React.FormEvent) => {

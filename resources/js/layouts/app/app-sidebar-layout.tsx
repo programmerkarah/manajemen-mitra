@@ -4,7 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
@@ -12,7 +12,7 @@ export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
-    const { auth } = usePage().props as any;
+    const { auth } = usePage<SharedData>().props;
 
     // Listen for session invalidation via WebSocket
     useSessionInvalidation(auth?.user?.id);

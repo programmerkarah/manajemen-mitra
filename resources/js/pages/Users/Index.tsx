@@ -33,7 +33,7 @@ import {
     UserRoundCog,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -112,6 +112,7 @@ export default function Index({ users, filters }: UsersIndexProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const prevSearchRef = useRef(search);
 
     // Client-side filtering and sorting
     const filteredAndSortedUsers = useMemo(() => {
@@ -168,7 +169,11 @@ export default function Index({ users, filters }: UsersIndexProps) {
 
     // Reset to page 1 when search changes
     useEffect(() => {
-        setCurrentPage(1);
+        if (prevSearchRef.current !== search) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on search change via ref
+            setCurrentPage(1);
+            prevSearchRef.current = search;
+        }
     }, [search]);
 
     const handleRefresh = () => {

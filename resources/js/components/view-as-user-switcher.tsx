@@ -33,16 +33,29 @@ export default function ViewAsUserSwitcher() {
 
     useEffect(() => {
         if (open && search.length > 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading state for async data fetch
             setLoading(true);
-            fetch(`/view-as-user/search?search=${encodeURIComponent(search)}`)
+            const abortController = new AbortController();
+
+            fetch(`/view-as-user/search?search=${encodeURIComponent(search)}`, {
+                signal: abortController.signal,
+            })
                 .then((res) => res.json())
                 .then((data) => {
+                     
                     setUsers(data);
+                     
                     setLoading(false);
                 })
-                .catch(() => {
-                    setLoading(false);
+                .catch((error) => {
+                    // Ignore abort errors
+                    if (error.name !== 'AbortError') {
+                         
+                        setLoading(false);
+                    }
                 });
+
+            return () => abortController.abort();
         }
     }, [search, open]);
 

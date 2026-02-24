@@ -81,16 +81,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const variants = {
-            success: 'default',
-            error: 'destructive',
-            warning: 'secondary',
-        } as const;
-
-        return variants[status as keyof typeof variants] || 'default';
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Admin Dashboard" />

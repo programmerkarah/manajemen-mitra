@@ -60,20 +60,23 @@ const echo = new Echo(
 
 // Debug: Log Pusher connection status
 if (usePusher && echo.connector?.pusher) {
-    echo.connector.pusher.connection.bind('state_change', (states: any) => {
-        console.log(
-            '📡 Pusher state change:',
-            states.previous,
-            '→',
-            states.current,
-        );
-    });
+    echo.connector.pusher.connection.bind(
+        'state_change',
+        (states: { previous: string; current: string }) => {
+            console.log(
+                '📡 Pusher state change:',
+                states.previous,
+                '→',
+                states.current,
+            );
+        },
+    );
 
     echo.connector.pusher.connection.bind('connected', () => {
         console.log('✅ Pusher connected successfully');
     });
 
-    echo.connector.pusher.connection.bind('error', (err: any) => {
+    echo.connector.pusher.connection.bind('error', (err: unknown) => {
         console.error('❌ Pusher connection error:', err);
     });
 }

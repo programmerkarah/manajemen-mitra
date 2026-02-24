@@ -32,7 +32,7 @@ interface IndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
 
-export default function Index({ data, filters, active_year }: IndexProps) {
+export default function Index({ data, active_year }: IndexProps) {
     const decryptedData = useDecryptedData<PeriodeData>(data.encrypted);
 
     return (

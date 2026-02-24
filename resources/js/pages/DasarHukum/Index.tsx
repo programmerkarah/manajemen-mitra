@@ -28,7 +28,7 @@ import {
     Search,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master', href: '#' },
@@ -88,6 +88,7 @@ export default function Index({ dasarHukum, filters }: Props) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const prevFiltersRef = useRef({ search, status });
 
     // Client-side filtering and sorting
     const filteredAndSortedDasarHukum = useMemo(() => {
@@ -113,8 +114,8 @@ export default function Index({ dasarHukum, filters }: Props) {
 
         // Sort
         result.sort((a: DasarHukum, b: DasarHukum) => {
-            let aVal: any = '',
-                bVal: any = '';
+            let aVal: string | number = '';
+            let bVal: string | number = '';
             switch (sortField) {
                 case 'nomor':
                     aVal = a.nomor?.toLowerCase() || '';
@@ -148,7 +149,12 @@ export default function Index({ dasarHukum, filters }: Props) {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (prevFilters.search !== search || prevFilters.status !== status) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, status };
+        }
     }, [search, status]);
 
     const handleRefresh = () => {

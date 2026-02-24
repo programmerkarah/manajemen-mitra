@@ -57,7 +57,21 @@ interface ActivityLog {
     user_agent?: string;
     time: string;
     created_at?: string;
-    properties?: Record<string, any>;
+    properties?: Record<string, unknown>;
+}
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+interface Filters {
+    user_id?: string;
+    action?: string;
+    status?: string;
+    date_from?: string;
+    date_to?: string;
 }
 
 interface PaginationData {
@@ -72,8 +86,8 @@ interface PaginationData {
 interface Props {
     logs: string | ActivityLog[]; // Can be encrypted string or array
     pagination?: PaginationData;
-    filters?: any;
-    users?: any[];
+    filters?: Filters;
+    users?: User[];
     [key: string]: unknown;
 }
 

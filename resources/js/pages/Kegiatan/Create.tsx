@@ -9,10 +9,6 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Kegiatan', href: '/kegiatan' },
-    { title: 'Tambah Kegiatan', href: '/kegiatan/create' },
-];
 
 interface User {
     id: number;

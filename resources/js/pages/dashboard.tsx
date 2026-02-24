@@ -827,7 +827,7 @@ export default function Dashboard({
                                             marginBottom: '4px',
                                         }}
                                         itemStyle={{ fontSize: '12px' }}
-                                        itemSorter={(item: any) => {
+                                        itemSorter={(item: { dataKey: string }) => {
                                             const order = [
                                                 'honor_0_500rb',
                                                 'honor_501rb_1500rb',
@@ -842,7 +842,7 @@ export default function Dashboard({
                                         wrapperStyle={{ paddingTop: '12px' }}
                                         iconType="square"
                                         iconSize={8}
-                                        itemSorter={(item: any) => {
+                                        itemSorter={(item: { dataKey: string }) => {
                                             const order = [
                                                 'honor_0_500rb',
                                                 'honor_501rb_1500rb',
@@ -1296,17 +1296,17 @@ export default function Dashboard({
                                             'admin',
                                             'operator',
                                             'ketua_tim',
-                                        ].includes(auth.activeRole?.name);
+                                        ].includes(auth.activeRole?.name ?? '');
                                         const canEditSk = [
                                             'admin',
                                             'operator',
                                             'pj',
-                                        ].includes(auth.activeRole?.name);
+                                        ].includes(auth.activeRole?.name ?? '');
                                         const canEditSpk = [
                                             'admin',
                                             'operator',
                                             'approver',
-                                        ].includes(auth.activeRole?.name);
+                                        ].includes(auth.activeRole?.name ?? '');
 
                                         const hasActions =
                                             canEditAlokasi ||

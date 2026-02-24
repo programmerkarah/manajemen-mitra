@@ -39,7 +39,7 @@ import {
     User as UserIcon,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Master Data', href: '#' },
@@ -102,7 +102,6 @@ interface PenandatanganIndexProps {
 
 export default function Index({
     PenandatanganList,
-    filters,
 }: PenandatanganIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
@@ -122,6 +121,7 @@ export default function Index({
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const prevFiltersRef = useRef({ search, jenis, status });
     const [selectedPenandatangan, setSelectedPenandatangan] =
         useState<Penandatangan | null>(null);
     const [processing, setProcessing] = useState(false);
@@ -195,7 +195,16 @@ export default function Index({
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (
+            prevFilters.search !== search ||
+            prevFilters.jenis !== jenis ||
+            prevFilters.status !== status
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, jenis, status };
+        }
     }, [search, jenis, status]);
 
     const handleRefresh = () => {

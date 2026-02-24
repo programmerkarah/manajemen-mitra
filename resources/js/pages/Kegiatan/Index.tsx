@@ -39,7 +39,7 @@ import {
     Send,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -52,7 +52,7 @@ interface User {
 }
 
 interface Kegiatan {
-    pj_lainnya: any;
+    pj_lainnya: User | null;
     id: number;
     hashed_id: string;
     kode_kegiatan: string;
@@ -107,6 +107,7 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const prevFiltersRef = useRef({ search, status });
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -138,8 +139,8 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
         // Sort
         result.sort((a: Kegiatan, b: Kegiatan) => {
-            let aVal: any = '',
-                bVal: any = '';
+            let aVal: string | number = '';
+            let bVal: string | number = '';
             switch (sortField) {
                 case 'tahun_anggaran':
                     aVal = a.tahun_anggaran || 0;
@@ -173,7 +174,12 @@ export default function Index({ kegiatans, filters }: KegiatanIndexProps) {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
+        const prevFilters = prevFiltersRef.current;
+        if (prevFilters.search !== search || prevFilters.status !== status) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
+            setCurrentPage(1);
+            prevFiltersRef.current = { search, status };
+        }
     }, [search, status]);
 
     const handleRefresh = () => {
