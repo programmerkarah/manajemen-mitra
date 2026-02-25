@@ -2283,8 +2283,9 @@ class BastController extends Controller
         @unlink($zipPath);
 
         // Redirect to serve-download route
-        return '/downloads/'.rawurlencode($zipFileName);
+        return redirect('/downloads/'.rawurlencode($zipFileName));
     }
+
 
     /**
      * Generate preview PDF for BAST
