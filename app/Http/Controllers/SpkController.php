@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -738,7 +739,7 @@ class SpkController extends Controller
         @unlink($zipPath);
 
         // Redirect to serve-download route
-        return redirect()->route('serve.download', ['filename' => $zipFileName]);
+        return redirect($this->generateSignedDownloadUrl($zipFileName));
     }
 
     /**
@@ -900,7 +901,7 @@ class SpkController extends Controller
         @unlink($zipPath);
 
         // Redirect to serve-download route
-        return redirect()->route('serve.download', ['filename' => $zipFileName]);
+        return redirect($this->generateSignedDownloadUrl($zipFileName));
     }
 
     /**
@@ -1044,7 +1045,7 @@ class SpkController extends Controller
         @unlink($zipPath);
 
         // Redirect to serve-download route
-        return redirect()->route('serve.download', ['filename' => $zipFileName]);
+        return redirect($this->generateSignedDownloadUrl($zipFileName));
     }
 
     /**
@@ -1125,6 +1126,15 @@ class SpkController extends Controller
         $lastUrut = isset($parts[2]) ? (int) $parts[2] : 0;
 
         return $lastUrut + 1;
+    }
+
+    private function generateSignedDownloadUrl(string $filename): string
+    {
+        return URL::temporarySignedRoute(
+            'serve.download',
+            now()->addMinutes(10),
+            ['filename' => $filename]
+        );
     }
 
     /**

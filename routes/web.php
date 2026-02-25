@@ -18,10 +18,15 @@ use App\Http\Controllers\TwoFactorPromptController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\ViewAsUserController;
 use App\Http\Controllers\YearSwitchController;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
@@ -49,14 +54,33 @@ Route::get('/debug', function () {
 
 // Route untuk serve dan cleanup download file
 Route::get('/serve-download/{filename}', function ($filename) {
-    $filePath = public_path('downloads/'.$filename);
+    $safeFileName = basename((string) $filename);
+    $filePath = public_path('downloads/'.$safeFileName);
 
     if (! file_exists($filePath)) {
         abort(404, 'File tidak ditemukan');
     }
 
-    return response()->download($filePath, $filename)->deleteFileAfterSend(true);
-})->middleware('auth')->name('serve.download');
+    $response = response()->download($filePath, $safeFileName)->deleteFileAfterSend(true);
+    $response->headers->set('Cache-Control', 'public, max-age=3600, immutable');
+    $response->headers->set('Pragma', 'public');
+    $response->headers->set('Expires', gmdate('D, d M Y H:i:s', time() + 3600).' GMT');
+
+    return $response;
+})->middleware('signed')
+    ->withoutMiddleware([
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
+        \App\Http\Middleware\LogRequests::class,
+        \App\Http\Middleware\PreventMaintenanceModeRequests::class,
+        \App\Http\Middleware\HandleAppearance::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+        \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+    ])
+    ->name('serve.download');
 
 // Simple HTML test without Inertia
 Route::get('/simple', function () {
