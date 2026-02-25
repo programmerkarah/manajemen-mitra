@@ -224,6 +224,7 @@ export default function ShowByMonth({
     const isAddendum = decryptedSpk.addendum_number > 0;
     const { auth } = usePage<SharedData>().props;
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
+    const [downloadingKegiatan, setDownloadingKegiatan] = useState<number | null>(null);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         file: File | null;
@@ -482,6 +483,15 @@ export default function ShowByMonth({
                                                             method="POST"
                                                             action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
                                                             className="inline-block"
+                                                            onSubmit={() => {
+                                                                setDownloadingKegiatan(
+                                                                    kegiatan.id,
+                                                                );
+                                                                // Reset state after 10 seconds to allow for ZIP generation and download
+                                                                setTimeout(() => {
+                                                                    setDownloadingKegiatan(null);
+                                                                }, 10000);
+                                                            }}
                                                         >
                                                             <input
                                                                 type="hidden"
@@ -511,9 +521,16 @@ export default function ShowByMonth({
                                                                 size="sm"
                                                                 variant="default"
                                                                 className="gap-1"
+                                                                disabled={
+                                                                    downloadingKegiatan ===
+                                                                    kegiatan.id
+                                                                }
                                                             >
                                                                 <Download className="h-3.5 w-3.5" />
-                                                                Download ZIP
+                                                                {downloadingKegiatan ===
+                                                                kegiatan.id
+                                                                    ? 'Memproses...'
+                                                                    : 'Download ZIP'}
                                                             </Button>
                                                         </form>
                                                     </div>
