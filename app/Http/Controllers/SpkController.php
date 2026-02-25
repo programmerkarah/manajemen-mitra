@@ -14,7 +14,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -665,17 +664,42 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Tidak ada SPK/addendum yang sudah ditandatangani untuk diunduh');
         }
 
-        // Create ZIP file
+        // Create ZIP file with deterministic name (no timestamp)
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
-        $zipFileName = "SPK_{$bulanLabel}_{$tahun}_".time().'.zip';
-        $zipPath = storage_path('app/temp/'.$zipFileName);
+        $zipFileName = "SPK_{$bulanLabel}_{$tahun}.zip";
 
-        // Create temp directory if not exists
-        if (! file_exists(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
+        // Ensure downloads directory exists
+        $downloadsDir = public_path('downloads');
+        if (! file_exists($downloadsDir)) {
+            mkdir($downloadsDir, 0755, true);
         }
 
+        $zipPath = $downloadsDir.'/'.$zipFileName;
+
+        // Check if ZIP exists and validate cache
+        $shouldRegenerate = true;
+        if (file_exists($zipPath)) {
+            $zipModTime = filemtime($zipPath);
+
+            // Check if any SPK was updated after ZIP creation
+            $latestSpkUpdate = max(
+                $mainSpks->max('updated_at')?->timestamp ?? 0,
+                $addendumSpks->max('updated_at')?->timestamp ?? 0
+            );
+
+            // Reuse if ZIP is newer than latest SPK update
+            if ($zipModTime > $latestSpkUpdate) {
+                $shouldRegenerate = false;
+            }
+        }
+
+        if (! $shouldRegenerate) {
+            // Reuse existing ZIP - redirect immediately
+            return redirect($this->generateSignedDownloadUrl($zipFileName));
+        }
+
+        // Generate new ZIP
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
@@ -718,25 +742,6 @@ class SpkController extends Controller
         if (! file_exists($zipPath)) {
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
-
-        // Ensure downloads directory exists and is writable
-        $downloadsDir = public_path('downloads');
-        if (! file_exists($downloadsDir)) {
-            mkdir($downloadsDir, 0755, true);
-        }
-
-        // Move file to public/downloads directory
-        $publicPath = public_path('downloads/'.$zipFileName);
-        if (! copy($zipPath, $publicPath)) {
-            @unlink($zipPath);
-            Log::error('Failed to copy ZIP file to downloads directory', [
-                'source' => $zipPath,
-                'destination' => $publicPath,
-            ]);
-
-            return redirect()->back()->with('error', 'Gagal menyimpan file untuk download. Silakan coba lagi.');
-        }
-        @unlink($zipPath);
 
         // Redirect to serve-download route
         return redirect($this->generateSignedDownloadUrl($zipFileName));
@@ -881,25 +886,6 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
         }
 
-        // Ensure downloads directory exists and is writable
-        $downloadsDir = public_path('downloads');
-        if (! file_exists($downloadsDir)) {
-            mkdir($downloadsDir, 0755, true);
-        }
-
-        // Move file to public/downloads directory
-        $publicPath = public_path('downloads/'.$zipFileName);
-        if (! copy($zipPath, $publicPath)) {
-            @unlink($zipPath);
-            Log::error('Failed to copy ZIP file to downloads directory', [
-                'source' => $zipPath,
-                'destination' => $publicPath,
-            ]);
-
-            return redirect()->back()->with('error', 'Gagal menyimpan file untuk download. Silakan coba lagi.');
-        }
-        @unlink($zipPath);
-
         // Redirect to serve-download route
         return redirect($this->generateSignedDownloadUrl($zipFileName));
     }
@@ -971,18 +957,40 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua SPK pada kegiatan ini harus memiliki file Perjanjian Kerja yang tersimpan.');
         }
 
-        // Create ZIP file
+        // Create ZIP file with deterministic name (no timestamp)
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
         $kegiatanName = preg_replace('/[\/\\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
-        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$tahun}_".time().'.zip';
-        $zipPath = storage_path('app/temp/'.$zipFileName);
+        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$tahun}.zip";
 
-        // Create temp directory if not exists
-        if (! file_exists(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
+        // Ensure downloads directory exists
+        $downloadsDir = public_path('downloads');
+        if (! file_exists($downloadsDir)) {
+            mkdir($downloadsDir, 0755, true);
         }
 
+        $zipPath = $downloadsDir.'/'.$zipFileName;
+
+        // Check if ZIP exists and validate cache
+        $shouldRegenerate = true;
+        if (file_exists($zipPath)) {
+            $zipModTime = filemtime($zipPath);
+
+            // Get latest SPK update timestamp
+            $latestSpkUpdate = $allSpks->max('updated_at')?->timestamp ?? 0;
+
+            // Reuse if ZIP is newer than latest SPK update
+            if ($zipModTime > $latestSpkUpdate) {
+                $shouldRegenerate = false;
+            }
+        }
+
+        if (! $shouldRegenerate) {
+            // Reuse existing ZIP - redirect immediately
+            return redirect($this->generateSignedDownloadUrl($zipFileName));
+        }
+
+        // Generate new ZIP
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
@@ -1024,25 +1032,6 @@ class SpkController extends Controller
 
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
         }
-
-        // Ensure downloads directory exists and is writable
-        $downloadsDir = public_path('downloads');
-        if (! file_exists($downloadsDir)) {
-            mkdir($downloadsDir, 0755, true);
-        }
-
-        // Move file to public/downloads directory
-        $publicPath = public_path('downloads/'.$zipFileName);
-        if (! copy($zipPath, $publicPath)) {
-            @unlink($zipPath);
-            Log::error('Failed to copy ZIP file to downloads directory', [
-                'source' => $zipPath,
-                'destination' => $publicPath,
-            ]);
-
-            return redirect()->back()->with('error', 'Gagal menyimpan file untuk download. Silakan coba lagi.');
-        }
-        @unlink($zipPath);
 
         // Redirect to serve-download route
         return redirect($this->generateSignedDownloadUrl($zipFileName));
