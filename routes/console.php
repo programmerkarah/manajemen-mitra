@@ -9,4 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Cleanup old ZIP downloads daily at 3 AM
-Schedule::command('downloads:cleanup --hours=24')->dailyAt('03:00');
+Schedule::command('download:cleanup --hours=24')->dailyAt('03:00');

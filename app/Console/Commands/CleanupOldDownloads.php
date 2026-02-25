@@ -11,7 +11,12 @@ class CleanupOldDownloads extends Command
      *
      * @var string
      */
-    protected $signature = 'downloads:cleanup {--hours=24 : Delete files older than this many hours}';
+    protected $signature = 'download:cleanup {--hours=24 : Delete files older than this many hours}';
+
+    /**
+     * Command aliases for backward compatibility
+     */
+    protected $aliases = ['downloads:cleanup'];
 
     /**
      * The console command description.
