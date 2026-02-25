@@ -42,6 +42,17 @@ export const constructDownloadAllFilename = (
 };
 
 /**
+ * Construct deterministic ZIP filename for BAST downloadAll
+ */
+export const constructBastDownloadFilename = (
+    bulan: number,
+    tahun: number,
+): string => {
+    const bulanLabel = getBulanLabel(bulan);
+    return `BAST_${bulanLabel}_${tahun}.zip`;
+};
+
+/**
  * Construct deterministic ZIP filename for downloadByKegiatan
  */
 export const constructDownloadByKegiatanFilename = (

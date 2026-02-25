@@ -2217,17 +2217,39 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Tidak ada BAST dengan file untuk diunduh');
         }
 
-        // Create ZIP file
+        // Create ZIP file with deterministic name (no timestamp for CDN caching)
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
-        $zipFileName = "BAST_{$bulanLabel}_{$tahun}_".time().'.zip';
-        $zipPath = storage_path('app/temp/'.$zipFileName);
+        $zipFileName = "BAST_{$bulanLabel}_{$tahun}.zip";
 
-        // Create temp directory if not exists
-        if (! file_exists(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
+        // Ensure downloads directory exists
+        $downloadsDir = public_path('downloads');
+        if (! file_exists($downloadsDir)) {
+            mkdir($downloadsDir, 0755, true);
         }
 
+        $zipPath = $downloadsDir.'/'.$zipFileName;
+
+        // Check if ZIP exists and validate cache
+        $shouldRegenerate = true;
+        if (file_exists($zipPath)) {
+            $zipModTime = filemtime($zipPath);
+
+            // Check if any BAST was updated after ZIP creation
+            $latestBastUpdate = $allBast->max('updated_at')?->timestamp ?? 0;
+
+            // Reuse if ZIP is newer than latest BAST update
+            if ($zipModTime > $latestBastUpdate) {
+                $shouldRegenerate = false;
+            }
+        }
+
+        if (! $shouldRegenerate) {
+            // Reuse existing ZIP - return direct static URL
+            return redirect('/downloads/'.rawurlencode($zipFileName));
+        }
+
+        // Generate new ZIP
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
@@ -2263,29 +2285,9 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
 
-        // Ensure downloads directory exists and is writable
-        $downloadsDir = public_path('downloads');
-        if (! file_exists($downloadsDir)) {
-            mkdir($downloadsDir, 0755, true);
-        }
-
-        // Move file to public/downloads directory
-        $publicPath = public_path('downloads/'.$zipFileName);
-        if (! copy($zipPath, $publicPath)) {
-            @unlink($zipPath);
-            Log::error('Failed to copy ZIP file to downloads directory', [
-                'source' => $zipPath,
-                'destination' => $publicPath,
-            ]);
-
-            return redirect()->back()->with('error', 'Gagal menyimpan file untuk download. Silakan coba lagi.');
-        }
-        @unlink($zipPath);
-
-        // Redirect to serve-download route
+        // Return direct static URL for better CDN caching
         return redirect('/downloads/'.rawurlencode($zipFileName));
     }
-
 
     /**
      * Generate preview PDF for BAST

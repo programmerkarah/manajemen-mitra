@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    constructBastDownloadFilename,
+    tryDirectDownload,
+} from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Check, Download, FolderDown, Upload } from 'lucide-react';
 import { useState } from 'react';
@@ -139,6 +143,15 @@ export default function Show({
         window.open(`/${filePath}`, '_blank');
     };
 
+    const handleDownloadAll = async () => {
+        // Construct deterministic filename
+        const filename = constructBastDownloadFilename(bulan, tahun);
+        const fallbackUrl = `/bast/download-all?bulan=${bulan}&tahun=${tahun}`;
+
+        // Try direct download first, fallback to Laravel route if not exists
+        await tryDirectDownload(filename, fallbackUrl);
+    };
+
     const handleUploadSigned = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -183,9 +196,7 @@ export default function Show({
                 <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
-                        onClick={() => {
-                            window.location.href = `/bast/download-all?bulan=${bulan}&tahun=${tahun}`;
-                        }}
+                        onClick={handleDownloadAll}
                     >
                         <FolderDown className="mr-2 h-4 w-4" />
                         Download Semua
