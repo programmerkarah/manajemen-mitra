@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import {
+    constructDownloadAllFilename,
+    constructDownloadByKegiatanFilename,
+    tryDirectDownload,
+} from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Archive, ArrowLeft, Download, Upload } from 'lucide-react';
 import { useState } from 'react';
@@ -163,16 +168,29 @@ export default function Show({
         window.open(`/${filePath}`, '_blank');
     };
 
-    const handleDownloadAllByPeriode = () => {
-        window.location.assign(
-            `/spk/periode/${periode.hashed_id}/download-all`,
-        );
+    const handleDownloadAllByPeriode = async () => {
+        // Construct deterministic filename
+        const filename = constructDownloadAllFilename(periode.bulan, periode.tahun);
+        const fallbackUrl = `/spk/periode/${periode.hashed_id}/download-all`;
+
+        // Try direct download first, fallback to Laravel route if not exists
+        await tryDirectDownload(filename, fallbackUrl);
     };
 
-    const handleDownloadAllByKegiatan = (kegiatanHashedId: string) => {
-        window.location.assign(
-            `/spk/periode/${periode.hashed_id}/kegiatan/${kegiatanHashedId}/download-all`,
+    const handleDownloadAllByKegiatan = async (
+        kegiatanHashedId: string,
+        kegiatanName: string,
+    ) => {
+        // Construct deterministic filename
+        const filename = constructDownloadByKegiatanFilename(
+            kegiatanName,
+            periode.bulan,
+            periode.tahun,
         );
+        const fallbackUrl = `/spk/periode/${periode.hashed_id}/kegiatan/${kegiatanHashedId}/download-all`;
+
+        // Try direct download first, fallback to Laravel route if not exists
+        await tryDirectDownload(filename, fallbackUrl);
     };
 
     const handleUploadSigned = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -792,6 +810,7 @@ export default function Show({
                                                     onClick={() =>
                                                         handleDownloadAllByKegiatan(
                                                             kegiatan.hashed_id,
+                                                            kegiatan.nama_kegiatan,
                                                         )
                                                     }
                                                     className="w-full justify-start"

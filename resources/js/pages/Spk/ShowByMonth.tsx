@@ -7,6 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { encryptFilters } from '@/utils/encryption';
+import {
+    constructDownloadAllFilename,
+    tryDirectDownload,
+} from '@/utils/downloadUtils';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Download, FileText, Upload } from 'lucide-react';
 import React, { useState } from 'react';
@@ -300,8 +304,13 @@ export default function ShowByMonth({
         window.open(`/${filePath}`, '_blank');
     };
 
-    const handleDownloadAll = () => {
-        window.location.href = `/spk/download-all?bulan=${bulan}&tahun=${tahun}`;
+    const handleDownloadAll = async () => {
+        // Construct deterministic filename
+        const filename = constructDownloadAllFilename(bulan, tahun);
+        const fallbackUrl = `/spk/download-all?bulan=${bulan}&tahun=${tahun}`;
+
+        // Try direct download first, fallback to Laravel route if not exists
+        await tryDirectDownload(filename, fallbackUrl);
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {

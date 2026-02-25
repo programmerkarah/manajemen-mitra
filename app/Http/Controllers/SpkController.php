@@ -830,18 +830,40 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Tidak dapat mengunduh. Semua petugas pada kegiatan ini harus memiliki file Perjanjian Kerja yang sudah ditandatangani dan tersimpan.');
         }
 
-        // Create ZIP file
+        // Create ZIP file with deterministic name (no timestamp)
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
         $kegiatanName = preg_replace('/[\/\\:*?"<>|]/', '_', $kegiatan->nama_kegiatan);
-        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$periode->tahun}_".time().'.zip';
-        $zipPath = storage_path('app/temp/'.$zipFileName);
+        $zipFileName = "SPK_{$kegiatanName}_{$bulanLabel}_{$periode->tahun}.zip";
 
-        // Create temp directory if not exists
-        if (! file_exists(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
+        // Ensure downloads directory exists
+        $downloadsDir = public_path('downloads');
+        if (! file_exists($downloadsDir)) {
+            mkdir($downloadsDir, 0755, true);
         }
 
+        $zipPath = $downloadsDir.'/'.$zipFileName;
+
+        // Check if ZIP exists and validate cache
+        $shouldRegenerate = true;
+        if (file_exists($zipPath)) {
+            $zipModTime = filemtime($zipPath);
+
+            // Get latest SPK update timestamp from this kegiatan
+            $latestSpkUpdate = $spks->max('updated_at')?->timestamp ?? 0;
+
+            // Reuse if ZIP is newer than latest SPK update
+            if ($zipModTime > $latestSpkUpdate) {
+                $shouldRegenerate = false;
+            }
+        }
+
+        if (! $shouldRegenerate) {
+            // Reuse existing ZIP - redirect immediately
+            return redirect($this->generateSignedDownloadUrl($zipFileName));
+        }
+
+        // Generate new ZIP
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return redirect()->back()->with('error', 'Gagal membuat file ZIP');
         }
