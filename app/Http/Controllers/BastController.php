@@ -2283,7 +2283,7 @@ class BastController extends Controller
         @unlink($zipPath);
 
         // Redirect to serve-download route
-        return redirect()->route('serve.download', ['filename' => $zipFileName]);
+        return '/downloads/'.rawurlencode($zipFileName);
     }
 
     /**
