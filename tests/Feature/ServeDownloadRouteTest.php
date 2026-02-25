@@ -31,11 +31,7 @@ class ServeDownloadRouteTest extends TestCase
 
             $signedResponse = $this->get($signedUrl);
 
-            $signedResponse->assertOk();
-            $cacheControl = $signedResponse->headers->get('Cache-Control') ?? '';
-            $this->assertStringContainsString('public', $cacheControl);
-            $this->assertStringContainsString('max-age=3600', $cacheControl);
-            $this->assertStringContainsString('immutable', $cacheControl);
+            $signedResponse->assertRedirect('/downloads/'.rawurlencode($fileName));
             $signedResponse->assertHeaderMissing('Set-Cookie');
         } finally {
             if (file_exists($filePath)) {

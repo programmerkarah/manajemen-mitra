@@ -56,17 +56,22 @@ Route::get('/debug', function () {
 Route::get('/serve-download/{filename}', function ($filename) {
     $safeFileName = basename((string) $filename);
     $filePath = public_path('downloads/'.$safeFileName);
+    $downloadsDirectory = public_path('downloads');
+
+    if (is_dir($downloadsDirectory)) {
+        $cleanupThreshold = time() - (6 * 3600);
+        foreach (glob($downloadsDirectory.'/*.zip') ?: [] as $downloadFile) {
+            if (is_file($downloadFile) && filemtime($downloadFile) < $cleanupThreshold) {
+                @unlink($downloadFile);
+            }
+        }
+    }
 
     if (! file_exists($filePath)) {
         abort(404, 'File tidak ditemukan');
     }
 
-    $response = response()->download($filePath, $safeFileName)->deleteFileAfterSend(true);
-    $response->headers->set('Cache-Control', 'public, max-age=3600, immutable');
-    $response->headers->set('Pragma', 'public');
-    $response->headers->set('Expires', gmdate('D, d M Y H:i:s', time() + 3600).' GMT');
-
-    return $response;
+    return redirect()->to('/downloads/'.rawurlencode($safeFileName));
 })->middleware('signed')
     ->withoutMiddleware([
         EncryptCookies::class,
