@@ -73,13 +73,12 @@ Route::get('/serve-download/{filename}', function ($filename) {
         abort(404, 'File tidak ditemukan');
     }
 
-    // Serve file directly with proper cache headers for CDN
-    return response()->file($filePath, [
-        'Content-Type' => 'application/zip',
-        'Content-Disposition' => 'attachment; filename="'.rawurlencode($safeFileName).'"',
-        'Cache-Control' => 'public, max-age=604800', // 7 days
-        'Expires' => gmdate('D, d M Y H:i:s', time() + 604800).' GMT',
-    ]);
+    // Serve file with multi-stream support for CDN caching and parallel downloads
+    return \App\Http\Responses\MultiStreamDownloadResponse::create(
+        $filePath,
+        $safeFileName,
+        []
+    );
 })->middleware('signed')
     ->withoutMiddleware([
         EncryptCookies::class,
