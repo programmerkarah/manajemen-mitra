@@ -29,6 +29,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Custom user resolver for broadcasting to support "view as" feature
+        \Illuminate\Support\Facades\Broadcast::resolveAuthenticatedUserUsing(function ($request) {
+            // Use effectiveUser() which returns view_as user if in view-as mode
+            return effectiveUser($request);
+        });
+
         // Register policies
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);
 

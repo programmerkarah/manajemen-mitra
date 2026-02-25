@@ -3,9 +3,15 @@
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
+    // Use effectiveUser() to support "view as" feature
+    $effectiveUser = effectiveUser();
+
+    return $effectiveUser && (int) $effectiveUser->id === (int) $id;
 });
 
 Broadcast::channel('session.{userId}', function ($user, $userId) {
-    return (int) $user->id === (int) $userId;
+    // Use effectiveUser() to support "view as" feature
+    $effectiveUser = effectiveUser();
+
+    return $effectiveUser && (int) $effectiveUser->id === (int) $userId;
 });

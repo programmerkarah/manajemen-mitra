@@ -1119,11 +1119,9 @@ class SpkController extends Controller
 
     private function generateSignedDownloadUrl(string $filename): string
     {
-        return URL::temporarySignedRoute(
-            'serve.download',
-            now()->addMinutes(10),
-            ['filename' => $filename]
-        );
+        // Return direct static URL untuk better CDN caching
+        // File di-serve langsung oleh web server (Nginx/Apache), bukan PHP
+        return '/downloads/'.rawurlencode($filename);
     }
 
     /**

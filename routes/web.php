@@ -52,12 +52,14 @@ Route::get('/debug', function () {
     ]);
 });
 
-// Route untuk serve dan cleanup download file
+// Route untuk cleanup download file (optional - files now served directly from /downloads/)
+// This route can be used for manual file access with signature validation
 Route::get('/serve-download/{filename}', function ($filename) {
     $safeFileName = basename((string) $filename);
     $filePath = public_path('downloads/'.$safeFileName);
     $downloadsDirectory = public_path('downloads');
 
+    // Auto cleanup old files (> 6 hours old)
     if (is_dir($downloadsDirectory)) {
         $cleanupThreshold = time() - (6 * 3600);
         foreach (glob($downloadsDirectory.'/*.zip') ?: [] as $downloadFile) {
@@ -71,7 +73,13 @@ Route::get('/serve-download/{filename}', function ($filename) {
         abort(404, 'File tidak ditemukan');
     }
 
-    return redirect()->to('/downloads/'.rawurlencode($safeFileName));
+    // Serve file directly with proper cache headers for CDN
+    return response()->file($filePath, [
+        'Content-Type' => 'application/zip',
+        'Content-Disposition' => 'attachment; filename="'.rawurlencode($safeFileName).'"',
+        'Cache-Control' => 'public, max-age=604800', // 7 days
+        'Expires' => gmdate('D, d M Y H:i:s', time() + 604800).' GMT',
+    ]);
 })->middleware('signed')
     ->withoutMiddleware([
         EncryptCookies::class,
