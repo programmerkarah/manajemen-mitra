@@ -89,6 +89,14 @@
     Header set Content-Type "application/pdf"
   </FilesMatch>
   
+  <FilesMatch "\.(zip)$">
+    Header set Cache-Control "public, max-age=604800"
+    Header set Content-Type "application/zip"
+    # Disable compression for ZIP (already compressed)
+    Header unset Content-Encoding
+    SetEnv no-gzip 1
+  </FilesMatch>
+  
   # Don't cache HTML/PHP files - let Laravel middleware handle it
   <FilesMatch "\.(html|htm|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
