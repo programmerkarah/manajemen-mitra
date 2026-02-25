@@ -630,7 +630,7 @@ class SpkController extends Controller
         // Get all periodes in this month
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->whereHas('kegiatan', function ($q) {
                 $q->where('jenis_kegiatan', 'survei'); // Only survei activities
             })
@@ -695,8 +695,19 @@ class SpkController extends Controller
         }
 
         if (! $shouldRegenerate) {
-            // Reuse existing ZIP - redirect immediately
-            return redirect($this->generateSignedDownloadUrl($zipFileName));
+            // Reuse existing ZIP - serve directly
+            clearstatcache(true, $zipPath);
+
+            return response()->download(
+                $zipPath,
+                $zipFileName,
+                [
+                    'Content-Type' => 'application/zip',
+                    'Content-Length' => filesize($zipPath),
+                    'Accept-Ranges' => 'bytes',
+                    'Cache-Control' => 'public, max-age=604800',
+                ]
+            );
         }
 
         // Generate new ZIP
@@ -743,8 +754,19 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
 
-        // Redirect to serve-download route
-        return redirect($this->generateSignedDownloadUrl($zipFileName));
+        // Serve file directly with proper headers
+        clearstatcache(true, $zipPath);
+
+        return response()->download(
+            $zipPath,
+            $zipFileName,
+            [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => filesize($zipPath),
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'public, max-age=604800',
+            ]
+        );
     }
 
     /**
@@ -775,7 +797,7 @@ class SpkController extends Controller
         // Get all periodes in the same month and year (for any kegiatan)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->pluck('id');
 
         // Ambil semua SPK utama (addendum_number = 0)
@@ -850,7 +872,7 @@ class SpkController extends Controller
             $zipModTime = filemtime($zipPath);
 
             // Get latest SPK update timestamp from this kegiatan
-            $latestSpkUpdate = $spks->max('updated_at')?->timestamp ?? 0;
+            $latestSpkUpdate = $allSpks->max('updated_at')?->timestamp ?? 0;
 
             // Reuse if ZIP is newer than latest SPK update
             if ($zipModTime > $latestSpkUpdate) {
@@ -859,8 +881,19 @@ class SpkController extends Controller
         }
 
         if (! $shouldRegenerate) {
-            // Reuse existing ZIP - redirect immediately
-            return redirect($this->generateSignedDownloadUrl($zipFileName));
+            // Reuse existing ZIP - serve directly
+            clearstatcache(true, $zipPath);
+
+            return response()->download(
+                $zipPath,
+                $zipFileName,
+                [
+                    'Content-Type' => 'application/zip',
+                    'Content-Length' => filesize($zipPath),
+                    'Accept-Ranges' => 'bytes',
+                    'Cache-Control' => 'public, max-age=604800',
+                ]
+            );
         }
 
         // Generate new ZIP
@@ -908,8 +941,19 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
         }
 
-        // Redirect to serve-download route
-        return redirect($this->generateSignedDownloadUrl($zipFileName));
+        // Serve file directly with proper headers
+        clearstatcache(true, $zipPath);
+
+        return response()->download(
+            $zipPath,
+            $zipFileName,
+            [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => filesize($zipPath),
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'public, max-age=604800',
+            ]
+        );
     }
 
     /**
@@ -933,14 +977,14 @@ class SpkController extends Controller
             ->where('periode_alokasi.kegiatan_id', $kegiatanId)
             ->where('periode_alokasi.bulan', $bulanFormatted)
             ->where('periode_alokasi.tahun', $tahun)
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+            ->whereIn('periode_alokasi.status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->distinct()
             ->pluck('alokasi_petugas.petugas_id');
 
         // Get all periodes in the same month and year (for any kegiatan)
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->pluck('id');
 
         // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
@@ -1008,8 +1052,19 @@ class SpkController extends Controller
         }
 
         if (! $shouldRegenerate) {
-            // Reuse existing ZIP - redirect immediately
-            return redirect($this->generateSignedDownloadUrl($zipFileName));
+            // Reuse existing ZIP - serve directly
+            clearstatcache(true, $zipPath);
+
+            return response()->download(
+                $zipPath,
+                $zipFileName,
+                [
+                    'Content-Type' => 'application/zip',
+                    'Content-Length' => filesize($zipPath),
+                    'Accept-Ranges' => 'bytes',
+                    'Cache-Control' => 'public, max-age=604800',
+                ]
+            );
         }
 
         // Generate new ZIP
@@ -1055,8 +1110,19 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Tidak ada file yang valid.');
         }
 
-        // Redirect to serve-download route
-        return redirect($this->generateSignedDownloadUrl($zipFileName));
+        // Serve file directly with proper headers
+        clearstatcache(true, $zipPath);
+
+        return response()->download(
+            $zipPath,
+            $zipFileName,
+            [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => filesize($zipPath),
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'public, max-age=604800',
+            ]
+        );
     }
 
     /**

@@ -2245,8 +2245,19 @@ class BastController extends Controller
         }
 
         if (! $shouldRegenerate) {
-            // Reuse existing ZIP - return direct static URL
-            return redirect('/downloads/'.rawurlencode($zipFileName));
+            // Reuse existing ZIP - serve directly
+            clearstatcache(true, $zipPath);
+
+            return response()->download(
+                $zipPath,
+                $zipFileName,
+                [
+                    'Content-Type' => 'application/zip',
+                    'Content-Length' => filesize($zipPath),
+                    'Accept-Ranges' => 'bytes',
+                    'Cache-Control' => 'public, max-age=604800',
+                ]
+            );
         }
 
         // Generate new ZIP
@@ -2285,8 +2296,19 @@ class BastController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat file ZIP. Silakan coba lagi.');
         }
 
-        // Return direct static URL for better CDN caching
-        return redirect('/downloads/'.rawurlencode($zipFileName));
+        // Serve file directly with proper headers
+        clearstatcache(true, $zipPath);
+
+        return response()->download(
+            $zipPath,
+            $zipFileName,
+            [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => filesize($zipPath),
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'public, max-age=604800',
+            ]
+        );
     }
 
     /**

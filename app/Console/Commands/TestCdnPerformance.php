@@ -115,6 +115,7 @@ class TestCdnPerformance extends Command
         $startTime = microtime(true);
 
         try {
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(30)->head($fileUrl);
             $headTime = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -175,6 +176,7 @@ class TestCdnPerformance extends Command
         $startTime = microtime(true);
 
         try {
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(30)
                 ->withHeaders(['Range' => "bytes=0-{$testSize}"])
                 ->get($fileUrl);

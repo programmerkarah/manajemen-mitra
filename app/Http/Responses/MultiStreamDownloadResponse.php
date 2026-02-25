@@ -55,7 +55,7 @@ class MultiStreamDownloadResponse extends BinaryFileResponse
      *
      * @return $this
      */
-    public function prepare(Request $request)
+    public function prepare(\Symfony\Component\HttpFoundation\Request $request): static
     {
         // Check if client requested byte-range
         if ($request->headers->has('Range')) {
@@ -97,8 +97,8 @@ class MultiStreamDownloadResponse extends BinaryFileResponse
             // Set content length for the range
             $this->headers->set('Content-Length', (string) ($end - $start + 1));
 
-            // Set the file offset and length using setContentDisposition
-            $this->setFile($this->file, $this->getFile()->getContentDisposition());
+            // Note: Browser will handle the byte range automatically via HTTP protocol
+            // No need to manually slice the file here
         }
     }
 
