@@ -39,12 +39,27 @@ class CleanupOldDownloads extends Command
         $totalSize = 0;
 
         foreach (glob($downloadsDirectory.'/*.zip') ?: [] as $downloadFile) {
-            if (is_file($downloadFile) && filemtime($downloadFile) < $cleanupThreshold) {
-                $fileSize = filesize($downloadFile);
+            if (! is_file($downloadFile)) {
+                continue;
+            }
+
+            $basename = basename($downloadFile);
+            $fileTime = filemtime($downloadFile);
+            $fileSize = filesize($downloadFile);
+
+            // Delete if file is old (beyond threshold)
+            $isOld = $fileTime < $cleanupThreshold;
+
+            // Also delete if file has timestamp pattern (old naming convention)
+            // Pattern: filename_1234567890.zip (ends with underscore + 10 digits)
+            $hasTimestamp = preg_match('/_\d{10}\.zip$/', $basename);
+
+            if ($isOld || $hasTimestamp) {
                 if (@unlink($downloadFile)) {
                     $deletedCount++;
                     $totalSize += $fileSize;
-                    $this->info("Deleted: {$downloadFile}");
+                    $reason = $hasTimestamp ? 'timestamp pattern' : 'age';
+                    $this->info("Deleted ({$reason}): {$basename}");
                 }
             }
         }
