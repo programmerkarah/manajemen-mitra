@@ -630,7 +630,7 @@ class SpkController extends Controller
         // Get all periodes in this month
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi'])
             ->whereHas('kegiatan', function ($q) {
                 $q->where('jenis_kegiatan', 'survei'); // Only survei activities
             })
