@@ -102,6 +102,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     // Decrypt data once with memoization for filtering/sorting
     const decryptedAlokasi = useDecryptedData<AlokasiPeriod>(alokasi.encrypted);
     const isPJ = auth.activeRole?.name === 'pj';
+    const isAdmin = auth.activeRole?.name === 'admin';
 
     // State for client-side filtering
     const [search, setSearch] = useState('');
@@ -168,6 +169,8 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     // Modal states
     const [showKirimModal, setShowKirimModal] = useState(false);
     const [showBatalkanModal, setShowBatalkanModal] = useState(false);
+    const [showBatalkanRevisiModal, setShowBatalkanRevisiModal] =
+        useState(false);
     const [showRevisiModal, setShowRevisiModal] = useState(false);
     const [selectedPeriode, setSelectedPeriode] = useState<{
         kegiatanId: number;
@@ -282,6 +285,37 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                 {
                     onSuccess: () => {
                         setShowBatalkanModal(false);
+                        setSelectedPeriode(null);
+                    },
+                },
+            );
+        }
+    };
+
+    const handleBatalkanRevisi = (
+        kegiatanHashedId: string,
+        bulan: string,
+        tahun: number,
+        namaKegiatan: string,
+    ) => {
+        setSelectedPeriode({
+            kegiatanId: 0,
+            bulan,
+            tahun,
+            namaKegiatan,
+            kegiatanHashedId,
+        });
+        setShowBatalkanRevisiModal(true);
+    };
+
+    const confirmBatalkanRevisi = () => {
+        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+            router.post(
+                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi/batal`,
+                {},
+                {
+                    onSuccess: () => {
+                        setShowBatalkanRevisiModal(false);
                         setSelectedPeriode(null);
                     },
                 },
@@ -676,6 +710,28 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                         )}
                                                                 </>
                                                             )}
+                                                        {isAdmin &&
+                                                            periode.status ===
+                                                                'perubahan' && (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        handleBatalkanRevisi(
+                                                                            periode
+                                                                                .kegiatan
+                                                                                .hashed_id,
+                                                                            periode.bulan,
+                                                                            periode.tahun,
+                                                                            periode
+                                                                                .kegiatan
+                                                                                .nama_kegiatan,
+                                                                        )
+                                                                    }
+                                                                    className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                    Batalkan Revisi
+                                                                </DropdownMenuItem>
+                                                            )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
@@ -1040,6 +1096,99 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                         >
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Ya, Lanjutkan Revisi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Batalkan Revisi (Admin) */}
+            <Dialog
+                open={showBatalkanRevisiModal}
+                onOpenChange={setShowBatalkanRevisiModal}
+            >
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <span className="text-red-600 dark:text-red-400">
+                                Batalkan Revisi Terkirim
+                            </span>
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Tindakan ini akan menghapus data alokasi status
+                            <strong> perubahan</strong> untuk periode ini, lalu
+                            mengembalikan periode sebelumnya menjadi
+                            <strong> dikirim</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedPeriode && (
+                        <div className="space-y-4 border-y border-white/20 py-4 dark:border-neutral-700/30">
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-red-500/30 via-red-400/20 to-red-300/10 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                                            📋
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+                                            Kegiatan
+                                        </p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {selectedPeriode.namaKegiatan}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-red-500/30 via-red-400/20 to-red-300/10 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                                            📅
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+                                            Periode
+                                        </p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {getBulanLabel(
+                                                selectedPeriode.bulan,
+                                            )}{' '}
+                                            {selectedPeriode.tahun}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border border-red-400/30 bg-gradient-to-br from-red-500/20 via-red-400/10 to-red-300/10 p-3 shadow-lg backdrop-blur-xl">
+                                <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                                    <p className="text-sm text-red-800 dark:text-red-200">
+                                        Jika addendum Perjanjian Kerja sudah
+                                        dibuat, pembatalan revisi akan ditolak
+                                        otomatis.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowBatalkanRevisiModal(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmBatalkanRevisi}
+                            className="w-full sm:w-auto"
+                        >
+                            <X className="mr-2 h-4 w-4" />
+                            Ya, Batalkan Revisi
                         </Button>
                     </DialogFooter>
                 </DialogContent>

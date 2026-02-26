@@ -13,6 +13,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Sbml;
+use App\Models\Spk;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -2019,6 +2020,118 @@ class AlokasiPetugasController extends Controller
         // Redirect to edit page - will load data from parent periode
         return redirect('/alokasi/periode/'.$kegiatan->hashed_id.'/'.$tahun.'/'.$bulan.'/edit')
             ->with('success', 'Mode revisi. Silakan edit data sesuai kebutuhan.');
+    }
+
+    /**
+     * Batalkan revisi periode yang sudah dikirim (status perubahan) - admin only.
+     */
+    public function batalkanRevisiPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser || ! $effectiveUser->hasActiveRole('admin')) {
+            abort(403, 'Hanya admin yang dapat membatalkan revisi periode.');
+        }
+
+        $periodePerubahan = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'perubahan')
+            ->orderByDesc('revision_number')
+            ->with('alokasiPetugas:id,periode_alokasi_id,petugas_id')
+            ->first();
+
+        if (! $periodePerubahan) {
+            return back()->with('error', 'Tidak ada revisi terkirim (status perubahan) yang dapat dibatalkan.');
+        }
+
+        $petugasIds = $periodePerubahan->alokasiPetugas
+            ->pluck('petugas_id')
+            ->filter()
+            ->unique();
+
+        $hasAddendumOnCurrentRevision = Spk::query()
+            ->where('addendum_number', '>', 0)
+            ->whereHas('alokasiPetugas', function ($query) use ($periodePerubahan) {
+                $query->where('periode_alokasi_id', $periodePerubahan->id);
+            })
+            ->exists();
+
+        $hasAddendumOnRevisionPetugas = false;
+        if ($petugasIds->isNotEmpty()) {
+            $hasAddendumOnRevisionPetugas = Spk::query()
+                ->where('addendum_number', '>', 0)
+                ->whereIn('petugas_id', $petugasIds)
+                ->whereYear('tanggal_spk', $tahun)
+                ->whereMonth('tanggal_spk', (int) $bulan)
+                ->exists();
+        }
+
+        if ($hasAddendumOnCurrentRevision || $hasAddendumOnRevisionPetugas) {
+            return back()->with('warning', 'Revisi tidak dapat dibatalkan karena Addendum Perjanjian Kerja sudah dibuat.');
+        }
+
+        $periodeDirevisi = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'direvisi')
+            ->orderByDesc('revision_number')
+            ->first();
+
+        if (! $periodeDirevisi) {
+            return back()->with('error', 'Periode asal dengan status direvisi tidak ditemukan.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $deletedPetugasCount = $periodePerubahan->alokasiPetugas()->count();
+
+            $periodePerubahan->alokasiPetugas()->delete();
+            $periodePerubahan->delete();
+
+            $periodeDirevisi->update([
+                'status' => 'dikirim',
+            ]);
+
+            DB::commit();
+
+            $bulanName = Carbon::create()->month((int) $bulan)->translatedFormat('F');
+            ActivityLog::log(
+                'Batalkan Revisi Alokasi Periode',
+                'alokasi',
+                "Berhasil membatalkan revisi {$kegiatan->nama_kegiatan} periode {$bulanName} {$tahun}",
+                'success',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                    'deleted_periode_id' => $periodePerubahan->id,
+                    'restored_periode_id' => $periodeDirevisi->id,
+                    'deleted_petugas_count' => $deletedPetugasCount,
+                ]
+            );
+
+            return redirect()->route('alokasi.index')
+                ->with('success', 'Revisi periode berhasil dibatalkan. Status periode dikembalikan menjadi dikirim.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            ActivityLog::log(
+                'Batalkan Revisi Alokasi Periode',
+                'alokasi',
+                'Gagal membatalkan revisi periode',
+                'error',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return back()->with('error', 'Gagal membatalkan revisi periode: '.$e->getMessage());
+        }
     }
 
     /**

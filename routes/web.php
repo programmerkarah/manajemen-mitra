@@ -305,6 +305,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('alokasi.periode.destroy');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
             ->name('alokasi.periode.revisi');
+        Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi/batal', [AlokasiPetugasController::class, 'batalkanRevisiPeriode'])
+            ->name('alokasi.periode.revisi.batalkan')
+            ->middleware('active.role:admin');
     });
 
     // Update non response - Khusus ketua tim
