@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\AlokasiPetugas;
+use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\Role;
 use App\Models\Sbml;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SbmlHonorTerendahTest extends TestCase
@@ -17,7 +19,7 @@ class SbmlHonorTerendahTest extends TestCase
     public function test_honor_petugas_tidak_boleh_melebihi_sbml_terendah()
     {
         // Setup: Buat petugas, dua jenis penugasan, dua SBML berbeda (satu lebih rendah)
-        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non_organik']);
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
         $tahun = 2025;
         $bulan = '12';
 
@@ -26,7 +28,7 @@ class SbmlHonorTerendahTest extends TestCase
             'tahun_anggaran' => $tahun,
             'jenis_kegiatan' => 'survei',
             'status_kepegawaian' => 'non_organik',
-            'jenis_penugasan' => 'lapangan',
+            'jenis_penugasan' => 'pcl_ppl',
             'honor_max' => 3500000,
             'status' => 'aktif',
         ]);
@@ -39,36 +41,80 @@ class SbmlHonorTerendahTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        // Buat dua alokasi untuk petugas tsb di bulan sama, honor total 3jt (masih di bawah 3.5jt, tapi di atas 1.5jt)
+        // Buat dua alokasi pada bulan yang sama di kegiatan berbeda
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $tahun,
+        ]);
+
+        $kegiatanKedua = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $tahun,
+        ]);
+
         $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
             'tahun' => $tahun,
             'bulan' => $bulan,
             'status' => 'dikirim',
             'jenis_kegiatan' => 'survei',
         ]);
-        AlokasiPetugas::create([
+        DB::table('alokasi_petugas')->insert([
             'periode_alokasi_id' => $periode->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => (int) $bulan,
+            'tahun' => $tahun,
+            'status' => 'draft',
+            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 2000000,
-            'peran' => 'lapangan',
+            'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
-        AlokasiPetugas::create([
-            'periode_alokasi_id' => $periode->id,
+
+        $periodeKedua = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanKedua->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periodeKedua->id,
+            'kegiatan_id' => $kegiatanKedua->id,
+            'bulan' => (int) $bulan,
+            'tahun' => $tahun,
+            'status' => 'draft',
+            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 1000000,
             'peran' => 'pengolahan',
             'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         // Jalankan pengecekan honor (akses endpoint rekap-honor)
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
         $user = User::factory()->create();
-        $this->actingAs($user);
+        $user->roles()->attach($adminRole->id);
+        $this->actingAs($user)->withSession(['active_role_id' => $adminRole->id]);
         $response = $this->get(route('sbml.report', ['tahun' => $tahun, 'bulan' => $bulan]));
         $response->assertStatus(200);
-        $data = $response->viewData('petugas');
+        $response->assertInertia(fn ($page) => $page
+            ->component('Sbml/Report')
+            ->has('petugas.encrypted'));
+        $data = decryptData($response->inertiaProps('petugas.encrypted'));
         $petugasData = collect($data)->first();
         $this->assertEquals(3000000, $petugasData['total_honor']);
         $this->assertEquals(1500000, $petugasData['max_allowed']);

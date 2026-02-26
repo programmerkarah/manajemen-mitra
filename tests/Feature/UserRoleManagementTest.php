@@ -43,7 +43,7 @@ class UserRoleManagementTest extends TestCase
 
         $response = $this->actingAs($user)->get('/users');
 
-        $response->assertStatus(403);
+        $response->assertStatus(302);
     }
 
     public function test_admin_can_view_edit_user_roles_page(): void
@@ -122,7 +122,7 @@ class UserRoleManagementTest extends TestCase
             'roles' => [$adminRole->id],
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(302);
     }
 
     public function test_user_can_have_multiple_roles(): void

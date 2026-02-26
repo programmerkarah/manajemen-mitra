@@ -18,8 +18,10 @@ return new class extends Migration
         DB::table('periode_alokasi')->where('status', 'ditolak')->update(['status' => 'dihapus']);
         DB::table('periode_alokasi')->where('status', 'selesai')->update(['status' => 'dikirim']);
 
-        // Then update enum
-        DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'dihapus') DEFAULT 'draft'");
+        // Then update enum (MySQL only)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'dihapus') DEFAULT 'draft'");
+        }
 
         // Remove soft deletes from alokasi_petugas
         Schema::table('alokasi_petugas', function (Blueprint $table) {
@@ -37,7 +39,9 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // Revert status enum
-        DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'diajukan', 'disetujui', 'ditolak', 'selesai') DEFAULT 'draft'");
+        // Revert status enum (MySQL only)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'diajukan', 'disetujui', 'ditolak', 'selesai') DEFAULT 'draft'");
+        }
     }
 };

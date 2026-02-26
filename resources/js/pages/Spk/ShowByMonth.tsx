@@ -6,11 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
-import { encryptFilters } from '@/utils/encryption';
 import {
     constructDownloadAllFilename,
     tryDirectDownload,
 } from '@/utils/downloadUtils';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Archive, Download, FileText, Upload } from 'lucide-react';
 import React, { useState } from 'react';
@@ -228,7 +228,9 @@ export default function ShowByMonth({
     const isAddendum = decryptedSpk.addendum_number > 0;
     const { auth } = usePage<SharedData>().props;
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
-    const [downloadingKegiatan, setDownloadingKegiatan] = useState<number | null>(null);
+    const [downloadingKegiatan, setDownloadingKegiatan] = useState<
+        number | null
+    >(null);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         file: File | null;
@@ -497,9 +499,14 @@ export default function ShowByMonth({
                                                                     kegiatan.id,
                                                                 );
                                                                 // Reset state after 10 seconds to allow for ZIP generation and download
-                                                                setTimeout(() => {
-                                                                    setDownloadingKegiatan(null);
-                                                                }, 10000);
+                                                                setTimeout(
+                                                                    () => {
+                                                                        setDownloadingKegiatan(
+                                                                            null,
+                                                                        );
+                                                                    },
+                                                                    10000,
+                                                                );
                                                             }}
                                                         >
                                                             <input

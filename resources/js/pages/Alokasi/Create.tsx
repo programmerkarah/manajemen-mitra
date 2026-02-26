@@ -14,7 +14,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
+import { ArrowLeft, Copy, Loader2, Save, Send, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -2815,12 +2815,20 @@ export default function Create({
                             {processing ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
-                                    Menyimpan...
+                                    {isRevisiMode
+                                        ? 'Mengirim revisi...'
+                                        : 'Menyimpan...'}
                                 </>
                             ) : (
                                 <>
-                                    <Save className="h-5 w-5" />
-                                    Simpan Alokasi
+                                    {isRevisiMode ? (
+                                        <Send className="h-5 w-5" />
+                                    ) : (
+                                        <Save className="h-5 w-5" />
+                                    )}
+                                    {isRevisiMode
+                                        ? 'Kirim Revisi'
+                                        : 'Simpan Alokasi'}
                                 </>
                             )}
                         </Button>

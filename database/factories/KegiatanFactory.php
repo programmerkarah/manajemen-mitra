@@ -29,7 +29,7 @@ class KegiatanFactory extends Factory
             'ketua_tim_user_id' => fn () => \App\Models\User::factory(),
             'pj_lainnya_id' => fn () => \App\Models\User::factory(),
             'rate_honor_id' => null,
-            'rate_honor_status' => null,
+            'rate_honor_status' => 'pending',
             'rate_honor_approved_by' => null,
             'rate_honor_approved_at' => null,
             'rate_honor_notes' => null,

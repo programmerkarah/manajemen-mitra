@@ -170,7 +170,10 @@ export default function Show({
 
     const handleDownloadAllByPeriode = async () => {
         // Construct deterministic filename
-        const filename = constructDownloadAllFilename(periode.bulan, periode.tahun);
+        const filename = constructDownloadAllFilename(
+            periode.bulan,
+            periode.tahun,
+        );
         const fallbackUrl = `/spk/periode/${periode.hashed_id}/download-all`;
 
         // Try direct download first, fallback to Laravel route if not exists

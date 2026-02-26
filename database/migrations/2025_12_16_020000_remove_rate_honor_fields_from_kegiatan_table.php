@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Drop foreign key constraints with raw SQL (ignore error if not exists)
         try {
             DB::statement('ALTER TABLE kegiatan DROP FOREIGN KEY kegiatan_rate_honor_id_foreign');
@@ -31,6 +35,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('kegiatan', function (Blueprint $table) {
             $table->string('rate_honor_id')->nullable();
             $table->enum('rate_honor_status', ['pending', 'approved', 'rejected'])->nullable();

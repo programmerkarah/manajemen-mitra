@@ -1945,12 +1945,20 @@ class AlokasiPetugasController extends Controller
             );
 
             if (count($errors) > 0) {
+                $warningMessage = $isRevision
+                    ? "Berhasil mengirim revisi untuk {$created} alokasi, namun ada beberapa yang gagal."
+                    : "Berhasil memperbarui {$created} alokasi, namun ada beberapa yang gagal.";
+
                 return back()->withErrors(['validation' => $errors])
-                    ->with('warning', "Berhasil memperbarui {$created} alokasi, namun ada beberapa yang gagal.");
+                    ->with('warning', $warningMessage);
             }
 
+            $successMessage = $isRevision
+                ? 'Revisi alokasi berhasil dikirim.'
+                : 'Alokasi periode berhasil diperbarui.';
+
             return redirect()->route('alokasi.index')
-                ->with('success', 'Alokasi periode berhasil diperbarui.');
+                ->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 

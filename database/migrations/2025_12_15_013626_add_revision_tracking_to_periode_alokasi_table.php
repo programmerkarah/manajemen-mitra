@@ -24,8 +24,10 @@ return new class extends Migration
             $table->integer('revision_number')->default(0)->after('parent_periode_id');
         });
 
-        // Update status enum to include 'perubahan'
-        DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan', 'dihapus') NOT NULL DEFAULT 'draft'");
+        // Update status enum to include 'perubahan' (MySQL only)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan', 'dihapus') NOT NULL DEFAULT 'draft'");
+        }
     }
 
     /**
@@ -38,7 +40,9 @@ return new class extends Migration
             $table->dropColumn(['parent_periode_id', 'revision_number']);
         });
 
-        // Revert status enum
-        DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'disetujui', 'dihapus') NOT NULL DEFAULT 'draft'");
+        // Revert status enum (MySQL only)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE periode_alokasi MODIFY COLUMN status ENUM('draft', 'dikirim', 'direvisi', 'disetujui', 'dihapus') NOT NULL DEFAULT 'draft'");
+        }
     }
 };

@@ -729,7 +729,8 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                     className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
                                                                 >
                                                                     <X className="h-4 w-4" />
-                                                                    Batalkan Revisi
+                                                                    Batalkan
+                                                                    Revisi
                                                                 </DropdownMenuItem>
                                                             )}
                                                     </DropdownMenuContent>

@@ -59,47 +59,52 @@ class RateHonorManagementTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        // Create kegiatan
-        $this->kegiatan = Kegiatan::factory()->create();
+        // Create kegiatan with valid status for rate honor management
+        $this->kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+        ]);
     }
 
     public function test_operator_can_access_rate_honor_management_page(): void
     {
         $response = $this->actingAs($this->operator)
-            ->get('/kegiatan/rate-honor');
+            ->get("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/manage");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('Kegiatan/RateHonorManagement')
+            ->component('Kegiatan/ManageRateHonor')
             ->has('kegiatan')
-            ->has('satuan')
+            ->has('satuans')
         );
     }
 
     public function test_operator_can_set_rate_honor_with_satuan_and_rate(): void
     {
         $response = $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
+            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
                 'satuan_id' => $this->satuan->id,
-                'rate' => 250000,
-                'notes' => 'Setting rate honor untuk kegiatan',
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 250000,
+                        'satuan_id' => $this->satuan->id,
+                    ],
+                ],
             ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
-        // Verify kegiatan updated
-        $this->kegiatan->refresh();
-        $this->assertNotNull($this->kegiatan->rate_honor_id);
-        $this->assertEquals('pending', $this->kegiatan->rate_honor_status);
-        $this->assertEquals('Setting rate honor untuk kegiatan', $this->kegiatan->rate_honor_notes);
+        // Verify rate honor created for kegiatan
+        $rateHonor = RateHonor::where('kegiatan_id', $this->kegiatan->id)
+            ->where('status_kepegawaian', 'non_organik')
+            ->where('jenis_penugasan', 'pcl_ppl')
+            ->first();
 
-        // Verify rate honor created
-        $rateHonor = RateHonor::find($this->kegiatan->rate_honor_id);
         $this->assertNotNull($rateHonor);
         $this->assertEquals($this->satuan->id, $rateHonor->satuan_id);
         $this->assertEquals(250000, $rateHonor->rate);
-        $this->assertEquals($this->kegiatan->nama_kegiatan, $rateHonor->posisi);
         $this->assertEquals($this->kegiatan->tahun_anggaran, $rateHonor->tahun_berlaku);
     }
 
@@ -107,77 +112,91 @@ class RateHonorManagementTest extends TestCase
     {
         // Create initial rate honor
         $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
+            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
                 'satuan_id' => $this->satuan->id,
-                'rate' => 200000,
-                'notes' => 'Initial rate',
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 200000,
+                        'satuan_id' => $this->satuan->id,
+                    ],
+                ],
             ]);
-
-        $this->kegiatan->refresh();
-        $initialRateHonorId = $this->kegiatan->rate_honor_id;
 
         // Update with new rate
         $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
+            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
                 'satuan_id' => $this->satuan->id,
-                'rate' => 300000,
-                'notes' => 'Updated rate',
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 300000,
+                        'satuan_id' => $this->satuan->id,
+                    ],
+                ],
             ]);
 
-        $this->kegiatan->refresh();
+        $this->assertEquals(1, RateHonor::where('kegiatan_id', $this->kegiatan->id)->count());
 
-        // Should use same rate honor ID (updated, not created new)
-        $this->assertEquals($initialRateHonorId, $this->kegiatan->rate_honor_id);
-
-        // Verify rate updated
-        $rateHonor = RateHonor::find($initialRateHonorId);
+        // Verify rate replaced with latest
+        $rateHonor = RateHonor::where('kegiatan_id', $this->kegiatan->id)->first();
         $this->assertEquals(300000, $rateHonor->rate);
     }
 
-    public function test_approver_can_approve_rate_honor(): void
+    public function test_rate_honor_cannot_be_managed_for_draft_kegiatan(): void
     {
-        // Set rate honor first
-        $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
-                'satuan_id' => $this->satuan->id,
-                'rate' => 250000,
-            ]);
+        $draftKegiatan = Kegiatan::factory()->create([
+            'status' => 'draft',
+        ]);
 
-        $this->kegiatan->refresh();
-
-        // Approve
         $response = $this->actingAs($this->approver)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/approve", [
-                'notes' => 'Approved',
+            ->post("/kegiatan/{$draftKegiatan->hashed_id}/rate-honor/bulk", [
+                'satuan_id' => $this->satuan->id,
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 250000,
+                        'satuan_id' => $this->satuan->id,
+                    ],
+                ],
             ]);
 
-        $response->assertRedirect();
-        $response->assertSessionHas('success');
-
-        $this->kegiatan->refresh();
-        $this->assertEquals('approved', $this->kegiatan->rate_honor_status);
-        $this->assertEquals($this->approver->id, $this->kegiatan->rate_honor_approved_by);
-        $this->assertNotNull($this->kegiatan->rate_honor_approved_at);
+        $response->assertSessionHas('error');
+        $this->assertEquals(0, RateHonor::where('kegiatan_id', $draftKegiatan->id)->count());
     }
 
     public function test_validation_requires_satuan_id_and_rate(): void
     {
         $response = $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
-                'notes' => 'Missing required fields',
+            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                    ],
+                ],
             ]);
 
-        $response->assertSessionHasErrors(['satuan_id', 'rate']);
+        $response->assertSessionHasErrors(['satuan_id', 'rate_honors.0.rate']);
     }
 
     public function test_validation_requires_rate_to_be_numeric_and_positive(): void
     {
         $response = $this->actingAs($this->operator)
-            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor", [
+            ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
                 'satuan_id' => $this->satuan->id,
-                'rate' => -1000,
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => -1000,
+                    ],
+                ],
             ]);
 
-        $response->assertSessionHasErrors(['rate']);
+        $response->assertSessionHasErrors(['rate_honors.0.rate']);
     }
 }

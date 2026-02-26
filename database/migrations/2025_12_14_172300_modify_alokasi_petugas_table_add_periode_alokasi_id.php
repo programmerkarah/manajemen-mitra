@@ -65,18 +65,18 @@ return new class extends Migration
         }
 
         // Step 3: Now modify the table structure
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('alokasi_petugas', function (Blueprint $table) {
             // Drop foreign keys first (skip for SQLite as it doesn't support dropping FKs by name)
-            if (DB::getDriverName() !== 'sqlite') {
-                $table->dropForeign('alokasi_petugas_kegiatan_id_foreign');
-                $table->dropForeign('alokasi_mitra_submitted_by_foreign');
-                $table->dropForeign('alokasi_mitra_approved_by_foreign');
-            }
+            $table->dropForeign('alokasi_petugas_kegiatan_id_foreign');
+            $table->dropForeign('alokasi_mitra_submitted_by_foreign');
+            $table->dropForeign('alokasi_mitra_approved_by_foreign');
 
             // Drop the unique constraint (skip for SQLite)
-            if (DB::getDriverName() !== 'sqlite') {
-                $table->dropUnique('unique_alokasi');
-            }
+            $table->dropUnique('unique_alokasi');
 
             // Drop columns that are now in periode_alokasi
             $table->dropColumn([

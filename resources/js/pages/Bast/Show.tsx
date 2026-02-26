@@ -194,10 +194,7 @@ export default function Show({
                 description={`Berita Acara Serah Terima - ${kegiatan.nama_kegiatan}`}
             >
                 <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleDownloadAll}
-                    >
+                    <Button variant="outline" onClick={handleDownloadAll}>
                         <FolderDown className="mr-2 h-4 w-4" />
                         Download Semua
                     </Button>

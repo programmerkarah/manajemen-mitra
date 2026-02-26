@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -21,17 +22,31 @@ return new class extends Migration
         });
 
         // Populate petugas_id from existing alokasi_petugas data
-        DB::statement('
-            UPDATE spk s
-            INNER JOIN alokasi_petugas ap ON s.alokasi_petugas_id = ap.id
-            SET s.petugas_id = ap.petugas_id
-            WHERE s.petugas_id IS NULL
-        ');
+        if (DB::getDriverName() === 'sqlite') {
+            $spkRows = DB::table('spk')
+                ->join('alokasi_petugas', 'spk.alokasi_petugas_id', '=', 'alokasi_petugas.id')
+                ->whereNull('spk.petugas_id')
+                ->select('spk.id as spk_id', 'alokasi_petugas.petugas_id')
+                ->get();
 
-        // Make petugas_id NOT NULL after populating
-        Schema::table('spk', function (Blueprint $table) {
-            $table->bigInteger('petugas_id')->unsigned()->nullable(false)->change();
-        });
+            foreach ($spkRows as $row) {
+                DB::table('spk')
+                    ->where('id', $row->spk_id)
+                    ->update(['petugas_id' => $row->petugas_id]);
+            }
+        } else {
+            DB::statement('
+                UPDATE spk s
+                INNER JOIN alokasi_petugas ap ON s.alokasi_petugas_id = ap.id
+                SET s.petugas_id = ap.petugas_id
+                WHERE s.petugas_id IS NULL
+            ');
+
+            // Make petugas_id NOT NULL after populating
+            Schema::table('spk', function (Blueprint $table) {
+                $table->bigInteger('petugas_id')->unsigned()->nullable(false)->change();
+            });
+        }
     }
 
     /**

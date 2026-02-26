@@ -27,7 +27,7 @@ const getBulanLabel = (bulan: number): string => {
  * Sanitize filename - same pattern as PHP backend
  */
 const sanitizeFilename = (name: string): string => {
-    return name.replace(/[\/\\:*?"<>|]/g, '_');
+    return name.replace(/[/\\:*?"<>|]/g, '_');
 };
 
 /**

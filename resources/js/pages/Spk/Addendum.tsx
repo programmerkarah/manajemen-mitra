@@ -230,7 +230,8 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                 batch_items: selectedPetugas
                     .map((petugasHashedId) => {
                         const petugasData = petugas_list.find(
-                            (item) => item.petugas.hashed_id === petugasHashedId,
+                            (item) =>
+                                item.petugas.hashed_id === petugasHashedId,
                         );
 
                         if (!petugasData) {
@@ -240,8 +241,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                         return {
                             petugas_hashed_id: petugasHashedId,
                             parent_spk_id: petugasData.existing_spk_id,
-                            addendum_number:
-                                petugasData.next_addendum_number,
+                            addendum_number: petugasData.next_addendum_number,
                         };
                     })
                     .filter(Boolean),
