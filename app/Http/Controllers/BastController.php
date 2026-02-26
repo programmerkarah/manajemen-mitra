@@ -52,6 +52,63 @@ class BastController extends Controller
         });
     }
 
+    private function normalizeDateForCompare($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->format('Y-m-d');
+        }
+
+        try {
+            return Carbon::parse((string) $value)->format('Y-m-d');
+        } catch (\Exception $exception) {
+            return null;
+        }
+    }
+
+    private function getAlokasiLatestTanggalSelesai(AlokasiPetugas $alokasi): ?string
+    {
+        $periode = $alokasi->periodeAlokasi;
+        $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
+        $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+        $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
+
+        $candidates = [];
+
+        if ($isPengolahanRole) {
+            if ($hasListing) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->jadwal_pengolahan_listing_selesai);
+            }
+
+            if ($hasPencacahan) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->jadwal_pengolahan_pencacahan_selesai);
+            }
+
+            if (empty(array_filter($candidates))) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->jadwal_pengolahan_listing_selesai);
+                $candidates[] = $this->normalizeDateForCompare($periode?->jadwal_pengolahan_pencacahan_selesai);
+            }
+        } else {
+            if ($hasListing) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->tanggal_selesai_listing);
+            }
+
+            if ($hasPencacahan) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->tanggal_selesai);
+            }
+
+            if (empty(array_filter($candidates))) {
+                $candidates[] = $this->normalizeDateForCompare($periode?->tanggal_selesai_listing);
+                $candidates[] = $this->normalizeDateForCompare($periode?->tanggal_selesai);
+            }
+        }
+
+        return collect($candidates)->filter()->max();
+    }
+
     /**
      * Display a listing of the resource.
      * Menampilkan periode bulan (Januari-Desember) dengan informasi BAST yang sudah/belum dibuat
@@ -252,7 +309,7 @@ class BastController extends Controller
             ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
                 $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
                     $q2->where('tahun', $tahun);
-                        // ->whereIn('status', ['dikirim', 'perubahan']);
+                    // ->whereIn('status', ['dikirim', 'perubahan']);
                 })->where(function ($q3) {
                     $q3->where('jumlah_satuan', '>', 0)
                         ->orWhere('jumlah_satuan_listing', '>', 0)
@@ -307,38 +364,7 @@ class BastController extends Controller
                 ->where('tahun', $tahun);
         })->get();
         $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
-            $periode = $alokasi->periodeAlokasi;
-            $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-            $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-            $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-            $tanggalSelesai = null;
-
-            if ($isPengolahanRole) {
-                // For pengolahan roles, check appropriate processing schedule
-                if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
-                } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                    $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
-                } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                    $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
-                }
-            } else {
-                // For field roles (lapangan), check appropriate field schedule
-                if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                    $tanggalSelesai = $periode->tanggal_selesai_listing;
-                } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                    $tanggalSelesai = $periode->tanggal_selesai;
-                } elseif (! empty($periode?->tanggal_selesai)) {
-                    $tanggalSelesai = $periode->tanggal_selesai;
-                } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                    $tanggalSelesai = $periode->tanggal_selesai_listing;
-                }
-            }
-
-            return $tanggalSelesai;
+            return $this->getAlokasiLatestTanggalSelesai($alokasi);
         })->filter()->max();
 
         // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
@@ -359,34 +385,7 @@ class BastController extends Controller
                 ->get();
 
             $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-                if ($isPengolahanRole) {
-                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    }
-                } else {
-                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    }
-                }
-
-                return null;
+                return $this->getAlokasiLatestTanggalSelesai($alokasi);
             })->filter()->max();
 
             if (! $tanggalBerakhirA) {
@@ -409,34 +408,7 @@ class BastController extends Controller
                 ->get();
 
             $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-                if ($isPengolahanRole) {
-                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    }
-                } else {
-                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    }
-                }
-
-                return null;
+                return $this->getAlokasiLatestTanggalSelesai($alokasi);
             })->filter()->max();
 
             if (! $tanggalBerakhirB) {
@@ -642,34 +614,7 @@ class BastController extends Controller
                 ->get();
 
             $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-                if ($isPengolahanRole) {
-                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    }
-                } else {
-                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    }
-                }
-
-                return null;
+                return $this->getAlokasiLatestTanggalSelesai($alokasi);
             })->filter()->max();
 
             if (! $tanggalBerakhirA) {
@@ -694,34 +639,7 @@ class BastController extends Controller
                 ->get();
 
             $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-                if ($isPengolahanRole) {
-                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    }
-                } else {
-                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    }
-                }
-
-                return null;
+                return $this->getAlokasiLatestTanggalSelesai($alokasi);
             })->filter()->max();
 
             if (! $tanggalBerakhirB) {
@@ -760,34 +678,7 @@ class BastController extends Controller
                 ->get();
 
             $firstTanggalBerakhir = $firstAllAlokasi->map(function ($alokasi) {
-                $periode = $alokasi->periodeAlokasi;
-                $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-
-                if ($isPengolahanRole) {
-                    if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                        return $periode->jadwal_pengolahan_pencacahan_selesai;
-                    } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                        return $periode->jadwal_pengolahan_listing_selesai;
-                    }
-                } else {
-                    if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai)) {
-                        return $periode->tanggal_selesai;
-                    } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                        return $periode->tanggal_selesai_listing;
-                    }
-                }
-
-                return null;
+                return $this->getAlokasiLatestTanggalSelesai($alokasi);
             })->filter()->max();
 
             if (! $firstTanggalBerakhir) {
@@ -921,34 +812,7 @@ class BastController extends Controller
                         ->get();
 
                     $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
-                        $periode = $alokasi->periodeAlokasi;
-                        $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES);
-                        $hasListing = (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                        $hasPencacahan = (int) ($alokasi->jumlah_satuan ?? 0) > 0;
-                        $tanggalSelesai = null;
-                        if ($isPengolahanRole) {
-                            if ($hasListing && ! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                                $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
-                            } elseif ($hasPencacahan && ! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                                $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
-                            } elseif (! empty($periode?->jadwal_pengolahan_pencacahan_selesai)) {
-                                $tanggalSelesai = $periode->jadwal_pengolahan_pencacahan_selesai;
-                            } elseif (! empty($periode?->jadwal_pengolahan_listing_selesai)) {
-                                $tanggalSelesai = $periode->jadwal_pengolahan_listing_selesai;
-                            }
-                        } else {
-                            if ($hasListing && ! empty($periode?->tanggal_selesai_listing)) {
-                                $tanggalSelesai = $periode->tanggal_selesai_listing;
-                            } elseif ($hasPencacahan && ! empty($periode?->tanggal_selesai)) {
-                                $tanggalSelesai = $periode->tanggal_selesai;
-                            } elseif (! empty($periode?->tanggal_selesai)) {
-                                $tanggalSelesai = $periode->tanggal_selesai;
-                            } elseif (! empty($periode?->tanggal_selesai_listing)) {
-                                $tanggalSelesai = $periode->tanggal_selesai_listing;
-                            }
-                        }
-
-                        return $tanggalSelesai;
+                        return $this->getAlokasiLatestTanggalSelesai($alokasi);
                     })->filter()->max();
 
                     if (! $tanggalBerakhirPalingAkhir) {
