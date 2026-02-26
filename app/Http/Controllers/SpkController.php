@@ -1824,50 +1824,211 @@ class SpkController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
+            $generatedSpk = $this->generateAndStoreAddendumDocument(
+                $periodeId,
+                $petugasId,
+                $validated['tanggal_spk'],
+                $validated['sampai_tanggal'],
+                (int) $validated['parent_spk_id'],
+                (int) $validated['addendum_number'],
+            );
 
-            // Get parent SPK
-            $parentSpk = Spk::findOrFail($validated['parent_spk_id']);
+            ActivityLog::log(
+                'Generate Addendum SPK',
+                'spk',
+                "Berhasil generate addendum SPK: {$generatedSpk->nomor_spk}",
+                'success',
+                [
+                    'spk_id' => $generatedSpk->id,
+                    'nomor_spk' => $generatedSpk->nomor_spk,
+                    'petugas_id' => $petugasId,
+                    'periode_id' => $periodeId,
+                    'parent_spk_id' => (int) $validated['parent_spk_id'],
+                    'addendum_number' => (int) $validated['addendum_number'],
+                ]
+            );
 
-            // Get periode alokasi
+            // Return JSON response for AJAX requests
+            return response()->json([
+                'success' => true,
+                'message' => 'Addendum SPK berhasil di-generate',
+            ]);
+        } catch (\Exception $e) {
+            ActivityLog::log(
+                'Generate Addendum SPK',
+                'spk',
+                'Gagal generate addendum SPK',
+                'error',
+                [
+                    'petugas_id' => $petugasId,
+                    'periode_id' => $periodeId,
+                    'parent_spk_id' => (int) ($validated['parent_spk_id'] ?? 0),
+                    'addendum_number' => (int) ($validated['addendum_number'] ?? 0),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal generate addendum SPK: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function generateBatchAddendum(Request $request, string $periodeHashedId): RedirectResponse
+    {
+        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+
+        if (! $periodeId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'tanggal_spk' => 'required|date',
+            'sampai_tanggal' => 'required|date',
+            'batch_items' => 'required|array|min:1',
+            'batch_items.*.petugas_hashed_id' => 'required|string',
+            'batch_items.*.parent_spk_id' => 'required|integer|exists:spk,id',
+            'batch_items.*.addendum_number' => 'required|integer|min:1',
+        ]);
+
+        $successCount = 0;
+        $failedCount = 0;
+
+        foreach ($validated['batch_items'] as $item) {
+            $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
+
+            if (! $petugasId) {
+                $failedCount++;
+
+                continue;
+            }
+
+            $parentSpk = Spk::where('id', (int) $item['parent_spk_id'])
+                ->where('petugas_id', $petugasId)
+                ->where('addendum_number', 0)
+                ->first();
+
+            if (! $parentSpk) {
+                $failedCount++;
+
+                continue;
+            }
+
+            try {
+                $generatedSpk = $this->generateAndStoreAddendumDocument(
+                    (int) $periodeId,
+                    (int) $petugasId,
+                    $validated['tanggal_spk'],
+                    $validated['sampai_tanggal'],
+                    (int) $parentSpk->id,
+                    (int) $item['addendum_number'],
+                );
+
+                ActivityLog::log(
+                    'Generate Batch Addendum SPK',
+                    'spk',
+                    "Berhasil generate addendum batch untuk SPK: {$generatedSpk->nomor_spk}",
+                    'success',
+                    [
+                        'spk_id' => $generatedSpk->id,
+                        'nomor_spk' => $generatedSpk->nomor_spk,
+                        'petugas_id' => (int) $petugasId,
+                        'periode_id' => (int) $periodeId,
+                        'parent_spk_id' => (int) $parentSpk->id,
+                        'addendum_number' => (int) $item['addendum_number'],
+                    ]
+                );
+
+                $successCount++;
+            } catch (\Exception $e) {
+                $failedCount++;
+
+                ActivityLog::log(
+                    'Generate Batch Addendum SPK',
+                    'spk',
+                    'Gagal generate addendum batch untuk petugas',
+                    'error',
+                    [
+                        'petugas_id' => (int) ($petugasId ?? 0),
+                        'periode_id' => (int) $periodeId,
+                        'parent_spk_id' => (int) ($item['parent_spk_id'] ?? 0),
+                        'addendum_number' => (int) ($item['addendum_number'] ?? 0),
+                        'error' => $e->getMessage(),
+                    ]
+                );
+            }
+        }
+
+        ActivityLog::log(
+            'Generate Batch Addendum SPK',
+            'spk',
+            "Selesai generate batch addendum SPK: {$successCount} berhasil, {$failedCount} gagal",
+            $failedCount > 0 ? 'warning' : 'success',
+            [
+                'periode_id' => (int) $periodeId,
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
+                'requested_count' => count($validated['batch_items']),
+            ]
+        );
+
+        if ($successCount === 0) {
+            return redirect()->route('spk.index')
+                ->with('error', 'Gagal generate addendum Perjanjian Kerja. Tidak ada dokumen yang berhasil dibuat.');
+        }
+
+        if ($failedCount > 0) {
+            return redirect()->route('spk.index')
+                ->with('warning', "Generate batch addendum selesai: {$successCount} berhasil, {$failedCount} gagal.");
+        }
+
+        return redirect()->route('spk.index')
+            ->with('success', 'Berhasil generate semua Addendum Perjanjian Kerja.');
+    }
+
+    private function generateAndStoreAddendumDocument(
+        int $periodeId,
+        int $petugasId,
+        string $tanggalSpk,
+        string $sampaiTanggal,
+        int $parentSpkId,
+        int $addendumNumber,
+    ): Spk {
+        DB::beginTransaction();
+
+        try {
+            $parentSpk = Spk::findOrFail($parentSpkId);
             $periode = PeriodeAlokasi::with(['kegiatan'])->findOrFail($periodeId);
-
-            // Get petugas details
             $petugas = Petugas::findOrFail($petugasId);
 
             $bulan = $periode->bulan;
             $tahun = $periode->tahun;
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            // Get all periode in the same month with status 'dikirim' and 'perubahan'
             $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
                 ->where('tahun', $tahun)
                 ->whereIn('status', ['dikirim', 'perubahan'])
                 ->pluck('id');
 
-            // Get all alokasi for this petugas in the same month
             $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
                 ->where('petugas_id', $petugasId)
                 ->with(['periodeAlokasi.kegiatan.rateHonors.satuan'])
                 ->get();
 
-            // Use first alokasi as the main reference (we'll store this in alokasi_petugas_id)
             $mainAlokasi = $allAlokasi->first();
 
             if (! $mainAlokasi) {
                 throw new \Exception('Tidak ditemukan alokasi untuk petugas ini');
             }
 
-            // Calculate total honor (from 'dikirim' and 'perubahan' status)
             $totalHonor = $allAlokasi->sum(function ($alokasi) {
                 return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
             });
 
-            // Build kegiatan list
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
                 $periode = $alokasi->periodeAlokasi;
 
-                // Get satuan from rate honor
                 $rateHonor = $periode->kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
                     return $rate->status_kepegawaian === $alokasi->status_kepegawaian
                         && $rate->jenis_penugasan === $alokasi->peran;
@@ -1894,21 +2055,19 @@ class SpkController extends Controller
                 ];
             })->values()->all();
 
-            // Format nomor SPK addendum: nomor urut parent + /ADD-x
             $nomorSpkParts = explode('/', $parentSpk->nomor_spk);
-            // Pastikan tidak double /ADD-x jika parent sudah addendum
             $baseNomorUrut = $nomorSpkParts[2];
             if (str_contains($baseNomorUrut, '/ADD-')) {
                 $baseNomorUrut = explode('/ADD-', $baseNomorUrut)[0];
             }
-            $nomorSpkParts[2] = $baseNomorUrut.'/ADD-'.$validated['addendum_number'];
+            $nomorSpkParts[2] = $baseNomorUrut.'/ADD-'.$addendumNumber;
             $nomorSpk = implode('/', $nomorSpkParts);
 
             $data = [
                 'nomor_spk' => $nomorSpk,
-                'tanggal_spk' => $validated['tanggal_spk'],
-                'sampai_tanggal' => $validated['sampai_tanggal'],
-                'addendum_number' => $validated['addendum_number'],
+                'tanggal_spk' => $tanggalSpk,
+                'sampai_tanggal' => $sampaiTanggal,
+                'addendum_number' => $addendumNumber,
                 'parent_nomor_spk' => $parentSpk->nomor_spk,
                 'petugas' => [
                     'nama' => $petugas->nama,
@@ -1929,29 +2088,24 @@ class SpkController extends Controller
                 ],
             ];
 
-            // Generate addendum PDF content
             $pdfContent = $this->generateAddendumPdfContent($data);
 
-            // Save to public directory (same as regular SPK)
-            $sanitizedNamaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
-            $fileName = 'SPK-ADDENDUM-'.$validated['addendum_number'].'-'.$sanitizedNamaPetugas.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
+            $sanitizedNamaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
+            $fileName = 'SPK-ADDENDUM-'.$addendumNumber.'-'.$sanitizedNamaPetugas.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
             $filePath = "spk-export/{$tahun}/{$bulanFormatted}/{$fileName}";
 
-            // Create directory if not exists
             $publicPath = public_path("spk-export/{$tahun}/{$bulanFormatted}");
             if (! file_exists($publicPath)) {
                 mkdir($publicPath, 0755, true);
             }
 
-            // Save PDF to public directory
             file_put_contents(public_path($filePath), $pdfContent);
 
-            // Create SPK record with addendum data
-            $spk = Spk::create([
+            $generatedSpk = Spk::create([
                 'petugas_id' => $petugasId,
                 'alokasi_petugas_id' => $mainAlokasi->id,
                 'nomor_spk' => $nomorSpk,
-                'tanggal_spk' => $validated['tanggal_spk'],
+                'tanggal_spk' => $tanggalSpk,
                 'tanggal_mulai_kerja' => $parentSpk->tanggal_mulai_kerja,
                 'tanggal_selesai_kerja' => $parentSpk->tanggal_selesai_kerja,
                 'nilai_kontrak' => $totalHonor,
@@ -1959,25 +2113,17 @@ class SpkController extends Controller
                 'nip_ppk' => $parentSpk->nip_ppk,
                 'file_path' => $filePath,
                 'status' => 'draft',
-                'parent_spk_id' => $validated['parent_spk_id'],
-                'addendum_number' => $validated['addendum_number'],
+                'parent_spk_id' => $parentSpkId,
+                'addendum_number' => $addendumNumber,
                 'created_by' => Auth::id(),
             ]);
 
             DB::commit();
 
-            // Return JSON response for AJAX requests
-            return response()->json([
-                'success' => true,
-                'message' => 'Addendum SPK berhasil di-generate',
-            ]);
+            return $generatedSpk;
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal generate addendum SPK: '.$e->getMessage(),
-            ], 500);
+            throw $e;
         }
     }
 

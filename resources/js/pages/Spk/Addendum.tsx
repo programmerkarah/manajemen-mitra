@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Download, Eye, FileEdit } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, Eye, FileEdit } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -66,6 +66,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
     const [showFormModal, setShowFormModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successTitle, setSuccessTitle] = useState('Berhasil!');
     const [successMessage, setSuccessMessage] = useState('');
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -181,13 +182,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             const result = await response.json();
 
             if (result.success) {
+                setSuccessTitle('Addendum berhasil dibuat');
                 setSuccessMessage(
                     `Addendum Perjanjian Kerja untuk ${petugasData.petugas.nama} berhasil di-generate!`,
                 );
                 setShowSuccessModal(true);
-                setTimeout(() => {
-                    window.location.href = '/spk';
-                }, 2000);
             } else {
                 setModalMessage(
                     result?.message ||
@@ -223,78 +222,42 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             return;
         }
 
-        setProcessing(true);
-        let successCount = 0;
-        let failCount = 0;
+        router.post(
+            `/spk/periode/${periode.hashed_id}/generate-addendum-batch`,
+            {
+                tanggal_spk: formData.tanggal_spk,
+                sampai_tanggal: formData.sampai_tanggal,
+                batch_items: selectedPetugas
+                    .map((petugasHashedId) => {
+                        const petugasData = petugas_list.find(
+                            (item) => item.petugas.hashed_id === petugasHashedId,
+                        );
 
-        for (const hashedId of selectedPetugas) {
-            const petugasData = petugas_list.find(
-                (p) => p.petugas.hashed_id === hashedId,
-            );
-            if (!petugasData) continue;
+                        if (!petugasData) {
+                            return null;
+                        }
 
-            try {
-                const response = await fetch(
-                    `/spk/periode/${periode.hashed_id}/petugas/${petugasData.petugas.hashed_id}/generate-addendum`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN':
-                                document
-                                    .querySelector('meta[name="csrf-token"]')
-                                    ?.getAttribute('content') || '',
-                        },
-                        body: JSON.stringify({
-                            tanggal_spk: formData.tanggal_spk,
-                            sampai_tanggal: formData.sampai_tanggal,
+                        return {
+                            petugas_hashed_id: petugasHashedId,
                             parent_spk_id: petugasData.existing_spk_id,
-                            addendum_number: petugasData.next_addendum_number,
-                        }),
-                    },
-                );
-
-                if (!response.ok) {
-                    failCount++;
-                    continue;
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    successCount++;
-                } else {
-                    failCount++;
-                }
-            } catch (error) {
-                console.error(
-                    'Error generating addendum for',
-                    petugasData.petugas.nama,
-                    error,
-                );
-                failCount++;
-            }
-        }
-
-        setProcessing(false);
-        setGeneratedCount(successCount);
-
-        if (failCount === 0) {
-            setSuccessMessage(
-                `Berhasil generate ${successCount} addendum Perjanjian Kerja!`,
-            );
-        } else {
-            setSuccessMessage(
-                `Generate selesai: ${successCount} berhasil, ${failCount} gagal.`,
-            );
-        }
-        setShowSuccessModal(true);
-        setSelectedPetugas([]);
-
-        // Redirect to SPK index instead of reloading
-        setTimeout(() => {
-            window.location.href = '/spk';
-        }, 2000);
+                            addendum_number:
+                                petugasData.next_addendum_number,
+                        };
+                    })
+                    .filter(Boolean),
+            },
+            {
+                preserveScroll: false,
+                onStart: () => setProcessing(true),
+                onFinish: () => setProcessing(false),
+                onError: () => {
+                    setModalMessage(
+                        'Terjadi kesalahan saat generate batch addendum. Silakan coba lagi.',
+                    );
+                    setShowFormModal(true);
+                },
+            },
+        );
     };
 
     return (
@@ -610,20 +573,28 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             {/* Success Modal */}
             {showSuccessModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
-                        <h3 className="mb-4 text-lg font-semibold text-green-600 dark:text-green-400">
-                            Berhasil!
-                        </h3>
-                        <p className="mb-6">{successMessage}</p>
-                        <div className="flex justify-end gap-2">
+                    <div className="mx-4 w-full max-w-md rounded-xl border border-green-400/30 bg-white p-6 shadow-2xl dark:border-green-500/20 dark:bg-gray-800">
+                        <div className="mb-4 flex items-start gap-3">
+                            <div className="rounded-full bg-green-100 p-2 dark:bg-green-900/30">
+                                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">
+                                    {successTitle}
+                                </h3>
+                                <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200">
+                                    {successMessage}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
                             <Button
                                 variant="outline"
                                 onClick={() => {
                                     setShowSuccessModal(false);
-                                    router.reload();
                                 }}
                             >
-                                Generate Lagi
+                                Tutup
                             </Button>
                             <Button
                                 onClick={() => {
@@ -631,7 +602,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                     router.visit('/spk');
                                 }}
                             >
-                                Kembali ke Daftar Perjanjian Kerja
+                                Ke Daftar Perjanjian Kerja
                             </Button>
                         </div>
                     </div>
