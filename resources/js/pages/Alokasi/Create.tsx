@@ -99,6 +99,10 @@ interface AlokasiCreateProps {
         tanggal_selesai?: string | null;
         tanggal_mulai_listing?: string | null;
         tanggal_selesai_listing?: string | null;
+        jadwal_pengolahan_listing_mulai?: string | null;
+        jadwal_pengolahan_listing_selesai?: string | null;
+        jadwal_pengolahan_pencacahan_mulai?: string | null;
+        jadwal_pengolahan_pencacahan_selesai?: string | null;
     } | null;
     budget_info: Record<
         number,
@@ -244,17 +248,17 @@ export default function Create({
     );
     // Jadwal Pengolahan states
     const [jadwalPengolahanListingMulai, setJadwalPengolahanListingMulai] =
-        useState('');
+        useState(sourcePeriode?.jadwal_pengolahan_listing_mulai || '');
     const [jadwalPengolahanListingSelesai, setJadwalPengolahanListingSelesai] =
-        useState('');
+        useState(sourcePeriode?.jadwal_pengolahan_listing_selesai || '');
     const [
         jadwalPengolahanPencacahanMulai,
         setJadwalPengolahanPencacahanMulai,
-    ] = useState('');
+    ] = useState(sourcePeriode?.jadwal_pengolahan_pencacahan_mulai || '');
     const [
         jadwalPengolahanPencacahanSelesai,
         setJadwalPengolahanPencacahanSelesai,
-    ] = useState('');
+    ] = useState(sourcePeriode?.jadwal_pengolahan_pencacahan_selesai || '');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 

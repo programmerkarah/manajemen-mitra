@@ -1522,6 +1522,10 @@ class AlokasiPetugasController extends Controller
                 'tanggal_selesai' => $periode->tanggal_selesai?->format('Y-m-d'),
                 'tanggal_mulai_listing' => $periode->tanggal_mulai_listing?->format('Y-m-d'),
                 'tanggal_selesai_listing' => $periode->tanggal_selesai_listing?->format('Y-m-d'),
+                'jadwal_pengolahan_listing_mulai' => $periode->jadwal_pengolahan_listing_mulai?->format('Y-m-d'),
+                'jadwal_pengolahan_listing_selesai' => $periode->jadwal_pengolahan_listing_selesai?->format('Y-m-d'),
+                'jadwal_pengolahan_pencacahan_mulai' => $periode->jadwal_pengolahan_pencacahan_mulai?->format('Y-m-d'),
+                'jadwal_pengolahan_pencacahan_selesai' => $periode->jadwal_pengolahan_pencacahan_selesai?->format('Y-m-d'),
             ],
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
@@ -1571,6 +1575,10 @@ class AlokasiPetugasController extends Controller
             'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
             'tanggal_mulai_listing' => 'nullable|date',
             'tanggal_selesai_listing' => 'nullable|date|after_or_equal:tanggal_mulai_listing',
+            'jadwal_pengolahan_listing_mulai' => 'nullable|date',
+            'jadwal_pengolahan_listing_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_listing_mulai',
+            'jadwal_pengolahan_pencacahan_mulai' => 'nullable|date',
+            'jadwal_pengolahan_pencacahan_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_pencacahan_mulai',
         ]);
 
         DB::beginTransaction();
@@ -1871,6 +1879,10 @@ class AlokasiPetugasController extends Controller
                 'tanggal_selesai' => $validated['tanggal_selesai'] ?? $periode->tanggal_selesai,
                 'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? $periode->tanggal_mulai_listing,
                 'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? $periode->tanggal_selesai_listing,
+                'jadwal_pengolahan_listing_mulai' => $validated['jadwal_pengolahan_listing_mulai'] ?? $periode->jadwal_pengolahan_listing_mulai,
+                'jadwal_pengolahan_listing_selesai' => $validated['jadwal_pengolahan_listing_selesai'] ?? $periode->jadwal_pengolahan_listing_selesai,
+                'jadwal_pengolahan_pencacahan_mulai' => $validated['jadwal_pengolahan_pencacahan_mulai'] ?? $periode->jadwal_pengolahan_pencacahan_mulai,
+                'jadwal_pengolahan_pencacahan_selesai' => $validated['jadwal_pengolahan_pencacahan_selesai'] ?? $periode->jadwal_pengolahan_pencacahan_selesai,
             ]);
 
             // Always recalculate sisa_pagu for all subsequent periods when any periode is updated
