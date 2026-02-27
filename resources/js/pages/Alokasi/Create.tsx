@@ -18,7 +18,6 @@ import { ArrowLeft, Copy, Loader2, Save, Send, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Alokasi petugas', href: '/alokasi' },
     { title: 'Tambah Alokasi', href: '/alokasi/create' },
 ];

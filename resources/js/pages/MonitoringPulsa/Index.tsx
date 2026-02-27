@@ -523,15 +523,9 @@ export default function MonitoringPulsaIndex({
                                                                                             <span className="font-medium text-neutral-900 dark:text-neutral-100">
                                                                                                 {item
                                                                                                     .kegiatan
-                                                                                                    ?.kode_kegiatan ??
-                                                                                                    '-'}
-                                                                                            </span>
-                                                                                            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                                                                                                {item
-                                                                                                    .kegiatan
                                                                                                     ?.nama_kegiatan ??
                                                                                                     '-'}
-                                                                                            </p>
+                                                                                            </span>
                                                                                         </td>
                                                                                         <td className="px-4 py-2.5 text-center text-xs text-neutral-700 capitalize dark:text-neutral-300">
                                                                                             {

@@ -38,8 +38,11 @@ export default function Create({
     copyData,
     isCopyMode = false,
 }: KegiatanCreateProps) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, errors: pageErrors } = usePage<
+        SharedData & { errors?: Record<string, string> }
+    >().props;
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
+    const errors = pageErrors ?? {};
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Kegiatan', href: '/kegiatan' },
@@ -67,7 +70,7 @@ export default function Create({
         return value.replace(/\./g, '');
     };
 
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData, processing } = useForm({
         nama_kegiatan: copyData?.nama_kegiatan || '',
         jenis_kegiatan:
             copyData?.jenis_kegiatan || ('survei' as 'sensus' | 'survei'),

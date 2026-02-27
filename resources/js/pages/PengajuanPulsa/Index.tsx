@@ -243,9 +243,6 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                         Kegiatan
                                     </th>
                                     <th className="px-4 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Bulan
-                                    </th>
-                                    <th className="px-4 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Jumlah Petugas
                                     </th>
                                     <th className="px-4 py-3.5 text-right text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
@@ -278,14 +275,8 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                         >
                                             <td className="px-4 py-3 text-sm">
                                                 <span className="font-medium text-neutral-900 dark:text-neutral-100">
-                                                    {group.kegiatanKode}
-                                                </span>
-                                                <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
                                                     {group.kegiatanNama}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-neutral-700 dark:text-neutral-300">
-                                                {BULAN_LABELS[bulan]} {tahun}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 text-center text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                                 {group.jumlahPengajuan} petugas

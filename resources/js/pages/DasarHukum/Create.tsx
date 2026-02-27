@@ -18,7 +18,6 @@ import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
     { title: 'Tambah Dasar Hukum', href: '/dasar-hukum/create' },
 ];

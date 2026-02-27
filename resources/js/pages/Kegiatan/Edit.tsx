@@ -34,7 +34,10 @@ export default function Edit({
     tahunOptions,
     pjLainnyaUsers,
 }: KegiatanEditProps) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, errors: pageErrors } = usePage<
+        SharedData & { errors?: Record<string, string> }
+    >().props;
+    const errors = pageErrors ?? {};
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
 
     // Format tanggal dari Carbon ke Y-m-d format
@@ -64,7 +67,7 @@ export default function Edit({
         return Math.round(val).toString();
     };
 
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData, processing } = useForm({
         kode_kegiatan: kegiatan.kode_kegiatan || '',
         nama_kegiatan: kegiatan.nama_kegiatan || '',
         jenis_kegiatan: kegiatan.jenis_kegiatan || 'survei',

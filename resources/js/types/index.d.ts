@@ -39,6 +39,8 @@ export interface NavItem {
     icon?: LucideIcon | null;
     isActive?: boolean;
     items?: NavItem[];
+    /** Extra URL prefixes that should trigger the active state for this item */
+    activeWhen?: string[];
 }
 
 export interface SharedData {

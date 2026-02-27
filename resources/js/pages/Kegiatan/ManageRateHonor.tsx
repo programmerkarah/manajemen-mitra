@@ -147,7 +147,6 @@ const getCombinations = (jenisKegiatan: 'sensus' | 'survei') => {
 
 export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
         { title: 'Kegiatan', href: '/kegiatan' },
         {
             title: kegiatan.nama_kegiatan,

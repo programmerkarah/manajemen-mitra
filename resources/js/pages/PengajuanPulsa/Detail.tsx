@@ -14,7 +14,15 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Check, ClipboardCheck, Loader2, X } from 'lucide-react';
+import {
+    ArrowLeft,
+    Check,
+    CheckCheck,
+    ClipboardCheck,
+    Loader2,
+    X,
+    XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface PengajuanPulsaItem {
@@ -112,6 +120,16 @@ export default function PengajuanPulsaDetail({
     const [catatanPenolakan, setCatatanPenolakan] = useState('');
     const [isReviewing, setIsReviewing] = useState(false);
 
+    // Bulk review state
+    const [showReviewAllDialog, setShowReviewAllDialog] = useState(false);
+    const [reviewAllAction, setReviewAllAction] = useState<
+        'diterima' | 'ditolak'
+    >('diterima');
+    const [reviewAllCatatan, setReviewAllCatatan] = useState('');
+    const [isReviewingAll, setIsReviewingAll] = useState(false);
+
+    const dikirimItems = items.filter((i) => i.status === 'dikirim');
+
     const handleReviewSubmit = () => {
         if (!reviewItem) {
             return;
@@ -127,6 +145,28 @@ export default function PengajuanPulsaDetail({
                     setIsReviewing(false);
                 },
                 onError: () => setIsReviewing(false),
+            },
+        );
+    };
+
+    const handleReviewAllSubmit = () => {
+        setIsReviewingAll(true);
+        router.post(
+            '/pengajuan-pulsa/review-all',
+            {
+                action: reviewAllAction,
+                catatan_penolakan: reviewAllCatatan,
+                kegiatan_id: kegiatan.id,
+                bulan,
+                tahun,
+            },
+            {
+                onSuccess: () => {
+                    setShowReviewAllDialog(false);
+                    setReviewAllCatatan('');
+                    setIsReviewingAll(false);
+                },
+                onError: () => setIsReviewingAll(false),
             },
         );
     };
@@ -207,14 +247,46 @@ export default function PengajuanPulsaDetail({
 
                 {/* Pengajuan table */}
                 <ContentCard padding="none">
-                    <div className="px-6 pt-4 pb-2">
-                        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                            Daftar Petugas yang Diajukan
-                        </h3>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                            Petugas non-organik yang diajukan pulsa pada{' '}
-                            {BULAN_LABELS[bulan]} {tahun}
-                        </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-2">
+                        <div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                                Daftar Petugas yang Diajukan
+                            </h3>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Petugas non-organik yang diajukan pulsa pada{' '}
+                                {BULAN_LABELS[bulan]} {tahun}
+                            </p>
+                        </div>
+                        {canReview && dikirimItems.length > 0 && (
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950"
+                                    onClick={() => {
+                                        setReviewAllAction('diterima');
+                                        setReviewAllCatatan('');
+                                        setShowReviewAllDialog(true);
+                                    }}
+                                >
+                                    <CheckCheck className="h-3.5 w-3.5" />
+                                    Setuju Semua ({dikirimItems.length})
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                                    onClick={() => {
+                                        setReviewAllAction('ditolak');
+                                        setReviewAllCatatan('');
+                                        setShowReviewAllDialog(true);
+                                    }}
+                                >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    Tolak Semua ({dikirimItems.length})
+                                </Button>
+                            </div>
+                        )}
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -542,6 +614,181 @@ export default function PengajuanPulsaDetail({
                                 <>
                                     <X className="mr-2 h-4 w-4" />
                                     Konfirmasi Tolak
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Bulk Review Dialog */}
+            <Dialog
+                open={showReviewAllDialog}
+                onOpenChange={(open) => {
+                    if (!open && !isReviewingAll) {
+                        setShowReviewAllDialog(false);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {reviewAllAction === 'diterima' ? (
+                                <CheckCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            ) : (
+                                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            )}
+                            {reviewAllAction === 'diterima'
+                                ? 'Setuju Semua Pengajuan'
+                                : 'Tolak Semua Pengajuan'}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {/* Summary card */}
+                        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <dl className="space-y-2 text-sm">
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-neutral-500 dark:text-neutral-400">
+                                        Kegiatan
+                                    </dt>
+                                    <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
+                                        {kegiatan.kode_kegiatan}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-neutral-500 dark:text-neutral-400">
+                                        Periode
+                                    </dt>
+                                    <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
+                                        {BULAN_LABELS[bulan]} {tahun}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between gap-4 border-t border-neutral-200 pt-2 dark:border-neutral-700">
+                                    <dt className="font-medium text-neutral-700 dark:text-neutral-300">
+                                        Jumlah Pengajuan
+                                    </dt>
+                                    <dd className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                                        {dikirimItems.length} pengajuan
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <dt className="font-medium text-neutral-700 dark:text-neutral-300">
+                                        Total Nominal
+                                    </dt>
+                                    <dd className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                                        {formatCurrency(
+                                            dikirimItems.reduce(
+                                                (s, i) => s + i.nominal,
+                                                0,
+                                            ),
+                                        )}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        {/* Accept / Reject toggle */}
+                        <div>
+                            <Label className="mb-2 block text-sm font-medium">
+                                Keputusan
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setReviewAllAction('diterima')
+                                    }
+                                    className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-all ${
+                                        reviewAllAction === 'diterima'
+                                            ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-950 dark:text-green-300'
+                                            : 'border-neutral-200 bg-white text-neutral-600 hover:border-green-300 hover:bg-green-50/50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
+                                    }`}
+                                >
+                                    <Check className="h-4 w-4" />
+                                    Terima Semua
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setReviewAllAction('ditolak')
+                                    }
+                                    className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-all ${
+                                        reviewAllAction === 'ditolak'
+                                            ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-950 dark:text-red-300'
+                                            : 'border-neutral-200 bg-white text-neutral-600 hover:border-red-300 hover:bg-red-50/50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
+                                    }`}
+                                >
+                                    <X className="h-4 w-4" />
+                                    Tolak Semua
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Rejection reason */}
+                        {reviewAllAction === 'ditolak' && (
+                            <div className="space-y-1.5">
+                                <Label
+                                    htmlFor="review_all_catatan"
+                                    className="text-sm font-medium"
+                                >
+                                    Alasan Penolakan{' '}
+                                    <span className="text-red-500">*</span>
+                                </Label>
+                                <Textarea
+                                    id="review_all_catatan"
+                                    value={reviewAllCatatan}
+                                    onChange={(e) =>
+                                        setReviewAllCatatan(e.target.value)
+                                    }
+                                    placeholder="Jelaskan alasan penolakan untuk semua pengajuan ini..."
+                                    rows={3}
+                                    className="resize-none"
+                                />
+                                {!reviewAllCatatan.trim() && (
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                        Alasan wajib diisi dan akan berlaku
+                                        untuk semua pengajuan.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowReviewAllDialog(false)}
+                            disabled={isReviewingAll}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleReviewAllSubmit}
+                            disabled={
+                                isReviewingAll ||
+                                (reviewAllAction === 'ditolak' &&
+                                    !reviewAllCatatan.trim())
+                            }
+                            className={
+                                reviewAllAction === 'diterima'
+                                    ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600'
+                                    : 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600'
+                            }
+                        >
+                            {isReviewingAll ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : reviewAllAction === 'diterima' ? (
+                                <>
+                                    <CheckCheck className="mr-2 h-4 w-4" />
+                                    Terima {dikirimItems.length} Pengajuan
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Tolak {dikirimItems.length} Pengajuan
                                 </>
                             )}
                         </Button>

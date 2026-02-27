@@ -18,7 +18,6 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'DIPA', href: '/dipa' },
     { title: 'Tambah DIPA', href: '/dipa/create' },
 ];

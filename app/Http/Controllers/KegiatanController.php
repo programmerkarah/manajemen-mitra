@@ -227,7 +227,11 @@ class KegiatanController extends Controller
             'kegiatan',
             "Berhasil menambahkan kegiatan baru: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
             'success',
-            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+            [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'data' => $this->buildKegiatanSnapshot($kegiatan),
+            ]
         );
 
         return redirect()->route('kegiatan.index')
@@ -424,7 +428,10 @@ class KegiatanController extends Controller
             $data['pj_lainnya_id'] = null;
         }
 
+        $oldSnapshot = $this->buildKegiatanSnapshot($kegiatan);
         $kegiatan->update($data);
+        $kegiatan->refresh();
+        $logChanges = $this->computeKegiatanChanges($oldSnapshot, $this->buildKegiatanSnapshot($kegiatan));
 
         // If pagu changed, recalculate all periode sisa_pagu
         if ($paguChanged) {
@@ -448,9 +455,13 @@ class KegiatanController extends Controller
             ActivityLog::log(
                 'Ubah Kegiatan',
                 'kegiatan',
-                "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah pagu dari Rp ".number_format($oldPagu, 0, ',', '.').' menjadi Rp '.number_format($newPagu, 0, ',', '.').' dan memperbarui sisa pagu periode terkait.',
+                "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, pagu diperbarui dan sisa pagu periode terkait dihitung ulang.",
                 'success',
-                ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                    'perubahan' => $logChanges,
+                ]
             );
 
             return redirect()->route('kegiatan.index')
@@ -458,12 +469,20 @@ class KegiatanController extends Controller
         }
 
         // Normal update (no pagu change)
+        $changedFieldsDesc = count($logChanges) > 0
+            ? implode(', ', array_keys($logChanges))
+            : 'tidak ada perubahan terdeteksi';
+
         ActivityLog::log(
             'Ubah Kegiatan',
             'kegiatan',
-            "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}, mengubah dari tanggal {$oldTanggalMulai->format('d-m-Y')} - {$oldTanggalSelesai->format('d-m-Y')} menjadi {$newTanggalMulai->format('d-m-Y')} - {$newTanggalSelesai->format('d-m-Y')}.",
+            "Berhasil mengubah data kegiatan: {$kegiatan->nama_kegiatan}. Field yang berubah: {$changedFieldsDesc}.",
             'success',
-            ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
+            [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'perubahan' => $logChanges,
+            ]
         );
 
         return redirect()->route('kegiatan.index')
@@ -713,5 +732,49 @@ class KegiatanController extends Controller
 
         return redirect()->back()
             ->with('success', 'Kegiatan berhasil diajukan untuk persetujuan.');
+    }
+
+    /**
+     * Build a snapshot of key kegiatan fields for activity log comparisons.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildKegiatanSnapshot(Kegiatan $kegiatan): array
+    {
+        return [
+            'nama_kegiatan' => $kegiatan->nama_kegiatan,
+            'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+            'tahun_anggaran' => (int) $kegiatan->tahun_anggaran,
+            'tanggal_mulai' => $kegiatan->tanggal_mulai?->format('d-m-Y'),
+            'tanggal_selesai' => $kegiatan->tanggal_selesai?->format('d-m-Y'),
+            'pagu_pencacahan' => (float) ($kegiatan->pagu_pencacahan ?? 0),
+            'pagu_listing' => (float) ($kegiatan->pagu_listing ?? 0),
+            'has_listing_updating' => (bool) $kegiatan->has_listing_updating,
+            'metode_pendataan_pencacahan' => $kegiatan->metode_pendataan_pencacahan,
+            'metode_pendataan_listing' => $kegiatan->metode_pendataan_listing,
+            'metode_pelatihan' => $kegiatan->metode_pelatihan,
+            'ketua_tim_user_id' => $kegiatan->ketua_tim_user_id,
+            'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
+            'status' => $kegiatan->status,
+        ];
+    }
+
+    /**
+     * Compute which fields changed between two kegiatan snapshots.
+     *
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return array<string, array{before: mixed, after: mixed}>
+     */
+    private function computeKegiatanChanges(array $before, array $after): array
+    {
+        $changes = [];
+        foreach ($before as $field => $oldValue) {
+            if (array_key_exists($field, $after) && $oldValue !== $after[$field]) {
+                $changes[$field] = ['before' => $oldValue, 'after' => $after[$field]];
+            }
+        }
+
+        return $changes;
     }
 }

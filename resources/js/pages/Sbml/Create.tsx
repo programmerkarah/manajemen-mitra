@@ -18,7 +18,6 @@ import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'SBML', href: '/sbml' },
     { title: 'Tambah SBML', href: '/sbml/create' },
 ];

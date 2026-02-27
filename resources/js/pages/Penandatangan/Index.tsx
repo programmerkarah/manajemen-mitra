@@ -42,7 +42,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'Penandatangan', href: '/penandatangan' },
 ];
 

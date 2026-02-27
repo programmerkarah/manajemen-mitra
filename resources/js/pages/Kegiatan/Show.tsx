@@ -13,7 +13,6 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Pencil, Settings } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Kegiatan', href: '/kegiatan' },
     { title: 'Detail Kegiatan', href: '#' },
 ];

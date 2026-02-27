@@ -30,7 +30,6 @@ import {
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'Kepala BPS', href: '/kepala-bps' },
 ];
 

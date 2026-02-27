@@ -11,7 +11,6 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'Kepala BPS', href: '/kepala-bps' },
     { title: 'Edit Kepala BPS', href: '#' },
 ];

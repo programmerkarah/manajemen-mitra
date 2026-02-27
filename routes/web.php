@@ -474,6 +474,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::middleware(['active.role:admin,operator'])->group(function () {
         Route::post('pengajuan-pulsa/{pengajuanPulsa}/review', [PengajuanPulsaController::class, 'review'])->name('pengajuan-pulsa.review');
+        Route::post('pengajuan-pulsa/review-all', [PengajuanPulsaController::class, 'reviewAll'])->name('pengajuan-pulsa.review-all');
     });
 });
 

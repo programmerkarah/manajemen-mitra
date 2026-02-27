@@ -292,4 +292,164 @@ class PengajuanPulsaTest extends TestCase
 
         $response->assertSessionHasErrors();
     }
+
+    public function test_review_all_approves_all_dikirim_items(): void
+    {
+        [$ketuaTim] = $this->makeUserWithRole('ketua_tim');
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $petugas1 = Petugas::factory()->create();
+        $petugas2 = Petugas::factory()->create();
+
+        $item1 = PengajuanPulsa::create([
+            'petugas_id' => $petugas1->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'status' => 'dikirim',
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+        ]);
+
+        $item2 = PengajuanPulsa::create([
+            'petugas_id' => $petugas2->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 75000,
+            'status' => 'dikirim',
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/pengajuan-pulsa/review-all', [
+                'action' => 'diterima',
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '06',
+                'tahun' => date('Y'),
+            ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item1->id, 'status' => 'diterima']);
+        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item2->id, 'status' => 'diterima']);
+    }
+
+    public function test_review_all_rejects_all_dikirim_items_with_catatan(): void
+    {
+        [$ketuaTim] = $this->makeUserWithRole('ketua_tim');
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $pengajuan = PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '07',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'status' => 'dikirim',
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/pengajuan-pulsa/review-all', [
+                'action' => 'ditolak',
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '07',
+                'tahun' => date('Y'),
+                'catatan_penolakan' => 'Nominal tidak sesuai.',
+            ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('pengajuan_pulsa', [
+            'id' => $pengajuan->id,
+            'status' => 'ditolak',
+            'catatan_penolakan' => 'Nominal tidak sesuai.',
+        ]);
+    }
+
+    public function test_review_all_requires_catatan_when_ditolak(): void
+    {
+        [$ketuaTim] = $this->makeUserWithRole('ketua_tim');
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/pengajuan-pulsa/review-all', [
+                'action' => 'ditolak',
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '06',
+                'tahun' => date('Y'),
+                // no catatan_penolakan
+            ]);
+
+        $response->assertSessionHasErrors('catatan_penolakan');
+    }
+
+    public function test_review_all_requires_admin_or_operator(): void
+    {
+        [$ketuaTim, $ketuaTimRole] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $response = $this->actingAs($ketuaTim)
+            ->withSession(['active_role_id' => $ketuaTimRole->id])
+            ->post('/pengajuan-pulsa/review-all', [
+                'action' => 'diterima',
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '06',
+                'tahun' => date('Y'),
+            ]);
+
+        $response->assertRedirect(route('dashboard'));
+    }
+
+    public function test_review_all_returns_error_when_no_dikirim_items(): void
+    {
+        [$ketuaTim] = $this->makeUserWithRole('ketua_tim');
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/pengajuan-pulsa/review-all', [
+                'action' => 'diterima',
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '06',
+                'tahun' => date('Y'),
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+    }
 }

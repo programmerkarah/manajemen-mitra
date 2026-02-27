@@ -31,7 +31,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master', href: '#' },
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
 ];
 

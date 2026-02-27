@@ -15,10 +15,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
-    { title: 'SBML', href: '/sbml' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'SBML', href: '/sbml' }];
 
 interface YearGroup {
     tahun_anggaran: number;

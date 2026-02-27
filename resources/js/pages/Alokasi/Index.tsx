@@ -533,12 +533,6 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                             .nama_kegiatan
                                                     }
                                                 </div>
-                                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                    {
-                                                        periode.kegiatan
-                                                            .kode_kegiatan
-                                                    }
-                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">

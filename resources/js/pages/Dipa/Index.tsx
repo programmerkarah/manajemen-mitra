@@ -35,10 +35,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
-    { title: 'DIPA', href: '/dipa' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'DIPA', href: '/dipa' }];
 
 interface Dipa {
     id: number;

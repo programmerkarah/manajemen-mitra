@@ -235,10 +235,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                     }
                                                                 </div>
                                                                 <div className="text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                                    {
-                                                                        kegiatan.kode_kegiatan
-                                                                    }{' '}
-                                                                    •{' '}
+                                                                    {' '}
                                                                     {
                                                                         kegiatan.jumlah_petugas_non_organik
                                                                     }{' '}

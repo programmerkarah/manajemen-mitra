@@ -13,7 +13,6 @@ interface ShowProps {
     keterangan: string | null;
 }
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Master Data', href: '#' },
     { title: 'SBML', href: '/sbml' },
     { title: 'Edit SBML', href: '/sbml/edit' },
 ];

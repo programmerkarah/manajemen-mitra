@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePengajuanPulsaRequest;
+use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
 use App\Models\PeriodeAlokasi;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -277,7 +280,10 @@ class PengajuanPulsaController extends Controller
             ->where('tahun', $tahun)
             ->pluck('id', 'kegiatan_id');
 
-        DB::transaction(function () use ($items, $bulan, $tahun, $periodeAlokasiMap, $validated, $effectiveUser) {
+        $storedCount = 0;
+        $totalNominal = 0.0;
+
+        DB::transaction(function () use ($items, $bulan, $tahun, $periodeAlokasiMap, $validated, $effectiveUser, &$storedCount, &$totalNominal) {
             foreach ($items as $item) {
                 if ((float) $item['nominal'] <= 0) {
                     continue;
@@ -296,8 +302,32 @@ class PengajuanPulsaController extends Controller
                     'submitted_at' => now(),
                     'catatan' => $validated['catatan'] ?? null,
                 ]);
+
+                $storedCount++;
+                $totalNominal += (float) $item['nominal'];
             }
         });
+
+        $bulanName = Carbon::create()->month((int) $bulan)->translatedFormat('F');
+        $uniqueKegiatanCount = $kegiatanIds->count();
+
+        try {
+            ActivityLog::log(
+                'Kirim Pengajuan Pulsa',
+                'pengajuan_pulsa',
+                "Berhasil mengirim {$storedCount} pengajuan pulsa untuk {$bulanName} {$tahun} ({$uniqueKegiatanCount} kegiatan, total Rp".number_format($totalNominal, 0, ',', '.').')',
+                'success',
+                [
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                    'item_count' => $storedCount,
+                    'total_nominal' => $totalNominal,
+                    'kegiatan_ids' => $kegiatanIds->toArray(),
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to log pengajuan pulsa activity', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->route('pengajuan-pulsa.index', [
             'bulan' => $bulan,
@@ -363,6 +393,8 @@ class PengajuanPulsaController extends Controller
             'catatan_penolakan' => ['required_if:action,ditolak', 'nullable', 'string', 'max:500'],
         ]);
 
+        $pengajuanPulsa->load('petugas:id,nama', 'kegiatan:id,kode_kegiatan,nama_kegiatan');
+
         $pengajuanPulsa->update([
             'status' => $validated['action'],
             'reviewed_by' => Auth::id(),
@@ -370,9 +402,116 @@ class PengajuanPulsaController extends Controller
             'catatan_penolakan' => $validated['catatan_penolakan'] ?? null,
         ]);
 
-        $message = $validated['action'] === 'diterima'
+        $isDiterima = $validated['action'] === 'diterima';
+        $petugasName = $pengajuanPulsa->petugas?->nama ?? 'Petugas #'.$pengajuanPulsa->petugas_id;
+        $kodeKegiatan = $pengajuanPulsa->kegiatan?->kode_kegiatan ?? 'Kegiatan #'.$pengajuanPulsa->kegiatan_id;
+        $bulanName = Carbon::create()->month((int) $pengajuanPulsa->bulan)->translatedFormat('F');
+        $nominalFormatted = 'Rp'.number_format((float) $pengajuanPulsa->nominal, 0, ',', '.');
+        $jenisPulsa = $pengajuanPulsa->jenis_pulsa === 'pendataan' ? 'Pendataan' : 'Pelatihan';
+
+        try {
+            ActivityLog::log(
+                $isDiterima ? 'Terima Pengajuan Pulsa' : 'Tolak Pengajuan Pulsa',
+                'pengajuan_pulsa',
+                $isDiterima
+                    ? "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$kodeKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} diterima"
+                    : "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$kodeKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} ditolak",
+                'success',
+                [
+                    'pengajuan_id' => $pengajuanPulsa->id,
+                    'kegiatan_id' => $pengajuanPulsa->kegiatan_id,
+                    'kode_kegiatan' => $kodeKegiatan,
+                    'petugas_id' => $pengajuanPulsa->petugas_id,
+                    'petugas_nama' => $petugasName,
+                    'jenis_pulsa' => $pengajuanPulsa->jenis_pulsa,
+                    'nominal' => (float) $pengajuanPulsa->nominal,
+                    'bulan' => $pengajuanPulsa->bulan,
+                    'tahun' => $pengajuanPulsa->tahun,
+                    'action' => $validated['action'],
+                    'catatan_penolakan' => $validated['catatan_penolakan'] ?? null,
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to log review pengajuan pulsa activity', ['error' => $e->getMessage()]);
+        }
+
+        $message = $isDiterima
             ? 'Pengajuan pulsa berhasil diterima.'
             : 'Pengajuan pulsa ditolak.';
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk-review all "dikirim" pengajuan pulsa for a kegiatan in a given period.
+     */
+    public function reviewAll(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'in:diterima,ditolak'],
+            'kegiatan_id' => ['required', 'integer', 'exists:kegiatan,id'],
+            'bulan' => ['required', 'string'],
+            'tahun' => ['required', 'integer'],
+            'catatan_penolakan' => ['required_if:action,ditolak', 'nullable', 'string', 'max:500'],
+        ]);
+
+        $targetItems = PengajuanPulsa::query()
+            ->with('petugas:id,nama', 'kegiatan:id,kode_kegiatan,nama_kegiatan')
+            ->where('kegiatan_id', $validated['kegiatan_id'])
+            ->where('bulan', $validated['bulan'])
+            ->where('tahun', $validated['tahun'])
+            ->where('status', 'dikirim')
+            ->get();
+
+        if ($targetItems->isEmpty()) {
+            return back()->with('error', 'Tidak ada pengajuan pulsa dengan status "Diajukan" untuk periode ini.');
+        }
+
+        $isDiterima = $validated['action'] === 'diterima';
+        $reviewedAt = now();
+        $reviewerId = Auth::id();
+
+        foreach ($targetItems as $item) {
+            $item->update([
+                'status' => $validated['action'],
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => $reviewedAt,
+                'catatan_penolakan' => $isDiterima ? null : ($validated['catatan_penolakan'] ?? null),
+            ]);
+        }
+
+        $count = $targetItems->count();
+        $firstItem = $targetItems->first();
+        $kodeKegiatan = $firstItem->kegiatan?->kode_kegiatan ?? 'Kegiatan #'.$validated['kegiatan_id'];
+        $bulanName = Carbon::create()->month((int) $validated['bulan'])->translatedFormat('F');
+        $totalNominal = $targetItems->sum('nominal');
+
+        try {
+            ActivityLog::log(
+                $isDiterima ? 'Terima Semua Pengajuan Pulsa' : 'Tolak Semua Pengajuan Pulsa',
+                'pengajuan_pulsa',
+                $isDiterima
+                    ? "Menerima {$count} pengajuan pulsa ({$kodeKegiatan}) {$bulanName} {$validated['tahun']}, total Rp".number_format((float) $totalNominal, 0, ',', '.')
+                    : "Menolak {$count} pengajuan pulsa ({$kodeKegiatan}) {$bulanName} {$validated['tahun']}",
+                'success',
+                [
+                    'kegiatan_id' => $validated['kegiatan_id'],
+                    'kode_kegiatan' => $kodeKegiatan,
+                    'bulan' => $validated['bulan'],
+                    'tahun' => $validated['tahun'],
+                    'count' => $count,
+                    'total_nominal' => (float) $totalNominal,
+                    'action' => $validated['action'],
+                    'catatan_penolakan' => $validated['catatan_penolakan'] ?? null,
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to log review-all pengajuan pulsa activity', ['error' => $e->getMessage()]);
+        }
+
+        $message = $isDiterima
+            ? "{$count} pengajuan pulsa berhasil diterima."
+            : "{$count} pengajuan pulsa ditolak.";
 
         return back()->with('success', $message);
     }

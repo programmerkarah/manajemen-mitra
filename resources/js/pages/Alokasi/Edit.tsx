@@ -20,7 +20,6 @@ import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Alokasi petugas', href: '/alokasi' },
     { title: 'Edit Alokasi', href: '#' },
 ];
