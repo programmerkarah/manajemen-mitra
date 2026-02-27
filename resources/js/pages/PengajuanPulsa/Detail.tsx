@@ -14,7 +14,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardCheck, Loader2, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface PengajuanPulsaItem {
@@ -237,7 +237,7 @@ export default function PengajuanPulsaDetail({
                                     </th>
                                     {canReview && (
                                         <th className="px-4 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                            Aksi
+                                            Review
                                         </th>
                                     )}
                                 </tr>
@@ -258,7 +258,11 @@ export default function PengajuanPulsaDetail({
                                     items.map((item) => (
                                         <tr
                                             key={item.id}
-                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                            className={`transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50 ${
+                                                item.status === 'dikirim'
+                                                    ? 'bg-blue-50/40 dark:bg-blue-950/20'
+                                                    : ''
+                                            }`}
                                         >
                                             <td className="px-4 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
                                                 {item.petugas?.nama ?? '-'}
@@ -300,11 +304,11 @@ export default function PengajuanPulsaDetail({
                                                 <td className="px-4 py-3">
                                                     {item.status ===
                                                         'dikirim' && (
-                                                        <div className="flex items-center justify-center gap-2">
+                                                        <div className="flex items-center justify-center">
                                                             <Button
-                                                                variant="default"
+                                                                variant="outline"
                                                                 size="sm"
-                                                                className="gap-1 bg-green-600 hover:bg-green-700"
+                                                                className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
                                                                 onClick={() => {
                                                                     setReviewItem(
                                                                         item,
@@ -317,28 +321,33 @@ export default function PengajuanPulsaDetail({
                                                                     );
                                                                 }}
                                                             >
+                                                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                                                Review
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                    {item.status ===
+                                                        'diterima' && (
+                                                        <div className="flex items-center justify-center">
+                                                            <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                                                                 <Check className="h-3.5 w-3.5" />
-                                                                Terima
-                                                            </Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                className="gap-1"
-                                                                onClick={() => {
-                                                                    setReviewItem(
-                                                                        item,
-                                                                    );
-                                                                    setReviewAction(
-                                                                        'ditolak',
-                                                                    );
-                                                                    setCatatanPenolakan(
-                                                                        '',
-                                                                    );
-                                                                }}
-                                                            >
+                                                                {item
+                                                                    .reviewed_by
+                                                                    ?.name ??
+                                                                    'Diterima'}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {item.status ===
+                                                        'ditolak' && (
+                                                        <div className="flex items-center justify-center">
+                                                            <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                                                                 <X className="h-3.5 w-3.5" />
-                                                                Tolak
-                                                            </Button>
+                                                                {item
+                                                                    .reviewed_by
+                                                                    ?.name ??
+                                                                    'Ditolak'}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </td>
@@ -356,43 +365,124 @@ export default function PengajuanPulsaDetail({
             <Dialog
                 open={reviewItem !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !isReviewing) {
                         setReviewItem(null);
                     }
                 }}
             >
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>
-                            {reviewAction === 'diterima'
-                                ? 'Terima Pengajuan Pulsa'
-                                : 'Tolak Pengajuan Pulsa'}
+                        <DialogTitle className="flex items-center gap-2">
+                            <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            Review Pengajuan Pulsa
                         </DialogTitle>
                     </DialogHeader>
+
                     {reviewItem && (
                         <div className="space-y-4">
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                <span className="font-medium">Petugas:</span>{' '}
-                                {reviewItem.petugas?.nama}
-                                <br />
-                                <span className="font-medium">
-                                    Kegiatan:
-                                </span>{' '}
-                                {kegiatan.kode_kegiatan}
-                                <br />
-                                <span className="font-medium">Jenis:</span>{' '}
-                                {reviewItem.jenis_pulsa === 'pendataan'
-                                    ? 'Pulsa Pendataan'
-                                    : 'Pulsa Pelatihan'}
-                                <br />
-                                <span className="font-medium">
-                                    Nominal:
-                                </span>{' '}
-                                {formatCurrency(reviewItem.nominal)}
-                            </p>
+                            {/* Item detail card */}
+                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                                <dl className="space-y-2 text-sm">
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-neutral-500 dark:text-neutral-400">
+                                            Petugas
+                                        </dt>
+                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
+                                            {reviewItem.petugas?.nama ?? '-'}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-neutral-500 dark:text-neutral-400">
+                                            Kegiatan
+                                        </dt>
+                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
+                                            {kegiatan.kode_kegiatan}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-neutral-500 dark:text-neutral-400">
+                                            Periode
+                                        </dt>
+                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
+                                            {BULAN_LABELS[reviewItem.bulan]}{' '}
+                                            {reviewItem.tahun}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-neutral-500 dark:text-neutral-400">
+                                            Jenis
+                                        </dt>
+                                        <dd>
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    reviewItem.jenis_pulsa ===
+                                                    'pendataan'
+                                                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                                }`}
+                                            >
+                                                {reviewItem.jenis_pulsa ===
+                                                'pendataan'
+                                                    ? 'Pulsa Pendataan'
+                                                    : 'Pulsa Pelatihan'}
+                                            </span>
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4 border-t border-neutral-200 pt-2 dark:border-neutral-700">
+                                        <dt className="font-medium text-neutral-700 dark:text-neutral-300">
+                                            Nominal
+                                        </dt>
+                                        <dd className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                                            {formatCurrency(reviewItem.nominal)}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            {/* Accept / Reject toggle */}
+                            <div>
+                                <Label className="mb-2 block text-sm font-medium">
+                                    Keputusan
+                                </Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setReviewAction('diterima')
+                                        }
+                                        className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-all ${
+                                            reviewAction === 'diterima'
+                                                ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-950 dark:text-green-300'
+                                                : 'border-neutral-200 bg-white text-neutral-600 hover:border-green-300 hover:bg-green-50/50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
+                                        }`}
+                                    >
+                                        <Check className="h-4 w-4" />
+                                        Terima
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setReviewAction('ditolak')
+                                        }
+                                        className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-all ${
+                                            reviewAction === 'ditolak'
+                                                ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-950 dark:text-red-300'
+                                                : 'border-neutral-200 bg-white text-neutral-600 hover:border-red-300 hover:bg-red-50/50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
+                                        }`}
+                                    >
+                                        <X className="h-4 w-4" />
+                                        Tolak
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Rejection reason (only shown when tolak is selected) */}
                             {reviewAction === 'ditolak' && (
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="catatan_penolakan">
+                                    <Label
+                                        htmlFor="catatan_penolakan"
+                                        className="text-sm font-medium"
+                                    >
                                         Alasan Penolakan{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -402,43 +492,58 @@ export default function PengajuanPulsaDetail({
                                         onChange={(e) =>
                                             setCatatanPenolakan(e.target.value)
                                         }
-                                        placeholder="Jelaskan alasan penolakan..."
+                                        placeholder="Jelaskan alasan penolakan kepada pengaju..."
                                         rows={3}
+                                        className="resize-none"
                                     />
+                                    {!catatanPenolakan.trim() && (
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Alasan wajib diisi agar petugas
+                                            dapat mengajukan ulang.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
                     )}
-                    <DialogFooter>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button
                             variant="outline"
                             onClick={() => setReviewItem(null)}
+                            disabled={isReviewing}
                         >
                             Batal
                         </Button>
                         <Button
-                            variant={
-                                reviewAction === 'diterima'
-                                    ? 'default'
-                                    : 'destructive'
-                            }
-                            className={
-                                reviewAction === 'diterima'
-                                    ? 'bg-green-600 hover:bg-green-700'
-                                    : ''
-                            }
                             onClick={handleReviewSubmit}
                             disabled={
                                 isReviewing ||
                                 (reviewAction === 'ditolak' &&
                                     !catatanPenolakan.trim())
                             }
+                            className={
+                                reviewAction === 'diterima'
+                                    ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600'
+                                    : 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600'
+                            }
                         >
-                            {isReviewing
-                                ? 'Memproses...'
-                                : reviewAction === 'diterima'
-                                  ? 'Terima'
-                                  : 'Tolak'}
+                            {isReviewing ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : reviewAction === 'diterima' ? (
+                                <>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Konfirmasi Terima
+                                </>
+                            ) : (
+                                <>
+                                    <X className="mr-2 h-4 w-4" />
+                                    Konfirmasi Tolak
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
