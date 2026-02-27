@@ -36,6 +36,9 @@ class UpdateKegiatanRequest extends FormRequest
             'pj_lainnya_id' => ['nullable', 'exists:users,id'],
             // rate_honor_id dikelola melalui menu khusus, tidak di form edit
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
+            'metode_pendataan_pencacahan' => ['required', 'in:PAPI,CAPI'],
+            'metode_pendataan_listing' => ['required_if:has_listing_updating,true', 'nullable', 'in:PAPI,CAPI'],
+            'metode_pelatihan' => ['required', 'in:daring,luring,hybrid,tidak_ada_pelatihan'],
         ];
     }
 
@@ -62,6 +65,12 @@ class UpdateKegiatanRequest extends FormRequest
             'ketua_tim_user_id.required' => 'Ketua tim wajib dipilih.',
             'ketua_tim_user_id.exists' => 'Ketua tim tidak valid.',
             'status.in' => 'Status tidak valid.',
+            'metode_pendataan_pencacahan.required' => 'Metode pendataan pencacahan wajib dipilih.',
+            'metode_pendataan_pencacahan.in' => 'Metode pendataan pencacahan harus PAPI atau CAPI.',
+            'metode_pendataan_listing.required_if' => 'Metode pendataan listing wajib dipilih jika kegiatan memiliki tahap listing.',
+            'metode_pendataan_listing.in' => 'Metode pendataan listing harus PAPI atau CAPI.',
+            'metode_pelatihan.required' => 'Metode pelatihan wajib dipilih.',
+            'metode_pelatihan.in' => 'Metode pelatihan harus daring, luring, hybrid, atau tidak ada pelatihan.',
         ];
     }
 }

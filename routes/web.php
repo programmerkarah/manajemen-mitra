@@ -7,7 +7,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MonitoringPulsaController;
 use App\Http\Controllers\PenandatanganController;
+use App\Http\Controllers\PengajuanPulsaController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
@@ -456,6 +458,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');
         Route::patch('spk/{spk}', [SpkController::class, 'update']);
         Route::delete('spk/{spk}', [SpkController::class, 'destroy'])->name('spk.destroy');
+    });
+
+    // Monitoring Pulsa
+    Route::get('monitoring-pulsa', [MonitoringPulsaController::class, 'index'])
+        ->name('monitoring-pulsa.index')
+        ->middleware('active.role:admin,operator,ketua_tim');
+
+    // Pengajuan Pulsa
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('pengajuan-pulsa', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.index');
+        Route::get('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create');
+        Route::get('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail');
+        Route::post('pengajuan-pulsa', [PengajuanPulsaController::class, 'store'])->name('pengajuan-pulsa.store');
+    });
+    Route::middleware(['active.role:admin,operator'])->group(function () {
+        Route::post('pengajuan-pulsa/{pengajuanPulsa}/review', [PengajuanPulsaController::class, 'review'])->name('pengajuan-pulsa.review');
     });
 });
 

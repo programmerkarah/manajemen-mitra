@@ -83,6 +83,14 @@ export interface Kegiatan {
     kode_coa: string | null;
     has_listing_updating: boolean;
     pagu_listing: number | null;
+    metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
+    metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
+    metode_pelatihan:
+        | 'daring'
+        | 'luring'
+        | 'hybrid'
+        | 'tidak_ada_pelatihan'
+        | null;
     ketua_tim_user_id: number;
     pj_lainnya_id?: number | null;
     rate_honor_id: string | null;

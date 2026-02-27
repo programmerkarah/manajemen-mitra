@@ -52,6 +52,40 @@ class BastController extends Controller
         });
     }
 
+    /**
+     * Determine if the BAST should use the FASIH clause.
+     *
+     * Returns true if any non-pengolahan alokasi belongs to a kegiatan
+     * that uses CAPI as its metode_pendataan. If all non-pengolahan alokasi
+     * use PAPI (or metode is null / not yet set) the clause is omitted.
+     *
+     * @param  iterable<\App\Models\AlokasiPetugas>  $allAlokasi
+     */
+    private function isMenggunakanFasih(iterable $allAlokasi): bool
+    {
+        foreach ($allAlokasi as $alokasi) {
+            if (in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true)) {
+                continue;
+            }
+
+            $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+
+            if (! $kegiatan) {
+                continue;
+            }
+
+            if ($kegiatan->metode_pendataan_pencacahan === 'CAPI') {
+                return true;
+            }
+
+            if ($kegiatan->has_listing_updating && $kegiatan->metode_pendataan_listing === 'CAPI') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function normalizeDateForCompare($value): ?string
     {
         if (empty($value)) {
@@ -930,7 +964,7 @@ class BastController extends Controller
                         'nip_ketua_tim' => $ketuaTim?->nip ?? '-',
                         'nama_ppk' => $ppk->nama,
                         'nip_ppk' => $ppk->nip ?? '-',
-                        'menggunakan_fasih' => false,
+                        'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
                         'hasil_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
                         'file_path' => $filePath,
                         'lokasi_kegiatan' => 'Kota Sawahlunto',
@@ -1300,7 +1334,7 @@ class BastController extends Controller
             'nomor_bast' => $bastData['nomor_bast'],
             'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY'),
             'hari' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('dddd'),
-            'menggunakan_fasih' => false,
+            'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
             'nama_kepala' => $kepala?->nama,
@@ -1899,7 +1933,7 @@ class BastController extends Controller
             'nomor_bast' => $bastData['nomor_bast'],
             'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('D MMMM YYYY'),
             'hari' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('dddd'),
-            'menggunakan_fasih' => false,
+            'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
             'nama_kepala' => $kepala?->nama,
@@ -2031,7 +2065,7 @@ class BastController extends Controller
             'bast' => $bastObject,
             'nomor_bast' => $bastData['nomor_bast'],
             'hari' => Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd'),
-            'menggunakan_fasih' => false,
+            'menggunakan_fasih' => $bast->menggunakan_fasih,
             'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
         ];

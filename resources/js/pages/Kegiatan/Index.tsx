@@ -24,6 +24,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     Check,
     ChevronDown,
     ChevronLeft,
@@ -63,6 +64,14 @@ interface Kegiatan {
     has_listing_updating: boolean;
     status: string;
     ketua_tim: User;
+    metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
+    metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
+    metode_pelatihan:
+        | 'daring'
+        | 'luring'
+        | 'hybrid'
+        | 'tidak_ada_pelatihan'
+        | null;
 }
 
 interface KegiatanIndexProps {
@@ -485,9 +494,6 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Kode
-                                    </th>
                                     <th
                                         className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() =>
@@ -555,12 +561,31 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                             key={kegiatan.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-3 py-3 text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                                {kegiatan.kode_kegiatan}
-                                            </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
-                                                <div className="max-w-md">
-                                                    {kegiatan.nama_kegiatan}
+                                                <div className="max-w-md space-y-1">
+                                                    <span>
+                                                        {kegiatan.nama_kegiatan}
+                                                    </span>
+                                                    {kegiatan.metode_pendataan_pencacahan ===
+                                                        null && (
+                                                        <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                                            <span>
+                                                                Metode pendataan
+                                                                belum diisi
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {kegiatan.metode_pelatihan ===
+                                                        null && (
+                                                        <div className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400">
+                                                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                                            <span>
+                                                                Metode pelatihan
+                                                                belum dipilih
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">

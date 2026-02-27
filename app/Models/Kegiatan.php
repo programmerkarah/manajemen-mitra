@@ -30,6 +30,9 @@ class Kegiatan extends Model
             'has_listing_updating' => 'boolean',
             'pagu_listing' => 'decimal:2',
             'pj_lainnya_id' => 'integer',
+            'metode_pendataan_pencacahan' => 'string',
+            'metode_pendataan_listing' => 'string',
+            'metode_pelatihan' => 'string',
         ];
     }
 
@@ -55,6 +58,9 @@ class Kegiatan extends Model
         'has_listing_updating',
         'pagu_listing',
         'pj_lainnya_id',
+        'metode_pendataan_pencacahan',
+        'metode_pendataan_listing',
+        'metode_pelatihan',
     ];
 
     public function pjLainnya(): BelongsTo

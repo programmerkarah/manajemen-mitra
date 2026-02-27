@@ -14,11 +14,18 @@ import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Airplay,
     ClipboardList,
+    File,
     FileText,
+    Gem,
     LayoutGrid,
     Package,
+    Scale,
+    Signature,
+    Smartphone,
     Users,
+    Wrench,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -42,22 +49,9 @@ export function AppSidebar() {
     if (hasActiveRole('admin')) {
         mainNavItems.push(
             {
-                title: 'Petugas',
-                href: '#',
-                icon: Users,
-                items: [
-                    { title: 'Manajemen Petugas', href: '/petugas' },
-                    { title: 'Alokasi Petugas', href: '/alokasi' },
-                    {
-                        title: 'Rekap Honor Petugas',
-                        href: '/rekap-honor',
-                    },
-                ],
-            },
-            {
                 title: 'Master',
                 href: '#',
-                icon: Package,
+                icon: Wrench,
                 items: [
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SBML', href: '/sbml' },
@@ -66,12 +60,55 @@ export function AppSidebar() {
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
             },
-            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
-            { title: 'BAST', href: '/bast', icon: FileText },
+            {
+                title: 'Petugas',
+                href: '#',
+                icon: Users,
+                items: [
+                    { title: 'Manajemen Petugas', href: '/petugas' },
+                    { title: 'Alokasi Petugas', href: '/alokasi' },
+                    {
+                        title: 'Pengajuan Pulsa',
+                        href: '/pengajuan-pulsa',
+                        icon: Smartphone,
+                    },
+                ],
+            },
+
+            {
+                title: 'Dokumen Administrasi',
+                href: '#',
+                icon: FileText,
+                items: [
+                    { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
+                    {
+                        title: 'Perjanjian Kerja',
+                        href: '/spk',
+                        icon: ClipboardList,
+                    },
+                    { title: 'BAST', href: '/bast', icon: FileText },
+                ],
+            },
+            {
+                title: 'Monitoring',
+                href: '#',
+                icon: Airplay,
+                items: [
+                    {
+                        title: 'Rekap Honor Petugas',
+                        href: '/rekap-honor',
+                        icon: FileText,
+                    },
+                    {
+                        title: 'Rekap Pengadaan Pulsa',
+                        href: '/monitoring-pulsa',
+                        icon: Smartphone,
+                    },
+                ],
+            },
             { title: 'Manajemen User', href: '/users', icon: Users },
             {
-                title: 'Administrasi',
+                title: 'Pengaturan Sistem',
                 href: '/admin/dashboard',
                 icon: LayoutGrid,
             },
@@ -83,8 +120,12 @@ export function AppSidebar() {
                 href: '#',
                 icon: Users,
                 items: [
-                    { title: 'Alokasi Petugas', href: '/alokasi' },
-                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                    { title: 'Alokasi Petugas', href: '/alokasi', icon: Users },
+                    {
+                        title: 'Pengajuan Pulsa',
+                        href: '/pengajuan-pulsa',
+                        icon: Smartphone,
+                    },
                 ],
             },
             {
@@ -92,37 +133,92 @@ export function AppSidebar() {
                 href: '#',
                 icon: Package,
                 items: [
-                    { title: 'Kegiatan', href: '/kegiatan' },
-                    { title: 'SBML', href: '/sbml' },
-                    { title: 'Penandatangan', href: '/penandatangan' },
-                    { title: 'DIPA', href: '/dipa' },
-                    { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
+                    { title: 'Kegiatan', href: '/kegiatan', icon: FileText },
+                    { title: 'SBML', href: '/sbml', icon: Gem },
+                    {
+                        title: 'Penandatangan',
+                        href: '/penandatangan',
+                        icon: Signature,
+                    },
+                    { title: 'DIPA', href: '/dipa', icon: File },
+                    {
+                        title: 'Dasar Hukum SK',
+                        href: '/dasar-hukum',
+                        icon: Scale,
+                    },
                 ],
             },
-            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
-            { title: 'BAST', href: '/bast', icon: FileText },
+            {
+                title: 'Dokumen Administrasi',
+                href: '#',
+                icon: FileText,
+                items: [
+                    { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
+                    {
+                        title: 'Perjanjian Kerja',
+                        href: '/spk',
+                        icon: ClipboardList,
+                    },
+                    { title: 'BAST', href: '/bast', icon: FileText },
+                ],
+            },
+            {
+                title: 'Monitoring',
+                href: '#',
+                icon: Airplay,
+                items: [
+                    {
+                        title: 'Rekap Honor Petugas',
+                        href: '/rekap-honor',
+                        icon: FileText,
+                    },
+                    {
+                        title: 'Rekap Pengadaan Pulsa',
+                        href: '/monitoring-pulsa',
+                        icon: Smartphone,
+                    },
+                ],
+            },
         );
     } else if (hasActiveRole('ketua_tim')) {
         mainNavItems.push(
-            {
-                title: 'Master',
-                href: '#',
-                icon: Package,
-                items: [{ title: 'Kegiatan', href: '/kegiatan' }],
-            },
             {
                 title: 'Petugas',
                 href: '#',
                 icon: Users,
                 items: [
                     { title: 'Alokasi Petugas', href: '/alokasi' },
-                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                    {
+                        title: 'Pengajuan Pulsa',
+                        href: '/pengajuan-pulsa',
+                        icon: Smartphone,
+                    },
                 ],
             },
-            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
-            { title: 'BAST', href: '/bast', icon: FileText },
+            {
+                title: 'Administrasi',
+                href: '#',
+                icon: FileText,
+                items: [
+                    { title: 'Kegiatan', href: '/kegiatan' },
+                    { title: 'SK KPA', href: '/sk-kpa' },
+                    { title: 'Perjanjian Kerja', href: '/spk' },
+                    { title: 'BAST', href: '/bast' },
+                ],
+            },
+            {
+                title: 'Monitoring',
+                href: '#',
+                icon: Airplay,
+                items: [
+                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                    {
+                        title: 'Rekap Pengadaan Pulsa',
+                        href: '/monitoring-pulsa',
+                        icon: Smartphone,
+                    },
+                ],
+            },
         );
     } else if (hasActiveRole('approver')) {
         mainNavItems.push(
@@ -143,7 +239,6 @@ export function AppSidebar() {
                 items: [
                     { title: 'Manajemen Petugas', href: '/petugas' },
                     { title: 'Alokasi Petugas', href: '/alokasi' },
-                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
                 ],
             },
             {
@@ -158,9 +253,33 @@ export function AppSidebar() {
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
                 ],
             },
-            { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
-            { title: 'Perjanjian Kerja', href: '/spk', icon: ClipboardList },
-            { title: 'BAST', href: '/bast', icon: FileText },
+            {
+                title: 'Dokumen Administrasi',
+                href: '#',
+                icon: FileText,
+                items: [
+                    { title: 'SK KPA', href: '/sk-kpa', icon: FileText },
+                    {
+                        title: 'Perjanjian Kerja',
+                        href: '/spk',
+                        icon: ClipboardList,
+                    },
+                    { title: 'BAST', href: '/bast', icon: FileText },
+                ],
+            },
+            {
+                title: 'Monitoring',
+                href: '#',
+                icon: Airplay,
+                items: [
+                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                    {
+                        title: 'Pengajuan Pulsa',
+                        href: '/pengajuan-pulsa',
+                        icon: Smartphone,
+                    },
+                ],
+            },
         );
     }
 

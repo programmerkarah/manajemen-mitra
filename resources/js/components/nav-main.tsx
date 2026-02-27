@@ -17,9 +17,26 @@ import { resolveUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
+
+    const getInitialOpenItem = () => {
+        for (const item of items) {
+            if (
+                item.items?.some((sub) =>
+                    page.url.startsWith(resolveUrl(sub.href)),
+                )
+            ) {
+                return item.title;
+            }
+        }
+        return null;
+    };
+
+    const [openItem, setOpenItem] = useState<string | null>(getInitialOpenItem);
+
     return (
         <SidebarGroup className="px-2 py-0">
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -27,15 +44,15 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                 {items.map((item) => {
                     // Check if item has sub-items
                     if (item.items && item.items.length > 0) {
+                        const isOpen = openItem === item.title;
                         return (
                             <Collapsible
                                 key={item.title}
                                 asChild
-                                defaultOpen={item.items.some((subItem) =>
-                                    page.url.startsWith(
-                                        resolveUrl(subItem.href),
-                                    ),
-                                )}
+                                open={isOpen}
+                                onOpenChange={(open) =>
+                                    setOpenItem(open ? item.title : null)
+                                }
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
@@ -47,7 +64,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]:rotate-90" />
                                         </SidebarMenuButton>
                                     </CollapsibleTrigger>
-                                    <CollapsibleContent>
+                                    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                                         <SidebarMenuSub>
                                             {item.items.map((subItem) => (
                                                 <SidebarMenuSubItem

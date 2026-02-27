@@ -24,13 +24,14 @@ interface Alokasi {
     bulan: number;
     tahun: number;
     petugas: Petugas;
-    rate_honor: RateHonor & {
-        satuan: Satuan;
-    };
-    volume: number;
+    jumlah_satuan: number;
+    jumlah_satuan_listing: number | null;
     total_honor: number;
+    total_honor_listing: number | null;
+    peran: string;
+    status_kepegawaian: string;
+    jenis_kegiatan: string | null;
     status: string;
-    tanggal_pengajuan: string;
 }
 
 interface Props {
@@ -40,9 +41,17 @@ interface Props {
             name: string;
             email: string;
         };
-        rate_honor?: RateHonor[] & {
-            satuan: Satuan;
-        };
+        pj_lainnya?: {
+            id: number;
+            name: string;
+            email: string;
+        } | null;
+        rate_honors?: Array<
+            RateHonor & {
+                satuan?: Satuan;
+                satuan_listing?: Satuan;
+            }
+        >;
         alokasi: Alokasi[];
     };
     auth: {
@@ -101,7 +110,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
     };
 
     const totalAlokasi = kegiatan.alokasi.reduce(
-        (sum: number, alokasi: Alokasi) => sum + alokasi.total_honor,
+        (sum: number, alokasi: Alokasi) =>
+            sum +
+            Number(alokasi.total_honor || 0) +
+            Number(alokasi.total_honor_listing || 0),
         0,
     );
 
@@ -327,6 +339,70 @@ export default function Show({ kegiatan, auth, can }: Props) {
 
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Metode Pendataan Pencacahan
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.metode_pendataan_pencacahan ? (
+                                        kegiatan.metode_pendataan_pencacahan ===
+                                        'CAPI' ? (
+                                            'CAPI (FASIH)'
+                                        ) : (
+                                            'PAPI (Kertas)'
+                                        )
+                                    ) : (
+                                        <span className="text-amber-600 dark:text-amber-400">
+                                            Belum diisi
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+
+                            {kegiatan.has_listing_updating && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Metode Pendataan Listing
+                                    </label>
+                                    <p className="mt-1 text-gray-900 dark:text-white">
+                                        {kegiatan.metode_pendataan_listing ? (
+                                            kegiatan.metode_pendataan_listing ===
+                                            'CAPI' ? (
+                                                'CAPI (FASIH)'
+                                            ) : (
+                                                'PAPI (Kertas)'
+                                            )
+                                        ) : (
+                                            <span className="text-amber-600 dark:text-amber-400">
+                                                Belum diisi
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Metode Pelatihan
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.metode_pelatihan === 'daring' &&
+                                        'Daring (Online)'}
+                                    {kegiatan.metode_pelatihan === 'luring' &&
+                                        'Luring (Tatap Muka)'}
+                                    {kegiatan.metode_pelatihan === 'hybrid' &&
+                                        'Hybrid (Campuran)'}
+                                    {kegiatan.metode_pelatihan ===
+                                        'tidak_ada_pelatihan' &&
+                                        'Tidak Ada Pelatihan'}
+                                    {!kegiatan.metode_pelatihan && (
+                                        <span className="text-amber-600 dark:text-amber-400">
+                                            Belum dipilih
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Ketua Tim
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
@@ -337,17 +413,117 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 </p>
                             </div>
 
-                            <div>
+                            {kegiatan.pj_lainnya && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Ketua Tim Lainnya (PJ)
+                                    </label>
+                                    <p className="mt-1 text-gray-900 dark:text-white">
+                                        {kegiatan.pj_lainnya.name}
+                                    </p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        {kegiatan.pj_lainnya.email}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="md:col-span-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Rate Honor
                                 </label>
-                                {Array.isArray(kegiatan.rate_honor) &&
-                                kegiatan.rate_honor.length > 0 ? (
-                                    <>
-                                        <p className="mt-1 text-gray-900 dark:text-white">
-                                            Sudah ditentukan
-                                        </p>
-                                    </>
+                                {Array.isArray(kegiatan.rate_honors) &&
+                                kegiatan.rate_honors.length > 0 ? (
+                                    <div className="mt-2 overflow-x-auto">
+                                        <table className="min-w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-gray-200 dark:border-gray-700">
+                                                    <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
+                                                        Kepegawaian
+                                                    </th>
+                                                    <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
+                                                        Penugasan
+                                                    </th>
+                                                    <th className="py-1 pr-4 text-right font-medium text-gray-600 dark:text-gray-400">
+                                                        Rate Pencacahan
+                                                    </th>
+                                                    {kegiatan.has_listing_updating && (
+                                                        <th className="py-1 text-right font-medium text-gray-600 dark:text-gray-400">
+                                                            Rate Listing
+                                                        </th>
+                                                    )}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {kegiatan.rate_honors.map(
+                                                    (rh, idx) => (
+                                                        <tr
+                                                            key={idx}
+                                                            className="border-b border-gray-100 last:border-0 dark:border-gray-800"
+                                                        >
+                                                            <td className="py-1.5 pr-4 text-gray-700 dark:text-gray-300">
+                                                                {rh.status_kepegawaian ===
+                                                                'organik'
+                                                                    ? 'Organik'
+                                                                    : 'Non-Organik'}
+                                                            </td>
+                                                            <td className="py-1.5 pr-4 text-gray-700 dark:text-gray-300">
+                                                                {rh.jenis_penugasan ===
+                                                                    'pcl_ppl' &&
+                                                                    'PCL/PPL'}
+                                                                {rh.jenis_penugasan ===
+                                                                    'pml' &&
+                                                                    'PML'}
+                                                                {rh.jenis_penugasan ===
+                                                                    'pengolahan' &&
+                                                                    'Pengolahan'}
+                                                                {rh.jenis_penugasan ===
+                                                                    'pengawas_pengolahan' &&
+                                                                    'Pengawas Pengolahan'}
+                                                            </td>
+                                                            <td className="py-1.5 pr-4 text-right text-gray-900 dark:text-white">
+                                                                {formatCurrency(
+                                                                    rh.rate,
+                                                                )}
+                                                                {rh.satuan
+                                                                    ?.nama && (
+                                                                    <span className="ml-1 text-xs text-gray-500">
+                                                                        /
+                                                                        {
+                                                                            rh
+                                                                                .satuan
+                                                                                .nama
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            {kegiatan.has_listing_updating && (
+                                                                <td className="py-1.5 text-right text-gray-900 dark:text-white">
+                                                                    {rh.rate_listing
+                                                                        ? formatCurrency(
+                                                                              rh.rate_listing,
+                                                                          )
+                                                                        : '-'}
+                                                                    {rh.rate_listing &&
+                                                                        rh
+                                                                            .satuan_listing
+                                                                            ?.nama && (
+                                                                            <span className="ml-1 text-xs text-gray-500">
+                                                                                /
+                                                                                {
+                                                                                    rh
+                                                                                        .satuan_listing
+                                                                                        .nama
+                                                                                }
+                                                                            </span>
+                                                                        )}
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 ) : (
                                     <p className="mt-1 text-gray-500 dark:text-gray-400">
                                         Belum ditentukan

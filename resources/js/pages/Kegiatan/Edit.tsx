@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -64,7 +64,7 @@ export default function Edit({
         return Math.round(val).toString();
     };
 
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, processing, errors } = useForm({
         kode_kegiatan: kegiatan.kode_kegiatan || '',
         nama_kegiatan: kegiatan.nama_kegiatan || '',
         jenis_kegiatan: kegiatan.jenis_kegiatan || 'survei',
@@ -73,6 +73,18 @@ export default function Edit({
         pagu_pencacahan: nominalToString(kegiatan.pagu_pencacahan),
         pagu_listing: nominalToString(kegiatan.pagu_listing),
         has_listing_updating: kegiatan.has_listing_updating || false,
+        metode_pendataan_pencacahan: (kegiatan.metode_pendataan_pencacahan ||
+            '') as '' | 'PAPI' | 'CAPI',
+        metode_pendataan_listing: (kegiatan.metode_pendataan_listing || '') as
+            | ''
+            | 'PAPI'
+            | 'CAPI',
+        metode_pelatihan: (kegiatan.metode_pelatihan || '') as
+            | ''
+            | 'daring'
+            | 'luring'
+            | 'hybrid'
+            | 'tidak_ada_pelatihan',
         ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: kegiatan.pj_lainnya_id
             ? kegiatan.pj_lainnya_id.toString()
@@ -95,13 +107,19 @@ export default function Edit({
                 : null,
             pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
             has_listing_updating: data.has_listing_updating,
+            metode_pendataan_pencacahan:
+                data.metode_pendataan_pencacahan || null,
+            metode_pendataan_listing: data.has_listing_updating
+                ? data.metode_pendataan_listing || null
+                : null,
+            metode_pelatihan: data.metode_pelatihan || null,
             ketua_tim_user_id: data.ketua_tim_user_id || null,
             pj_lainnya_id: data.pj_lainnya_id || null,
             tanggal_mulai: data.tanggal_mulai,
             tanggal_selesai: data.tanggal_selesai,
         };
 
-        put(`/kegiatan/${kegiatan.hashed_id}`, transformedData, {
+        router.put(`/kegiatan/${kegiatan.hashed_id}`, transformedData, {
             preserveScroll: true,
         });
     };
@@ -364,7 +382,204 @@ export default function Edit({
                                 </div>
                             )}
 
-                            {/* Ketua Tim - Hidden for ketua_tim role */}
+                            {/* Metode Pendataan Pencacahan */}
+                            <div className="space-y-2">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                    Metode Pendataan Pencacahan{' '}
+                                    <span className="text-red-500">*</span>
+                                </label>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    CAPI = menggunakan aplikasi FASIH di
+                                    smartphone. PAPI = menggunakan kertas.
+                                </p>
+                                <div className="flex gap-4">
+                                    {['PAPI', 'CAPI'].map((metode) => (
+                                        <label
+                                            key={metode}
+                                            className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                data.metode_pendataan_pencacahan ===
+                                                metode
+                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="metode_pendataan_pencacahan"
+                                                value={metode}
+                                                checked={
+                                                    data.metode_pendataan_pencacahan ===
+                                                    metode
+                                                }
+                                                onChange={() =>
+                                                    setData(
+                                                        'metode_pendataan_pencacahan',
+                                                        metode as
+                                                            | 'PAPI'
+                                                            | 'CAPI',
+                                                    )
+                                                }
+                                                className="h-4 w-4 text-neutral-900"
+                                            />
+                                            <div>
+                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                    {metode}
+                                                </span>
+                                                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                                    {metode === 'CAPI'
+                                                        ? '(FASIH)'
+                                                        : '(Kertas)'}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                <InputError
+                                    message={errors.metode_pendataan_pencacahan}
+                                    className="mt-2"
+                                />
+                            </div>
+
+                            {/* Metode Pendataan Listing */}
+                            {data.has_listing_updating && (
+                                <div className="space-y-2">
+                                    <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                        Metode Pendataan Listing{' '}
+                                        <span className="text-red-500">*</span>
+                                    </label>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Metode pendataan khusus untuk tahap
+                                        listing/updating.
+                                    </p>
+                                    <div className="flex gap-4">
+                                        {['PAPI', 'CAPI'].map((metode) => (
+                                            <label
+                                                key={metode}
+                                                className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                    data.metode_pendataan_listing ===
+                                                    metode
+                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="metode_pendataan_listing"
+                                                    value={metode}
+                                                    checked={
+                                                        data.metode_pendataan_listing ===
+                                                        metode
+                                                    }
+                                                    onChange={() =>
+                                                        setData(
+                                                            'metode_pendataan_listing',
+                                                            metode as
+                                                                | 'PAPI'
+                                                                | 'CAPI',
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 text-neutral-900"
+                                                />
+                                                <div>
+                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                        {metode}
+                                                    </span>
+                                                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                                        {metode === 'CAPI'
+                                                            ? '(FASIH)'
+                                                            : '(Kertas)'}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <InputError
+                                        message={
+                                            errors.metode_pendataan_listing
+                                        }
+                                        className="mt-2"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Metode Pelatihan */}
+                            <div className="space-y-2">
+                                <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                    Metode Pelatihan Petugas{' '}
+                                    <span className="text-red-500">*</span>
+                                </label>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Apakah pelatihan petugas dilaksanakan secara
+                                    daring, luring, hybrid, atau tidak ada
+                                    pelatihan?
+                                </p>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    {(
+                                        [
+                                            {
+                                                value: 'daring',
+                                                label: 'Daring',
+                                                desc: '(Online)',
+                                            },
+                                            {
+                                                value: 'luring',
+                                                label: 'Luring',
+                                                desc: '(Tatap Muka)',
+                                            },
+                                            {
+                                                value: 'hybrid',
+                                                label: 'Hybrid',
+                                                desc: '(Campuran)',
+                                            },
+                                            {
+                                                value: 'tidak_ada_pelatihan',
+                                                label: 'Tidak Ada',
+                                                desc: '(Tanpa Pelatihan)',
+                                            },
+                                        ] as const
+                                    ).map((opt) => (
+                                        <label
+                                            key={opt.value}
+                                            className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                data.metode_pelatihan ===
+                                                opt.value
+                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="metode_pelatihan"
+                                                value={opt.value}
+                                                checked={
+                                                    data.metode_pelatihan ===
+                                                    opt.value
+                                                }
+                                                onChange={() =>
+                                                    setData(
+                                                        'metode_pelatihan',
+                                                        opt.value,
+                                                    )
+                                                }
+                                                className="h-4 w-4 text-neutral-900"
+                                            />
+                                            <div>
+                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                    {opt.label}
+                                                </span>
+                                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {opt.desc}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                <InputError
+                                    message={errors.metode_pelatihan}
+                                    className="mt-2"
+                                />
+                            </div>
+
                             {!isKetuaTim && (
                                 <div className="space-y-2">
                                     <Label

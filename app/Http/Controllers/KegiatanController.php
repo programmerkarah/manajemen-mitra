@@ -244,6 +244,7 @@ class KegiatanController extends Controller
 
         $kegiatan->load([
             'ketuaTim',
+            'pjLainnya',
             'rateHonors.satuan',
             'rateHonors.satuanListing',
             'periodeAlokasi.alokasiPetugas.petugas',
