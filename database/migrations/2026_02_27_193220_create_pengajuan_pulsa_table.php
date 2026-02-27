@@ -29,8 +29,8 @@ return new class extends Migration
             $table->text('catatan_penolakan')->nullable()->comment('Alasan penolakan dari operator');
             $table->timestamps();
 
-            $table->index(['petugas_id', 'kegiatan_id', 'bulan', 'tahun', 'jenis_pulsa']);
-            $table->index(['status', 'tahun', 'bulan']);
+            $table->index(['petugas_id', 'kegiatan_id', 'bulan', 'tahun', 'jenis_pulsa'], 'pp_petugas_kegiatan_idx');
+            $table->index(['status', 'tahun', 'bulan'], 'pp_status_tahun_idx');
         });
     }
 
