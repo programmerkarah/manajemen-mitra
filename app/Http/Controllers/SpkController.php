@@ -1581,25 +1581,19 @@ class SpkController extends Controller
                     return null;
                 }
 
-                // Calculate total honor only from 'perubahan' status (latest revision)
-                $totalHonor = $alokasiGroup
-                    ->filter(function ($alokasi) {
-                        return $alokasi->periodeAlokasi->status === 'perubahan';
-                    })
-                    ->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
+                $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
+
+                $totalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
+                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                });
 
                 // Skip if total honor from perubahan is 0
                 if ($totalHonor <= 0) {
                     return null;
                 }
 
-                // Get all kegiatan with their peran (only from 'perubahan' status)
-                $kegiatanList = $alokasiGroup
-                    ->filter(function ($alokasi) {
-                        return $alokasi->periodeAlokasi->status === 'perubahan';
-                    })
+                // Get all effective kegiatan with their peran (perubahan if exists, otherwise latest revisi)
+                $kegiatanList = $effectiveAlokasiByKegiatan
                     ->map(function ($alokasi) {
                         return [
                             'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
@@ -1629,7 +1623,7 @@ class SpkController extends Controller
                         'nik' => $firstAlokasi->petugas->nik,
                         'jenis_petugas' => $firstAlokasi->petugas->jenis_petugas,
                     ],
-                    'jumlah_kegiatan' => $alokasiGroup->count(),
+                    'jumlah_kegiatan' => count($kegiatanList),
                     'kegiatan_list' => $kegiatanList,
                     'total_honor' => $totalHonor,
                     'has_addendum' => in_array($firstAlokasi->petugas_id, $petugasWithAddendum),
@@ -1670,6 +1664,22 @@ class SpkController extends Controller
             'petugas_list' => $petugasListRaw->values()->all(),
             'is_regenerate_addendum' => false, // Always false, only show petugas without addendum
         ]);
+    }
+
+    private function getEffectiveAlokasiByKegiatan(\Illuminate\Support\Collection $alokasiGroup): \Illuminate\Support\Collection
+    {
+        return $alokasiGroup
+            ->groupBy(function ($alokasi) {
+                return $alokasi->periodeAlokasi->kegiatan_id;
+            })
+            ->map(function ($kegiatanGroup) {
+                return $kegiatanGroup->first(function ($alokasi) {
+                    return $alokasi->periodeAlokasi->status === 'perubahan';
+                }) ?? $kegiatanGroup->sortByDesc(function ($alokasi) {
+                    return $alokasi->periodeAlokasi->id;
+                })->first();
+            })
+            ->filter();
     }
 
     /**
