@@ -18,8 +18,8 @@ interface Petugas {
 }
 
 interface KegiatanInfo {
-    kode_kegiatan: string;
-    nama_kegiatan: string;
+    kegiatan_kode: string;
+    kegiatan_nama: string;
     peran: string;
     total_honor: number;
 }
@@ -479,6 +479,12 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                                                         'Pengawas Pengolahan',
                                                                 }[keg.peran] ||
                                                                 keg.peran;
+                                                            console.log(
+                                                                'Kegiatan:',
+                                                                keg,
+                                                                'kidx:',
+                                                                kidx,
+                                                            );
 
                                                             return (
                                                                 <div
@@ -486,11 +492,11 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                                                     className="text-xs"
                                                                 >
                                                                     {
-                                                                        keg.nama_kegiatan
+                                                                        keg.kegiatan_nama
                                                                     }{' '}
-                                                                    (
+                                                                    [
                                                                     {peranLabel}
-                                                                    )
+                                                                    ].
                                                                 </div>
                                                             );
                                                         },

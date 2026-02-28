@@ -673,7 +673,11 @@ export default function Generate({
                                                                     <div className="text-xs text-neutral-600 dark:text-neutral-400">
                                                                         {getPeranLabel(
                                                                             kg.peran,
-                                                                        )}
+                                                                        ) +
+                                                                            ' ' +
+                                                                            '(' +
+                                                                            kg.kegiatan_nama +
+                                                                            ')'}
                                                                     </div>
                                                                 </div>
                                                             ),
