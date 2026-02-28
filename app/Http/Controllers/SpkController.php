@@ -1717,6 +1717,13 @@ class SpkController extends Controller
             ->with(['periodeAlokasi.kegiatan.rateHonors.satuan'])
             ->get();
 
+        $allAlokasi = $allAlokasi->filter(function ($alokasi) {
+            $totalHonor = (float) ($alokasi->total_honor ?? 0);
+            $totalHonorListing = (float) ($alokasi->total_honor_listing ?? 0);
+
+            return ($totalHonor + $totalHonorListing) > 0;
+        })->values();
+
         // Calculate total honor (from both 'dikirim' and 'perubahan' status)
         $totalHonor = $allAlokasi->sum(function ($alokasi) {
             return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
@@ -2015,6 +2022,13 @@ class SpkController extends Controller
                 ->where('petugas_id', $petugasId)
                 ->with(['periodeAlokasi.kegiatan.rateHonors.satuan'])
                 ->get();
+
+            $allAlokasi = $allAlokasi->filter(function ($alokasi) {
+                $totalHonor = (float) ($alokasi->total_honor ?? 0);
+                $totalHonorListing = (float) ($alokasi->total_honor_listing ?? 0);
+
+                return ($totalHonor + $totalHonorListing) > 0;
+            })->values();
 
             $mainAlokasi = $allAlokasi->first();
 

@@ -178,9 +178,13 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($uraianTugas as $index => $tugas)
+            @php $rowNumber = 1; @endphp
+            @foreach($uraianTugas as $tugas)
+            @if(($tugas['jumlah'] ?? 0) <= 0)
+                @continue
+            @endif
             <tr>
-                <td>{{ $index + 1 }}</td>
+                <td>{{ $rowNumber++ }}</td>
                 <td class="left">{{ $tugas['uraian'] }}</td>
                 <td>
                     @if(!empty($tugas['tanggal_mulai']) && !empty($tugas['tanggal_selesai']))

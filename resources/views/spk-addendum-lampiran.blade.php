@@ -221,7 +221,7 @@
                 @endphp
             
             {{-- Baris Pencacahan --}}
-            @if($volumePencacahan > 0)
+            @if($volumePencacahan > 0 && $totalHonorPencacahan > 0)
             <tr>
                 <td>{{ $rowNumber++ }}</td>
                 <td class="left">{{ $uraianTugasPencacahan }}</td>
@@ -235,7 +235,7 @@
             @endif
             
             {{-- Baris Listing (jika ada) --}}
-            @if($volumeListing > 0)
+            @if($volumeListing > 0 && $totalHonorListing > 0)
             <tr>
                 <td>{{ $rowNumber++ }}</td>
                 <td class="left">{{ $uraianTugasPencacahan }} (Listing)</td>
