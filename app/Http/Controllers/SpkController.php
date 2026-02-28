@@ -1480,18 +1480,31 @@ class SpkController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Get all periode alokasi in the same month with revision status
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        $revisionPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
             ->whereIn('status', ['direvisi', 'perubahan'])
             ->pluck('id');
 
-        if ($allPeriodeInMonth->isEmpty()) {
+        if ($revisionPeriodeInMonth->isEmpty()) {
             return redirect()->route('spk.index')->with('error', 'Tidak ada periode dengan status revisi/perubahan');
         }
 
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->pluck('id');
+
+        $petugasWithRevision = AlokasiPetugas::whereIn('periode_alokasi_id', $revisionPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->pluck('petugas_id')
+            ->unique();
+
         // Get all petugas with revisions (those who have alokasi in revision periods)
-        // Load ALL alokasi (including honor 0) for comparison purposes
+        // Load ALL alokasi in month for those petugas (including honor 0) for comparison and total display
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereIn('petugas_id', $petugasWithRevision)
             ->with(['petugas', 'periodeAlokasi.kegiatan'])
             ->get()
             ->filter(function ($alokasi) {

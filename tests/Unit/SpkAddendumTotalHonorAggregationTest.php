@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class SpkAddendumTotalHonorAggregationTest extends TestCase
 {
-    public function test_effective_alokasi_prefers_perubahan_and_keeps_other_kegiatan(): void
+    public function test_effective_alokasi_prefers_perubahan_and_keeps_non_perubahan_kegiatan(): void
     {
         $controller = new SpkController;
 
@@ -30,7 +30,7 @@ class SpkAddendumTotalHonorAggregationTest extends TestCase
             $this->makeAlokasi(
                 kegiatanId: 20,
                 periodeId: 200,
-                status: 'direvisi',
+                status: 'dikirim',
                 totalHonor: 2000,
                 totalHonorListing: 0,
             ),
@@ -50,7 +50,7 @@ class SpkAddendumTotalHonorAggregationTest extends TestCase
 
         $this->assertSame(3000.0, (float) $totalHonor);
         $this->assertSame('perubahan', $effective->firstWhere('periodeAlokasi.kegiatan_id', 10)->periodeAlokasi->status);
-        $this->assertSame('direvisi', $effective->firstWhere('periodeAlokasi.kegiatan_id', 20)->periodeAlokasi->status);
+        $this->assertSame('dikirim', $effective->firstWhere('periodeAlokasi.kegiatan_id', 20)->periodeAlokasi->status);
     }
 
     private function makeAlokasi(
