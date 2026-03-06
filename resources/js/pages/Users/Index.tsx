@@ -194,6 +194,24 @@ export default function Index({ users }: UsersIndexProps) {
         }
     };
 
+    const usersSummary = useMemo(() => {
+        const total = allUsers.length;
+        const aktif = allUsers.filter((item) => item.is_active).length;
+        const verified = allUsers.filter(
+            (item) => item.email_verified_at !== null,
+        ).length;
+        const twoFactor = allUsers.filter(
+            (item) => item.two_factor_enabled,
+        ).length;
+
+        return {
+            total,
+            aktif,
+            verified,
+            twoFactor,
+        };
+    }, [allUsers]);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Manajemen User" />
@@ -216,6 +234,72 @@ export default function Index({ users }: UsersIndexProps) {
                         Refresh
                     </Button>
                 </PageHeader>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard className="cursor-pointer border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Total User
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {usersSummary.total}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                <UserIcon className="h-5 w-5" />
+                            </span>
+                        </div>
+                    </ContentCard>
+
+                    <ContentCard className="cursor-pointer border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    User Aktif
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {usersSummary.aktif}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </span>
+                        </div>
+                    </ContentCard>
+
+                    <ContentCard className="cursor-pointer border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                                    Email Terverifikasi
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {usersSummary.verified}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                <Mail className="h-5 w-5" />
+                            </span>
+                        </div>
+                    </ContentCard>
+
+                    <ContentCard className="cursor-pointer border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-violet-700 dark:text-violet-300">
+                                    2FA Aktif
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {usersSummary.twoFactor}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                                <Shield className="h-5 w-5" />
+                            </span>
+                        </div>
+                    </ContentCard>
+                </div>
 
                 {/* Search */}
                 <ContentCard>

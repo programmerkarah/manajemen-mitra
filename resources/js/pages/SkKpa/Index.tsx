@@ -314,7 +314,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('active')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -335,7 +335,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('not_created')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -356,7 +356,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('generated')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -377,7 +377,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('signed')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -739,7 +739,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                 </ContentCard>
 
                 <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
-                    <DialogContent className="max-w-4xl">
+                    <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>

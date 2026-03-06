@@ -96,6 +96,8 @@ interface Props {
     hasKegiatans: boolean;
 }
 
+type SummaryCardType = 'all' | 'draft' | 'dikirim' | 'revisi';
+
 export default function Index({ alokasi, hasKegiatans }: Props) {
     const { auth } = usePage<SharedData>().props;
 
@@ -152,6 +154,26 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
 
     const totalPages = Math.ceil(filteredAlokasi.length / perPage);
 
+    const alokasiSummary = useMemo(() => {
+        const totalPeriode = decryptedAlokasi.length;
+        const totalDraft = decryptedAlokasi.filter(
+            (item) => item.status === 'draft',
+        ).length;
+        const totalDikirim = decryptedAlokasi.filter(
+            (item) => item.status === 'dikirim',
+        ).length;
+        const totalPerubahan = decryptedAlokasi.filter(
+            (item) => item.status === 'perubahan' || item.status === 'direvisi',
+        ).length;
+
+        return {
+            totalPeriode,
+            totalDraft,
+            totalDikirim,
+            totalPerubahan,
+        };
+    }, [decryptedAlokasi]);
+
     // Reset to page 1 when filters change
     useEffect(() => {
         const prevFilters = prevFiltersRef.current;
@@ -172,6 +194,9 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const [showBatalkanRevisiModal, setShowBatalkanRevisiModal] =
         useState(false);
     const [showRevisiModal, setShowRevisiModal] = useState(false);
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [summaryCardType, setSummaryCardType] =
+        useState<SummaryCardType>('all');
     const [selectedPeriode, setSelectedPeriode] = useState<{
         kegiatanId: number;
         kegiatanHashedId?: string;
@@ -223,6 +248,43 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
 
         return false;
     };
+
+    const handleOpenSummaryModal = (type: SummaryCardType) => {
+        setSummaryCardType(type);
+        setShowSummaryModal(true);
+    };
+
+    const summaryModalItems = useMemo(() => {
+        switch (summaryCardType) {
+            case 'draft':
+                return decryptedAlokasi.filter((item) => item.status === 'draft');
+            case 'dikirim':
+                return decryptedAlokasi.filter(
+                    (item) => item.status === 'dikirim',
+                );
+            case 'revisi':
+                return decryptedAlokasi.filter(
+                    (item) => item.status === 'perubahan' || item.status === 'direvisi',
+                );
+            case 'all':
+            default:
+                return decryptedAlokasi;
+        }
+    }, [summaryCardType, decryptedAlokasi]);
+
+    const summaryModalTitle = useMemo(() => {
+        switch (summaryCardType) {
+            case 'draft':
+                return 'Daftar Alokasi Draft';
+            case 'dikirim':
+                return 'Daftar Alokasi Dikirim';
+            case 'revisi':
+                return 'Daftar Alokasi Revisi';
+            case 'all':
+            default:
+                return 'Daftar Seluruh Alokasi';
+        }
+    }, [summaryCardType]);
 
     const handleReset = () => {
         setSearch('');
@@ -386,6 +448,96 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     </Button>
                 )}
             </PageHeader>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <button
+                    type="button"
+                    className="cursor-pointer text-left"
+                    onClick={() => handleOpenSummaryModal('all')}
+                >
+                    <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                Total Alokasi Kegiatan
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                {alokasiSummary.totalPeriode}
+                            </p>
+                        </div>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                            <Users className="h-5 w-5" />
+                        </span>
+                    </div>
+                    </ContentCard>
+                </button>
+
+                <button
+                    type="button"
+                    className="cursor-pointer text-left"
+                    onClick={() => handleOpenSummaryModal('draft')}
+                >
+                    <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
+                                Draft Kegiatan
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                {alokasiSummary.totalDraft}
+                            </p>
+                        </div>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                            <Edit2 className="h-5 w-5" />
+                        </span>
+                    </div>
+                    </ContentCard>
+                </button>
+
+                <button
+                    type="button"
+                    className="cursor-pointer text-left"
+                    onClick={() => handleOpenSummaryModal('dikirim')}
+                >
+                    <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                Kegiatan Dikirim
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                {alokasiSummary.totalDikirim}
+                            </p>
+                        </div>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                            <Send className="h-5 w-5" />
+                        </span>
+                    </div>
+                    </ContentCard>
+                </button>
+
+                <button
+                    type="button"
+                    className="cursor-pointer text-left"
+                    onClick={() => handleOpenSummaryModal('revisi')}
+                >
+                    <ContentCard className="border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-violet-700 dark:text-violet-300">
+                                Kegiatan Direvisi
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                {alokasiSummary.totalPerubahan}
+                            </p>
+                        </div>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                            <RotateCcw className="h-5 w-5" />
+                        </span>
+                    </div>
+                    </ContentCard>
+                </button>
+            </div>
 
             {/* Filters */}
             <ContentCard>
@@ -1186,6 +1338,52 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                             Ya, Batalkan Revisi
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showSummaryModal} onOpenChange={setShowSummaryModal}>
+                <DialogContent className="sm:max-w-7xl">
+                    <DialogHeader>
+                        <DialogTitle>{summaryModalTitle}</DialogTitle>
+                        <DialogDescription>
+                            Pilih periode kegiatan untuk melihat detail alokasi.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                        {summaryModalItems.length === 0 ? (
+                            <div className="rounded-md border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                Tidak ada data pada kategori ini.
+                            </div>
+                        ) : (
+                            summaryModalItems.map((item, index) => (
+                                <div
+                                    key={`${item.kegiatan_id}-${item.bulan}-${item.tahun}-${index}`}
+                                    className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                            {item.kegiatan.nama_kegiatan}
+                                        </p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            {item.kegiatan.kode_kegiatan} ·{' '}
+                                            {getBulanLabel(item.bulan)}{' '}
+                                            {item.tahun}
+                                        </p>
+                                    </div>
+
+                                    <Button size="sm" variant="outline" asChild>
+                                        <Link
+                                            href={`/alokasi/periode/${item.kegiatan.hashed_id}/${item.tahun}/${item.bulan}`}
+                                        >
+                                            <Eye className="h-3.5 w-3.5" />
+                                            Detail
+                                        </Link>
+                                    </Button>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </AppLayout>

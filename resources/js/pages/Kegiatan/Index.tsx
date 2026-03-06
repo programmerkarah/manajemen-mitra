@@ -96,6 +96,8 @@ interface KegiatanIndexProps {
     };
 }
 
+type SummaryCardType = 'all' | 'draft' | 'diajukan' | 'aktif';
+
 export default function Index({ kegiatans }: KegiatanIndexProps) {
     const { auth } = usePage<SharedData>().props;
 
@@ -120,6 +122,9 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [summaryCardType, setSummaryCardType] =
+        useState<SummaryCardType>('all');
     const [rejectNotes, setRejectNotes] = useState('');
     const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(
         null,
@@ -371,6 +376,62 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
         return canApprove(kegiatan);
     };
 
+    const kegiatanSummary = useMemo(() => {
+        const total = allKegiatans.length;
+        const draft = allKegiatans.filter((item) => item.status === 'draft').length;
+        const diajukan = allKegiatans.filter(
+            (item) => item.status === 'diajukan',
+        ).length;
+        const aktif = allKegiatans.filter(
+            (item) => item.status === 'divalidasi' || item.status === 'aktif',
+        ).length;
+
+        return {
+            total,
+            draft,
+            diajukan,
+            aktif,
+        };
+    }, [allKegiatans]);
+
+    const summaryModalItems = useMemo(() => {
+        switch (summaryCardType) {
+            case 'draft':
+                return allKegiatans.filter((item) => item.status === 'draft');
+            case 'diajukan':
+                return allKegiatans.filter(
+                    (item) => item.status === 'diajukan',
+                );
+            case 'aktif':
+                return allKegiatans.filter(
+                    (item) =>
+                        item.status === 'divalidasi' || item.status === 'aktif',
+                );
+            case 'all':
+            default:
+                return allKegiatans;
+        }
+    }, [allKegiatans, summaryCardType]);
+
+    const summaryModalTitle = useMemo(() => {
+        switch (summaryCardType) {
+            case 'draft':
+                return 'Daftar Kegiatan Draft';
+            case 'diajukan':
+                return 'Daftar Kegiatan Diajukan';
+            case 'aktif':
+                return 'Daftar Kegiatan Aktif / Divalidasi';
+            case 'all':
+            default:
+                return 'Daftar Seluruh Kegiatan';
+        }
+    }, [summaryCardType]);
+
+    const handleOpenSummaryModal = (type: SummaryCardType) => {
+        setSummaryCardType(type);
+        setShowSummaryModal(true);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Kegiatan" />
@@ -390,6 +451,96 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                         </Button>
                     )}
                 </PageHeader>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <button
+                        type="button"
+                        className="cursor-pointer text-left"
+                        onClick={() => handleOpenSummaryModal('all')}
+                    >
+                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Total Kegiatan
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {kegiatanSummary.total}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                <Search className="h-5 w-5" />
+                            </span>
+                        </div>
+                        </ContentCard>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="cursor-pointer text-left"
+                        onClick={() => handleOpenSummaryModal('draft')}
+                    >
+                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    Draft
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {kegiatanSummary.draft}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                                <Pencil className="h-5 w-5" />
+                            </span>
+                        </div>
+                        </ContentCard>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="cursor-pointer text-left"
+                        onClick={() => handleOpenSummaryModal('diajukan')}
+                    >
+                        <ContentCard className="border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                                    Diajukan
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {kegiatanSummary.diajukan}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                <Send className="h-5 w-5" />
+                            </span>
+                        </div>
+                        </ContentCard>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="cursor-pointer text-left"
+                        onClick={() => handleOpenSummaryModal('aktif')}
+                    >
+                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Aktif / Divalidasi
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {kegiatanSummary.aktif}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                <Check className="h-5 w-5" />
+                            </span>
+                        </div>
+                        </ContentCard>
+                    </button>
+                </div>
 
                 {/* Filters */}
                 <ContentCard>
@@ -633,7 +784,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             }
                                                         >
                                                             <Send className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">
+                                                            <span className="cursor-pointer sr-only sm:not-sr-only">
                                                                 Ajukan
                                                             </span>
                                                         </Button>
@@ -650,7 +801,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             }
                                                         >
                                                             <Check className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">
+                                                            <span className="cursor-pointer sr-only sm:not-sr-only">
                                                                 Setujui
                                                             </span>
                                                         </Button>
@@ -667,7 +818,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             }
                                                         >
                                                             <X className="h-4 w-4" />
-                                                            <span className="sr-only sm:not-sr-only">
+                                                            <span className="cursor-pointer sr-only sm:not-sr-only">
                                                                 Tolak
                                                             </span>
                                                         </Button>
@@ -920,6 +1071,56 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                 {processing ? 'Memproses...' : 'Tolak Kegiatan'}
                             </Button>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog
+                    open={showSummaryModal}
+                    onOpenChange={setShowSummaryModal}
+                >
+                    <DialogContent className="sm:max-w-7xl">
+                        <DialogHeader>
+                            <DialogTitle>{summaryModalTitle}</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {summaryModalItems.length === 0 ? (
+                                <div className="rounded-md border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                    Tidak ada data pada kategori ini.
+                                </div>
+                            ) : (
+                                summaryModalItems.map((kegiatan) => (
+                                    <div
+                                        key={`summary-${kegiatan.id}`}
+                                        className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                                {kegiatan.nama_kegiatan}
+                                            </p>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                {kegiatan.kode_kegiatan} ·{' '}
+                                                {kegiatan.tahun_anggaran}
+                                            </p>
+                                        </div>
+
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            asChild
+                                            className="gap-2"
+                                        >
+                                            <Link
+                                                href={`/kegiatan/${kegiatan.hashed_id}`}
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                                <span>Detail</span>
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

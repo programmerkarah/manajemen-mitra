@@ -110,7 +110,7 @@ export default function Index({ data, active_year }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('all_spk_periods')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -131,7 +131,7 @@ export default function Index({ data, active_year }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('need_bast')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -152,7 +152,7 @@ export default function Index({ data, active_year }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('completed')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -173,7 +173,7 @@ export default function Index({ data, active_year }: IndexProps) {
                     <button
                         type="button"
                         onClick={() => openSummaryModal('without_spk')}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                     >
                         <ContentCard className="border border-rose-200/60 bg-gradient-to-br from-rose-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-rose-900/40 dark:from-rose-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
@@ -306,7 +306,7 @@ export default function Index({ data, active_year }: IndexProps) {
                 </ContentCard>
 
                 <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
-                    <DialogContent className="max-w-4xl">
+                    <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>
