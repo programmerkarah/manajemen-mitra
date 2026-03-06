@@ -93,6 +93,7 @@ export interface Kegiatan {
         | 'hybrid'
         | 'tidak_ada_pelatihan'
         | null;
+    bulan_pelatihan: number | null;
     ketua_tim_user_id: number;
     pj_lainnya_id?: number | null;
     rate_honor_id: string | null;

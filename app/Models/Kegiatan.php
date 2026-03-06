@@ -33,6 +33,7 @@ class Kegiatan extends Model
             'metode_pendataan_pencacahan' => 'string',
             'metode_pendataan_listing' => 'string',
             'metode_pelatihan' => 'string',
+            'bulan_pelatihan' => 'integer',
         ];
     }
 
@@ -61,6 +62,7 @@ class Kegiatan extends Model
         'metode_pendataan_pencacahan',
         'metode_pendataan_listing',
         'metode_pelatihan',
+        'bulan_pelatihan',
     ];
 
     public function pjLainnya(): BelongsTo

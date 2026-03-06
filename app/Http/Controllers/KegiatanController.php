@@ -753,6 +753,7 @@ class KegiatanController extends Controller
             'metode_pendataan_pencacahan' => $kegiatan->metode_pendataan_pencacahan,
             'metode_pendataan_listing' => $kegiatan->metode_pendataan_listing,
             'metode_pelatihan' => $kegiatan->metode_pelatihan,
+            'bulan_pelatihan' => $kegiatan->bulan_pelatihan,
             'ketua_tim_user_id' => $kegiatan->ketua_tim_user_id,
             'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
             'status' => $kegiatan->status,

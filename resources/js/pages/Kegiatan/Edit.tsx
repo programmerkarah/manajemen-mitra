@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,21 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+
+const BULAN_OPTIONS = [
+    { value: '1', label: 'Januari' },
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' },
+] as const;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },
@@ -88,6 +104,9 @@ export default function Edit({
             | 'luring'
             | 'hybrid'
             | 'tidak_ada_pelatihan',
+        bulan_pelatihan: kegiatan.bulan_pelatihan
+            ? kegiatan.bulan_pelatihan.toString()
+            : '',
         ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: kegiatan.pj_lainnya_id
             ? kegiatan.pj_lainnya_id.toString()
@@ -116,6 +135,12 @@ export default function Edit({
                 ? data.metode_pendataan_listing || null
                 : null,
             metode_pelatihan: data.metode_pelatihan || null,
+            bulan_pelatihan:
+                data.metode_pelatihan &&
+                data.metode_pelatihan !== 'tidak_ada_pelatihan' &&
+                data.bulan_pelatihan
+                    ? Number(data.bulan_pelatihan)
+                    : null,
             ketua_tim_user_id: data.ketua_tim_user_id || null,
             pj_lainnya_id: data.pj_lainnya_id || null,
             tanggal_mulai: data.tanggal_mulai,
@@ -204,22 +229,22 @@ export default function Edit({
                                     Jenis Kegiatan{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
-                                <select
-                                    id="jenis_kegiatan"
+                                <SearchableSelect
+                                    options={[
+                                        { value: 'survei', label: 'Survei' },
+                                        { value: 'sensus', label: 'Sensus' },
+                                    ]}
                                     value={data.jenis_kegiatan}
-                                    onChange={(e) =>
+                                    onValueChange={(value) =>
                                         setData(
                                             'jenis_kegiatan',
-                                            e.target.value as
-                                                | 'sensus'
-                                                | 'survei',
+                                            value as 'sensus' | 'survei',
                                         )
                                     }
-                                    className="mt-1 block h-11 w-full rounded-lg border-2 border-neutral-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
-                                >
-                                    <option value="survei">Survei</option>
-                                    <option value="sensus">Sensus</option>
-                                </select>
+                                    placeholder="Pilih jenis kegiatan"
+                                    searchPlaceholder="Cari jenis kegiatan..."
+                                    className="mt-1"
+                                />
                                 <InputError
                                     message={errors.jenis_kegiatan}
                                     className="mt-2"
@@ -265,23 +290,22 @@ export default function Edit({
                                         Tahun Anggaran{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <select
-                                        id="tahun_anggaran"
-                                        value={data.tahun_anggaran}
-                                        onChange={(e) =>
+                                    <SearchableSelect
+                                        options={tahunOptions.map((tahun) => ({
+                                            value: tahun.toString(),
+                                            label: tahun.toString(),
+                                        }))}
+                                        value={data.tahun_anggaran.toString()}
+                                        onValueChange={(value) =>
                                             setData(
                                                 'tahun_anggaran',
-                                                parseInt(e.target.value),
+                                                parseInt(value, 10),
                                             )
                                         }
-                                        className="mt-1 block h-11 w-full rounded-lg border-2 border-neutral-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
-                                    >
-                                        {tahunOptions.map((tahun) => (
-                                            <option key={tahun} value={tahun}>
-                                                {tahun}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Pilih tahun anggaran"
+                                        searchPlaceholder="Cari tahun..."
+                                        className="mt-1"
+                                    />
                                     <InputError
                                         message={errors.tahun_anggaran}
                                         className="mt-2"
@@ -559,10 +583,16 @@ export default function Edit({
                                                     opt.value
                                                 }
                                                 onChange={() =>
-                                                    setData(
-                                                        'metode_pelatihan',
-                                                        opt.value,
-                                                    )
+                                                    setData((previousData) => ({
+                                                        ...previousData,
+                                                        metode_pelatihan:
+                                                            opt.value,
+                                                        bulan_pelatihan:
+                                                            opt.value ===
+                                                            'tidak_ada_pelatihan'
+                                                                ? ''
+                                                                : previousData.bulan_pelatihan,
+                                                    }))
                                                 }
                                                 className="h-4 w-4 text-neutral-900"
                                             />
@@ -583,6 +613,49 @@ export default function Edit({
                                 />
                             </div>
 
+                            {data.metode_pelatihan !== '' &&
+                                data.metode_pelatihan !==
+                                    'tidak_ada_pelatihan' && (
+                                    <div className="space-y-2">
+                                        <Label
+                                            htmlFor="bulan_pelatihan"
+                                            className="text-base font-semibold"
+                                        >
+                                            Bulan Pelatihan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                        </Label>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Pilih bulan pelaksanaan pelatihan
+                                            untuk sinkronisasi pengajuan pulsa
+                                            pelatihan.
+                                        </p>
+                                        <SearchableSelect
+                                            options={BULAN_OPTIONS.map(
+                                                (bulan) => ({
+                                                    value: bulan.value,
+                                                    label: bulan.label,
+                                                }),
+                                            )}
+                                            value={data.bulan_pelatihan}
+                                            onValueChange={(value) =>
+                                                setData(
+                                                    'bulan_pelatihan',
+                                                    value,
+                                                )
+                                            }
+                                            placeholder="Pilih Bulan Pelatihan"
+                                            searchPlaceholder="Cari bulan..."
+                                            className="mt-1"
+                                        />
+                                        <InputError
+                                            message={errors.bulan_pelatihan}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                )}
+
                             {!isKetuaTim && (
                                 <div className="space-y-2">
                                     <Label
@@ -592,29 +665,26 @@ export default function Edit({
                                         Ketua Tim{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <select
-                                        id="ketua_tim_user_id"
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: '',
+                                                label: 'Pilih Ketua Tim',
+                                            },
+                                            ...ketuaTimUsers.map((user) => ({
+                                                value: user.id.toString(),
+                                                label: `${user.name} (${user.email})`,
+                                                searchKeywords: `${user.name} ${user.email}`,
+                                            })),
+                                        ]}
                                         value={data.ketua_tim_user_id}
-                                        onChange={(e) =>
-                                            setData(
-                                                'ketua_tim_user_id',
-                                                e.target.value,
-                                            )
+                                        onValueChange={(value) =>
+                                            setData('ketua_tim_user_id', value)
                                         }
-                                        className="mt-1 block h-11 w-full rounded-lg border-2 border-neutral-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
-                                    >
-                                        <option value="">
-                                            Pilih Ketua Tim
-                                        </option>
-                                        {ketuaTimUsers.map((user) => (
-                                            <option
-                                                key={user.id}
-                                                value={user.id}
-                                            >
-                                                {user.name} ({user.email})
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Pilih Ketua Tim"
+                                        searchPlaceholder="Cari ketua tim..."
+                                        className="mt-1"
+                                    />
                                     <InputError
                                         message={errors.ketua_tim_user_id}
                                         className="mt-2"
@@ -630,23 +700,26 @@ export default function Edit({
                                 >
                                     Ketua Tim Lainnya (opsional)
                                 </Label>
-                                <select
-                                    id="pj_lainnya_id"
+                                <SearchableSelect
+                                    options={[
+                                        {
+                                            value: '',
+                                            label: 'Pilih Ketua Tim Lainnya (opsional)',
+                                        },
+                                        ...pjLainnyaUsers.map((user) => ({
+                                            value: user.id.toString(),
+                                            label: `${user.name} (${user.email})`,
+                                            searchKeywords: `${user.name} ${user.email}`,
+                                        })),
+                                    ]}
                                     value={data.pj_lainnya_id}
-                                    onChange={(e) =>
-                                        setData('pj_lainnya_id', e.target.value)
+                                    onValueChange={(value) =>
+                                        setData('pj_lainnya_id', value)
                                     }
-                                    className="mt-1 block h-11 w-full rounded-lg border-2 border-neutral-300 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-gray-700 dark:text-white"
-                                >
-                                    <option value="">
-                                        Pilih Ketua Tim Lainnya (opsional)
-                                    </option>
-                                    {pjLainnyaUsers.map((user) => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.name} ({user.email})
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="Pilih Ketua Tim Lainnya (opsional)"
+                                    searchPlaceholder="Cari ketua tim..."
+                                    className="mt-1"
+                                />
                                 <InputError
                                     message={errors.pj_lainnya_id}
                                     className="mt-2"

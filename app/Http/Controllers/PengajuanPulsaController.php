@@ -102,13 +102,17 @@ class PengajuanPulsaController extends Controller
         }
 
         $eligibleKegiatan = $kegiatanQuery
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'metode_pendataan_pencacahan', 'metode_pendataan_listing', 'metode_pelatihan', 'has_listing_updating')
-            ->where(function ($q) {
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'metode_pendataan_pencacahan', 'metode_pendataan_listing', 'metode_pelatihan', 'bulan_pelatihan', 'has_listing_updating')
+            ->where(function ($q) use ($bulan) {
                 // Hide kegiatan where both pulsa columns would be locked:
-                // - pelatihan locked: metode_pelatihan NOT IN ['daring', 'hybrid']
+                // - pelatihan locked: metode_pelatihan NOT IN ['daring', 'hybrid'] OR bulan != bulan_pelatihan
                 // - pendataan locked: metode_pendataan_pencacahan = 'PAPI'
                 // Show if at least one column is available.
-                $q->whereIn('metode_pelatihan', ['daring', 'hybrid'])
+                $q->where(function ($pelatihanQuery) use ($bulan) {
+                    $pelatihanQuery
+                        ->whereIn('metode_pelatihan', ['daring', 'hybrid'])
+                        ->where('bulan_pelatihan', (int) $bulan);
+                })
                     ->orWhere('metode_pendataan_pencacahan', 'CAPI')
                     ->orWhereNull('metode_pelatihan'); // legacy: show until metode_pelatihan is set
             })
@@ -213,7 +217,7 @@ class PengajuanPulsaController extends Controller
                         ->orWhere('pj_lainnya_id', $effectiveUser->id);
                 })
             )
-            ->get(['id', 'metode_pendataan_pencacahan', 'metode_pelatihan']);
+            ->get(['id', 'metode_pendataan_pencacahan', 'metode_pelatihan', 'bulan_pelatihan']);
 
         $validKegiatanById = $validKegiatanModels->keyBy('id');
         $validKegiatan = $validKegiatanModels->pluck('id');
@@ -235,6 +239,12 @@ class PengajuanPulsaController extends Controller
                 if (! in_array($metodePelatihan, ['daring', 'hybrid'])) {
                     return back()->withErrors([
                         'items' => 'Pulsa pelatihan hanya dapat diajukan untuk kegiatan dengan metode pelatihan daring atau hybrid.',
+                    ]);
+                }
+
+                if ((int) ($kegiatan?->bulan_pelatihan ?? 0) !== (int) $bulan) {
+                    return back()->withErrors([
+                        'items' => 'Pulsa pelatihan hanya dapat diajukan pada bulan penyelenggaraan pelatihan yang diatur pada kegiatan.',
                     ]);
                 }
             }

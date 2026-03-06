@@ -9,6 +9,21 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
 
+const BULAN_OPTIONS = [
+    { value: '1', label: 'Januari' },
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' },
+] as const;
+
 interface User {
     id: number;
     name: string;
@@ -87,6 +102,7 @@ export default function Create({
             | 'luring'
             | 'hybrid'
             | 'tidak_ada_pelatihan',
+        bulan_pelatihan: '',
         ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
         tanggal_mulai: '',
@@ -113,6 +129,12 @@ export default function Create({
                 ? data.metode_pendataan_listing || null
                 : null,
             metode_pelatihan: data.metode_pelatihan || null,
+            bulan_pelatihan:
+                data.metode_pelatihan &&
+                data.metode_pelatihan !== 'tidak_ada_pelatihan' &&
+                data.bulan_pelatihan
+                    ? Number(data.bulan_pelatihan)
+                    : null,
             ketua_tim_user_id: data.ketua_tim_user_id || null,
             pj_lainnya_id: data.pj_lainnya_id || null,
             tanggal_mulai: data.tanggal_mulai,
@@ -554,10 +576,16 @@ export default function Create({
                                                     opt.value
                                                 }
                                                 onChange={() =>
-                                                    setData(
-                                                        'metode_pelatihan',
-                                                        opt.value,
-                                                    )
+                                                    setData((previousData) => ({
+                                                        ...previousData,
+                                                        metode_pelatihan:
+                                                            opt.value,
+                                                        bulan_pelatihan:
+                                                            opt.value ===
+                                                            'tidak_ada_pelatihan'
+                                                                ? ''
+                                                                : previousData.bulan_pelatihan,
+                                                    }))
                                                 }
                                                 className="h-4 w-4 text-neutral-900"
                                             />
@@ -577,6 +605,49 @@ export default function Create({
                                     className="mt-2"
                                 />
                             </div>
+
+                            {data.metode_pelatihan !== '' &&
+                                data.metode_pelatihan !==
+                                    'tidak_ada_pelatihan' && (
+                                    <div>
+                                        <label
+                                            htmlFor="bulan_pelatihan"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Bulan Pelatihan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                        </label>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            Pilih bulan pelaksanaan pelatihan
+                                            untuk sinkronisasi pengajuan pulsa
+                                            pelatihan.
+                                        </p>
+                                        <SearchableSelect
+                                            options={BULAN_OPTIONS.map(
+                                                (bulan) => ({
+                                                    value: bulan.value,
+                                                    label: bulan.label,
+                                                }),
+                                            )}
+                                            value={data.bulan_pelatihan}
+                                            onValueChange={(value) =>
+                                                setData(
+                                                    'bulan_pelatihan',
+                                                    value,
+                                                )
+                                            }
+                                            placeholder="Pilih Bulan Pelatihan"
+                                            searchPlaceholder="Cari bulan..."
+                                            className="mt-2"
+                                        />
+                                        <InputError
+                                            message={errors.bulan_pelatihan}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                )}
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
                                 {/* Pagu Pencacahan */}

@@ -34,6 +34,7 @@ interface KegiatanItem {
         | 'hybrid'
         | 'tidak_ada_pelatihan'
         | null;
+    bulan_pelatihan: number | null;
     has_listing_updating: boolean;
 }
 
@@ -115,6 +116,7 @@ export default function PengajuanPulsaCreate({
     const [nominals, setNominals] = useState<NominalMap>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const selectedMonthNumber = useMemo(() => parseInt(bulan, 10), [bulan]);
 
     const getNominal = useCallback(
         (
@@ -411,10 +413,12 @@ export default function PengajuanPulsaCreate({
                                                                 kegiatan.metode_pendataan_pencacahan ===
                                                                 'CAPI';
                                                             const canPelatihan =
-                                                                kegiatan.metode_pelatihan ===
+                                                                (kegiatan.metode_pelatihan ===
                                                                     'daring' ||
-                                                                kegiatan.metode_pelatihan ===
-                                                                    'hybrid';
+                                                                    kegiatan.metode_pelatihan ===
+                                                                        'hybrid') &&
+                                                                kegiatan.bulan_pelatihan ===
+                                                                    selectedMonthNumber;
                                                             const submittedPelatihan =
                                                                 (existingPerKegiatan[
                                                                     `${kegiatan.id}_${petugas.id}_pelatihan`

@@ -41,6 +41,7 @@ class KegiatanFactory extends Factory
             'metode_pendataan_pencacahan' => $this->faker->randomElement(['PAPI', 'CAPI']),
             'metode_pendataan_listing' => null,
             'metode_pelatihan' => $this->faker->randomElement(['daring', 'luring', 'hybrid', 'tidak_ada_pelatihan']),
+            'bulan_pelatihan' => $this->faker->numberBetween(1, 12),
         ];
     }
 }

@@ -293,6 +293,77 @@ class PengajuanPulsaTest extends TestCase
         $response->assertSessionHasErrors();
     }
 
+    public function test_store_rejects_pelatihan_pulsa_outside_bulan_pelatihan(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'metode_pelatihan' => 'daring',
+            'bulan_pelatihan' => 7,
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa', [
+                'bulan' => '06',
+                'tahun' => date('Y'),
+                'items' => [
+                    [
+                        'kegiatan_id' => $kegiatan->id,
+                        'petugas_id' => $petugas->id,
+                        'jenis_pulsa' => 'pelatihan',
+                        'nominal' => 50000,
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionHasErrors();
+    }
+
+    public function test_store_accepts_pelatihan_pulsa_on_bulan_pelatihan(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'metode_pelatihan' => 'hybrid',
+            'bulan_pelatihan' => 6,
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa', [
+                'bulan' => '06',
+                'tahun' => date('Y'),
+                'items' => [
+                    [
+                        'kegiatan_id' => $kegiatan->id,
+                        'petugas_id' => $petugas->id,
+                        'jenis_pulsa' => 'pelatihan',
+                        'nominal' => 50000,
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('pengajuan_pulsa', [
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugas->id,
+            'jenis_pulsa' => 'pelatihan',
+            'nominal' => 50000,
+            'bulan' => '06',
+        ]);
+    }
+
     public function test_review_all_approves_all_dikirim_items(): void
     {
         [$ketuaTim] = $this->makeUserWithRole('ketua_tim');

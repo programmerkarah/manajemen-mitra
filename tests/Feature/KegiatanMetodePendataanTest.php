@@ -59,6 +59,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pendataan_pencacahan' => 'CAPI',
                 'has_listing_updating' => false,
                 'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
             ]);
 
         $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
@@ -84,6 +85,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pendataan_pencacahan' => 'PAPI',
                 'has_listing_updating' => false,
                 'metode_pelatihan' => 'luring',
+                'bulan_pelatihan' => 7,
             ]);
 
         $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
@@ -132,6 +134,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pendataan_listing' => 'CAPI',
                 'pagu_listing' => 1000000,
                 'metode_pelatihan' => 'hybrid',
+                'bulan_pelatihan' => 8,
             ]);
 
         $response->assertSessionDoesntHaveErrors(['metode_pendataan_pencacahan', 'metode_pendataan_listing']);
@@ -156,6 +159,8 @@ class KegiatanMetodePendataanTest extends TestCase
                 'tahun_anggaran' => 2025,
                 'ketua_tim_user_id' => $user->id,
                 'metode_pendataan_pencacahan' => 'FASIH', // Invalid - only PAPI/CAPI allowed
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
             ]);
 
         $response->assertSessionHasErrors('metode_pendataan_pencacahan');
@@ -174,5 +179,52 @@ class KegiatanMetodePendataanTest extends TestCase
         $this->assertNotNull($kegiatan->metode_pendataan_pencacahan);
         $this->assertSame('CAPI', $kegiatan->metode_pendataan_pencacahan);
         $this->assertNull($kegiatan->metode_pendataan_listing);
+    }
+
+    public function test_store_kegiatan_requires_bulan_pelatihan_when_metode_is_not_tidak_ada(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei Pelatihan',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+            ]);
+
+        $response->assertSessionHasErrors('bulan_pelatihan');
+    }
+
+    public function test_store_kegiatan_allows_empty_bulan_pelatihan_when_metode_tidak_ada(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei Tanpa Pelatihan',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'tidak_ada_pelatihan',
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('bulan_pelatihan');
+        $this->assertDatabaseHas('kegiatan', [
+            'nama_kegiatan' => 'Survei Tanpa Pelatihan',
+            'metode_pelatihan' => 'tidak_ada_pelatihan',
+            'bulan_pelatihan' => null,
+        ]);
     }
 }

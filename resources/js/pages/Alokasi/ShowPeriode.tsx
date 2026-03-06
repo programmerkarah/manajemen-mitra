@@ -168,7 +168,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
     const hasPendataanRole = periode.alokasi_petugas.some((alokasi) =>
         ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'].includes(alokasi.peran),
     );
-    const canEditNonResponse = ['dikirim', 'perubahan'].includes(periode.status);
+    const canEditNonResponse = ['dikirim', 'perubahan'].includes(
+        periode.status,
+    );
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
