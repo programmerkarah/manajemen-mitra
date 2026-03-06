@@ -44,6 +44,10 @@ interface PeriodeAlokasi {
     bulan: string;
     tahun: number;
     jenis_kegiatan: 'sensus' | 'survei';
+    tanggal_mulai?: string | null;
+    tanggal_selesai?: string | null;
+    tanggal_mulai_listing?: string | null;
+    tanggal_selesai_listing?: string | null;
     status: 'draft' | 'dikirim' | 'perubahan' | 'disetujui';
     revision_number: number;
     parent_periode_id: number | null;
@@ -136,6 +140,16 @@ function formatDateTime(dateString: string | null): string {
     }).format(date);
 }
 
+function formatDate(dateString: string | null | undefined): string {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    }).format(date);
+}
+
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
     const { auth } = usePage<SharedData>().props;
@@ -154,8 +168,13 @@ export default function ShowPeriode({ periode, revisions }: Props) {
     const hasPendataanRole = periode.alokasi_petugas.some((alokasi) =>
         ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'].includes(alokasi.peran),
     );
+    const canEditNonResponse = ['dikirim', 'perubahan'].includes(periode.status);
 
     const handleEditToggle = () => {
+        if (!canEditNonResponse) {
+            return;
+        }
+
         if (!isEditMode) {
             // Masuk edit mode - inisialisasi data
             const initialData: Record<
@@ -264,6 +283,11 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     {periode.jenis_kegiatan === 'sensus'
                                         ? 'Sensus'
                                         : 'Survei'}
+                                </div>
+                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                                    Pelaksanaan:{' '}
+                                    {formatDate(periode.tanggal_mulai)} -{' '}
+                                    {formatDate(periode.tanggal_selesai)}
                                 </div>
                             </div>
                         </div>
@@ -376,6 +400,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         size="sm"
                                         variant="outline"
                                         onClick={handleEditToggle}
+                                        disabled={!canEditNonResponse}
                                     >
                                         <Edit className="mr-2 h-4 w-4" />
                                         Edit Non Response

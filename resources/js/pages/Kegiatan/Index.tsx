@@ -439,6 +439,9 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                         <SelectItem value="draft">
                                             Draft
                                         </SelectItem>
+                                        <SelectItem value="diajukan">
+                                            Diajukan
+                                        </SelectItem>
                                         <SelectItem value="divalidasi">
                                             Divalidasi
                                         </SelectItem>
