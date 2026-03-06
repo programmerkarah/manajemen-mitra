@@ -109,6 +109,10 @@ export default function Create({
         tanggal_selesai: '',
     });
 
+    const hasSourceJenisKegiatan =
+        data.jenis_kegiatan === 'sensus' || data.jenis_kegiatan === 'survei';
+    const hasSourceTahunAnggaran = tahunOptions.includes(data.tahun_anggaran);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -257,7 +261,9 @@ export default function Create({
                                     }
                                     placeholder="Pilih jenis kegiatan"
                                     searchPlaceholder="Cari jenis kegiatan..."
-                                    disabled={isCopyMode}
+                                    disabled={
+                                        isCopyMode && hasSourceJenisKegiatan
+                                    }
                                     className="mt-2"
                                 />
                                 <InputError
@@ -322,7 +328,9 @@ export default function Create({
                                     }
                                     placeholder="Pilih tahun anggaran"
                                     searchPlaceholder="Cari tahun..."
-                                    disabled={isCopyMode}
+                                    disabled={
+                                        isCopyMode && hasSourceTahunAnggaran
+                                    }
                                     className="mt-2"
                                 />
                                 <InputError

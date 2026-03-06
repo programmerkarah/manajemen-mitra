@@ -158,10 +158,7 @@ export default function PengajuanPulsaDetail({
         setShowBatchDialog(true);
     };
 
-    const setBatchAction = (
-        id: number,
-        action: 'diterima' | 'ditolak',
-    ) => {
+    const setBatchAction = (id: number, action: 'diterima' | 'ditolak') => {
         setBatchItems((prev) =>
             prev.map((b) => (b.id === id ? { ...b, action } : b)),
         );
@@ -169,7 +166,9 @@ export default function PengajuanPulsaDetail({
 
     const setBatchNominal = (id: number, value: number) => {
         setBatchItems((prev) =>
-            prev.map((b) => (b.id === id ? { ...b, nominal_disetujui: value } : b)),
+            prev.map((b) =>
+                b.id === id ? { ...b, nominal_disetujui: value } : b,
+            ),
         );
     };
 
@@ -396,7 +395,9 @@ export default function PengajuanPulsaDetail({
                                             </td>
                                             <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
                                                 <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                                    {formatCurrency(item.nominal)}
+                                                    {formatCurrency(
+                                                        item.nominal,
+                                                    )}
                                                 </div>
                                                 {item.status === 'diterima' &&
                                                     item.nominal_disetujui !==
@@ -721,7 +722,7 @@ export default function PengajuanPulsaDetail({
                     }
                 }}
             >
-                <DialogContent className="flex max-h-[120vh] flex-col sm:max-w-9xl">
+                <DialogContent className="sm:max-w-9xl flex max-h-[120vh] flex-col">
                     <DialogHeader className="shrink-0">
                         <DialogTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -789,8 +790,8 @@ export default function PengajuanPulsaDetail({
                                                 className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                             >
                                                 <td className="px-3 py-2.5 font-medium text-neutral-900 dark:text-neutral-100">
-                                                    {sourceItem.petugas
-                                                        ?.nama ?? '-'}
+                                                    {sourceItem.petugas?.nama ??
+                                                        '-'}
                                                 </td>
                                                 <td className="px-3 py-2.5">
                                                     <span
@@ -897,7 +898,7 @@ export default function PengajuanPulsaDetail({
                                     className="text-sm font-medium"
                                 >
                                     Alasan Penolakan{' '}
-                                    <span className="text-neutral-500 text-xs font-normal">
+                                    <span className="text-xs font-normal text-neutral-500">
                                         (berlaku untuk semua yang ditolak)
                                     </span>
                                 </Label>

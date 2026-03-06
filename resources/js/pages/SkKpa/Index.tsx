@@ -16,8 +16,6 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
     ChevronUp,
     Download,
     Eye,
@@ -69,6 +67,12 @@ interface IndexProps {
             active: boolean;
         }>;
     };
+    summary: {
+        total_kegiatan_aktif: number;
+        total_sk_belum_dibuat: number;
+        total_sk_digenerate: number;
+        total_sk_disahkan: number;
+    };
     filters: {
         encrypted?: string;
         decrypted?: {
@@ -80,7 +84,7 @@ interface IndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
-export default function Index({ kegiatan }: IndexProps) {
+export default function Index({ kegiatan, summary }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const allKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
 
@@ -90,8 +94,6 @@ export default function Index({ kegiatan }: IndexProps) {
         'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'
     >('nama_kegiatan');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const prevFiltersRef = useRef({ search, jenisKegiatan });
 
@@ -147,23 +149,13 @@ export default function Index({ kegiatan }: IndexProps) {
         return result;
     }, [allKegiatan, search, jenisKegiatan, sortField, sortDirection]);
 
-    // Client-side pagination
-    const totalPages = Math.ceil(filteredAndSortedKegiatan.length / perPage);
-    const paginatedKegiatan = useMemo(() => {
-        const start = (currentPage - 1) * perPage;
-        const end = start + perPage;
-        return filteredAndSortedKegiatan.slice(start, end);
-    }, [filteredAndSortedKegiatan, currentPage, perPage]);
-
-    // Reset to page 1 when filters change
+    // Reset filter reference when filters change
     useEffect(() => {
         const prevFilters = prevFiltersRef.current;
         if (
             prevFilters.search !== search ||
             prevFilters.jenisKegiatan !== jenisKegiatan
         ) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
-            setCurrentPage(1);
             prevFiltersRef.current = { search, jenisKegiatan };
         }
     }, [search, jenisKegiatan]);
@@ -216,7 +208,6 @@ export default function Index({ kegiatan }: IndexProps) {
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
-        setCurrentPage(1);
     };
 
     const handleDownload = (keg: KegiatanItem) => {
@@ -245,6 +236,41 @@ export default function Index({ kegiatan }: IndexProps) {
                     title="SK KPA"
                     description="Kelola Surat Keputusan Kuasa Pengguna Anggaran untuk setiap kegiatan"
                 />
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            Kegiatan Aktif
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                            {summary.total_kegiatan_aktif}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            SK Belum Dibuat
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                            {summary.total_sk_belum_dibuat}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            SK di Generate
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                            {summary.total_sk_digenerate}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            SK Disahkan
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                            {summary.total_sk_disahkan}
+                        </p>
+                    </ContentCard>
+                </div>
 
                 {/* Filter & Search */}
                 <ContentCard>
@@ -315,12 +341,10 @@ export default function Index({ kegiatan }: IndexProps) {
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {(currentPage - 1) * perPage + 1}-
-                            {Math.min(
-                                currentPage * perPage,
-                                filteredAndSortedKegiatan.length,
-                            )}{' '}
-                            dari {filteredAndSortedKegiatan.length} data
+                            Menampilkan{' '}
+                            {filteredAndSortedKegiatan.length > 0 ? 1 : 0}-
+                            {filteredAndSortedKegiatan.length} dari{' '}
+                            {filteredAndSortedKegiatan.length} data
                             {filteredAndSortedKegiatan.length !==
                                 allKegiatan.length &&
                                 ` (difilter dari ${allKegiatan.length} total)`}
@@ -390,7 +414,7 @@ export default function Index({ kegiatan }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {paginatedKegiatan.length === 0 ? (
+                                {filteredAndSortedKegiatan.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
@@ -403,7 +427,7 @@ export default function Index({ kegiatan }: IndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    paginatedKegiatan.map((keg) => (
+                                    filteredAndSortedKegiatan.map((keg) => (
                                         <tr
                                             key={keg.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
@@ -530,57 +554,6 @@ export default function Index({ kegiatan }: IndexProps) {
                             </tbody>
                         </table>
                     </div>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
-                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Halaman {currentPage} dari {totalPages}
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setCurrentPage(currentPage - 1)
-                                    }
-                                    disabled={currentPage === 1}
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                {Array.from(
-                                    { length: totalPages },
-                                    (_, i) => i + 1,
-                                ).map((page) => (
-                                    <Button
-                                        key={page}
-                                        type="button"
-                                        variant={
-                                            currentPage === page
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                        size="sm"
-                                        onClick={() => setCurrentPage(page)}
-                                    >
-                                        {page}
-                                    </Button>
-                                ))}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setCurrentPage(currentPage + 1)
-                                    }
-                                    disabled={currentPage === totalPages}
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
                 </ContentCard>
             </div>
         </AppLayout>

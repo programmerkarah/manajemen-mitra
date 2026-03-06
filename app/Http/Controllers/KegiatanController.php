@@ -129,14 +129,37 @@ class KegiatanController extends Controller
         // Authorization via policy
         $this->authorize('view', $kegiatan);
 
-        $ketuaTimUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
-            ->where('is_active', true)
+        $sourceUserIds = collect([
+            $kegiatan->ketua_tim_user_id,
+            $kegiatan->pj_lainnya_id,
+        ])->filter()->values();
+
+        $ketuaTimUsers = User::query()
+            ->where(function ($q) use ($sourceUserIds) {
+                $q->where(function ($q2) {
+                    $q2->whereHas('roles', fn ($q3) => $q3->where('name', 'ketua_tim'))
+                        ->where('is_active', true);
+                });
+
+                if ($sourceUserIds->isNotEmpty()) {
+                    $q->orWhereIn('id', $sourceUserIds);
+                }
+            })
             ->select('id', 'name', 'email')
             ->get();
 
         // PJ lainnya list for create form (only ketua_tim users)
-        $pjLainnyaUsers = User::whereHas('roles', fn ($q) => $q->where('name', 'ketua_tim'))
-            ->where('is_active', true)
+        $pjLainnyaUsers = User::query()
+            ->where(function ($q) use ($sourceUserIds) {
+                $q->where(function ($q2) {
+                    $q2->whereHas('roles', fn ($q3) => $q3->where('name', 'ketua_tim'))
+                        ->where('is_active', true);
+                });
+
+                if ($sourceUserIds->isNotEmpty()) {
+                    $q->orWhereIn('id', $sourceUserIds);
+                }
+            })
             ->select('id', 'name', 'email')
             ->get();
 

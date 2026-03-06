@@ -170,7 +170,8 @@ export default function MonitoringPulsaIndex({
             group.totalNominal += item.nominal;
             group.nominalDiajukan += item.nominal;
             if (item.status === 'diterima') {
-                group.nominalDisetujui += item.nominal_disetujui ?? item.nominal;
+                group.nominalDisetujui +=
+                    item.nominal_disetujui ?? item.nominal;
             }
             if (item.status === 'ditolak') {
                 group.nominalDitolak += item.nominal;
@@ -536,22 +537,30 @@ export default function MonitoringPulsaIndex({
                                                                                             }
                                                                                         </td>
                                                                                         <td className="px-4 py-2.5 text-right text-xs font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                                                                            {item.status === 'diterima' ? (
+                                                                                            {item.status ===
+                                                                                            'diterima' ? (
                                                                                                 <>
                                                                                                     <div className="text-green-700 dark:text-green-400">
                                                                                                         {formatCurrency(
-                                                                                                            item.nominal_disetujui ?? item.nominal,
+                                                                                                            item.nominal_disetujui ??
+                                                                                                                item.nominal,
                                                                                                         )}
                                                                                                     </div>
-                                                                                                    {item.nominal_disetujui !== null &&
-                                                                                                        item.nominal_disetujui !== item.nominal && (
+                                                                                                    {item.nominal_disetujui !==
+                                                                                                        null &&
+                                                                                                        item.nominal_disetujui !==
+                                                                                                            item.nominal && (
                                                                                                             <div className="text-xs text-neutral-400 line-through dark:text-neutral-500">
-                                                                                                                {formatCurrency(item.nominal)}
+                                                                                                                {formatCurrency(
+                                                                                                                    item.nominal,
+                                                                                                                )}
                                                                                                             </div>
                                                                                                         )}
                                                                                                 </>
                                                                                             ) : (
-                                                                                                formatCurrency(item.nominal)
+                                                                                                formatCurrency(
+                                                                                                    item.nominal,
+                                                                                                )
                                                                                             )}
                                                                                         </td>
                                                                                         {activeTab ===
@@ -585,7 +594,8 @@ export default function MonitoringPulsaIndex({
                                                                                 </td>
                                                                                 <td className="px-4 py-2 text-right text-xs font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                                                     {formatCurrency(
-                                                                                        activeTab === 'disetujui'
+                                                                                        activeTab ===
+                                                                                            'disetujui'
                                                                                             ? group.nominalDisetujui
                                                                                             : group.totalNominal,
                                                                                     )}

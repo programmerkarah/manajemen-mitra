@@ -25,7 +25,7 @@ class SkKpaController extends Controller
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
 
-        // Get kegiatan that have periods with alokasi petugas (dikirim, perubahan, or direvisi status)
+        // Get all kegiatan on active year
         $query = Kegiatan::query()
             ->select('kegiatan.*') // Only select needed columns
             ->with([
@@ -41,10 +41,6 @@ class SkKpaController extends Controller
             ->withCount(['skKpa' => function ($q) {
                 $q->select(DB::raw('count(*)'));
             }])
-            ->whereHas('periodeAlokasi', function ($q) use ($activeYear) {
-                $q->where('tahun', $activeYear)
-                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi']);
-            })
             ->where('tahun_anggaran', $activeYear);
 
         // Search filter
@@ -111,6 +107,13 @@ class SkKpaController extends Controller
             ];
         });
 
+        $summary = [
+            'total_kegiatan_aktif' => $transformedData->count(),
+            'total_sk_belum_dibuat' => $transformedData->where('sk_count', 0)->count(),
+            'total_sk_digenerate' => $transformedData->where('sk_count', '>', 0)->count(),
+            'total_sk_disahkan' => $transformedData->filter(fn ($item) => ! empty($item['latest_sk']['signed_file_path'] ?? null))->count(),
+        ];
+
         // Encrypt sensitive data
         $encryptedData = encryptData($transformedData);
         $totalData = $transformedData->count();
@@ -132,6 +135,7 @@ class SkKpaController extends Controller
                 'encrypted' => encryptFilters($validated),
                 'decrypted' => $validated,
             ],
+            'summary' => $summary,
         ]);
 
         return $response;
@@ -876,14 +880,14 @@ class SkKpaController extends Controller
             $skKpa = SkKpa::create([
                 'nomor_sk' => $validated['nomor_sk'],
                 'kegiatan_id' => $kegiatan->id,
-                'bulan' => $periode->bulan,
-                'tahun' => $periode->tahun,
                 'tanggal_sk' => $validated['tanggal_sk'],
+                'bulan' => (int) \Carbon\Carbon::parse($validated['tanggal_sk'])->format('m'),
+                'tahun' => (int) \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
                 'nama_kpa' => $penandatangan->nama,
                 'perihal' => 'Petugas '.$kegiatan->nama_kegiatan.' '.$kegiatan->tahun_anggaran,
                 'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
                 'file_path' => $filePath,
-                'status' => 'diterbitkan',
+                'status' => 'draft',
                 'created_by' => Auth::id(),
             ]);
 

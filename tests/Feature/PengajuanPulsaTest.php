@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
+use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\User;
@@ -554,5 +556,64 @@ class PengajuanPulsaTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
+    }
+
+    public function test_create_uses_nominal_disetujui_for_approved_existing_nominal_display(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+        $tahun = (string) \App\Services\ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => (int) $tahun,
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => (int) $tahun,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+        ]);
+
+        PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periode->id,
+            'bulan' => '06',
+            'tahun' => (int) $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'nominal_disetujui' => 30000,
+            'status' => 'diterima',
+            'submitted_by' => $user->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/create?bulan=06');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Create')
+            ->where("existingPerKegiatan.{$kegiatan->id}_{$petugas->id}_pendataan", 30000)
+            ->where("existingTotals.{$petugas->id}", 30000)
+        );
     }
 }

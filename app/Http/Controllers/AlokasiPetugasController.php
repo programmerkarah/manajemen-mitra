@@ -835,11 +835,14 @@ class AlokasiPetugasController extends Controller
                             'rateHonors' => function ($query) use ($activeYear) {
                                 $query->where('status', 'aktif')
                                     ->where('tahun_berlaku', $activeYear)
-                                    ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'satuan_id')
-                                    ->with('satuan:id,kode,nama');
+                                    ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
+                                    ->with([
+                                        'satuan:id,kode,nama',
+                                        'satuanListing:id,kode,nama',
+                                    ]);
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'ketua_tim_user_id', 'tanggal_mulai', 'tanggal_selesai')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
                         ->first();
                 }
             } catch (\Exception $e) {
@@ -906,6 +909,68 @@ class AlokasiPetugasController extends Controller
         }
 
         // Calculate budget info for selected kegiatan
+        if ($selectedKegiatan && ! isset($budgetInfo[$selectedKegiatan->id])) {
+            $selectedTotalSpent = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->with('alokasiPetugas')
+                ->get()
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor');
+                });
+
+            $selectedTotalSpentListing = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->with('alokasiPetugas')
+                ->get()
+                ->sum(function ($p) {
+                    return $p->alokasiPetugas->sum('total_honor_listing');
+                });
+
+            $budgetInfo[$selectedKegiatan->id] = [
+                'pagu_pencacahan' => $selectedKegiatan->pagu_pencacahan ?? 0,
+                'current_total_spent' => $selectedTotalSpent,
+                'pagu_listing' => $selectedKegiatan->pagu_listing ?? 0,
+                'current_total_spent_listing' => $selectedTotalSpentListing,
+            ];
+
+            $selectedPeriodeList = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
+                ->where('tahun', $activeYear)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->select('bulan', 'tahapan')
+                ->get();
+
+            if ($selectedKegiatan->has_listing_updating) {
+                $selectedUsedPeriodsMap = [];
+                foreach ($selectedPeriodeList as $periode) {
+                    $bulanInt = (int) $periode->bulan;
+                    if (! isset($selectedUsedPeriodsMap[$bulanInt])) {
+                        $selectedUsedPeriodsMap[$bulanInt] = [];
+                    }
+
+                    if ($periode->tahapan === 'both') {
+                        $selectedUsedPeriodsMap[$bulanInt][] = 'listing';
+                        $selectedUsedPeriodsMap[$bulanInt][] = 'pencacahan';
+                    } elseif ($periode->tahapan === 'listing_only') {
+                        $selectedUsedPeriodsMap[$bulanInt][] = 'listing';
+                    } elseif ($periode->tahapan === 'pencacahan_only') {
+                        $selectedUsedPeriodsMap[$bulanInt][] = 'pencacahan';
+                    }
+                }
+
+                $usedMonthsInfo[$selectedKegiatan->id] = [
+                    'has_listing' => true,
+                    'periods' => $selectedUsedPeriodsMap,
+                ];
+            } else {
+                $usedMonthsInfo[$selectedKegiatan->id] = [
+                    'has_listing' => false,
+                    'months' => $selectedPeriodeList->pluck('bulan')->map(fn ($b) => (int) $b)->toArray(),
+                ];
+            }
+        }
+
         $paguAnggaran = $selectedKegiatan ? $selectedKegiatan->anggaran : 0;
         $currentTotalSpent = $selectedKegiatan ? PeriodeAlokasi::where('kegiatan_id', $decodedId)
             ->where('tahun', $activeYear)

@@ -266,9 +266,22 @@ class PengajuanPulsaController extends Controller
             ->where('bulan', $bulan)
             ->where('tahun', $tahun)
             ->whereNotIn('status', ['ditolak'])
-            ->get(['kegiatan_id', 'petugas_id', 'jenis_pulsa', 'nominal']);
+            ->get(['kegiatan_id', 'petugas_id', 'jenis_pulsa', 'nominal', 'nominal_disetujui', 'status']);
 
-        $existingTotals = $existingSubmissions
+        $existingSubmissionsWithEffectiveNominal = $existingSubmissions->map(function ($row) {
+            $effectiveNominal = $row->status === 'diterima'
+                ? (float) ($row->nominal_disetujui ?? $row->nominal)
+                : (float) $row->nominal;
+
+            return [
+                'kegiatan_id' => (int) $row->kegiatan_id,
+                'petugas_id' => (int) $row->petugas_id,
+                'jenis_pulsa' => (string) $row->jenis_pulsa,
+                'nominal' => $effectiveNominal,
+            ];
+        });
+
+        $existingTotals = $existingSubmissionsWithEffectiveNominal
             ->groupBy('petugas_id')
             ->map(fn ($rows) => $rows->sum('nominal'));
 
@@ -278,9 +291,9 @@ class PengajuanPulsaController extends Controller
          *
          * @var array<string, float>
          */
-        $existingPerKegiatan = $existingSubmissions
+        $existingPerKegiatan = $existingSubmissionsWithEffectiveNominal
             ->mapWithKeys(fn ($row) => [
-                "{$row->kegiatan_id}_{$row->petugas_id}_{$row->jenis_pulsa}" => (float) $row->nominal,
+                "{$row['kegiatan_id']}_{$row['petugas_id']}_{$row['jenis_pulsa']}" => (float) $row['nominal'],
             ]);
 
         return Inertia::render('PengajuanPulsa/Create', [

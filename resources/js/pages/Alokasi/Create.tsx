@@ -14,7 +14,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, Loader2, Save, Send, X } from 'lucide-react';
+import { ArrowLeft, Copy, Loader2, Save, Send, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -30,6 +30,7 @@ interface Kegiatan {
     nama_kegiatan: string;
     deskripsi?: string | null;
     jenis_kegiatan: 'sensus' | 'survei';
+    pagu_pencacahan?: number | null;
     ketua_tim_user_id: number;
     rate_honors: RateHonor[];
     has_listing_updating?: boolean;
@@ -141,6 +142,7 @@ export default function Create({
     const [selectedKegiatanId, setSelectedKegiatanId] = useState(
         preSelectedKegiatan?.id || '',
     );
+    const isCopyMode = Boolean(sourcePeriode || copiedAlokasi?.length);
 
     // Helper function to find first available month
     const getFirstAvailableMonth = (
@@ -232,6 +234,9 @@ export default function Create({
             catatan: '',
         },
     ]);
+    const [restorableItemsByCount, setRestorableItemsByCount] = useState<
+        AlokasiItem[]
+    >([]);
     // Jadwal Kegiatan states
     const [tanggalMulai, setTanggalMulai] = useState(
         sourcePeriode?.tanggal_mulai || '',
@@ -310,7 +315,7 @@ export default function Create({
 
         // Second, filter out kegiatan where ALL months are already used
         // Only apply this filter when NOT in edit mode
-        if (!isEditMode && !isViewMode) {
+        if (!isEditMode && !isViewMode && !isCopyMode) {
             filtered = filtered.filter((k) => {
                 const usedInfo = used_months_info[Number(k.id)];
 
@@ -338,7 +343,7 @@ export default function Create({
 
         // Third, filter out kegiatan where there are no available months within date range
         // Only apply this filter when NOT in edit mode
-        if (!isEditMode && !isViewMode) {
+        if (!isEditMode && !isViewMode && !isCopyMode) {
             filtered = filtered.filter((k) => {
                 // Check if kegiatan has valid date range
                 if (!k.tanggal_mulai || !k.tanggal_selesai) {
@@ -427,12 +432,31 @@ export default function Create({
         used_months_info,
         isEditMode,
         isViewMode,
+        isCopyMode,
         active_year,
     ]);
 
-    const selectedKegiatan = filteredKegiatans.find(
+    const kegiatanOptions = useMemo(() => {
+        if (!preSelectedKegiatan) {
+            return filteredKegiatans;
+        }
+
+        const exists = filteredKegiatans.some(
+            (item) => String(item.id) === String(preSelectedKegiatan.id),
+        );
+
+        return exists
+            ? filteredKegiatans
+            : [preSelectedKegiatan, ...filteredKegiatans];
+    }, [filteredKegiatans, preSelectedKegiatan]);
+
+    const selectedKegiatan = kegiatanOptions.find(
         (k) => String(k.id) === String(selectedKegiatanId),
     );
+
+    useEffect(() => {
+        setRestorableItemsByCount([]);
+    }, [selectedKegiatanId]);
 
     // Get budget info for selected kegiatan
     const currentBudget =
@@ -451,7 +475,10 @@ export default function Create({
               };
 
     // For backward compatibility, fallback to selectedKegiatan.pagu_listing if not in budget_info
-    const pagu_pencacahan = currentBudget.pagu_pencacahan;
+    const pagu_pencacahan =
+        'pagu_pencacahan' in currentBudget
+            ? (currentBudget as { pagu_pencacahan: number }).pagu_pencacahan
+            : selectedKegiatan?.pagu_pencacahan || 0;
     const current_total_spent = currentBudget.current_total_spent;
     const pagu_listing =
         'pagu_listing' in currentBudget
@@ -540,6 +567,7 @@ export default function Create({
 
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
+            setRestorableItemsByCount([]);
 
             // Auto-scroll to budget info if any estimasi honor exists
             const hasEstimasi = initialItems.some(
@@ -740,83 +768,53 @@ export default function Create({
     // Handle jumlah petugas change
     const handleJumlahPetugasChange = (value: number) => {
         const newValue = Math.max(1, Math.min(100, value));
-        setJumlahPetugas(newValue);
-
         const currentItems = [...alokasiItems];
+
         if (newValue > currentItems.length) {
-            // Add new items - restore from copiedAlokasi if available
-            for (let i = currentItems.length; i < newValue; i++) {
-                // Check if we have data in copiedAlokasi for this index
-                if (copiedAlokasi && copiedAlokasi[i]) {
-                    const alokasi = copiedAlokasi[i];
+            const needed = newValue - currentItems.length;
+            const restored = restorableItemsByCount.slice(0, needed);
+            const stillNeeded = needed - restored.length;
 
-                    // Map backend peran format to frontend display format
-                    let peranDisplay = '';
-                    const peranLower = (alokasi.peran || '').toLowerCase();
+            const emptyRows: AlokasiItem[] = Array.from(
+                { length: stillNeeded },
+                () => ({
+                    petugas_id: '',
+                    peran: '',
+                    jumlah_satuan: '',
+                    estimasi_honor: 0,
+                    catatan: '',
+                }),
+            );
 
-                    if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
-                        peranDisplay = 'PCL';
-                    } else if (peranLower === 'pml') {
-                        peranDisplay = 'PML';
-                    } else if (
-                        peranLower === 'pengolahan' ||
-                        peranLower === 'petugas pengolahan'
-                    ) {
-                        peranDisplay = 'Petugas Pengolahan';
-                    } else if (
-                        peranLower === 'pengawas_pengolahan' ||
-                        peranLower === 'pengawas pengolahan'
-                    ) {
-                        peranDisplay = 'Pengawas Pengolahan';
-                    } else if (alokasi.peran) {
-                        peranDisplay = alokasi.peran;
-                    }
-
-                    const petugasId = String(alokasi.petugas_id || '');
-                    const jumlahSatuan = String(alokasi.jumlah_satuan || 0);
-                    const jumlahSatuanListing = String(
-                        alokasi.jumlah_satuan_listing || 0,
-                    );
-
-                    // Recalculate estimasi honor instead of using stored values
-                    const recalculatedEstimasi = calculateEstimasi(
-                        petugasId,
-                        peranDisplay,
-                        jumlahSatuan,
-                    );
-
-                    const recalculatedEstimasiListing =
-                        calculateEstimasiListing(
-                            petugasId,
-                            peranDisplay,
-                            jumlahSatuanListing,
-                        );
-
-                    currentItems.push({
-                        petugas_id: petugasId,
-                        peran: peranDisplay,
-                        jumlah_satuan: jumlahSatuan,
-                        jumlah_satuan_listing: jumlahSatuanListing,
-                        estimasi_honor: recalculatedEstimasi,
-                        estimasi_honor_listing: recalculatedEstimasiListing,
-                        catatan: alokasi.catatan || '',
-                    });
-                } else {
-                    // No data in copiedAlokasi, add empty item
-                    currentItems.push({
-                        petugas_id: '',
-                        peran: '',
-                        jumlah_satuan: '',
-                        estimasi_honor: 0,
-                        catatan: '',
-                    });
-                }
-            }
-        } else if (newValue < currentItems.length) {
-            // Remove excess items
-            currentItems.splice(newValue);
+            setAlokasiItems([...currentItems, ...restored, ...emptyRows]);
+            setRestorableItemsByCount((prev) => prev.slice(needed));
+            setJumlahPetugas(newValue);
+            return;
         }
-        setAlokasiItems(currentItems);
+
+        if (newValue < currentItems.length) {
+            const removedItems = currentItems.slice(newValue);
+            setAlokasiItems(currentItems.slice(0, newValue));
+            setRestorableItemsByCount((prev) => [...removedItems, ...prev]);
+            setJumlahPetugas(newValue);
+            return;
+        }
+
+        setJumlahPetugas(newValue);
+    };
+
+    const handleDeleteAlokasiRow = (index: number) => {
+        if (alokasiItems.length <= 1) {
+            return;
+        }
+
+        const updatedItems = alokasiItems.filter((_, idx) => idx !== index);
+        setAlokasiItems(updatedItems);
+        setJumlahPetugas(updatedItems.length);
+
+        // Delete action should permanently remove that row from current payload,
+        // so the next added row is a fresh empty row.
+        setRestorableItemsByCount([]);
     };
 
     // Update alokasi item
@@ -1353,7 +1351,7 @@ export default function Create({
                                     <span className="text-red-500">*</span>
                                 </Label>
                                 <SearchableSelect
-                                    options={filteredKegiatans.map(
+                                    options={kegiatanOptions.map(
                                         (kegiatan) => ({
                                             value: kegiatan.id,
                                             label: kegiatan.nama_kegiatan,
@@ -1965,6 +1963,27 @@ export default function Create({
                                             <h4 className="font-medium text-neutral-900 dark:text-white">
                                                 Petugas #{index + 1}
                                             </h4>
+                                            {!isViewMode && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleDeleteAlokasiRow(
+                                                            index,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        isRevisiMode ||
+                                                        alokasiItems.length <=
+                                                            1
+                                                    }
+                                                    className="h-8 gap-1.5"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Hapus
+                                                </Button>
+                                            )}
                                         </div>
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                                             {/* Nama Petugas */}
@@ -2145,34 +2164,6 @@ export default function Create({
                                                                         ),
                                                                 );
 
-                                                            if (
-                                                                !selectedKegiatan ||
-                                                                !selectedPetugas
-                                                            )
-                                                                return null;
-                                                            const statusKepegawaian =
-                                                                selectedPetugas.jenis_petugas ===
-                                                                'organik'
-                                                                    ? 'organik'
-                                                                    : 'non_organik';
-                                                            // Ambil jenis_penugasan unik dari rate_honors yang cocok status_kepegawaian
-                                                            const jenisPenugasanList =
-                                                                selectedKegiatan.rate_honors
-                                                                    .filter(
-                                                                        (rh) =>
-                                                                            rh.status_kepegawaian ===
-                                                                            statusKepegawaian,
-                                                                    )
-                                                                    .map(
-                                                                        (rh) =>
-                                                                            rh.jenis_penugasan,
-                                                                    );
-                                                            const uniqueJenisPenugasan =
-                                                                Array.from(
-                                                                    new Set(
-                                                                        jenisPenugasanList,
-                                                                    ),
-                                                                );
                                                             // Mapping ke label
                                                             const labelMap: Record<
                                                                 string,
@@ -2185,6 +2176,37 @@ export default function Create({
                                                                 pengawas_pengolahan:
                                                                     'Pengawas Pengolahan',
                                                             };
+
+                                                            const statusKepegawaian =
+                                                                selectedPetugas
+                                                                    ? selectedPetugas.jenis_petugas ===
+                                                                      'organik'
+                                                                        ? 'organik'
+                                                                        : 'non_organik'
+                                                                    : null;
+
+                                                            const uniqueJenisPenugasan =
+                                                                !selectedKegiatan ||
+                                                                !statusKepegawaian
+                                                                    ? []
+                                                                    : Array.from(
+                                                                          new Set(
+                                                                              selectedKegiatan.rate_honors
+                                                                                  .filter(
+                                                                                      (
+                                                                                          rh,
+                                                                                      ) =>
+                                                                                          rh.status_kepegawaian ===
+                                                                                          statusKepegawaian,
+                                                                                  )
+                                                                                  .map(
+                                                                                      (
+                                                                                          rh,
+                                                                                      ) =>
+                                                                                          rh.jenis_penugasan,
+                                                                                  ),
+                                                                          ),
+                                                                      );
 
                                                             const options =
                                                                 uniqueJenisPenugasan.map(
@@ -2202,6 +2224,25 @@ export default function Create({
                                                                             jp,
                                                                     }),
                                                                 );
+
+                                                            // Fallback for copy/revisi rows: keep existing peran selectable
+                                                            // even when no active rate option is available for selected petugas.
+                                                            if (
+                                                                item.peran &&
+                                                                !options.some(
+                                                                    (opt) =>
+                                                                        opt.value ===
+                                                                        item.peran,
+                                                                )
+                                                            ) {
+                                                                options.unshift(
+                                                                    {
+                                                                        key: `fallback-${item.peran}`,
+                                                                        value: item.peran,
+                                                                        label: item.peran,
+                                                                    },
+                                                                );
+                                                            }
 
                                                             return options.map(
                                                                 (opt) => (

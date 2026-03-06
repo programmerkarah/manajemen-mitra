@@ -428,22 +428,25 @@ export default function PengajuanPulsaCreate({
                                                                     'CAPI' &&
                                                                 (
                                                                     petugasPerKegiatan[
-                                                                        kegiatan.id
+                                                                        kegiatan
+                                                                            .id
                                                                     ] ?? []
                                                                 ).some(
                                                                     (p) =>
                                                                         p.id ===
                                                                         petugas.id,
                                                                 );
-                                                            const canPelatihan = (
-                                                                petugasPerKegiatanPelatihan[
-                                                                    kegiatan.id
-                                                                ] ?? []
-                                                            ).some(
-                                                                (p) =>
-                                                                    p.id ===
-                                                                    petugas.id,
-                                                            );
+                                                            const canPelatihan =
+                                                                (
+                                                                    petugasPerKegiatanPelatihan[
+                                                                        kegiatan
+                                                                            .id
+                                                                    ] ?? []
+                                                                ).some(
+                                                                    (p) =>
+                                                                        p.id ===
+                                                                        petugas.id,
+                                                                );
                                                             const submittedPelatihan =
                                                                 (existingPerKegiatan[
                                                                     `${kegiatan.id}_${petugas.id}_pelatihan`
