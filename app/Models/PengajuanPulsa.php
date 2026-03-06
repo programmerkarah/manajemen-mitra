@@ -22,6 +22,7 @@ class PengajuanPulsa extends Model
         'tahun',
         'jenis_pulsa',
         'nominal',
+        'nominal_disetujui',
         'status',
         'submitted_by',
         'submitted_at',
@@ -35,6 +36,7 @@ class PengajuanPulsa extends Model
     {
         return [
             'nominal' => 'float',
+            'nominal_disetujui' => 'float',
             'tahun' => 'integer',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',

@@ -169,12 +169,16 @@ class PengajuanPulsaTest extends TestCase
         // Admin can review
         $responseAdmin = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->post("/pengajuan-pulsa/{$pengajuan->hashed_id}/review", ['action' => 'diterima']);
+            ->post("/pengajuan-pulsa/{$pengajuan->hashed_id}/review", [
+                'action' => 'diterima',
+                'nominal_disetujui' => 50000,
+            ]);
 
         $responseAdmin->assertStatus(302); // redirect after review
         $this->assertDatabaseHas('pengajuan_pulsa', [
             'id' => $pengajuan->id,
             'status' => 'diterima',
+            'nominal_disetujui' => 50000,
         ]);
     }
 
@@ -412,15 +416,18 @@ class PengajuanPulsaTest extends TestCase
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/pengajuan-pulsa/review-all', [
-                'action' => 'diterima',
                 'kegiatan_id' => $kegiatan->id,
                 'bulan' => '06',
                 'tahun' => date('Y'),
+                'items' => [
+                    ['id' => $item1->id, 'action' => 'diterima', 'nominal_disetujui' => 50000],
+                    ['id' => $item2->id, 'action' => 'diterima', 'nominal_disetujui' => 75000],
+                ],
             ]);
 
         $response->assertStatus(302);
-        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item1->id, 'status' => 'diterima']);
-        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item2->id, 'status' => 'diterima']);
+        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item1->id, 'status' => 'diterima', 'nominal_disetujui' => 50000]);
+        $this->assertDatabaseHas('pengajuan_pulsa', ['id' => $item2->id, 'status' => 'diterima', 'nominal_disetujui' => 75000]);
     }
 
     public function test_review_all_rejects_all_dikirim_items_with_catatan(): void
@@ -450,11 +457,13 @@ class PengajuanPulsaTest extends TestCase
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/pengajuan-pulsa/review-all', [
-                'action' => 'ditolak',
                 'kegiatan_id' => $kegiatan->id,
                 'bulan' => '07',
                 'tahun' => date('Y'),
                 'catatan_penolakan' => 'Nominal tidak sesuai.',
+                'items' => [
+                    ['id' => $pengajuan->id, 'action' => 'ditolak'],
+                ],
             ]);
 
         $response->assertStatus(302);
@@ -465,7 +474,7 @@ class PengajuanPulsaTest extends TestCase
         ]);
     }
 
-    public function test_review_all_requires_catatan_when_ditolak(): void
+    public function test_review_all_requires_items_array(): void
     {
         [$ketuaTim] = $this->makeUserWithRole('ketua_tim');
         [$admin, $adminRole] = $this->makeUserWithRole('admin');
@@ -478,14 +487,13 @@ class PengajuanPulsaTest extends TestCase
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/pengajuan-pulsa/review-all', [
-                'action' => 'ditolak',
                 'kegiatan_id' => $kegiatan->id,
                 'bulan' => '06',
                 'tahun' => date('Y'),
-                // no catatan_penolakan
+                // no items
             ]);
 
-        $response->assertSessionHasErrors('catatan_penolakan');
+        $response->assertSessionHasErrors('items');
     }
 
     public function test_review_all_requires_admin_or_operator(): void
@@ -519,13 +527,29 @@ class PengajuanPulsaTest extends TestCase
             'metode_pendataan_pencacahan' => 'CAPI',
         ]);
 
+        $pengajuanAlreadyApproved = PengajuanPulsa::create([
+            'petugas_id' => Petugas::factory()->create()->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'status' => 'diterima',
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+        ]);
+
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/pengajuan-pulsa/review-all', [
-                'action' => 'diterima',
                 'kegiatan_id' => $kegiatan->id,
                 'bulan' => '06',
                 'tahun' => date('Y'),
+                'items' => [
+                    ['id' => $pengajuanAlreadyApproved->id, 'action' => 'diterima', 'nominal_disetujui' => 50000],
+                ],
             ]);
 
         $response->assertRedirect();

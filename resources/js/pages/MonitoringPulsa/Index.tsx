@@ -37,6 +37,7 @@ interface PengajuanPulsaItem {
     tahun: number;
     jenis_pulsa: 'pelatihan' | 'pendataan';
     nominal: number;
+    nominal_disetujui: number | null;
     status: 'dikirim' | 'diterima' | 'ditolak';
     petugas: { id: number; nama: string } | null;
     kegiatan: {
@@ -134,7 +135,11 @@ export default function MonitoringPulsaIndex({
         [items],
     );
     const totalNominalDisetujui = useMemo(
-        () => approvedItems.reduce((sum, i) => sum + i.nominal, 0),
+        () =>
+            approvedItems.reduce(
+                (sum, i) => sum + (i.nominal_disetujui ?? i.nominal),
+                0,
+            ),
         [approvedItems],
     );
     const totalPetugas = useMemo(
@@ -163,11 +168,9 @@ export default function MonitoringPulsaIndex({
             const group = map.get(item.petugas_id)!;
             group.rows.push(item);
             group.totalNominal += item.nominal;
-            if (item.status === 'dikirim') {
-                group.nominalDiajukan += item.nominal;
-            }
+            group.nominalDiajukan += item.nominal;
             if (item.status === 'diterima') {
-                group.nominalDisetujui += item.nominal;
+                group.nominalDisetujui += item.nominal_disetujui ?? item.nominal;
             }
             if (item.status === 'ditolak') {
                 group.nominalDitolak += item.nominal;
@@ -533,8 +536,22 @@ export default function MonitoringPulsaIndex({
                                                                                             }
                                                                                         </td>
                                                                                         <td className="px-4 py-2.5 text-right text-xs font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                                                                            {formatCurrency(
-                                                                                                item.nominal,
+                                                                                            {item.status === 'diterima' ? (
+                                                                                                <>
+                                                                                                    <div className="text-green-700 dark:text-green-400">
+                                                                                                        {formatCurrency(
+                                                                                                            item.nominal_disetujui ?? item.nominal,
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                    {item.nominal_disetujui !== null &&
+                                                                                                        item.nominal_disetujui !== item.nominal && (
+                                                                                                            <div className="text-xs text-neutral-400 line-through dark:text-neutral-500">
+                                                                                                                {formatCurrency(item.nominal)}
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                </>
+                                                                                            ) : (
+                                                                                                formatCurrency(item.nominal)
                                                                                             )}
                                                                                         </td>
                                                                                         {activeTab ===
@@ -568,7 +585,9 @@ export default function MonitoringPulsaIndex({
                                                                                 </td>
                                                                                 <td className="px-4 py-2 text-right text-xs font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                                                     {formatCurrency(
-                                                                                        group.totalNominal,
+                                                                                        activeTab === 'disetujui'
+                                                                                            ? group.nominalDisetujui
+                                                                                            : group.totalNominal,
                                                                                     )}
                                                                                 </td>
                                                                                 {activeTab ===

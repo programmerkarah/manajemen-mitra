@@ -46,7 +46,10 @@ interface PetugasItem {
 
 interface Props {
     eligibleKegiatan: KegiatanItem[];
+    /** Petugas eligible for pendataan pulsa: sourced from current bulan allocations */
     petugasPerKegiatan: Record<number, PetugasItem[]>;
+    /** Petugas eligible for pelatihan pulsa: sourced from bulan_pelatihan+1 allocations (or bulan_pelatihan if kegiatan starts that month) */
+    petugasPerKegiatanPelatihan: Record<number, PetugasItem[]>;
     existingTotals: Record<number, number>;
     /** key = "${kegiatan_id}_${petugas_id}_${jenis_pulsa}" → nominal already submitted */
     existingPerKegiatan: Record<string, number>;
@@ -106,6 +109,7 @@ type NominalMap = Record<string, number>;
 export default function PengajuanPulsaCreate({
     eligibleKegiatan,
     petugasPerKegiatan,
+    petugasPerKegiatanPelatihan,
     existingTotals,
     existingPerKegiatan,
     filters,
@@ -116,7 +120,6 @@ export default function PengajuanPulsaCreate({
     const [nominals, setNominals] = useState<NominalMap>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const selectedMonthNumber = useMemo(() => parseInt(bulan, 10), [bulan]);
 
     const getNominal = useCallback(
         (
@@ -169,26 +172,37 @@ export default function PengajuanPulsaCreate({
     );
 
     /**
-     * Invert petugasPerKegiatan → list of unique petugas each with their kegiatan list,
-     * sorted by petugas name.
+     * Invert petugasPerKegiatan + petugasPerKegiatanPelatihan → list of unique petugas
+     * each with their kegiatan list, sorted by petugas name.
+     * A petugas card appears if they are eligible for either pendataan or pelatihan pulsa.
      */
     const petugasWithKegiatan = useMemo(() => {
         const map = new Map<
             number,
             { petugas: PetugasItem; kegiatan: KegiatanItem[] }
         >();
+
+        const addPetugas = (p: PetugasItem, kegiatan: KegiatanItem) => {
+            if (!map.has(p.id)) {
+                map.set(p.id, { petugas: p, kegiatan: [] });
+            }
+            if (!map.get(p.id)!.kegiatan.some((k) => k.id === kegiatan.id)) {
+                map.get(p.id)!.kegiatan.push(kegiatan);
+            }
+        };
+
         for (const kegiatan of eligibleKegiatan) {
             for (const p of petugasPerKegiatan[kegiatan.id] ?? []) {
-                if (!map.has(p.id)) {
-                    map.set(p.id, { petugas: p, kegiatan: [] });
-                }
-                map.get(p.id)!.kegiatan.push(kegiatan);
+                addPetugas(p, kegiatan);
+            }
+            for (const p of petugasPerKegiatanPelatihan[kegiatan.id] ?? []) {
+                addPetugas(p, kegiatan);
             }
         }
         return Array.from(map.values()).sort((a, b) =>
             a.petugas.nama.localeCompare(b.petugas.nama, 'id'),
         );
-    }, [eligibleKegiatan, petugasPerKegiatan]);
+    }, [eligibleKegiatan, petugasPerKegiatan, petugasPerKegiatanPelatihan]);
 
     const handleFilterChange = (newBulan: string) => {
         router.get(
@@ -411,14 +425,25 @@ export default function PengajuanPulsaCreate({
                                                         (kegiatan) => {
                                                             const canPendataan =
                                                                 kegiatan.metode_pendataan_pencacahan ===
-                                                                'CAPI';
-                                                            const canPelatihan =
-                                                                kegiatan.metode_pelatihan !==
-                                                                    null &&
-                                                                kegiatan.metode_pelatihan !==
-                                                                    'tidak_ada_pelatihan' &&
-                                                                kegiatan.bulan_pelatihan ===
-                                                                    selectedMonthNumber;
+                                                                    'CAPI' &&
+                                                                (
+                                                                    petugasPerKegiatan[
+                                                                        kegiatan.id
+                                                                    ] ?? []
+                                                                ).some(
+                                                                    (p) =>
+                                                                        p.id ===
+                                                                        petugas.id,
+                                                                );
+                                                            const canPelatihan = (
+                                                                petugasPerKegiatanPelatihan[
+                                                                    kegiatan.id
+                                                                ] ?? []
+                                                            ).some(
+                                                                (p) =>
+                                                                    p.id ===
+                                                                    petugas.id,
+                                                            );
                                                             const submittedPelatihan =
                                                                 (existingPerKegiatan[
                                                                     `${kegiatan.id}_${petugas.id}_pelatihan`
