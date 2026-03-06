@@ -15,14 +15,17 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    CheckCircle,
     ChevronLeft,
     ChevronRight,
     Copy,
     Eye,
     FileEdit,
+    FileText,
     Plus,
+    RefreshCw,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface KegiatanItem {
     periode_id: number;
@@ -79,6 +82,12 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Perjanjian Kerja', href: '/spk' },
 ];
 
+type SummaryModalType =
+    | 'all_periods'
+    | 'need_generate'
+    | 'generated'
+    | 'need_addendum';
+
 export default function Index({ periodeList }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem>(
@@ -91,11 +100,88 @@ export default function Index({ periodeList }: IndexProps) {
         title: string;
         message: string;
     }>({ type: 'success', title: '', message: '' });
+    const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+    const [summaryModalType, setSummaryModalType] =
+        useState<SummaryModalType>('all_periods');
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk =
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
+
+    const isNeedGenerate = (monthData: MonthlyPeriodeItem) => {
+        const canGenerateInitialOrRemaining =
+            monthData.total_spk === 0 ||
+            monthData.total_spk < monthData.total_petugas_non_organik;
+
+        const canRegenerate =
+            monthData.total_spk >= monthData.total_petugas_non_organik &&
+            monthData.has_new_kegiatan_after_spk &&
+            !monthData.has_been_regenerated;
+
+        return (
+            canCreateSpk &&
+            monthData.kegiatan_list.length > 0 &&
+            (canGenerateInitialOrRemaining || canRegenerate)
+        );
+    };
+
+    const isNeedAddendum = (monthData: MonthlyPeriodeItem) => {
+        return (
+            canCreateSpk &&
+            monthData.total_spk > 0 &&
+            monthData.has_revision &&
+            (monthData.has_incomplete_addendum ||
+                monthData.has_addendum_changes)
+        );
+    };
+
+    const summaryGroups = useMemo(() => {
+        const allPeriods = decryptedPeriodeList ?? [];
+        const needGenerate = allPeriods.filter((item) => isNeedGenerate(item));
+        const generated = allPeriods.filter((item) => item.total_spk > 0);
+        const needAddendum = allPeriods.filter((item) => isNeedAddendum(item));
+
+        return {
+            allPeriods,
+            needGenerate,
+            generated,
+            needAddendum,
+        };
+    }, [decryptedPeriodeList]);
+
+    const summaryModalItems = useMemo(() => {
+        switch (summaryModalType) {
+            case 'need_generate':
+                return summaryGroups.needGenerate;
+            case 'generated':
+                return summaryGroups.generated;
+            case 'need_addendum':
+                return summaryGroups.needAddendum;
+            case 'all_periods':
+            default:
+                return summaryGroups.allPeriods;
+        }
+    }, [summaryGroups, summaryModalType]);
+
+    const summaryModalTitle = useMemo(() => {
+        switch (summaryModalType) {
+            case 'need_generate':
+                return 'Periode Perlu Generate Perjanjian Kerja';
+            case 'generated':
+                return 'Periode Perjanjian Kerja Sudah Digenerate';
+            case 'need_addendum':
+                return 'Periode Perlu Addendum';
+            case 'all_periods':
+            default:
+                return 'Semua Periode';
+        }
+    }, [summaryModalType]);
+
+    const openSummaryModal = (type: SummaryModalType) => {
+        setSummaryModalType(type);
+        setSummaryModalOpen(true);
+    };
 
     const handleCopyPetugasNames = async (
         bulan: number,
@@ -170,6 +256,85 @@ export default function Index({ periodeList }: IndexProps) {
                     title="Perjanjian Kerja"
                     description="Kelola Perjanjian Kerja untuk petugas per bulan"
                 />
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('all_periods')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Total Periode
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.allPeriods.length}
+                                    </p>
+                                </div>
+                                <FileText className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('need_generate')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Perlu Generate
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.needGenerate.length}
+                                    </p>
+                                </div>
+                                <Plus className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('generated')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Sudah Digenerate
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.generated.length}
+                                    </p>
+                                </div>
+                                <CheckCircle className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('need_addendum')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Perlu Addendum
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.needAddendum.length}
+                                    </p>
+                                </div>
+                                <RefreshCw className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                </div>
 
                 {/* Table */}
                 <ContentCard>
@@ -503,6 +668,99 @@ export default function Index({ periodeList }: IndexProps) {
                                 Tutup
                             </Button>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>{summaryModalTitle}</DialogTitle>
+                            <DialogDescription>
+                                Daftar periode dan aksi cepat untuk pemrosesan Perjanjian Kerja.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {summaryModalItems.length === 0 ? (
+                                <div className="rounded-md border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                    Tidak ada data pada kategori ini.
+                                </div>
+                            ) : (
+                                summaryModalItems.map((monthData) => {
+                                    const periodeHashedId =
+                                        monthData.kegiatan_list[0]
+                                            ?.periode_hashed_id;
+
+                                    return (
+                                        <div
+                                            key={`summary-${monthData.tahun}-${monthData.bulan}`}
+                                            className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                                    {monthData.bulan_label}{' '}
+                                                    {monthData.tahun}
+                                                </p>
+                                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                    {monthData.total_petugas_non_organik}{' '}
+                                                    petugas ·{' '}
+                                                    {monthData.total_spk} SPK
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                {isNeedGenerate(monthData) &&
+                                                    periodeHashedId && (
+                                                        <Button
+                                                            size="sm"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={`/spk/periode/${periodeHashedId}/generate`}
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    )}
+
+                                                {monthData.total_spk > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                '/spk/month',
+                                                                {
+                                                                    bulan: monthData.bulan,
+                                                                    tahun: monthData.tahun,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
+
+                                                {isNeedAddendum(monthData) &&
+                                                    periodeHashedId && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={`/spk/periode/${periodeHashedId}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
+                                                            >
+                                                                <FileEdit className="h-3.5 w-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

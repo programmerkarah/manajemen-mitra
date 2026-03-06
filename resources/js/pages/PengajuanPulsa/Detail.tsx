@@ -255,9 +255,6 @@ export default function PengajuanPulsaDetail({
                                 Kegiatan
                             </p>
                             <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                {kegiatan.kode_kegiatan}
-                            </p>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                 {kegiatan.nama_kegiatan}
                             </p>
                         </div>
@@ -500,7 +497,7 @@ export default function PengajuanPulsaDetail({
                     }
                 }}
             >
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -526,7 +523,7 @@ export default function PengajuanPulsaDetail({
                                             Kegiatan
                                         </dt>
                                         <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
-                                            {kegiatan.kode_kegiatan}
+                                            {kegiatan.nama_kegiatan}
                                         </dd>
                                     </div>
                                     <div className="flex justify-between gap-4">
@@ -732,6 +729,18 @@ export default function PengajuanPulsaDetail({
 
                     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1">
                         {/* Quick-fill buttons */}
+                        <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Nama Kegiatan:
+                            </span>
+                            <span>{kegiatan.nama_kegiatan}</span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Jumlah Petugas:
+                            </span>
+                            <span>{items.length} petugas</span>
+                        </div>
                         <div className="flex shrink-0 items-center gap-2">
                             <span className="text-sm text-neutral-500 dark:text-neutral-400">
                                 Isi cepat:

@@ -2,6 +2,13 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -16,9 +23,13 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     ChevronUp,
     Download,
     Eye,
+    FileCheck,
+    FileText,
     Plus,
     RefreshCw,
 } from 'lucide-react';
@@ -84,6 +95,8 @@ interface IndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SK KPA', href: '/sk-kpa' }];
 
+type SummaryModalType = 'active' | 'not_created' | 'generated' | 'signed';
+
 export default function Index({ kegiatan, summary }: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const allKegiatan = useDecryptedData<KegiatanItem>(kegiatan.encrypted);
@@ -94,7 +107,12 @@ export default function Index({ kegiatan, summary }: IndexProps) {
         'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'
     >('nama_kegiatan');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+    const [summaryModalType, setSummaryModalType] =
+        useState<SummaryModalType>('active');
     const prevFiltersRef = useRef({ search, jenisKegiatan });
 
     // Client-side filtering and sorting
@@ -156,9 +174,28 @@ export default function Index({ kegiatan, summary }: IndexProps) {
             prevFilters.search !== search ||
             prevFilters.jenisKegiatan !== jenisKegiatan
         ) {
+            setCurrentPage(1);
             prevFiltersRef.current = { search, jenisKegiatan };
         }
     }, [search, jenisKegiatan]);
+
+    const totalPages = Math.ceil(filteredAndSortedKegiatan.length / perPage);
+    const paginatedKegiatan = useMemo(() => {
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        return filteredAndSortedKegiatan.slice(start, end);
+    }, [filteredAndSortedKegiatan, currentPage, perPage]);
+
+    useEffect(() => {
+        if (filteredAndSortedKegiatan.length === 0 && currentPage !== 1) {
+            setCurrentPage(1);
+            return;
+        }
+
+        if (totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [filteredAndSortedKegiatan.length, totalPages, currentPage]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -208,7 +245,43 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
+        setCurrentPage(1);
     };
+
+    const openSummaryModal = (type: SummaryModalType) => {
+        setSummaryModalType(type);
+        setSummaryModalOpen(true);
+    };
+
+    const summaryModalItems = useMemo(() => {
+        switch (summaryModalType) {
+            case 'not_created':
+                return allKegiatan.filter((item) => item.sk_count === 0);
+            case 'generated':
+                return allKegiatan.filter((item) => item.sk_count > 0);
+            case 'signed':
+                return allKegiatan.filter(
+                    (item) => item.latest_sk?.signed_file_path,
+                );
+            case 'active':
+            default:
+                return allKegiatan;
+        }
+    }, [summaryModalType, allKegiatan]);
+
+    const summaryModalTitle = useMemo(() => {
+        switch (summaryModalType) {
+            case 'not_created':
+                return 'Daftar SK Belum Dibuat';
+            case 'generated':
+                return 'Daftar SK di Generate';
+            case 'signed':
+                return 'Daftar SK Disahkan';
+            case 'active':
+            default:
+                return 'Daftar Kegiatan Aktif';
+        }
+    }, [summaryModalType]);
 
     const handleDownload = (keg: KegiatanItem) => {
         const latestSk = keg.latest_sk;
@@ -238,38 +311,82 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                 />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Kegiatan Aktif
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {summary.total_kegiatan_aktif}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            SK Belum Dibuat
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {summary.total_sk_belum_dibuat}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            SK di Generate
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {summary.total_sk_digenerate}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            SK Disahkan
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {summary.total_sk_disahkan}
-                        </p>
-                    </ContentCard>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('active')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Kegiatan Aktif
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summary.total_kegiatan_aktif}
+                                    </p>
+                                </div>
+                                <FileText className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('not_created')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        SK Belum Dibuat
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summary.total_sk_belum_dibuat}
+                                    </p>
+                                </div>
+                                <Plus className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('generated')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        SK di Generate
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summary.total_sk_digenerate}
+                                    </p>
+                                </div>
+                                <Eye className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('signed')}
+                        className="text-left"
+                    >
+                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        SK Disahkan
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summary.total_sk_disahkan}
+                                    </p>
+                                </div>
+                                <FileCheck className="h-5 w-5 text-neutral-400" />
+                            </div>
+                        </ContentCard>
+                    </button>
                 </div>
 
                 {/* Filter & Search */}
@@ -342,8 +459,15 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             Menampilkan{' '}
-                            {filteredAndSortedKegiatan.length > 0 ? 1 : 0}-
-                            {filteredAndSortedKegiatan.length} dari{' '}
+                            {filteredAndSortedKegiatan.length === 0
+                                ? 0
+                                : (currentPage - 1) * perPage + 1}
+                            -
+                            {Math.min(
+                                currentPage * perPage,
+                                filteredAndSortedKegiatan.length,
+                            )}{' '}
+                            dari{' '}
                             {filteredAndSortedKegiatan.length} data
                             {filteredAndSortedKegiatan.length !==
                                 allKegiatan.length &&
@@ -414,7 +538,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {filteredAndSortedKegiatan.length === 0 ? (
+                                {paginatedKegiatan.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
@@ -427,7 +551,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredAndSortedKegiatan.map((keg) => (
+                                    paginatedKegiatan.map((keg) => (
                                         <tr
                                             key={keg.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
@@ -554,7 +678,116 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                             </tbody>
                         </table>
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
+                            <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                                Halaman {currentPage} dari {totalPages}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage(currentPage - 1)
+                                    }
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((page) => (
+                                    <Button
+                                        key={page}
+                                        type="button"
+                                        variant={
+                                            currentPage === page
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        size="sm"
+                                        onClick={() => setCurrentPage(page)}
+                                    >
+                                        {page}
+                                    </Button>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage(currentPage + 1)
+                                    }
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </ContentCard>
+
+                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>{summaryModalTitle}</DialogTitle>
+                            <DialogDescription>
+                                Klik aksi pada kegiatan untuk proses lanjutan.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {summaryModalItems.length === 0 ? (
+                                <div className="rounded-md border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                    Tidak ada data untuk kategori ini.
+                                </div>
+                            ) : (
+                                summaryModalItems.map((item) => (
+                                    <div
+                                        key={`summary-${item.id}`}
+                                        className="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                                {item.nama_kegiatan}
+                                            </p>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                {item.kode_kegiatan}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {canCreateSk && item.sk_count === 0 && (
+                                                <Button size="sm" asChild>
+                                                    <Link
+                                                        href={`/sk-kpa/kegiatan/${item.hashed_id}/create`}
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {item.latest_sk && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={`/sk-kpa/${item.latest_sk.hashed_id}`}
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );
