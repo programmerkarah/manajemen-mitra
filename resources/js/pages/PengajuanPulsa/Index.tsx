@@ -1,6 +1,13 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -13,7 +20,14 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Eye, Plus } from 'lucide-react';
+import {
+    CheckCircle,
+    Clock3,
+    Eye,
+    FileText,
+    Plus,
+    XCircle,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -29,6 +43,7 @@ interface PengajuanPulsaItem {
     tahun: number;
     jenis_pulsa: 'pelatihan' | 'pendataan';
     nominal: number;
+    nominal_disetujui: number | null;
     status: 'draft' | 'dikirim' | 'diterima' | 'ditolak';
     catatan: string | null;
     catatan_penolakan: string | null;
@@ -48,7 +63,8 @@ interface KegiatanGroup {
     kegiatanKode: string;
     kegiatanNama: string;
     items: PengajuanPulsaItem[];
-    totalNominal: number;
+    totalNominalDiajukan: number;
+    totalNominalDisetujui: number;
     jumlahPengajuan: number;
     aggregatedStatus:
         | 'menunggu'
@@ -62,6 +78,12 @@ interface Props {
     pengajuanList: { encrypted: string };
     filters: { bulan: string; tahun: string };
 }
+
+type SummaryModalType =
+    | 'all'
+    | 'menunggu'
+    | 'diterima'
+    | 'ditolak';
 
 /** Ordered array to avoid JS integer-key reordering in Object.entries */
 const BULAN_LIST: Array<[string, string]> = [
@@ -142,6 +164,9 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
 
     const [bulan, setBulan] = useState(filters.bulan);
     const tahun = filters.tahun;
+    const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+    const [summaryModalType, setSummaryModalType] =
+        useState<SummaryModalType>('all');
 
     const kegiatanGroups = useMemo<KegiatanGroup[]>(() => {
         const map = new Map<number, PengajuanPulsaItem[]>();
@@ -159,16 +184,81 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                     kegiatanKode: first.kegiatan?.kode_kegiatan ?? '-',
                     kegiatanNama: first.kegiatan?.nama_kegiatan ?? '-',
                     items: groupItems,
-                    totalNominal: groupItems.reduce(
+                    totalNominalDiajukan: groupItems.reduce(
                         (sum, i) => sum + i.nominal,
                         0,
                     ),
+                    totalNominalDisetujui: groupItems.reduce((sum, i) => {
+                        if (i.status !== 'diterima') {
+                            return sum;
+                        }
+
+                        return sum + (i.nominal_disetujui ?? i.nominal);
+                    }, 0),
                     jumlahPengajuan: groupItems.length,
                     aggregatedStatus: getAggregatedStatus(groupItems),
                 };
             })
             .sort((a, b) => a.kegiatanKode.localeCompare(b.kegiatanKode));
     }, [items]);
+
+    const summaryGroups = useMemo(() => {
+        const all = kegiatanGroups;
+        const menunggu = all.filter(
+            (item) => item.aggregatedStatus === 'menunggu',
+        );
+        const diterima = all.filter(
+            (item) => item.aggregatedStatus === 'diterima',
+        );
+        const ditolak = all.filter((item) => item.aggregatedStatus === 'ditolak');
+
+        return { all, menunggu, diterima, ditolak };
+    }, [kegiatanGroups]);
+
+    const summaryModalItems = useMemo(() => {
+        switch (summaryModalType) {
+            case 'menunggu':
+                return summaryGroups.menunggu;
+            case 'diterima':
+                return summaryGroups.diterima;
+            case 'ditolak':
+                return summaryGroups.ditolak;
+            case 'all':
+            default:
+                return summaryGroups.all;
+        }
+    }, [summaryGroups, summaryModalType]);
+
+    const summaryModalTitle = useMemo(() => {
+        switch (summaryModalType) {
+            case 'menunggu':
+                return 'Pengajuan Menunggu Review';
+            case 'diterima':
+                return 'Pengajuan Diterima';
+            case 'ditolak':
+                return 'Pengajuan Ditolak';
+            case 'all':
+            default:
+                return 'Semua Pengajuan';
+        }
+    }, [summaryModalType]);
+
+    const openSummaryModal = (type: SummaryModalType) => {
+        setSummaryModalType(type);
+        setSummaryModalOpen(true);
+    };
+
+    const summaryTotals = useMemo(() => {
+        return kegiatanGroups.reduce(
+            (acc, item) => {
+                acc.diajukan += item.totalNominalDiajukan;
+                acc.disetujui += item.totalNominalDisetujui;
+
+                return acc;
+            },
+            { diajukan: 0, disetujui: 0 },
+        );
+    }, [kegiatanGroups]);
 
     const handleFilterChange = (newBulan: string) => {
         router.get(
@@ -227,6 +317,93 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                     </div>
                 </ContentCard>
 
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('all')}
+                        className="text-left"
+                    >
+                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                                        Nominal Diajukan
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {formatCurrency(summaryTotals.diajukan)}
+                                    </p>
+                                </div>
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                    <FileText className="h-5 w-5" />
+                                </span>
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('menunggu')}
+                        className="text-left"
+                    >
+                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                                        Menunggu Review
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.menunggu.length}
+                                    </p>
+                                </div>
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                                    <Clock3 className="h-5 w-5" />
+                                </span>
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('diterima')}
+                        className="text-left"
+                    >
+                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                        Nominal Disetujui
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {formatCurrency(summaryTotals.disetujui)}
+                                    </p>
+                                </div>
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                    <CheckCircle className="h-5 w-5" />
+                                </span>
+                            </div>
+                        </ContentCard>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => openSummaryModal('ditolak')}
+                        className="text-left"
+                    >
+                        <ContentCard className="border border-rose-200/60 bg-gradient-to-br from-rose-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-rose-900/40 dark:from-rose-950/30 dark:to-neutral-900">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-rose-700 dark:text-rose-300">
+                                        Ditolak
+                                    </p>
+                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {summaryGroups.ditolak.length}
+                                    </p>
+                                </div>
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
+                                    <XCircle className="h-5 w-5" />
+                                </span>
+                            </div>
+                        </ContentCard>
+                    </button>
+                </div>
+
                 {/* Per-kegiatan table */}
                 <ContentCard padding="none">
                     <div className="px-6 pt-4 pb-2">
@@ -246,7 +423,10 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                         Jumlah Petugas
                                     </th>
                                     <th className="px-4 py-3.5 text-right text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        Total Nominal
+                                        Nominal Diajukan
+                                    </th>
+                                    <th className="px-4 py-3.5 text-right text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        Nominal Disetujui
                                     </th>
                                     <th className="px-4 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Status
@@ -283,7 +463,12 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                             </td>
                                             <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                                 {formatCurrency(
-                                                    group.totalNominal,
+                                                    group.totalNominalDiajukan,
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                                {formatCurrency(
+                                                    group.totalNominalDisetujui,
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-center">
@@ -320,6 +505,56 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                         </table>
                     </div>
                 </ContentCard>
+
+                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>{summaryModalTitle}</DialogTitle>
+                            <DialogDescription>
+                                Klik detail untuk membuka rincian pengajuan per kegiatan.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {summaryModalItems.length === 0 ? (
+                                <div className="rounded-md border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                    Tidak ada data pada kategori ini.
+                                </div>
+                            ) : (
+                                summaryModalItems.map((group) => (
+                                    <div
+                                        key={`summary-${group.kegiatanId}`}
+                                        className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
+                                    >
+                                        <div>
+                                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                                {group.kegiatanNama}
+                                            </p>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                {group.kegiatanKode} ·{' '}
+                                                {group.jumlahPengajuan} petugas
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                asChild
+                                            >
+                                                <Link
+                                                    href={`/pengajuan-pulsa/detail?kegiatan_id=${group.kegiatanId}&bulan=${bulan}`}
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                </Link>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

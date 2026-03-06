@@ -316,17 +316,19 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                         onClick={() => openSummaryModal('active')}
                         className="text-left"
                     >
-                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
                                         Kegiatan Aktif
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summary.total_kegiatan_aktif}
                                     </p>
                                 </div>
-                                <FileText className="h-5 w-5 text-neutral-400" />
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                    <FileText className="h-5 w-5" />
+                                </span>
                             </div>
                         </ContentCard>
                     </button>
@@ -335,17 +337,19 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                         onClick={() => openSummaryModal('not_created')}
                         className="text-left"
                     >
-                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    <p className="text-sm text-amber-700 dark:text-amber-300">
                                         SK Belum Dibuat
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summary.total_sk_belum_dibuat}
                                     </p>
                                 </div>
-                                <Plus className="h-5 w-5 text-neutral-400" />
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                                    <Plus className="h-5 w-5" />
+                                </span>
                             </div>
                         </ContentCard>
                     </button>
@@ -354,17 +358,19 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                         onClick={() => openSummaryModal('generated')}
                         className="text-left"
                     >
-                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                        <ContentCard className="border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    <p className="text-sm text-indigo-700 dark:text-indigo-300">
                                         SK di Generate
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summary.total_sk_digenerate}
                                     </p>
                                 </div>
-                                <Eye className="h-5 w-5 text-neutral-400" />
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                    <Eye className="h-5 w-5" />
+                                </span>
                             </div>
                         </ContentCard>
                     </button>
@@ -373,17 +379,19 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                         onClick={() => openSummaryModal('signed')}
                         className="text-left"
                     >
-                        <ContentCard className="transition-all hover:-translate-y-0.5 hover:shadow-md">
+                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
                                         SK Disahkan
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summary.total_sk_disahkan}
                                     </p>
                                 </div>
-                                <FileCheck className="h-5 w-5 text-neutral-400" />
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                    <FileCheck className="h-5 w-5" />
+                                </span>
                             </div>
                         </ContentCard>
                     </button>
