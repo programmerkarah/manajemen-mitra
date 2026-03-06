@@ -105,12 +105,13 @@ class PengajuanPulsaController extends Controller
             ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'metode_pendataan_pencacahan', 'metode_pendataan_listing', 'metode_pelatihan', 'bulan_pelatihan', 'has_listing_updating')
             ->where(function ($q) use ($bulan) {
                 // Hide kegiatan where both pulsa columns would be locked:
-                // - pelatihan locked: metode_pelatihan NOT IN ['daring', 'hybrid'] OR bulan != bulan_pelatihan
+                // - pelatihan locked: metode_pelatihan = 'tidak_ada_pelatihan' OR bulan != bulan_pelatihan
                 // - pendataan locked: metode_pendataan_pencacahan = 'PAPI'
                 // Show if at least one column is available.
                 $q->where(function ($pelatihanQuery) use ($bulan) {
                     $pelatihanQuery
-                        ->whereIn('metode_pelatihan', ['daring', 'hybrid'])
+                        ->whereNotNull('metode_pelatihan')
+                        ->where('metode_pelatihan', '!=', 'tidak_ada_pelatihan')
                         ->where('bulan_pelatihan', (int) $bulan);
                 })
                     ->orWhere('metode_pendataan_pencacahan', 'CAPI')
@@ -230,15 +231,15 @@ class PengajuanPulsaController extends Controller
             ]);
         }
 
-        // Validate per-item: pulsa pelatihan only allowed for daring/hybrid kegiatan
+        // Validate per-item: pulsa pelatihan only allowed for kegiatan with pelatihan month configured
         foreach ($items as $item) {
             if ($item['jenis_pulsa'] === 'pelatihan') {
                 /** @var \App\Models\Kegiatan|null $kegiatan */
                 $kegiatan = $validKegiatanById->get($item['kegiatan_id']);
                 $metodePelatihan = $kegiatan?->metode_pelatihan;
-                if (! in_array($metodePelatihan, ['daring', 'hybrid'])) {
+                if ($metodePelatihan === null || $metodePelatihan === 'tidak_ada_pelatihan') {
                     return back()->withErrors([
-                        'items' => 'Pulsa pelatihan hanya dapat diajukan untuk kegiatan dengan metode pelatihan daring atau hybrid.',
+                        'items' => 'Pulsa pelatihan hanya dapat diajukan untuk kegiatan yang memiliki pelatihan.',
                     ]);
                 }
 

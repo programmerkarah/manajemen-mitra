@@ -413,10 +413,10 @@ export default function PengajuanPulsaCreate({
                                                                 kegiatan.metode_pendataan_pencacahan ===
                                                                 'CAPI';
                                                             const canPelatihan =
-                                                                (kegiatan.metode_pelatihan ===
-                                                                    'daring' ||
-                                                                    kegiatan.metode_pelatihan ===
-                                                                        'hybrid') &&
+                                                                kegiatan.metode_pelatihan !==
+                                                                    null &&
+                                                                kegiatan.metode_pelatihan !==
+                                                                    'tidak_ada_pelatihan' &&
                                                                 kegiatan.bulan_pelatihan ===
                                                                     selectedMonthNumber;
                                                             const submittedPelatihan =
@@ -468,7 +468,7 @@ export default function PengajuanPulsaCreate({
                                                                         </div>
                                                                     </td>
 
-                                                                    {/* Pulsa Pelatihan — only for daring/hybrid kegiatan */}
+                                                                    {/* Pulsa Pelatihan — only on configured bulan_pelatihan */}
                                                                     <td className="px-4 py-3">
                                                                         {submittedPelatihan ? (
                                                                             <div className="flex h-9 w-full items-center justify-end rounded-md border border-neutral-200 bg-neutral-100 px-3 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">

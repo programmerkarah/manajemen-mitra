@@ -231,7 +231,7 @@ class PengajuanPulsaTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_store_rejects_pelatihan_pulsa_for_luring_kegiatan(): void
+    public function test_store_accepts_pelatihan_pulsa_for_luring_on_bulan_pelatihan(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');
 
@@ -239,6 +239,7 @@ class PengajuanPulsaTest extends TestCase
             'ketua_tim_user_id' => $user->id,
             'metode_pendataan_pencacahan' => 'CAPI',
             'metode_pelatihan' => 'luring',
+            'bulan_pelatihan' => 6,
             'tahun_anggaran' => date('Y'),
         ]);
 
@@ -259,7 +260,14 @@ class PengajuanPulsaTest extends TestCase
                 ],
             ]);
 
-        $response->assertSessionHasErrors();
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('pengajuan_pulsa', [
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugas->id,
+            'jenis_pulsa' => 'pelatihan',
+            'nominal' => 50000,
+            'bulan' => '06',
+        ]);
     }
 
     public function test_store_rejects_pelatihan_pulsa_for_tidak_ada_pelatihan_kegiatan(): void
