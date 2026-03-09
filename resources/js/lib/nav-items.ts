@@ -7,6 +7,7 @@ import {
     FileText,
     Gem,
     LayoutGrid,
+    LineChart,
     Package,
     Scale,
     Signature,
@@ -86,6 +87,11 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/monitoring-pulsa',
                         icon: Smartphone,
                     },
+                    {
+                        title: 'Penilaian Mitra Statistik',
+                        href: '/monitoring-penilaian-mitra',
+                        icon: LineChart,
+                    },
                 ],
             },
             { title: 'Manajemen User', href: '/users', icon: Users },
@@ -161,6 +167,11 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/monitoring-pulsa',
                         icon: Smartphone,
                     },
+                    {
+                        title: 'Penilaian Mitra Statistik',
+                        href: '/monitoring-penilaian-mitra',
+                        icon: LineChart,
+                    },
                 ],
             },
         );
@@ -200,6 +211,11 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         title: 'Rekap Pengadaan Pulsa',
                         href: '/monitoring-pulsa',
                         icon: Smartphone,
+                    },
+                    {
+                        title: 'Penilaian Mitra Statistik',
+                        href: '/monitoring-penilaian-mitra',
+                        icon: LineChart,
                     },
                 ],
             },
@@ -255,9 +271,48 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 title: 'Monitoring',
                 href: '#',
                 icon: Airplay,
-                items: [{ title: 'Rekap Honor Petugas', href: '/rekap-honor' }],
+                items: [
+                    { title: 'Rekap Honor Petugas', href: '/rekap-honor' },
+                    {
+                        title: 'Penilaian Mitra Statistik',
+                        href: '/monitoring-penilaian-mitra',
+                        icon: LineChart,
+                    },
+                ],
             },
         );
+    }
+
+    if (activeRoleName && activeRoleName !== 'guest') {
+        const petugasMenu = mainNavItems.find(
+            (item) => item.title === 'Petugas',
+        );
+
+        if (petugasMenu) {
+            petugasMenu.items = petugasMenu.items ?? [];
+            const alreadyExists = petugasMenu.items.some(
+                (item) => item.href === '/petugas/review',
+            );
+
+            if (!alreadyExists) {
+                petugasMenu.items.push({
+                    title: 'Review Petugas (BARU)',
+                    href: '/petugas/review',
+                });
+            }
+        } else {
+            mainNavItems.push({
+                title: 'Petugas',
+                href: '#',
+                icon: Users,
+                items: [
+                    {
+                        title: 'Review Petugas (BARU)',
+                        href: '/petugas/review',
+                    },
+                ],
+            });
+        }
     }
 
     return mainNavItems;

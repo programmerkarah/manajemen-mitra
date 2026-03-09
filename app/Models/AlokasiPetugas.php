@@ -30,6 +30,9 @@ class AlokasiPetugas extends Model
     }
 
     protected $fillable = [
+        'kegiatan_id',
+        'bulan',
+        'tahun',
         'periode_alokasi_id',
         'petugas_id',
         'jumlah_satuan',

@@ -444,19 +444,31 @@ export default function Create({
         active_year,
     ]);
 
-    const kegiatanOptions = useMemo(() => {
-        if (!preSelectedKegiatan) {
-            return filteredKegiatans;
-        }
+    const availableKegiatanIds = useMemo(
+        () => new Set(filteredKegiatans.map((item) => String(item.id))),
+        [filteredKegiatans],
+    );
 
-        const exists = filteredKegiatans.some(
-            (item) => String(item.id) === String(preSelectedKegiatan.id),
+    const kegiatanOptions = useMemo(() => {
+        const combinedKegiatans = preSelectedKegiatan
+            ? [preSelectedKegiatan, ...kegiatans]
+            : kegiatans;
+
+        const uniqueKegiatans = Array.from(
+            new Map(
+                combinedKegiatans.map((item) => [String(item.id), item]),
+            ).values(),
         );
 
-        return exists
-            ? filteredKegiatans
-            : [preSelectedKegiatan, ...filteredKegiatans];
-    }, [filteredKegiatans, preSelectedKegiatan]);
+        const availableKegiatans = uniqueKegiatans.filter((item) =>
+            availableKegiatanIds.has(String(item.id)),
+        );
+        const unavailableKegiatans = uniqueKegiatans.filter(
+            (item) => !availableKegiatanIds.has(String(item.id)),
+        );
+
+        return [...availableKegiatans, ...unavailableKegiatans];
+    }, [kegiatans, preSelectedKegiatan, availableKegiatanIds]);
 
     const selectedKegiatan = kegiatanOptions.find(
         (k) => String(k.id) === String(selectedKegiatanId),
@@ -1436,6 +1448,7 @@ export default function Create({
                                     }}
                                     placeholder="Pilih Kegiatan"
                                     searchPlaceholder="Cari kegiatan..."
+                                    defaultVisibleCount={15}
                                     disabled={isEditMode || isViewMode}
                                 />
                                 {allErrors.kegiatan_id && (

@@ -7,10 +7,12 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MonitoringPenilaianMitraController;
 use App\Http\Controllers\MonitoringPulsaController;
 use App\Http\Controllers\PenandatanganController;
 use App\Http\Controllers\PengajuanPulsaController;
 use App\Http\Controllers\PetugasController;
+use App\Http\Controllers\PetugasReviewController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
 use App\Http\Controllers\SbmlReportController;
@@ -202,6 +204,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('admin.database-list-backups');
     });
     // Petugas Management - IMPORTANT: Specific routes must come before parameter routes
+    Route::middleware(['active.role'])->group(function () {
+        Route::get('petugas/review', [PetugasReviewController::class, 'index'])->name('petugas.review.index');
+        Route::post('petugas/review', [PetugasReviewController::class, 'store'])->name('petugas.review.store');
+    });
+
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
@@ -464,6 +471,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('monitoring-pulsa', [MonitoringPulsaController::class, 'index'])
         ->name('monitoring-pulsa.index')
         ->middleware('active.role:admin,operator,ketua_tim');
+
+    Route::get('monitoring-penilaian-mitra', [MonitoringPenilaianMitraController::class, 'index'])
+        ->name('monitoring-penilaian-mitra.index');
 
     // Pengajuan Pulsa
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
