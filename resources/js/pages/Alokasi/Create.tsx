@@ -454,10 +454,6 @@ export default function Create({
         (k) => String(k.id) === String(selectedKegiatanId),
     );
 
-    useEffect(() => {
-        setRestorableItemsByCount([]);
-    }, [selectedKegiatanId]);
-
     // Get budget info for selected kegiatan
     const currentBudget =
         selectedKegiatan && selectedKegiatanId
@@ -1359,7 +1355,10 @@ export default function Create({
                                         }),
                                     )}
                                     value={selectedKegiatanId}
-                                    onValueChange={setSelectedKegiatanId}
+                                    onValueChange={(value) => {
+                                        setSelectedKegiatanId(value);
+                                        setRestorableItemsByCount([]);
+                                    }}
                                     placeholder="Pilih Kegiatan"
                                     searchPlaceholder="Cari kegiatan..."
                                     disabled={isEditMode || isViewMode}
@@ -1975,8 +1974,7 @@ export default function Create({
                                                     }
                                                     disabled={
                                                         isRevisiMode ||
-                                                        alokasiItems.length <=
-                                                            1
+                                                        alokasiItems.length <= 1
                                                     }
                                                     className="h-8 gap-1.5"
                                                 >

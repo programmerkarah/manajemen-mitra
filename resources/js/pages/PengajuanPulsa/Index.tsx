@@ -79,11 +79,7 @@ interface Props {
     filters: { bulan: string; tahun: string };
 }
 
-type SummaryModalType =
-    | 'all'
-    | 'menunggu'
-    | 'diterima'
-    | 'ditolak';
+type SummaryModalType = 'all' | 'menunggu' | 'diterima' | 'ditolak';
 
 /** Ordered array to avoid JS integer-key reordering in Object.entries */
 const BULAN_LIST: Array<[string, string]> = [
@@ -210,7 +206,9 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
         const diterima = all.filter(
             (item) => item.aggregatedStatus === 'diterima',
         );
-        const ditolak = all.filter((item) => item.aggregatedStatus === 'ditolak');
+        const ditolak = all.filter(
+            (item) => item.aggregatedStatus === 'ditolak',
+        );
 
         return { all, menunggu, diterima, ditolak };
     }, [kegiatanGroups]);
@@ -372,7 +370,9 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                         Nominal Disetujui
                                     </p>
                                     <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {formatCurrency(summaryTotals.disetujui)}
+                                        {formatCurrency(
+                                            summaryTotals.disetujui,
+                                        )}
                                     </p>
                                 </div>
                                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
@@ -506,12 +506,16 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                     </div>
                 </ContentCard>
 
-                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                <Dialog
+                    open={summaryModalOpen}
+                    onOpenChange={setSummaryModalOpen}
+                >
                     <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>
-                                Klik detail untuk membuka rincian pengajuan per kegiatan.
+                                Klik detail untuk membuka rincian pengajuan per
+                                kegiatan.
                             </DialogDescription>
                         </DialogHeader>
 

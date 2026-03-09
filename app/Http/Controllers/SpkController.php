@@ -454,6 +454,7 @@ class SpkController extends Controller
                 'petugas_nama' => $s->alokasiPetugas->petugas->nama,
                 'petugas_nik' => $s->alokasiPetugas->petugas->nik,
                 'status' => $s->status,
+                'file_path' => $latestSpkDoc?->file_path,
                 'signed_file_path' => $latestSpkDoc?->signed_file_path,
             ];
         })->sortBy('petugas_nama')->values()->all();

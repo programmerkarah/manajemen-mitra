@@ -317,10 +317,10 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                                                         )
                                                     }
                                                     className="w-full justify-start"
-                                                    variant="default"
+                                                    variant="complete"
                                                 >
                                                     <Check className="mr-2 h-4 w-4" />
-                                                    Download SK Bertanda Tangan
+                                                    Unduh SK Bertanda Tangan
                                                 </Button>
                                             )}
 
@@ -337,7 +337,8 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                                             }
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download SK Asli (Tanpa TTD)
+                                            Unduh SK Hasil <em>Generate</em>{' '}
+                                            (Belum Bertanda Tangan)
                                         </Button>
                                     </div>
                                 </div>

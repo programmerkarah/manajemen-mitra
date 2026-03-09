@@ -33,7 +33,7 @@ import {
     Plus,
     RefreshCw,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface LatestSk {
     id: number;
@@ -113,8 +113,6 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
     const [summaryModalType, setSummaryModalType] =
         useState<SummaryModalType>('active');
-    const prevFiltersRef = useRef({ search, jenisKegiatan });
-
     // Client-side filtering and sorting
     const filteredAndSortedKegiatan = useMemo(() => {
         let result: KegiatanItem[] = [...allKegiatan];
@@ -167,35 +165,15 @@ export default function Index({ kegiatan, summary }: IndexProps) {
         return result;
     }, [allKegiatan, search, jenisKegiatan, sortField, sortDirection]);
 
-    // Reset filter reference when filters change
-    useEffect(() => {
-        const prevFilters = prevFiltersRef.current;
-        if (
-            prevFilters.search !== search ||
-            prevFilters.jenisKegiatan !== jenisKegiatan
-        ) {
-            setCurrentPage(1);
-            prevFiltersRef.current = { search, jenisKegiatan };
-        }
-    }, [search, jenisKegiatan]);
-
     const totalPages = Math.ceil(filteredAndSortedKegiatan.length / perPage);
+    const effectiveCurrentPage =
+        totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+
     const paginatedKegiatan = useMemo(() => {
-        const start = (currentPage - 1) * perPage;
+        const start = (effectiveCurrentPage - 1) * perPage;
         const end = start + perPage;
         return filteredAndSortedKegiatan.slice(start, end);
-    }, [filteredAndSortedKegiatan, currentPage, perPage]);
-
-    useEffect(() => {
-        if (filteredAndSortedKegiatan.length === 0 && currentPage !== 1) {
-            setCurrentPage(1);
-            return;
-        }
-
-        if (totalPages > 0 && currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [filteredAndSortedKegiatan.length, totalPages, currentPage]);
+    }, [filteredAndSortedKegiatan, effectiveCurrentPage, perPage]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -412,7 +390,10 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                     id="search"
                                     type="text"
                                     value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearch(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     placeholder="Nama atau kode kegiatan..."
                                     className="w-full"
                                 />
@@ -427,9 +408,10 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                 </label>
                                 <Select
                                     value={jenisKegiatan}
-                                    onValueChange={(value) =>
-                                        setJenisKegiatan(value)
-                                    }
+                                    onValueChange={(value) => {
+                                        setJenisKegiatan(value);
+                                        setCurrentPage(1);
+                                    }}
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Semua Jenis" />
@@ -469,14 +451,13 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                             Menampilkan{' '}
                             {filteredAndSortedKegiatan.length === 0
                                 ? 0
-                                : (currentPage - 1) * perPage + 1}
+                                : (effectiveCurrentPage - 1) * perPage + 1}
                             -
                             {Math.min(
-                                currentPage * perPage,
+                                effectiveCurrentPage * perPage,
                                 filteredAndSortedKegiatan.length,
                             )}{' '}
-                            dari{' '}
-                            {filteredAndSortedKegiatan.length} data
+                            dari {filteredAndSortedKegiatan.length} data
                             {filteredAndSortedKegiatan.length !==
                                 allKegiatan.length &&
                                 ` (difilter dari ${allKegiatan.length} total)`}
@@ -690,7 +671,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     {totalPages > 1 && (
                         <div className="mt-4 flex items-center justify-between border-t border-neutral-200 px-6 py-3 dark:border-neutral-700">
                             <div className="text-sm text-neutral-700 dark:text-neutral-300">
-                                Halaman {currentPage} dari {totalPages}
+                                Halaman {effectiveCurrentPage} dari {totalPages}
                             </div>
                             <div className="flex gap-2">
                                 <Button
@@ -698,9 +679,9 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                     variant="outline"
                                     size="sm"
                                     onClick={() =>
-                                        setCurrentPage(currentPage - 1)
+                                        setCurrentPage(effectiveCurrentPage - 1)
                                     }
-                                    disabled={currentPage === 1}
+                                    disabled={effectiveCurrentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
@@ -712,7 +693,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         key={page}
                                         type="button"
                                         variant={
-                                            currentPage === page
+                                            effectiveCurrentPage === page
                                                 ? 'default'
                                                 : 'outline'
                                         }
@@ -727,9 +708,11 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                     variant="outline"
                                     size="sm"
                                     onClick={() =>
-                                        setCurrentPage(currentPage + 1)
+                                        setCurrentPage(effectiveCurrentPage + 1)
                                     }
-                                    disabled={currentPage === totalPages}
+                                    disabled={
+                                        effectiveCurrentPage === totalPages
+                                    }
                                 >
                                     <ChevronRight className="h-4 w-4" />
                                 </Button>
@@ -738,7 +721,10 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     )}
                 </ContentCard>
 
-                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                <Dialog
+                    open={summaryModalOpen}
+                    onOpenChange={setSummaryModalOpen}
+                >
                     <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
@@ -767,15 +753,16 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {canCreateSk && item.sk_count === 0 && (
-                                                <Button size="sm" asChild>
-                                                    <Link
-                                                        href={`/sk-kpa/kegiatan/${item.hashed_id}/create`}
-                                                    >
-                                                        <Plus className="h-3.5 w-3.5" />
-                                                    </Link>
-                                                </Button>
-                                            )}
+                                            {canCreateSk &&
+                                                item.sk_count === 0 && (
+                                                    <Button size="sm" asChild>
+                                                        <Link
+                                                            href={`/sk-kpa/kegiatan/${item.hashed_id}/create`}
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             {item.latest_sk && (
                                                 <Button
                                                     size="sm"

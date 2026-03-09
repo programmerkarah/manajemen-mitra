@@ -2829,6 +2829,8 @@ class BastController extends Controller
                     'hashed_id' => $b->hashed_id,
                     'nomor_bast' => $b->nomor_bast,
                     'petugas_nama' => $petugasNama,
+                    'file_path' => $b->file_path,
+                    'signed_file_path' => $b->signed_file_path,
                     'is_current' => $b->id === $bast->id,
                 ];
             });

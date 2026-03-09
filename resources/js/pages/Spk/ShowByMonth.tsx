@@ -8,11 +8,19 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import {
     constructDownloadAllFilename,
+    openFastDownload,
     tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Archive, Download, FileText, Upload } from 'lucide-react';
+import {
+    Archive,
+    CheckCircle2,
+    Download,
+    FileText,
+    PenLine,
+    Upload,
+} from 'lucide-react';
 import React, { useState } from 'react';
 
 interface Spk {
@@ -106,6 +114,7 @@ interface PetugasListItem {
     hashed_id: string;
     petugas_nama: string;
     petugas_nik: string;
+    file_path: string | null;
     signed_file_path: string | null;
 }
 
@@ -212,6 +221,18 @@ export default function ShowByMonth({
 
     const allPetugas = Array.from(uniquePetugasMap.values());
 
+    const generatedFileCount = allPetugas.filter(
+        (item: PetugasListItem) => item.file_path,
+    ).length;
+    const signedFileCount = allPetugas.filter(
+        (item: PetugasListItem) => item.signed_file_path,
+    ).length;
+    const unsignedFileCount = Math.max(generatedFileCount - signedFileCount, 0);
+    const signedProgress =
+        generatedFileCount > 0
+            ? Math.round((signedFileCount / generatedFileCount) * 100)
+            : 0;
+
     // Filter petugas by signed status using the signed_file_path from backend
     const petugasSigned = allPetugas.filter((item: PetugasListItem) => {
         return item.signed_file_path !== null && item.signed_file_path !== '';
@@ -303,7 +324,7 @@ export default function ShowByMonth({
     };
 
     const handleDownload = (filePath: string) => {
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     const handleDownloadAll = async () => {
@@ -368,6 +389,78 @@ export default function ShowByMonth({
                 title={`Detail Perjanjian Kerja ${bulan_label} ${tahun}`}
             ></PageHeader>
 
+            <ContentCard>
+                <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Ringkasan Dokumen Perjanjian Kerja
+                            </h3>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Progres dokumen petugas periode {bulan_label}{' '}
+                                {tahun}
+                            </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                            {signedProgress}% signed
+                        </Badge>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="group rounded-xl border border-blue-200/80 bg-linear-to-br from-blue-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/60 dark:from-blue-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
+                                    File Digenerate
+                                </p>
+                                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-100">
+                                {generatedFileCount}
+                            </p>
+                        </div>
+
+                        <div className="group rounded-xl border border-green-200/80 bg-linear-to-br from-green-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-green-900/60 dark:from-green-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-green-700 uppercase dark:text-green-300">
+                                    Sudah Ditandatangani
+                                </p>
+                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-green-900 dark:text-green-100">
+                                {signedFileCount}
+                            </p>
+                        </div>
+
+                        <div className="group rounded-xl border border-amber-200/80 bg-linear-to-br from-amber-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/60 dark:from-amber-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                    Belum Ditandatangani
+                                </p>
+                                <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-100">
+                                {unsignedFileCount}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="mb-1 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
+                            <span>Progres tanda tangan</span>
+                            <span>
+                                {signedFileCount}/{generatedFileCount || 0}
+                            </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-800">
+                            <div
+                                className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                                style={{ width: `${signedProgress}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </ContentCard>
+
             <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
                 {/* Sidebar - Petugas List */}
                 <div className="w-full min-w-0 md:col-span-1">
@@ -397,14 +490,16 @@ export default function ShowByMonth({
                                 {petugasSigned.length > 0 && (
                                     <div className="space-y-2">
                                         {petugasSigned.map((item) => (
-                                            <button
+                                            <Button
                                                 key={item.id}
+                                                type="button"
+                                                variant="ghost"
                                                 onClick={() =>
                                                     handleSelectPetugas(
                                                         item.hashed_id,
                                                     )
                                                 }
-                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                                                className={`w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${
                                                     item.id === decryptedSpk.id
                                                         ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
                                                         : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
@@ -413,7 +508,7 @@ export default function ShowByMonth({
                                                 <div className="text-sm font-medium text-neutral-900 dark:text-white">
                                                     {item.petugas_nama}
                                                 </div>
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 )}
@@ -427,14 +522,16 @@ export default function ShowByMonth({
                                 {petugasUnsigned.length > 0 && (
                                     <div className="space-y-2">
                                         {petugasUnsigned.map((item) => (
-                                            <button
+                                            <Button
                                                 key={item.id}
+                                                type="button"
+                                                variant="ghost"
                                                 onClick={() =>
                                                     handleSelectPetugas(
                                                         item.hashed_id,
                                                     )
                                                 }
-                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                                                className={`w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${
                                                     item.id === decryptedSpk.id
                                                         ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
                                                         : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
@@ -443,7 +540,7 @@ export default function ShowByMonth({
                                                 <div className="text-sm font-medium text-neutral-900 dark:text-white">
                                                     {item.petugas_nama}
                                                 </div>
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 )}
@@ -566,7 +663,7 @@ export default function ShowByMonth({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                History Dokumen Perjanjian Kerja
+                                Riwayat Dokumen Perjanjian Kerja
                             </h3>
 
                             <div className="space-y-3">
@@ -612,6 +709,7 @@ export default function ShowByMonth({
                                                         <Button
                                                             size="sm"
                                                             variant="default"
+                                                            className="cursor-pointer"
                                                             onClick={() =>
                                                                 handleDownload(
                                                                     doc.signed_file_path ||
@@ -620,9 +718,9 @@ export default function ShowByMonth({
                                                             }
                                                         >
                                                             <Download className="mr-2 h-3.5 w-3.5" />
-                                                            Download{' '}
+                                                            Unduh{' '}
                                                             {doc.signed_file_path
-                                                                ? '(Signed)'
+                                                                ? '(Bertanda tangan)'
                                                                 : ''}
                                                         </Button>
                                                         {canEdit &&
@@ -638,8 +736,10 @@ export default function ShowByMonth({
                                                                     }
                                                                 >
                                                                     <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                    Upload
-                                                                    Signed
+                                                                    Unggah
+                                                                    Dokumen
+                                                                    Bertanda
+                                                                    tangan
                                                                 </Button>
                                                             )}
                                                     </>
@@ -659,7 +759,7 @@ export default function ShowByMonth({
                                                                 }
                                                             >
                                                                 <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                Upload
+                                                                Unggah Dokumen
                                                             </Button>
                                                         )}
                                                     </>
@@ -1107,6 +1207,7 @@ export default function ShowByMonth({
                                             id="file"
                                             type="file"
                                             accept=".pdf"
+                                            className="border-solid border-neutral-300 dark:border-neutral-700"
                                             onChange={handleFileChange}
                                             required
                                         />
@@ -1124,6 +1225,7 @@ export default function ShowByMonth({
                                         <Button
                                             type="button"
                                             variant="outline"
+                                            className="cursor-pointer"
                                             onClick={() => {
                                                 setUploadingDocId(null);
                                                 reset();
@@ -1133,11 +1235,12 @@ export default function ShowByMonth({
                                         </Button>
                                         <Button
                                             type="submit"
+                                            className="cursor-pointer"
                                             disabled={processing || !data.file}
                                         >
                                             {processing
                                                 ? 'Mengunggah...'
-                                                : 'Upload'}
+                                                : 'Unggah'}
                                         </Button>
                                     </div>
                                 </form>

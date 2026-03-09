@@ -257,14 +257,18 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const summaryModalItems = useMemo(() => {
         switch (summaryCardType) {
             case 'draft':
-                return decryptedAlokasi.filter((item) => item.status === 'draft');
+                return decryptedAlokasi.filter(
+                    (item) => item.status === 'draft',
+                );
             case 'dikirim':
                 return decryptedAlokasi.filter(
                     (item) => item.status === 'dikirim',
                 );
             case 'revisi':
                 return decryptedAlokasi.filter(
-                    (item) => item.status === 'perubahan' || item.status === 'direvisi',
+                    (item) =>
+                        item.status === 'perubahan' ||
+                        item.status === 'direvisi',
                 );
             case 'all':
             default:
@@ -456,19 +460,19 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     onClick={() => handleOpenSummaryModal('all')}
                 >
                     <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-sm text-blue-700 dark:text-blue-300">
-                                Total Alokasi Kegiatan
-                            </p>
-                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                {alokasiSummary.totalPeriode}
-                            </p>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Total Alokasi Kegiatan
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {alokasiSummary.totalPeriode}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                <Users className="h-5 w-5" />
+                            </span>
                         </div>
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                            <Users className="h-5 w-5" />
-                        </span>
-                    </div>
                     </ContentCard>
                 </button>
 
@@ -478,19 +482,19 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     onClick={() => handleOpenSummaryModal('draft')}
                 >
                     <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-sm text-amber-700 dark:text-amber-300">
-                                Draft Kegiatan
-                            </p>
-                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                {alokasiSummary.totalDraft}
-                            </p>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    Draft Kegiatan
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {alokasiSummary.totalDraft}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                                <Edit2 className="h-5 w-5" />
+                            </span>
                         </div>
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                            <Edit2 className="h-5 w-5" />
-                        </span>
-                    </div>
                     </ContentCard>
                 </button>
 
@@ -500,19 +504,19 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     onClick={() => handleOpenSummaryModal('dikirim')}
                 >
                     <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                Kegiatan Dikirim
-                            </p>
-                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                {alokasiSummary.totalDikirim}
-                            </p>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Kegiatan Dikirim
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {alokasiSummary.totalDikirim}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                <Send className="h-5 w-5" />
+                            </span>
                         </div>
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                            <Send className="h-5 w-5" />
-                        </span>
-                    </div>
                     </ContentCard>
                 </button>
 
@@ -522,19 +526,19 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     onClick={() => handleOpenSummaryModal('revisi')}
                 >
                     <ContentCard className="border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-sm text-violet-700 dark:text-violet-300">
-                                Kegiatan Direvisi
-                            </p>
-                            <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                {alokasiSummary.totalPerubahan}
-                            </p>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm text-violet-700 dark:text-violet-300">
+                                    Kegiatan Direvisi
+                                </p>
+                                <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {alokasiSummary.totalPerubahan}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                                <RotateCcw className="h-5 w-5" />
+                            </span>
                         </div>
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                            <RotateCcw className="h-5 w-5" />
-                        </span>
-                    </div>
                     </ContentCard>
                 </button>
             </div>

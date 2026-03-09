@@ -30,6 +30,47 @@ const sanitizeFilename = (name: string): string => {
     return name.replace(/[/\\:*?"<>|]/g, '_');
 };
 
+const decodeSegment = (segment: string): string => {
+    try {
+        return decodeURIComponent(segment);
+    } catch {
+        return segment;
+    }
+};
+
+/**
+ * Normalize user-provided file path into a safely encoded URL.
+ * Handles existing encoded segments and file names with spaces.
+ */
+export const normalizeDownloadUrl = (filePath: string): string => {
+    const trimmedPath = filePath.trim();
+
+    if (/^https?:\/\//i.test(trimmedPath)) {
+        return trimmedPath;
+    }
+
+    const normalizedSegments = trimmedPath
+        .replace(/^\/+/, '')
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(decodeSegment(segment)));
+
+    return `/${normalizedSegments.join('/')}`;
+};
+
+/**
+ * Open file download using a direct encoded URL and anchor click.
+ * This is typically faster and more reliable than window.open for static files.
+ */
+export const openFastDownload = (filePath: string): void => {
+    const url = normalizeDownloadUrl(filePath);
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.click();
+};
+
 /**
  * Construct deterministic ZIP filename for downloadAll
  */

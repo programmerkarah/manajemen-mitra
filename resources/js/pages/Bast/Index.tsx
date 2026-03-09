@@ -57,8 +57,12 @@ export default function Index({ data, active_year }: IndexProps) {
 
         return {
             allSpkPeriods: periods.filter((item) => item.has_spk),
-            needBast: periods.filter((item) => item.has_spk && !item.all_completed),
-            completed: periods.filter((item) => item.has_spk && item.all_completed),
+            needBast: periods.filter(
+                (item) => item.has_spk && !item.all_completed,
+            ),
+            completed: periods.filter(
+                (item) => item.has_spk && item.all_completed,
+            ),
             withoutSpk: periods.filter((item) => !item.has_spk),
         };
     }, [decryptedData]);
@@ -305,12 +309,16 @@ export default function Index({ data, active_year }: IndexProps) {
                     </div>
                 </ContentCard>
 
-                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                <Dialog
+                    open={summaryModalOpen}
+                    onOpenChange={setSummaryModalOpen}
+                >
                     <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>
-                                Klik aksi pada periode untuk proses generate atau melihat detail BAST.
+                                Klik aksi pada periode untuk proses generate
+                                atau melihat detail BAST.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -331,21 +339,23 @@ export default function Index({ data, active_year }: IndexProps) {
                                             </p>
                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                                 {item.total_spk} SPK ·{' '}
-                                                {item.spk_with_bast} BAST dibuat ·{' '}
-                                                {item.spk_without_bast} belum BAST
+                                                {item.spk_with_bast} BAST dibuat
+                                                · {item.spk_without_bast} belum
+                                                BAST
                                             </p>
                                         </div>
 
                                         <div className="flex items-center gap-2">
-                                            {item.has_spk && !item.all_completed && (
-                                                <Button size="sm" asChild>
-                                                    <Link
-                                                        href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
-                                                    >
-                                                        <Plus className="h-3.5 w-3.5" />
-                                                    </Link>
-                                                </Button>
-                                            )}
+                                            {item.has_spk &&
+                                                !item.all_completed && (
+                                                    <Button size="sm" asChild>
+                                                        <Link
+                                                            href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                        </Link>
+                                                    </Button>
+                                                )}
 
                                             {item.spk_with_bast > 0 &&
                                                 item.first_bast_hashed_id && (

@@ -11,7 +11,16 @@ import {
     tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Check, Download, FolderDown, Upload } from 'lucide-react';
+import {
+    ArrowLeft,
+    Check,
+    CheckCircle2,
+    Download,
+    FileText,
+    FolderDown,
+    PenLine,
+    Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface Bast {
@@ -96,6 +105,8 @@ interface BastListItem {
     hashed_id: string;
     nomor_bast: string;
     petugas_nama: string;
+    file_path: string | null;
+    signed_file_path: string | null;
     is_current: boolean;
 }
 
@@ -135,6 +146,24 @@ export default function Show({
         a.petugas_nama.localeCompare(b.petugas_nama),
     );
 
+    const bastSigned = sortedBastList.filter((item) => item.signed_file_path);
+    const bastUnsigned = sortedBastList.filter(
+        (item) => !item.signed_file_path,
+    );
+
+    const generatedFileCount = sortedBastList.filter(
+        (item) => item.file_path,
+    ).length;
+    const signedFileCount = sortedBastList.filter(
+        (item) => item.signed_file_path,
+    ).length;
+    const unsignedFileCount = Math.max(generatedFileCount - signedFileCount, 0);
+
+    const signedProgress =
+        generatedFileCount > 0
+            ? Math.round((signedFileCount / generatedFileCount) * 100)
+            : 0;
+
     const canEdit =
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
@@ -169,7 +198,26 @@ export default function Show({
     };
 
     const handleSelectBast = (bastHashedId: string) => {
-        router.get(`/bast/${bastHashedId}`);
+        router.get(
+            `/bast/${bastHashedId}`,
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: [
+                    'bast',
+                    'spk',
+                    'petugas',
+                    'bast_petugas',
+                    'bast_history',
+                    'bast_list',
+                    'bulan',
+                    'tahun',
+                    'bulan_label',
+                ],
+            },
+        );
     };
 
     const getStatusBadge = (status: string) => {
@@ -207,6 +255,78 @@ export default function Show({
                 </div>
             </PageHeader>
 
+            <ContentCard>
+                <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Ringkasan Dokumen BAST
+                            </h3>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Progres generate dan tanda tangan periode{' '}
+                                {bulan_label} {tahun}
+                            </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                            {signedProgress}% signed
+                        </Badge>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="group rounded-xl border border-blue-200/80 bg-linear-to-br from-blue-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/60 dark:from-blue-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
+                                    File Digenerate
+                                </p>
+                                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-100">
+                                {generatedFileCount}
+                            </p>
+                        </div>
+
+                        <div className="group rounded-xl border border-green-200/80 bg-linear-to-br from-green-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-green-900/60 dark:from-green-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-green-700 uppercase dark:text-green-300">
+                                    Sudah Ditandatangani
+                                </p>
+                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-green-900 dark:text-green-100">
+                                {signedFileCount}
+                            </p>
+                        </div>
+
+                        <div className="group rounded-xl border border-amber-200/80 bg-linear-to-br from-amber-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/60 dark:from-amber-950/30 dark:to-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                    Belum Ditandatangani
+                                </p>
+                                <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                            </div>
+                            <p className="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-100">
+                                {unsignedFileCount}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="mb-1 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
+                            <span>Progres tanda tangan</span>
+                            <span>
+                                {signedFileCount}/{generatedFileCount || 0}
+                            </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-800">
+                            <div
+                                className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                                style={{ width: `${signedProgress}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </ContentCard>
+
             <div className="grid max-w-full gap-6 overflow-x-hidden md:grid-cols-3">
                 {/* Sidebar - Daftar BAST */}
                 <div className="w-full min-w-0 md:col-span-1">
@@ -221,27 +341,64 @@ export default function Show({
                                 </p>
                             </div>
 
-                            <div className="max-h-[600px] space-y-2 overflow-y-auto">
-                                {sortedBastList.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() =>
-                                            handleSelectBast(item.hashed_id)
-                                        }
-                                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                                            item.is_current
-                                                ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
-                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                        }`}
-                                    >
-                                        <div className="text-sm font-medium text-neutral-900 dark:text-white">
-                                            {item.petugas_nama}
-                                        </div>
-                                        <div className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            {item.nomor_bast}
-                                        </div>
-                                    </button>
-                                ))}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">
+                                    BAST Sudah Ditandatangani (
+                                    {bastSigned.length})
+                                </h4>
+                                <div className="max-h-[250px] space-y-2 overflow-y-auto">
+                                    {bastSigned.map((item) => (
+                                        <Button
+                                            key={item.id}
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() =>
+                                                handleSelectBast(item.hashed_id)
+                                            }
+                                            className={`w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${
+                                                item.is_current
+                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
+                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                            }`}
+                                        >
+                                            <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                                                {item.petugas_nama}
+                                            </div>
+                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                {item.nomor_bast}
+                                            </div>
+                                        </Button>
+                                    ))}
+                                </div>
+
+                                <h4 className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                                    BAST Belum Ditandatangani (
+                                    {bastUnsigned.length})
+                                </h4>
+                                <div className="max-h-[250px] space-y-2 overflow-y-auto">
+                                    {bastUnsigned.map((item) => (
+                                        <Button
+                                            key={item.id}
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() =>
+                                                handleSelectBast(item.hashed_id)
+                                            }
+                                            className={`w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${
+                                                item.is_current
+                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
+                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                            }`}
+                                        >
+                                            <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                                                {item.petugas_nama}
+                                            </div>
+                                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                {item.nomor_bast}
+                                            </div>
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </ContentCard>
@@ -362,7 +519,7 @@ export default function Show({
                                         size="sm"
                                     >
                                         <Download className="mr-2 h-4 w-4" />
-                                        Download BAST
+                                        Download BAST (belum tanda tangan)
                                     </Button>
                                 )}
                                 {bast.signed_file_path && (
@@ -376,7 +533,7 @@ export default function Show({
                                         variant="outline"
                                     >
                                         <Download className="mr-2 h-4 w-4" />
-                                        Download BAST Signed
+                                        Download BAST (bertanda tangan)
                                     </Button>
                                 )}
                             </div>

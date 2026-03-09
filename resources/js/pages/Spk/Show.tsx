@@ -8,6 +8,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import {
     constructDownloadAllFilename,
     constructDownloadByKegiatanFilename,
+    openFastDownload,
     tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -165,7 +166,7 @@ export default function Show({
     };
 
     const handleDownload = (filePath: string) => {
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     const handleDownloadAllByPeriode = async () => {
@@ -717,7 +718,7 @@ export default function Show({
                                             className="cursor-pointer"
                                         >
                                             <Button
-                                                variant="secondary"
+                                                variant="complete"
                                                 className="w-full"
                                                 disabled={isUploading}
                                                 asChild

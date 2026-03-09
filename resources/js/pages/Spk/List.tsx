@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, Eye } from 'lucide-react';
 import { useState } from 'react';
@@ -52,7 +53,7 @@ export default function List({ spk_list, tahun, bulan_label }: ListProps) {
     ];
 
     const handleDownload = (filePath: string) => {
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     const getStatusBadge = (status: string) => {

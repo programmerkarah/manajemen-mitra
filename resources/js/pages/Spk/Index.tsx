@@ -25,7 +25,7 @@ import {
     Plus,
     RefreshCw,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface KegiatanItem {
     periode_id: number;
@@ -109,32 +109,38 @@ export default function Index({ periodeList }: IndexProps) {
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'approver';
 
-    const isNeedGenerate = (monthData: MonthlyPeriodeItem) => {
-        const canGenerateInitialOrRemaining =
-            monthData.total_spk === 0 ||
-            monthData.total_spk < monthData.total_petugas_non_organik;
+    const isNeedGenerate = useCallback(
+        (monthData: MonthlyPeriodeItem) => {
+            const canGenerateInitialOrRemaining =
+                monthData.total_spk === 0 ||
+                monthData.total_spk < monthData.total_petugas_non_organik;
 
-        const canRegenerate =
-            monthData.total_spk >= monthData.total_petugas_non_organik &&
-            monthData.has_new_kegiatan_after_spk &&
-            !monthData.has_been_regenerated;
+            const canRegenerate =
+                monthData.total_spk >= monthData.total_petugas_non_organik &&
+                monthData.has_new_kegiatan_after_spk &&
+                !monthData.has_been_regenerated;
 
-        return (
-            canCreateSpk &&
-            monthData.kegiatan_list.length > 0 &&
-            (canGenerateInitialOrRemaining || canRegenerate)
-        );
-    };
+            return (
+                canCreateSpk &&
+                monthData.kegiatan_list.length > 0 &&
+                (canGenerateInitialOrRemaining || canRegenerate)
+            );
+        },
+        [canCreateSpk],
+    );
 
-    const isNeedAddendum = (monthData: MonthlyPeriodeItem) => {
-        return (
-            canCreateSpk &&
-            monthData.total_spk > 0 &&
-            monthData.has_revision &&
-            (monthData.has_incomplete_addendum ||
-                monthData.has_addendum_changes)
-        );
-    };
+    const isNeedAddendum = useCallback(
+        (monthData: MonthlyPeriodeItem) => {
+            return (
+                canCreateSpk &&
+                monthData.total_spk > 0 &&
+                monthData.has_revision &&
+                (monthData.has_incomplete_addendum ||
+                    monthData.has_addendum_changes)
+            );
+        },
+        [canCreateSpk],
+    );
 
     const summaryGroups = useMemo(() => {
         const allPeriods = decryptedPeriodeList ?? [];
@@ -148,7 +154,7 @@ export default function Index({ periodeList }: IndexProps) {
             generated,
             needAddendum,
         };
-    }, [decryptedPeriodeList]);
+    }, [decryptedPeriodeList, isNeedGenerate, isNeedAddendum]);
 
     const summaryModalItems = useMemo(() => {
         switch (summaryModalType) {
@@ -679,12 +685,16 @@ export default function Index({ periodeList }: IndexProps) {
                     </DialogContent>
                 </Dialog>
 
-                <Dialog open={summaryModalOpen} onOpenChange={setSummaryModalOpen}>
+                <Dialog
+                    open={summaryModalOpen}
+                    onOpenChange={setSummaryModalOpen}
+                >
                     <DialogContent className="sm:max-w-7xl">
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>
-                                Daftar periode dan aksi cepat untuk pemrosesan Perjanjian Kerja.
+                                Daftar periode dan aksi cepat untuk pemrosesan
+                                Perjanjian Kerja.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -710,7 +720,9 @@ export default function Index({ periodeList }: IndexProps) {
                                                     {monthData.tahun}
                                                 </p>
                                                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    {monthData.total_petugas_non_organik}{' '}
+                                                    {
+                                                        monthData.total_petugas_non_organik
+                                                    }{' '}
                                                     petugas ·{' '}
                                                     {monthData.total_spk} SPK
                                                 </p>
