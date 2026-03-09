@@ -341,50 +341,13 @@ export const openFastDownload = (filePath: string): void => {
     const url = normalizeDownloadUrl(filePath);
     const filename = resolveDownloadFilename(filePath);
 
-    const fallbackDirectDownload = () => {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    };
-
-    void fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        cache: 'no-store',
-    })
-        .then(async (response) => {
-            if (!response.ok) {
-                throw new Error(
-                    `Download failed with status ${response.status}`,
-                );
-            }
-
-            const contentType = resolveContentType(
-                response.headers.get('content-type'),
-                filename,
-            );
-            const fileBuffer = await response.arrayBuffer();
-            const blob = new Blob([fileBuffer], { type: contentType });
-            const blobUrl = URL.createObjectURL(blob);
-
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
-            setTimeout(() => {
-                URL.revokeObjectURL(blobUrl);
-            }, 0);
-        })
-        .catch(() => {
-            fallbackDirectDownload();
-        });
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 };
 
 /**
