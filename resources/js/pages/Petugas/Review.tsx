@@ -18,6 +18,7 @@ interface ReviewRow {
     kegiatan_hashed_id: string;
     kegiatan_kode: string;
     kegiatan_nama: string;
+    peran: string;
     periode_alokasi_id: number;
     periode_tahun: number;
     periode_bulan: number;
@@ -45,9 +46,22 @@ interface ReviewProps {
     can_submit_review: boolean;
 }
 
+function peranLabel(peran: string): string {
+    switch (peran) {
+        case 'pcl_ppl':
+            return 'Petugas Pendataan';
+        case 'pml':
+            return 'Petugas Pemeriksaan';
+        case 'pengolahan':
+            return 'Petugas Pengolahan';
+        default:
+            return peran;
+    }
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Petugas', href: '/petugas' },
-    { title: 'Review Petugas', href: '/petugas/review' },
+    { title: 'Penilaian Mitra Statistik', href: '/petugas/review' },
 ];
 
 export default function Review({
@@ -146,11 +160,11 @@ export default function Review({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Review Petugas" />
+            <Head title="Penilaian Mitra Statistik" />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Review Petugas"
+                    title="Penilaian Mitra Statistik"
                     description={`Penilaian petugas untuk tahun aktif ${active_year}`}
                 />
 
@@ -185,7 +199,7 @@ export default function Review({
                 <ContentCard>
                     <div className="space-y-4">
                         <div className="max-w-xl space-y-2">
-                            <Label>Pilih Petugas PCL Non-Organik</Label>
+                            <Label>Pilih Mitra Statistik</Label>
                             <SearchableSelect
                                 value={selectedPetugasId?.toString() ?? ''}
                                 onValueChange={(value) =>
@@ -247,6 +261,11 @@ export default function Review({
                                                             {row.periode_bulan}/
                                                             {row.periode_tahun}
                                                         </p>
+                                                        <p className="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                            {peranLabel(
+                                                                row.peran,
+                                                            )}
+                                                        </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Badge
@@ -277,7 +296,7 @@ export default function Review({
                                                 <div className="mt-4 space-y-3">
                                                     <div>
                                                         <Label>
-                                                            Nilai Bintang
+                                                            Berikan Penilaian
                                                         </Label>
                                                         <div className="mt-2 flex items-center gap-1">
                                                             {[
@@ -362,8 +381,8 @@ export default function Review({
                                                             {savingKey === key
                                                                 ? 'Menyimpan...'
                                                                 : isFinal
-                                                                  ? 'Sudah Final'
-                                                                  : 'Simpan Review'}
+                                                                  ? 'Sudah Dinilai'
+                                                                  : 'Simpan Penilaian'}
                                                         </Button>
                                                     </div>
                                                 </div>

@@ -296,7 +296,7 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
 
             if (!alreadyExists) {
                 petugasMenu.items.push({
-                    title: 'Review Petugas (BARU)',
+                    title: 'Penilaian Mitra Statistik',
                     href: '/petugas/review',
                 });
             }
@@ -307,7 +307,7 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 icon: Users,
                 items: [
                     {
-                        title: 'Review Petugas (BARU)',
+                        title: 'Penilaian Mitra Statistik',
                         href: '/petugas/review',
                     },
                 ],

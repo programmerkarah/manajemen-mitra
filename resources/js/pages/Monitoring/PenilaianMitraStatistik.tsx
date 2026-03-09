@@ -225,7 +225,11 @@ export default function PenilaianMitraStatistik({
     const filteredRows = useMemo(() => {
         return reviewRows.filter((row) => {
             const matchesRating =
-                minimumRating === 'all' || row.rating >= Number(minimumRating);
+                minimumRating === 'all'
+                    ? true
+                    : minimumRating === 'lt2'
+                      ? row.rating < 2
+                      : row.rating >= Number(minimumRating);
 
             return matchesRating;
         });
@@ -388,12 +392,14 @@ export default function PenilaianMitraStatistik({
             <div className="space-y-6">
                 <PageHeader
                     title="Penilaian Mitra Statistik"
-                    description={`Analitik performa mitra berdasarkan review petugas tahun ${active_year}`}
+                    description={`Analitik performa mitra berdasarkan Penilaian Mitra Statistik tahun ${active_year}`}
                 />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <ContentCard>
-                        <p className="text-xs text-neutral-500">Total Review</p>
+                        <p className="text-xs text-neutral-500">
+                            Total Penilaian
+                        </p>
                         <p className="mt-2 text-2xl font-semibold">
                             {summary.total_reviews}
                         </p>
@@ -1025,14 +1031,11 @@ export default function PenilaianMitraStatistik({
                                 <SelectItem value="all">
                                     Semua Rating
                                 </SelectItem>
-                                <SelectItem value="4">
-                                    Rating {'>='} 4
-                                </SelectItem>
-                                <SelectItem value="3">
-                                    Rating {'>='} 3
-                                </SelectItem>
-                                <SelectItem value="2">
-                                    Rating {'>='} 2
+                                <SelectItem value="4">Rating ≥ 4</SelectItem>
+                                <SelectItem value="3">Rating ≥ 3</SelectItem>
+                                <SelectItem value="2">Rating ≥ 2</SelectItem>
+                                <SelectItem value="lt2">
+                                    Rating {'<'} 2
                                 </SelectItem>
                             </SelectContent>
                         </Select>

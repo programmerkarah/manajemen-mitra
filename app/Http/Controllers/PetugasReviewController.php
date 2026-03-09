@@ -59,7 +59,6 @@ class PetugasReviewController extends Controller
                 ->where('pa.tahun', $activeYear)
                 ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
                 ->whereIn('pa.kegiatan_id', $reviewableKegiatanIds)
-                ->where('alokasi_petugas.peran', 'pcl_ppl')
                 ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
                 ->where(function ($query) {
                     $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
@@ -78,6 +77,7 @@ class PetugasReviewController extends Controller
                     'k.kode_kegiatan',
                     'k.nama_kegiatan',
                     'k.tanggal_selesai',
+                    'alokasi_petugas.peran',
                 ])
                 ->distinct()
                 ->orderBy('p.nama')
@@ -193,7 +193,6 @@ class PetugasReviewController extends Controller
             ->where('pa.id', $validated['periode_alokasi_id'])
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
-            ->where('alokasi_petugas.peran', 'pcl_ppl')
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
             ->where(function ($query) {
                 $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
@@ -222,7 +221,6 @@ class PetugasReviewController extends Controller
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('pa.bulan', $targetAssignment->periode_bulan)
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
-            ->where('alokasi_petugas.peran', 'pcl_ppl')
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
             ->where(function ($query) {
                 $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
@@ -255,7 +253,6 @@ class PetugasReviewController extends Controller
             ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
-            ->where('alokasi_petugas.peran', 'pcl_ppl')
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
             ->where(function ($query) {
                 $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
@@ -328,7 +325,7 @@ class PetugasReviewController extends Controller
         $rows = collect();
 
         $grouped = $assignments
-            ->groupBy(fn ($row) => (int) $row->kegiatan_id.'-'.(int) $row->petugas_id);
+            ->groupBy(fn ($row) => (int) $row->kegiatan_id.'-'.(int) $row->petugas_id.'-'.$row->peran);
 
         foreach ($grouped as $groupRows) {
             $sorted = $groupRows->sortBy(fn ($row) => [
@@ -388,6 +385,7 @@ class PetugasReviewController extends Controller
                     'kegiatan_hashed_id' => Hashids::encode((int) $lastRow->kegiatan_id),
                     'kegiatan_kode' => $lastRow->kode_kegiatan,
                     'kegiatan_nama' => $lastRow->nama_kegiatan,
+                    'peran' => $lastRow->peran,
                     'periode_alokasi_id' => (int) $lastRow->periode_alokasi_id,
                     'periode_tahun' => (int) $lastRow->periode_tahun,
                     'periode_bulan' => (int) $lastRow->periode_bulan,
