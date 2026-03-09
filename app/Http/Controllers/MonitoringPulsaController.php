@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,7 +16,6 @@ class MonitoringPulsaController extends Controller
      */
     public function index(Request $request): Response
     {
-        $effectiveUser = effectiveUser($request);
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = \App\Services\ActiveYearService::get();
 
@@ -31,15 +29,6 @@ class MonitoringPulsaController extends Controller
             ->where('bulan', $bulan)
             ->where('tahun', $tahun)
             ->whereNotIn('status', ['draft']);
-
-        if ($effectiveUser?->isKetuaTim() && ! $effectiveUser->isAdmin() && ! $effectiveUser->isOperator()) {
-            $kegiatanIds = Kegiatan::where(function ($q) use ($effectiveUser) {
-                $q->where('ketua_tim_user_id', $effectiveUser->id)
-                    ->orWhere('pj_lainnya_id', $effectiveUser->id);
-            })->pluck('id');
-
-            $query->whereIn('kegiatan_id', $kegiatanIds);
-        }
 
         $pengajuanList = $query
             ->orderBy('petugas_id')
