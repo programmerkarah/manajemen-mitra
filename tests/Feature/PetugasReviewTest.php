@@ -112,6 +112,12 @@ class PetugasReviewTest extends TestCase
             'rating' => 5,
             'ulasan' => 'Kinerja sangat baik.',
         ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $user->id,
+            'action' => 'Submit Review Petugas',
+            'type' => 'petugas',
+            'status' => 'success',
+        ]);
     }
 
     public function test_non_pml_and_non_ketua_tim_cannot_submit_review(): void

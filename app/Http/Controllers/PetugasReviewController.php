@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePetugasReviewRequest;
+use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Petugas;
 use App\Models\ReviewPetugas;
@@ -299,6 +300,19 @@ class PetugasReviewController extends Controller
             'ulasan' => $validated['ulasan'] ?? null,
             'reviewed_at' => now(),
         ]);
+
+        ActivityLog::log(
+            'Submit Review Petugas',
+            'petugas',
+            'User '.$user->name.' mengirim review petugas pada kegiatan ID '.$validated['kegiatan_id'].'.',
+            'success',
+            [
+                'kegiatan_id' => $validated['kegiatan_id'],
+                'petugas_id' => $validated['petugas_id'],
+                'periode_alokasi_id' => $validated['periode_alokasi_id'],
+                'rating' => $validated['rating'],
+            ]
+        );
 
         return back()->with('success', 'Review petugas berhasil disimpan.');
     }
