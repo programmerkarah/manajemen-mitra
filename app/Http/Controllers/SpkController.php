@@ -1251,11 +1251,11 @@ class SpkController extends Controller
             ->exists();
 
         // Get all periode alokasi in the same month and year
-        // For regenerate SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regenerate SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         // For addendum: use 'perubahan' status
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'perubahan'])
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
@@ -2410,12 +2410,12 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
 
         // Get all alokasi for this petugas in the same month
-        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -2458,12 +2458,12 @@ class SpkController extends Controller
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
-        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -2617,12 +2617,12 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
 
         // Get all alokasi for this petugas in the same month
-        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -2667,12 +2667,12 @@ class SpkController extends Controller
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
-        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -2761,12 +2761,12 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
 
         // Get all alokasi for this petugas in the same month
-        // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -2912,7 +2912,7 @@ class SpkController extends Controller
             ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                 $q->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi']);
+                    ->whereIn('status', ['dikirim', 'disetujui', 'perubahan']);
             })
             ->where('petugas_id', $petugasId)
             ->get();
@@ -3398,10 +3398,10 @@ class SpkController extends Controller
         $periode = PeriodeAlokasi::with(['kegiatan'])->findOrFail($periodeId);
 
         // Get all periode alokasi in the same month and year
-        // For SPK generation (non-addendum): use 'dikirim' and 'direvisi' status only
+        // For SPK generation (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
             ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'perubahan'])
             ->pluck('id');
 
         // Get all unique non-organik petugas from all alokasi in this month
@@ -3525,12 +3525,12 @@ class SpkController extends Controller
             }
 
             // Call the same logic as generateSpk, but inline to avoid HTTP call
-            // IMPORTANT: Only get alokasi from periode with 'dikirim' and 'direvisi' status
+            // IMPORTANT: Only get alokasi from current effective periode statuses
             $allAlokasiPetugas = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
                 ->whereHas('periodeAlokasi', function ($q) use ($periode) {
                     $q->where('bulan', $periode->bulan)
                         ->where('tahun', $periode->tahun)
-                        ->whereIn('status', ['dikirim', 'direvisi']);
+                        ->whereIn('status', ['dikirim', 'perubahan']);
                 })
                 ->where('petugas_id', $petugasId)
                 ->get();
@@ -3808,7 +3808,7 @@ class SpkController extends Controller
         // Get all periode alokasi in this month with validated status
         $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'direvisi'])
+            ->whereIn('status', ['dikirim', 'perubahan'])
             ->pluck('id');
 
         // Check if there are any non-organik petugas who don't have SPK yet
@@ -3861,7 +3861,7 @@ class SpkController extends Controller
                         ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                             $q->where('bulan', $bulanFormatted)
                                 ->where('tahun', $tahun)
-                                ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                                ->whereIn('status', ['dikirim', 'perubahan']);
                         })
                         ->where(function ($query) {
                             $query->where('total_honor', '>', 0)

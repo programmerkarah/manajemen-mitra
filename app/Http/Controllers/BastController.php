@@ -204,7 +204,7 @@ class BastController extends Controller
                     $q->whereHas('periodeAlokasi', function ($q2) use ($activeYear, $bulanFormatted) {
                         $q2->where('tahun', $activeYear)
                             ->where('bulan', $bulanFormatted)
-                            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                            ->whereIn('status', ['dikirim', 'perubahan']);
                     })->where(function ($q3) {
                         $q3->where('jumlah_satuan', '>', 0)
                             ->orWhere('jumlah_satuan_listing', '>', 0)
@@ -342,8 +342,8 @@ class BastController extends Controller
             ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
             ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
                 $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
-                    $q2->where('tahun', $tahun);
-                    // ->whereIn('status', ['dikirim', 'perubahan']);
+                    $q2->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
                 })->where(function ($q3) {
                     $q3->where('jumlah_satuan', '>', 0)
                         ->orWhere('jumlah_satuan_listing', '>', 0)

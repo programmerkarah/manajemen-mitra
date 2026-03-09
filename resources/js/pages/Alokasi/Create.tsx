@@ -121,6 +121,8 @@ interface AlokasiCreateProps {
     isViewMode?: boolean;
 }
 
+type JenisPerubahanRevisi = 'perubahan_beban_tugas' | 'perubahan_petugas';
+
 export default function Create({
     kegiatans,
     petugas,
@@ -265,6 +267,12 @@ export default function Create({
     ] = useState(sourcePeriode?.jadwal_pengolahan_pencacahan_selesai || '');
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [jenisPerubahanRevisi, setJenisPerubahanRevisi] =
+        useState<JenisPerubahanRevisi>('perubahan_beban_tugas');
+
+    const isPerubahanPetugasMode =
+        isRevisiMode && jenisPerubahanRevisi === 'perubahan_petugas';
+    const isRevisiLockedMode = isRevisiMode && !isPerubahanPetugasMode;
 
     // Combine local errors with backend errors
     const allErrors = useMemo(
@@ -953,6 +961,9 @@ export default function Create({
         const formData = {
             tahun: active_year,
             bulan: bulan,
+            jenis_perubahan_revisi: isRevisiMode
+                ? jenisPerubahanRevisi
+                : undefined,
             tanggal_mulai:
                 tahapan !== 'listing_only'
                     ? tanggalMulai || undefined
@@ -1262,6 +1273,73 @@ export default function Create({
                     </Link>
                 </Button>
             </PageHeader>
+
+            {isRevisiMode && (
+                <div className="rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 p-4 shadow-lg backdrop-blur-xl dark:border-indigo-500/25 dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-indigo-600/15">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">
+                            Mode Revisi Aktif
+                        </p>
+                        <p className="text-sm text-indigo-800 dark:text-indigo-400">
+                            {isPerubahanPetugasMode
+                                ? 'Jenis revisi: Perubahan Petugas (jumlah petugas, nama petugas, dan peran dapat diubah).'
+                                : 'Jenis revisi: Perubahan Beban Tugas (hanya beban tugas dan nilai terkait yang diubah).'}
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                                <Label htmlFor="jenis_perubahan_revisi">
+                                    Jenis Perubahan/Revisi{' '}
+                                    <span className="text-red-500">*</span>
+                                </Label>
+                                <div
+                                    id="jenis_perubahan_revisi"
+                                    className="inline-flex w-full rounded-lg border border-neutral-300 p-1 dark:border-neutral-700"
+                                >
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            jenisPerubahanRevisi ===
+                                            'perubahan_beban_tugas'
+                                                ? 'default'
+                                                : 'ghost'
+                                        }
+                                        className="w-1/2 rounded-r-none"
+                                        disabled={isViewMode}
+                                        onClick={() =>
+                                            setJenisPerubahanRevisi(
+                                                'perubahan_beban_tugas',
+                                            )
+                                        }
+                                    >
+                                        Perubahan Beban Tugas
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            jenisPerubahanRevisi ===
+                                            'perubahan_petugas'
+                                                ? 'default'
+                                                : 'ghost'
+                                        }
+                                        className="w-1/2 rounded-l-none"
+                                        disabled={isViewMode}
+                                        onClick={() =>
+                                            setJenisPerubahanRevisi(
+                                                'perubahan_petugas',
+                                            )
+                                        }
+                                    >
+                                        Perubahan Petugas
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Perubahan beban tugas: edit beban tugas saja.
+                                    Perubahan petugas: jumlah petugas, nama
+                                    petugas, dan peran dapat diubah.
+                                </p>
+                            </div>
+                </div>
+            )}
 
             {/* Source Period Info - Only show for copy mode, not edit mode */}
             {sourcePeriode && !isEditMode && !isViewMode && (
@@ -1898,6 +1976,8 @@ export default function Create({
                             </p>
                         </div>
 
+                        
+
                         <div className="space-y-2">
                             <Label htmlFor="jumlah_petugas">
                                 Jumlah Petugas{' '}
@@ -1915,9 +1995,9 @@ export default function Create({
                                 min="1"
                                 max="100"
                                 placeholder="Masukkan jumlah petugas"
-                                disabled={isRevisiMode || isViewMode}
+                                disabled={isRevisiLockedMode || isViewMode}
                                 className={
-                                    isRevisiMode || isViewMode
+                                    isRevisiLockedMode || isViewMode
                                         ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
                                         : ''
                                 }
@@ -1973,7 +2053,7 @@ export default function Create({
                                                         )
                                                     }
                                                     disabled={
-                                                        isRevisiMode ||
+                                                        isRevisiLockedMode ||
                                                         alokasiItems.length <= 1
                                                     }
                                                     className="h-8 gap-1.5"
@@ -2114,7 +2194,7 @@ export default function Create({
                                                     placeholder="Pilih Petugas"
                                                     searchPlaceholder="Cari petugas..."
                                                     disabled={
-                                                        isRevisiMode ||
+                                                        isRevisiLockedMode ||
                                                         isViewMode
                                                     }
                                                 />
@@ -2142,7 +2222,7 @@ export default function Create({
                                                         )
                                                     }
                                                     disabled={
-                                                        isRevisiMode ||
+                                                        isRevisiLockedMode ||
                                                         isViewMode
                                                     }
                                                 >
