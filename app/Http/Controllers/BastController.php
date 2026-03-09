@@ -197,14 +197,14 @@ class BastController extends Controller
         $data = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-            // Ambil semua SPK eligible di tahun berjalan
+            // Ambil semua SPK eligible di bulan ini
             $eligibleSpks = Spk::where('addendum_number', 0)
                 ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
                 ->whereHas('alokasiPetugas', function ($q) use ($activeYear, $bulanFormatted) {
                     $q->whereHas('periodeAlokasi', function ($q2) use ($activeYear, $bulanFormatted) {
                         $q2->where('tahun', $activeYear)
                             ->where('bulan', $bulanFormatted)
-                            ->whereIn('status', ['dikirim', 'perubahan']);
+                            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
                     })->where(function ($q3) {
                         $q3->where('jumlah_satuan', '>', 0)
                             ->orWhere('jumlah_satuan_listing', '>', 0)
@@ -214,42 +214,19 @@ class BastController extends Controller
                 })
                 ->get();
 
-            // echo json_encode(count($eligibleSpks)); exit;
+            $petugasIds = $eligibleSpks->pluck('petugas_id')->filter()->unique()->values()->all();
+            $eligiblePetugasCount = count($petugasIds);
 
-            $spks = collect();
-            foreach ($eligibleSpks as $spk) {
-                $periodes = $spk->alokasiPetugas && $spk->alokasiPetugas->periodeAlokasi
-                    ? [$spk->alokasiPetugas->periodeAlokasi]
-                    : [];
-                if (method_exists($spk->alokasiPetugas, 'getCollection')) {
-                    $periodes = $spk->alokasiPetugas->pluck('periodeAlokasi')->all();
-                }
-                $firstPeriode = collect($periodes)
-                    ->where('tahun', $activeYear)
-                    ->where('bulan', $bulanFormatted)
-                    ->whereIn('status', ['dikirim', 'direvisi', 'perubahan'])
-                    ->sortBy('bulan')
-                    ->first();
-                if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
-                    // Hanya tampilkan SPK yang belum punya BAST
-                    // if (!($spk->bast && $spk->bast->count() > 0)) {
-                    $spks->push($spk);
-                    // }
-                }
-            }
-
-            $totalPetugas = $spks->count();
-
-            // Hitung petugas yang sudah punya BAST di bulan ini
-            $petugasIds = $spks->map(function ($spk) {
-                return $spk->alokasiPetugas?->petugas?->id;
-            })->filter()->unique()->values()->all();
+            // Samakan metrik "BAST dibuat" dengan detail bulan (jumlah petugas pada dokumen BAST bulan tersebut)
             $petugasWithBast = DB::table('bast_petugas as bp')
                 ->join('bast as b', 'bp.bast_id', '=', 'b.id')
                 ->whereYear('b.tanggal_bast', $activeYear)
                 ->whereMonth('b.tanggal_bast', $bulan)
-                ->pluck('bp.petugas_id')->unique()->count();
-            $petugasWithoutBast = $totalPetugas - $petugasWithBast; // eligible = totalPetugas - petugasWithBast
+                ->distinct('bp.petugas_id')
+                ->count('bp.petugas_id');
+
+            $totalPetugas = max($eligiblePetugasCount, $petugasWithBast);
+            $petugasWithoutBast = max(0, $totalPetugas - $petugasWithBast);
 
             // Get first BAST for this month
             $firstBast = Bast::whereYear('tanggal_bast', $activeYear)
