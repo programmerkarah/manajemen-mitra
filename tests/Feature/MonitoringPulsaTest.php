@@ -127,7 +127,7 @@ class MonitoringPulsaTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_ketua_tim_only_sees_own_kegiatan(): void
+    public function test_ketua_tim_sees_all_kegiatan_data(): void
     {
         [$ketuaTim, $role] = $this->makeUserWithRole('ketua_tim');
         [$otherKetuaTim] = $this->makeUserWithRole('ketua_tim');
@@ -173,5 +173,9 @@ class MonitoringPulsaTest extends TestCase
             ->get("/monitoring-pulsa?bulan={$bulan}");
 
         $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('MonitoringPulsa/Index')
+            ->where('pengajuanList.encrypted', fn ($encrypted) => count(decryptData($encrypted)) === 2)
+        );
     }
 }
