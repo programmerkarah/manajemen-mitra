@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { useState } from 'react';
@@ -107,7 +108,7 @@ export default function Generate({
         );
     };
 
-    const handlePreview = (alokasi: AlokasiPetugas) => {
+    const handlePreview = async (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
                 'Lengkapi form Tanggal Perjanjian Kerja terlebih dahulu',
@@ -163,45 +164,27 @@ export default function Generate({
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
 
-        // Create a native form and submit to preview endpoint
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview`;
-        form.target = '_blank';
-        form.style.display = 'none';
+        const sanitizedPetugasName = alokasi.petugas.nama.replace(
+            /[^A-Za-z0-9_-]/g,
+            '_',
+        );
 
-        // Add CSRF token
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview`,
+                {
+                    nomor_spk: nomorSpk,
+                    tanggal_spk: formData.tanggal_spk,
+                },
+                `Preview_SPK_${sanitizedPetugasName}.pdf`,
+            );
+        } catch {
+            setModalMessage('Gagal mengunduh file preview Perjanjian Kerja.');
+            setShowFormModal(true);
         }
-
-        // Add form data
-        const formDataToSubmit = {
-            nomor_spk: nomorSpk,
-            tanggal_spk: formData.tanggal_spk,
-        };
-
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
-    const handlePreviewMain = (alokasi: AlokasiPetugas) => {
+    const handlePreviewMain = async (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
                 'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
@@ -255,45 +238,29 @@ export default function Generate({
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
 
-        // Create a native form and submit to preview-main endpoint
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-main`;
-        form.target = '_blank';
-        form.style.display = 'none';
+        const sanitizedPetugasName = alokasi.petugas.nama.replace(
+            /[^A-Za-z0-9_-]/g,
+            '_',
+        );
 
-        // Add CSRF token
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-main`,
+                {
+                    nomor_spk: nomorSpk,
+                    tanggal_spk: formData.tanggal_spk,
+                },
+                `Preview_SPK_Main_${sanitizedPetugasName}.pdf`,
+            );
+        } catch {
+            setModalMessage(
+                'Gagal mengunduh file preview Perjanjian Kerja (utama).',
+            );
+            setShowFormModal(true);
         }
-
-        // Add form data
-        const formDataToSubmit = {
-            nomor_spk: nomorSpk,
-            tanggal_spk: formData.tanggal_spk,
-        };
-
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
-    const handlePreviewLampiran = (alokasi: AlokasiPetugas) => {
+    const handlePreviewLampiran = async (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
                 'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
@@ -347,42 +314,26 @@ export default function Generate({
             nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
         }
 
-        // Create a native form and submit to preview-lampiran endpoint
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-lampiran`;
-        form.target = '_blank';
-        form.style.display = 'none';
+        const sanitizedPetugasName = alokasi.petugas.nama.replace(
+            /[^A-Za-z0-9_-]/g,
+            '_',
+        );
 
-        // Add CSRF token
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/petugas/${alokasi.petugas.hashed_id}/preview-lampiran`,
+                {
+                    nomor_spk: nomorSpk,
+                    tanggal_spk: formData.tanggal_spk,
+                },
+                `Preview_SPK_Lampiran_${sanitizedPetugasName}.pdf`,
+            );
+        } catch {
+            setModalMessage(
+                'Gagal mengunduh file preview Perjanjian Kerja (lampiran).',
+            );
+            setShowFormModal(true);
         }
-
-        // Add form data
-        const formDataToSubmit = {
-            nomor_spk: nomorSpk,
-            tanggal_spk: formData.tanggal_spk,
-        };
-
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
     const handleGenerateAll = () => {

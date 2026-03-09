@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 import { useState } from 'react';
@@ -94,7 +95,7 @@ export default function Create({
         }
     };
 
-    const handlePreview = () => {
+    const handlePreview = async () => {
         if (selectedDasarHukum.length === 0) {
             alert('Pilih minimal 1 dasar hukum');
             return;
@@ -105,51 +106,24 @@ export default function Create({
             return;
         }
 
-        // Create a native form and submit to preview endpoint
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/sk-kpa/kegiatan/${kegiatan.hashed_id}/preview`;
-        form.target = '_blank';
-        form.style.display = 'none';
+        const sanitizedKegiatanName = kegiatan.nama_kegiatan.replace(
+            /[^A-Za-z0-9_-]/g,
+            '_',
+        );
 
-        // Add CSRF token
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                `/sk-kpa/kegiatan/${kegiatan.hashed_id}/preview`,
+                {
+                    nomor_sk: formData.nomor_sk,
+                    tanggal_sk: formData.tanggal_sk,
+                    'dasar_hukum_ids[]': selectedDasarHukum,
+                },
+                `Preview_SK_${sanitizedKegiatanName}.pdf`,
+            );
+        } catch {
+            alert('Gagal membuka preview SK. Silakan coba lagi.');
         }
-
-        // Add form data
-        const formDataToSubmit = {
-            nomor_sk: formData.nomor_sk,
-            tanggal_sk: formData.tanggal_sk,
-        };
-
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        });
-
-        // Add selected dasar hukum
-        selectedDasarHukum.forEach((id) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'dasar_hukum_ids[]';
-            input.value = id.toString();
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
     const handleSubmit = (e: React.FormEvent) => {

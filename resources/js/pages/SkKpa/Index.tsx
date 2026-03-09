@@ -20,6 +20,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
@@ -275,7 +276,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
             return;
         }
 
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     return (

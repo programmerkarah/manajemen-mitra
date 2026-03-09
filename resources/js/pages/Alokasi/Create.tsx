@@ -1287,57 +1287,54 @@ export default function Create({
                         </p>
                     </div>
                     <div className="space-y-2">
-                                <Label htmlFor="jenis_perubahan_revisi">
-                                    Jenis Perubahan/Revisi{' '}
-                                    <span className="text-red-500">*</span>
-                                </Label>
-                                <div
-                                    id="jenis_perubahan_revisi"
-                                    className="inline-flex w-full rounded-lg border border-neutral-300 p-1 dark:border-neutral-700"
-                                >
-                                    <Button
-                                        type="button"
-                                        variant={
-                                            jenisPerubahanRevisi ===
-                                            'perubahan_beban_tugas'
-                                                ? 'default'
-                                                : 'ghost'
-                                        }
-                                        className="w-1/2 rounded-r-none"
-                                        disabled={isViewMode}
-                                        onClick={() =>
-                                            setJenisPerubahanRevisi(
-                                                'perubahan_beban_tugas',
-                                            )
-                                        }
-                                    >
-                                        Perubahan Beban Tugas
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={
-                                            jenisPerubahanRevisi ===
-                                            'perubahan_petugas'
-                                                ? 'default'
-                                                : 'ghost'
-                                        }
-                                        className="w-1/2 rounded-l-none"
-                                        disabled={isViewMode}
-                                        onClick={() =>
-                                            setJenisPerubahanRevisi(
-                                                'perubahan_petugas',
-                                            )
-                                        }
-                                    >
-                                        Perubahan Petugas
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                    Perubahan beban tugas: edit beban tugas saja.
-                                    Perubahan petugas: jumlah petugas, nama
-                                    petugas, dan peran dapat diubah.
-                                </p>
-                            </div>
+                        <Label htmlFor="jenis_perubahan_revisi">
+                            Jenis Perubahan/Revisi{' '}
+                            <span className="text-red-500">*</span>
+                        </Label>
+                        <div
+                            id="jenis_perubahan_revisi"
+                            className="inline-flex w-full rounded-lg border border-neutral-300 p-1 dark:border-neutral-700"
+                        >
+                            <Button
+                                type="button"
+                                variant={
+                                    jenisPerubahanRevisi ===
+                                    'perubahan_beban_tugas'
+                                        ? 'default'
+                                        : 'ghost'
+                                }
+                                className="w-1/2 rounded-r-none"
+                                disabled={isViewMode}
+                                onClick={() =>
+                                    setJenisPerubahanRevisi(
+                                        'perubahan_beban_tugas',
+                                    )
+                                }
+                            >
+                                Perubahan Beban Tugas
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={
+                                    jenisPerubahanRevisi === 'perubahan_petugas'
+                                        ? 'default'
+                                        : 'ghost'
+                                }
+                                className="w-1/2 rounded-l-none"
+                                disabled={isViewMode}
+                                onClick={() =>
+                                    setJenisPerubahanRevisi('perubahan_petugas')
+                                }
+                            >
+                                Perubahan Petugas
+                            </Button>
+                        </div>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                            Perubahan beban tugas: edit beban tugas saja.
+                            Perubahan petugas: jumlah petugas, nama petugas, dan
+                            peran dapat diubah.
+                        </p>
+                    </div>
                 </div>
             )}
 
@@ -1975,8 +1972,6 @@ export default function Create({
                                 (PML, PCL, dll)
                             </p>
                         </div>
-
-                        
 
                         <div className="space-y-2">
                             <Label htmlFor="jumlah_petugas">

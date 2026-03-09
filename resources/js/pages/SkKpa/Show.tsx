@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -113,7 +114,7 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
     };
 
     const handleDownload = (filePath: string) => {
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     const getStatusBadge = (status: string) => {

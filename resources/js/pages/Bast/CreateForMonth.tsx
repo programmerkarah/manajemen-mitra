@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { previewFileFromPost } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Eye, FileText, User } from 'lucide-react';
@@ -147,7 +148,7 @@ export default function CreateForMonth({
         );
     };
 
-    const handlePreviewSpk = (spkId: number) => {
+    const handlePreviewSpk = async (spkId: number) => {
         const payload: Record<string, number> = {
             spk_id: spkId,
         };
@@ -159,31 +160,17 @@ export default function CreateForMonth({
 
         const encryptedPayload = encryptFilters(payload);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/bast/preview-bast';
-        form.target = '_blank';
-
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                '/bast/preview-bast',
+                {
+                    encrypted_filters: encryptedPayload,
+                },
+                'Preview_BAST.pdf',
+            );
+        } catch {
+            alert('Gagal membuka preview BAST. Silakan coba lagi.');
         }
-
-        const encryptedInput = document.createElement('input');
-        encryptedInput.type = 'hidden';
-        encryptedInput.name = 'encrypted_filters';
-        encryptedInput.value = encryptedPayload;
-        form.appendChild(encryptedInput);
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
     return (

@@ -8,6 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import {
     constructBastDownloadFilename,
+    openFastDownload,
     tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -169,7 +170,7 @@ export default function Show({
         auth.activeRole?.name === 'approver';
 
     const handleDownload = (filePath: string) => {
-        window.open(`/${filePath}`, '_blank');
+        openFastDownload(filePath);
     };
 
     const handleDownloadAll = async () => {
