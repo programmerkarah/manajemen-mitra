@@ -2,13 +2,14 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -83,6 +84,8 @@ export default function Generate({
     const [modalMessage, setModalMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+
+    const hasNewPetugas = petugas_list.some((a) => !existing_spk_map[a.petugas.id]);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },
@@ -474,18 +477,16 @@ export default function Generate({
                                 <Label htmlFor="tanggal_spk">
                                     Tanggal Perjanjian Kerja
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="tanggal_spk"
-                                    type="date"
                                     value={formData.tanggal_spk}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         setFormData({
                                             ...formData,
-                                            tanggal_spk: e.target.value,
+                                            tanggal_spk: v,
                                         })
                                     }
                                     disabled={is_regenerate}
-                                    required
                                 />
                                 <p className="mt-1 text-xs text-neutral-500">
                                     Tanggal mulai pelaksanaan Perjanjian Kerja
@@ -715,21 +716,23 @@ export default function Generate({
                         <Button variant="outline" asChild>
                             <Link href="/spk">Batal</Link>
                         </Button>
-                        <Button
-                            onClick={handleGenerateAll}
-                            disabled={
-                                processing ||
-                                selectedPetugas.length === 0 ||
-                                !formData.tanggal_spk ||
-                                has_draft_periode
-                            }
-                        >
-                            {processing
-                                ? 'Memproses...'
-                                : has_draft_periode
-                                  ? 'Tidak dapat generate (ada periode draft)'
-                                  : `Generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`}
-                        </Button>
+                        {(!is_regenerate || hasNewPetugas) && (
+                            <Button
+                                onClick={handleGenerateAll}
+                                disabled={
+                                    processing ||
+                                    selectedPetugas.length === 0 ||
+                                    !formData.tanggal_spk ||
+                                    has_draft_periode
+                                }
+                            >
+                                {processing
+                                    ? 'Memproses...'
+                                    : has_draft_periode
+                                      ? 'Tidak dapat generate (ada periode draft)'
+                                      : `Generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`}
+                            </Button>
+                        )}
                     </div>
                 </ContentCard>
             </div>
@@ -772,6 +775,21 @@ export default function Generate({
                                 Mengerti
                             </Button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Processing Loading Overlay */}
+            {processing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="mx-4 flex flex-col items-center gap-4 rounded-2xl border border-white/20 bg-white/95 p-8 shadow-2xl dark:border-neutral-700/30 dark:bg-neutral-900/95">
+                        <Loader2 className="size-10 animate-spin text-neutral-700 dark:text-neutral-300" />
+                        <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                            Sedang generate Perjanjian Kerja...
+                        </p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                            Harap tunggu sebentar
+                        </p>
                     </div>
                 </div>
             )}

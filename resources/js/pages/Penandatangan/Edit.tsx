@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -173,12 +174,11 @@ export default function Edit({ Penandatangan }: EditProps) {
                                 <Label htmlFor="periode_mulai">
                                     Periode Mulai
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="periode_mulai"
-                                    type="date"
                                     value={data.periode_mulai}
-                                    onChange={(e) =>
-                                        setData('periode_mulai', e.target.value)
+                                    onChange={(v) =>
+                                        setData('periode_mulai', v)
                                     }
                                     className="h-10"
                                 />
@@ -190,14 +190,13 @@ export default function Edit({ Penandatangan }: EditProps) {
                                 <Label htmlFor="periode_selesai">
                                     Periode Selesai
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="periode_selesai"
-                                    type="date"
                                     value={data.periode_selesai}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         setData(
                                             'periode_selesai',
-                                            e.target.value,
+                                            v,
                                         )
                                     }
                                     className="h-10"

@@ -1,12 +1,14 @@
 import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
+import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Download, Eye, FileEdit } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, Eye, FileEdit, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -93,7 +95,7 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
         );
     };
 
-    const handlePreview = (petugasData: PetugasWithAddendum) => {
+    const handlePreview = async (petugasData: PetugasWithAddendum) => {
         if (!formData.tanggal_spk || !formData.sampai_tanggal) {
             setModalMessage(
                 'Lengkapi form Tanggal Addendum dan Sampai Tanggal terlebih dahulu',
@@ -102,44 +104,23 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             return;
         }
 
-        // Create a native form and submit to preview endpoint
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/spk/periode/${periode.hashed_id}/petugas/${petugasData.petugas.hashed_id}/preview-addendum`;
-        form.target = '_blank';
-        form.style.display = 'none';
+        const sanitizedName = petugasData.petugas.nama.replace(/[^A-Za-z0-9_-]/g, '_');
 
-        // Add CSRF token
-        const csrfToken = document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content');
-        if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = '_token';
-            csrfInput.value = csrfToken;
-            form.appendChild(csrfInput);
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/petugas/${petugasData.petugas.hashed_id}/preview-addendum`,
+                {
+                    tanggal_spk: formData.tanggal_spk,
+                    sampai_tanggal: formData.sampai_tanggal,
+                    parent_spk_id: petugasData.existing_spk_id,
+                    addendum_number: petugasData.next_addendum_number,
+                },
+                `Preview_Addendum_${sanitizedName}.pdf`,
+            );
+        } catch {
+            setModalMessage('Gagal mengunduh file preview Addendum.');
+            setShowFormModal(true);
         }
-
-        // Add form data
-        const formDataToSubmit = {
-            tanggal_spk: formData.tanggal_spk,
-            sampai_tanggal: formData.sampai_tanggal,
-            parent_spk_id: petugasData.existing_spk_id.toString(),
-            addendum_number: petugasData.next_addendum_number.toString(),
-        };
-
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
     };
 
     const handleGenerate = async (petugasData: PetugasWithAddendum) => {
@@ -320,34 +301,30 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                 <Label htmlFor="tanggal_spk">
                                     Tanggal Addendum
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="tanggal_spk"
-                                    type="date"
                                     value={formData.tanggal_spk}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         setFormData({
                                             ...formData,
-                                            tanggal_spk: e.target.value,
+                                            tanggal_spk: v,
                                         })
                                     }
-                                    required
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="sampai_tanggal">
                                     Sampai Tanggal
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="sampai_tanggal"
-                                    type="date"
                                     value={formData.sampai_tanggal}
-                                    onChange={(e) =>
+                                    onChange={(v) =>
                                         setFormData({
                                             ...formData,
-                                            sampai_tanggal: e.target.value,
+                                            sampai_tanggal: v,
                                         })
                                     }
-                                    required
                                 />
                             </div>
                         </div>
@@ -479,12 +456,6 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                                                         'Pengawas Pengolahan',
                                                                 }[keg.peran] ||
                                                                 keg.peran;
-                                                            console.log(
-                                                                'Kegiatan:',
-                                                                keg,
-                                                                'kidx:',
-                                                                kidx,
-                                                            );
 
                                                             return (
                                                                 <div
@@ -560,6 +531,21 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             </div>
 
             {/* Form Modal */}
+            {/* Processing Loading Overlay */}
+            {processing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="mx-4 flex flex-col items-center gap-4 rounded-2xl border border-white/20 bg-white/95 p-8 shadow-2xl dark:border-neutral-700/30 dark:bg-neutral-900/95">
+                        <Loader2 className="size-10 animate-spin text-neutral-700 dark:text-neutral-300" />
+                        <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                            Sedang memproses Addendum...
+                        </p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                            Harap tunggu sebentar
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {showFormModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">

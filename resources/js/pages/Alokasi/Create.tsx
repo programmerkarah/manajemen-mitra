@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -1591,23 +1592,17 @@ export default function Create({
                                                             *
                                                         </span>
                                                     </Label>
-                                                    <Input
-                                                        type="date"
+                                                    <DatePicker
                                                         id="tanggal_mulai_listing"
                                                         value={
                                                             tanggalMulaiListing
                                                         }
-                                                        onChange={(e) =>
+                                                        onChange={(v) =>
                                                             setTanggalMulaiListing(
-                                                                e.target.value,
+                                                                v,
                                                             )
                                                         }
                                                         disabled={isViewMode}
-                                                        className={
-                                                            isViewMode
-                                                                ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                : ''
-                                                        }
                                                     />
                                                     {allErrors.tanggal_mulai_listing && (
                                                         <p className="text-sm text-red-500">
@@ -1624,26 +1619,20 @@ export default function Create({
                                                             *
                                                         </span>
                                                     </Label>
-                                                    <Input
-                                                        type="date"
+                                                    <DatePicker
                                                         id="tanggal_selesai_listing"
                                                         value={
                                                             tanggalSelesaiListing
                                                         }
-                                                        onChange={(e) =>
+                                                        onChange={(v) =>
                                                             setTanggalSelesaiListing(
-                                                                e.target.value,
+                                                                v,
                                                             )
                                                         }
                                                         min={
                                                             tanggalMulaiListing
                                                         }
                                                         disabled={isViewMode}
-                                                        className={
-                                                            isViewMode
-                                                                ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                : ''
-                                                        }
                                                     />
                                                     {allErrors.tanggal_selesai_listing && (
                                                         <p className="text-sm text-red-500">
@@ -1679,8 +1668,7 @@ export default function Create({
                                                     *
                                                 </span>
                                             </Label>
-                                            <Input
-                                                type="date"
+                                            <DatePicker
                                                 id={
                                                     tahapan === 'listing_only'
                                                         ? 'tanggal_mulai_listing'
@@ -1691,21 +1679,16 @@ export default function Create({
                                                         ? tanggalMulaiListing
                                                         : tanggalMulai
                                                 }
-                                                onChange={(e) =>
+                                                onChange={(v) =>
                                                     tahapan === 'listing_only'
                                                         ? setTanggalMulaiListing(
-                                                              e.target.value,
+                                                              v,
                                                           )
                                                         : setTanggalMulai(
-                                                              e.target.value,
+                                                              v,
                                                           )
                                                 }
                                                 disabled={isViewMode}
-                                                className={
-                                                    isViewMode
-                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                        : ''
-                                                }
                                             />
                                             {tahapan === 'listing_only'
                                                 ? allErrors.tanggal_mulai_listing && (
@@ -1736,8 +1719,7 @@ export default function Create({
                                                     *
                                                 </span>
                                             </Label>
-                                            <Input
-                                                type="date"
+                                            <DatePicker
                                                 id={
                                                     tahapan === 'listing_only'
                                                         ? 'tanggal_selesai_listing'
@@ -1748,13 +1730,13 @@ export default function Create({
                                                         ? tanggalSelesaiListing
                                                         : tanggalSelesai
                                                 }
-                                                onChange={(e) =>
+                                                onChange={(v) =>
                                                     tahapan === 'listing_only'
                                                         ? setTanggalSelesaiListing(
-                                                              e.target.value,
+                                                              v,
                                                           )
                                                         : setTanggalSelesai(
-                                                              e.target.value,
+                                                              v,
                                                           )
                                                 }
                                                 min={
@@ -1763,11 +1745,6 @@ export default function Create({
                                                         : tanggalMulai
                                                 }
                                                 disabled={isViewMode}
-                                                className={
-                                                    isViewMode
-                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                        : ''
-                                                }
                                             />
                                             {tahapan === 'listing_only'
                                                 ? allErrors.tanggal_selesai_listing && (
@@ -1812,27 +1789,20 @@ export default function Create({
                                                                 Pengolahan
                                                                 Listing
                                                             </Label>
-                                                            <Input
-                                                                type="date"
-                                                                id="jadwal_pengolahan_listing_mulai"
-                                                                value={
-                                                                    jadwalPengolahanListingMulai
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setJadwalPengolahanListingMulai(
-                                                                        e.target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    isViewMode
-                                                                }
-                                                                className={
-                                                                    isViewMode
-                                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                        : ''
-                                                                }
-                                                            />
+                                                        <DatePicker
+                                                            id="jadwal_pengolahan_listing_mulai"
+                                                            value={
+                                                                jadwalPengolahanListingMulai
+                                                            }
+                                                            onChange={(v) =>
+                                                                setJadwalPengolahanListingMulai(
+                                                                    v,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isViewMode
+                                                            }
+                                                        />
                                                             {allErrors.jadwal_pengolahan_listing_mulai && (
                                                                 <p className="text-sm text-red-500">
                                                                     {
@@ -1847,30 +1817,23 @@ export default function Create({
                                                                 Pengolahan
                                                                 Listing
                                                             </Label>
-                                                            <Input
-                                                                type="date"
-                                                                id="jadwal_pengolahan_listing_selesai"
-                                                                value={
-                                                                    jadwalPengolahanListingSelesai
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setJadwalPengolahanListingSelesai(
-                                                                        e.target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                min={
-                                                                    jadwalPengolahanListingMulai
-                                                                }
-                                                                disabled={
-                                                                    isViewMode
-                                                                }
-                                                                className={
-                                                                    isViewMode
-                                                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                        : ''
-                                                                }
-                                                            />
+                                                        <DatePicker
+                                                            id="jadwal_pengolahan_listing_selesai"
+                                                            value={
+                                                                jadwalPengolahanListingSelesai
+                                                            }
+                                                            onChange={(v) =>
+                                                                setJadwalPengolahanListingSelesai(
+                                                                    v,
+                                                                )
+                                                            }
+                                                            min={
+                                                                jadwalPengolahanListingMulai
+                                                            }
+                                                            disabled={
+                                                                isViewMode
+                                                            }
+                                                        />
                                                             {allErrors.jadwal_pengolahan_listing_selesai && (
                                                                 <p className="text-sm text-red-500">
                                                                     {
@@ -1897,27 +1860,20 @@ export default function Create({
                                                             Tanggal Mulai
                                                             Pengolahan
                                                         </Label>
-                                                        <Input
-                                                            type="date"
-                                                            id="jadwal_pengolahan_pencacahan_mulai"
-                                                            value={
-                                                                jadwalPengolahanPencacahanMulai
-                                                            }
-                                                            onChange={(e) =>
-                                                                setJadwalPengolahanPencacahanMulai(
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                isViewMode
-                                                            }
-                                                            className={
-                                                                isViewMode
-                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                    : ''
-                                                            }
-                                                        />
+                                                    <DatePicker
+                                                        id="jadwal_pengolahan_pencacahan_mulai"
+                                                        value={
+                                                            jadwalPengolahanPencacahanMulai
+                                                        }
+                                                        onChange={(v) =>
+                                                            setJadwalPengolahanPencacahanMulai(
+                                                                v,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isViewMode
+                                                        }
+                                                    />
                                                         {allErrors.jadwal_pengolahan_pencacahan_mulai && (
                                                             <p className="text-sm text-red-500">
                                                                 {
@@ -1931,16 +1887,14 @@ export default function Create({
                                                             Tanggal Selesai
                                                             Pengolahan
                                                         </Label>
-                                                        <Input
-                                                            type="date"
+                                                        <DatePicker
                                                             id="jadwal_pengolahan_pencacahan_selesai"
                                                             value={
                                                                 jadwalPengolahanPencacahanSelesai
                                                             }
-                                                            onChange={(e) =>
+                                                            onChange={(v) =>
                                                                 setJadwalPengolahanPencacahanSelesai(
-                                                                    e.target
-                                                                        .value,
+                                                                    v,
                                                                 )
                                                             }
                                                             min={
@@ -1948,11 +1902,6 @@ export default function Create({
                                                             }
                                                             disabled={
                                                                 isViewMode
-                                                            }
-                                                            className={
-                                                                isViewMode
-                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                    : ''
                                                             }
                                                         />
                                                         {allErrors.jadwal_pengolahan_pencacahan_selesai && (

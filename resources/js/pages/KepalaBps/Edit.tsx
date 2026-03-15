@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -127,15 +128,14 @@ export default function Edit({ kepalaBps }: EditProps) {
                                 <Label htmlFor="periode_mulai">
                                     Periode Mulai
                                 </Label>
-                                <Input
-                                    id="periode_mulai"
-                                    type="date"
-                                    value={data.periode_mulai}
-                                    onChange={(e) =>
-                                        setData('periode_mulai', e.target.value)
-                                    }
-                                    className="h-10"
-                                />
+                            <DatePicker
+                                id="periode_mulai"
+                                value={data.periode_mulai}
+                                onChange={(v) =>
+                                    setData('periode_mulai', v)
+                                }
+                                className="h-10"
+                            />
                                 <InputError message={errors.periode_mulai} />
                             </div>
 
@@ -144,18 +144,17 @@ export default function Edit({ kepalaBps }: EditProps) {
                                 <Label htmlFor="periode_selesai">
                                     Periode Selesai
                                 </Label>
-                                <Input
-                                    id="periode_selesai"
-                                    type="date"
-                                    value={data.periode_selesai}
-                                    onChange={(e) =>
-                                        setData(
-                                            'periode_selesai',
-                                            e.target.value,
-                                        )
-                                    }
-                                    className="h-10"
-                                />
+                            <DatePicker
+                                id="periode_selesai"
+                                value={data.periode_selesai}
+                                onChange={(v) =>
+                                    setData(
+                                        'periode_selesai',
+                                        v,
+                                    )
+                                }
+                                className="h-10"
+                            />
                                 <InputError message={errors.periode_selesai} />
                             </div>
 

@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -773,17 +774,16 @@ export default function Create({
                                         Tanggal Mulai{' '}
                                         <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="date"
+                                    <DatePicker
                                         id="tanggal_mulai"
                                         value={data.tanggal_mulai}
-                                        onChange={(e) =>
+                                        onChange={(v) =>
                                             setData(
                                                 'tanggal_mulai',
-                                                e.target.value,
+                                                v,
                                             )
                                         }
-                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
+                                        className="mt-2 h-11"
                                     />
                                     <InputError
                                         message={errors.tanggal_mulai}
@@ -800,17 +800,16 @@ export default function Create({
                                         Tanggal Selesai{' '}
                                         <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="date"
+                                    <DatePicker
                                         id="tanggal_selesai"
                                         value={data.tanggal_selesai}
-                                        onChange={(e) =>
+                                        onChange={(v) =>
                                             setData(
                                                 'tanggal_selesai',
-                                                e.target.value,
+                                                v,
                                             )
                                         }
-                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
+                                        className="mt-2 h-11"
                                     />
                                     <InputError
                                         message={errors.tanggal_selesai}

@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -431,15 +432,13 @@ export default function Create({
                                 Tanggal SK{' '}
                                 <span className="text-red-500">*</span>
                             </Label>
-                            <Input
+                            <DatePicker
                                 id="tanggal_sk"
-                                type="date"
-                                required
                                 value={formData.tanggal_sk}
-                                onChange={(e) =>
+                                onChange={(v) =>
                                     setFormData({
                                         ...formData,
-                                        tanggal_sk: e.target.value,
+                                        tanggal_sk: v,
                                     })
                                 }
                             />

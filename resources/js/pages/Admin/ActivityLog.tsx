@@ -13,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -428,10 +429,9 @@ export default function ActivityLog() {
                             <Calendar className="h-3 w-3" />
                             Tanggal
                         </label>
-                        <Input
-                            type="date"
+                        <DatePicker
                             value={date}
-                            onChange={(e) => setDate(e.target.value)}
+                            onChange={(v) => setDate(v)}
                             className="h-9 w-40"
                         />
                     </div>

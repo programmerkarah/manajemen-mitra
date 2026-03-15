@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -158,11 +159,10 @@ export default function Create() {
                                         >
                                             Periode Mulai
                                         </Label>
-                                        <Input
+                                        <DatePicker
                                             id="periode_mulai"
-                                            type="date"
                                             name="periode_mulai"
-                                            className="h-11 text-base"
+                                            className="h-11"
                                         />
                                         <InputError
                                             message={errors.periode_mulai}
@@ -177,11 +177,10 @@ export default function Create() {
                                         >
                                             Periode Selesai
                                         </Label>
-                                        <Input
+                                        <DatePicker
                                             id="periode_selesai"
-                                            type="date"
                                             name="periode_selesai"
-                                            className="h-11 text-base"
+                                            className="h-11"
                                         />
                                         <InputError
                                             message={errors.periode_selesai}

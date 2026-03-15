@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -737,17 +738,16 @@ export default function Edit({
                                         Tanggal Mulai{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <Input
+                                    <DatePicker
                                         id="tanggal_mulai"
-                                        type="date"
                                         value={data.tanggal_mulai}
-                                        onChange={(e) =>
+                                        onChange={(v) =>
                                             setData(
                                                 'tanggal_mulai',
-                                                e.target.value,
+                                                v,
                                             )
                                         }
-                                        className="h-11 text-base"
+                                        className="h-11"
                                     />
                                     <InputError
                                         message={errors.tanggal_mulai}
@@ -764,17 +764,16 @@ export default function Edit({
                                         Tanggal Selesai{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <Input
+                                    <DatePicker
                                         id="tanggal_selesai"
-                                        type="date"
                                         value={data.tanggal_selesai}
-                                        onChange={(e) =>
+                                        onChange={(v) =>
                                             setData(
                                                 'tanggal_selesai',
-                                                e.target.value,
+                                                v,
                                             )
                                         }
-                                        className="h-11 text-base"
+                                        className="h-11"
                                     />
                                     <InputError
                                         message={errors.tanggal_selesai}

@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -127,12 +128,11 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                                     Tanggal DIPA{' '}
                                     <span className="text-red-600">*</span>
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="tanggal_dipa"
-                                    type="date"
                                     value={data.tanggal_dipa}
-                                    onChange={(e) =>
-                                        setData('tanggal_dipa', e.target.value)
+                                    onChange={(v) =>
+                                        setData('tanggal_dipa', v)
                                     }
                                     required
                                     className="h-10"

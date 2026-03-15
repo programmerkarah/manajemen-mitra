@@ -201,6 +201,96 @@ const requestFileFromPost = async (
     };
 };
 
+const showPdfLoadingOverlay = (): (() => void) => {
+    const isDark = document.documentElement.classList.contains('dark');
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+        'position:fixed',
+        'inset:0',
+        'z-index:9999',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'background:rgba(0,0,0,0.5)',
+        'backdrop-filter:blur(4px)',
+        '-webkit-backdrop-filter:blur(4px)',
+    ].join(';');
+
+    const card = document.createElement('div');
+    card.style.cssText = [
+        'display:flex',
+        'flex-direction:column',
+        'align-items:center',
+        'gap:16px',
+        'padding:32px 40px',
+        'border-radius:16px',
+        `background:${isDark ? 'rgba(23,23,23,0.97)' : 'rgba(255,255,255,0.97)'}`,
+        `border:1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+        'box-shadow:0 25px 50px -12px rgba(0,0,0,0.4)',
+        'text-align:center',
+        'max-width:280px',
+    ].join(';');
+
+    const spinnerNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(spinnerNs, 'svg');
+    svg.setAttribute('width', '40');
+    svg.setAttribute('height', '40');
+    svg.setAttribute('viewBox', '0 0 40 40');
+    svg.setAttribute('fill', 'none');
+    svg.style.cssText = 'animation:spin 0.8s linear infinite';
+
+    const circle = document.createElementNS(spinnerNs, 'circle');
+    circle.setAttribute('cx', '20');
+    circle.setAttribute('cy', '20');
+    circle.setAttribute('r', '16');
+    circle.setAttribute('stroke', isDark ? '#525252' : '#e5e7eb');
+    circle.setAttribute('stroke-width', '4');
+    svg.appendChild(circle);
+
+    const arc = document.createElementNS(spinnerNs, 'path');
+    arc.setAttribute('d', 'M 20 4 A 16 16 0 0 1 36 20');
+    arc.setAttribute('stroke', isDark ? '#d4d4d4' : '#111827');
+    arc.setAttribute('stroke-width', '4');
+    arc.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(arc);
+
+    const style = document.createElement('style');
+    style.textContent =
+        '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+
+    const title = document.createElement('p');
+    title.textContent = 'Menyiapkan PDF...';
+    title.style.cssText = [
+        'margin:0',
+        'font-size:15px',
+        'font-weight:600',
+        `color:${isDark ? '#f5f5f5' : '#111827'}`,
+        'font-family:system-ui,sans-serif',
+    ].join(';');
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Harap tunggu sebentar';
+    subtitle.style.cssText = [
+        'margin:0',
+        'font-size:13px',
+        `color:${isDark ? '#a3a3a3' : '#6b7280'}`,
+        'font-family:system-ui,sans-serif',
+    ].join(';');
+
+    card.appendChild(svg);
+    card.appendChild(title);
+    card.appendChild(subtitle);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    return () => {
+        overlay.remove();
+        style.remove();
+    };
+};
+
 export const downloadFileFromPost = async (
     url: string,
     payload: DownloadPayload,
@@ -230,11 +320,20 @@ export const previewFileFromPost = async (
     payload: DownloadPayload,
     defaultFilename: string,
 ): Promise<void> => {
-    const { blob, filename } = await requestFileFromPost(
-        url,
-        payload,
-        defaultFilename,
-    );
+    const hideOverlay = showPdfLoadingOverlay();
+
+    let blob: Blob;
+    let filename: string;
+
+    try {
+        ({ blob, filename } = await requestFileFromPost(
+            url,
+            payload,
+            defaultFilename,
+        ));
+    } finally {
+        hideOverlay();
+    }
 
     const blobUrl = URL.createObjectURL(blob);
     const previewWindow = window.open('', '_blank');

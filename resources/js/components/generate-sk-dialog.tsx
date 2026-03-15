@@ -7,6 +7,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -167,12 +168,10 @@ export function GenerateSkDialog({
                                 Tanggal SK{' '}
                                 <span className="text-red-500">*</span>
                             </Label>
-                            <Input
+                            <DatePicker
                                 id="tanggal_sk"
-                                type="date"
                                 value={tanggalSk}
-                                onChange={(e) => setTanggalSk(e.target.value)}
-                                required
+                                onChange={(v) => setTanggalSk(v)}
                             />
                         </div>
                     </div>

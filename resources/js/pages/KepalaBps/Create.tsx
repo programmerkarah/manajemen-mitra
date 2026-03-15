@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -99,9 +100,8 @@ export default function Create() {
                                         <Label htmlFor="periode_mulai">
                                             Periode Mulai
                                         </Label>
-                                        <Input
+                                        <DatePicker
                                             id="periode_mulai"
-                                            type="date"
                                             name="periode_mulai"
                                             className="h-10"
                                         />
@@ -115,9 +115,8 @@ export default function Create() {
                                         <Label htmlFor="periode_selesai">
                                             Periode Selesai
                                         </Label>
-                                        <Input
+                                        <DatePicker
                                             id="periode_selesai"
-                                            type="date"
                                             name="periode_selesai"
                                             className="h-10"
                                         />
