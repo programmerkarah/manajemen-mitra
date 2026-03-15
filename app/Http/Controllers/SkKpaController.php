@@ -636,17 +636,22 @@ class SkKpaController extends Controller
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
-        $pdfContent = $pdf->output();
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+        $tempFile = $tempPath.'/sk_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($tempFile, $pdf->output());
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
-            ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes')
-            ->header('Cache-Control', 'no-cache, must-revalidate')
-            ->header('Expires', '0')
-            ->header('X-Content-Type-Options', 'nosniff')
-            ->header('Content-Transfer-Encoding', 'binary');
+        return response()->file($tempFile, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Transfer-Encoding' => 'binary',
+        ])->deleteFileAfterSend(true);
     }
 
     /**

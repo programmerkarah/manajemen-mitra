@@ -2509,7 +2509,7 @@ class SpkController extends Controller
             'alokasi' => $allAlokasi->first(),
             'allAlokasi' => $allAlokasi, // Pass all alokasi for lampiran
             'petugas' => $petugas,
-            'kegiatan' => $periode->kegiatan,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'kegiatanData' => $kegiatanData, // Pass kegiatan data with COA
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
@@ -2560,23 +2560,19 @@ class SpkController extends Controller
         );
 
         if ($merged && file_exists($mergedPath)) {
-            $pdfContent = file_get_contents($mergedPath);
-
-            // Cleanup temporary files
+            // Cleanup non-merged temp files
             @unlink($mainPath);
             @unlink($lampiranPath);
-            @unlink($mergedPath);
 
-            // Return with proper headers for inline display
-            return response($pdfContent, 200)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
-                ->header('Content-Length', strlen($pdfContent))
-                ->header('Accept-Ranges', 'bytes')
-                ->header('Cache-Control', 'no-cache, must-revalidate')
-                ->header('Expires', '0')
-                ->header('X-Content-Type-Options', 'nosniff')
-                ->header('Content-Transfer-Encoding', 'binary');
+            // Stream merged PDF directly from disk — avoids loading entire file into memory
+            return response()->file($mergedPath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'no-cache, must-revalidate',
+                'Expires' => '0',
+                'X-Content-Type-Options' => 'nosniff',
+            ])->deleteFileAfterSend(true);
         }
 
         // Cleanup temporary files
@@ -2703,8 +2699,9 @@ class SpkController extends Controller
         $data = [
             'periode' => $periode,
             'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
             'petugas' => $petugas,
-            'kegiatan' => $periode->kegiatan,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
@@ -2728,17 +2725,22 @@ class SpkController extends Controller
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
-        $pdfContent = $pdf->output();
+        // Stream from temp file to avoid loading entire PDF into memory
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+        $tempFile = $tempPath.'/spk_main_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($tempFile, $pdf->output());
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
-            ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes')
-            ->header('Cache-Control', 'no-cache, must-revalidate')
-            ->header('Expires', '0')
-            ->header('X-Content-Type-Options', 'nosniff')
-            ->header('Content-Transfer-Encoding', 'binary');
+        return response()->file($tempFile, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
@@ -2870,17 +2872,22 @@ class SpkController extends Controller
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
-        $pdfContent = $pdf->output();
+        // Stream from temp file to avoid loading entire PDF into memory
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+        $tempFile = $tempPath.'/spk_lampiran_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($tempFile, $pdf->output());
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
-            ->header('Content-Length', strlen($pdfContent))
-            ->header('Accept-Ranges', 'bytes')
-            ->header('Cache-Control', 'no-cache, must-revalidate')
-            ->header('Expires', '0')
-            ->header('X-Content-Type-Options', 'nosniff')
-            ->header('Content-Transfer-Encoding', 'binary');
+        return response()->file($tempFile, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
@@ -2976,8 +2983,9 @@ class SpkController extends Controller
         $data = [
             'periode' => $periode,
             'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
             'petugas' => $petugas,
-            'kegiatan' => $periode->kegiatan,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'nomorSpk' => $nomorSpk,
             'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
             'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
@@ -3603,8 +3611,9 @@ class SpkController extends Controller
             $data = [
                 'periode' => $periode,
                 'alokasi' => $allAlokasiPetugas->first(),
+                'allAlokasi' => $allAlokasiPetugas,
                 'petugas' => $petugas,
-                'kegiatan' => $periode->kegiatan,
+                'kegiatan' => $allAlokasiPetugas->first()->periodeAlokasi->kegiatan,
                 'nomorSpk' => $nomorSpk,
                 'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
                 'sampaiTanggal' => $calculatedSampaiTanggal,

@@ -500,6 +500,20 @@
     </div>
 
     <!-- Pasal 11 -->
+    @php
+        $allKegiatanList = collect($allAlokasi ?? [])
+            ->map(fn($a) => $a->periodeAlokasi->kegiatan ?? null)
+            ->filter()
+            ->unique('id')
+            ->values();
+        $capiKegiatanList = $allKegiatanList->filter(
+            fn($k) => ($k->metode_pendataan_pencacahan === 'CAPI') || ($k->metode_pendataan_listing === 'CAPI')
+        );
+        $hasCapiKegiatan = $capiKegiatanList->isNotEmpty();
+        $kegiatanNamaText = $capiKegiatanList->isNotEmpty()
+            ? $capiKegiatanList->pluck('nama_kegiatan')->filter()->unique()->implode(', ')
+            : ($kegiatan->nama_kegiatan ?? '');
+    @endphp
     <div class="pasal">
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 11</div>
@@ -513,22 +527,24 @@
             </div>
         </div>
         <div class="pasal-remaining-items">
+            @if($hasCapiKegiatan)
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
-                    Apabila terjadi kerusakan perangkat pencacahan yang menyebabkan pelaksanaan pencacahan lapangan {{ $kegiatan->nama_kegiatan }} pada Badan Pusat Statistik Kota Sawahlunto tidak dapat dilakukan, <strong>PIHAK KEDUA</strong> melalui Tim Teknis BPS Kota memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 14 (empat belas) hari kalender sejak terjadi kerusakan dimaksud.
+                    Apabila terjadi kerusakan perangkat pencacahan yang menyebabkan pelaksanaan pencacahan lapangan {{ $kegiatanNamaText }} pada Badan Pusat Statistik Kota Sawahlunto tidak dapat dilakukan, <strong>PIHAK KEDUA</strong> melalui Tim Teknis BPS Kota memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 14 (empat belas) hari kalender sejak terjadi kerusakan dimaksud.
+                </div>
+            </div>
+            @endif
+            <div class="pasal-item">
+                <div class="pasal-item-number">{{ $hasCapiKegiatan ? '(3)' : '(2)' }}</div>
+                <div class="pasal-item-content">
+                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1){{ $hasCapiKegiatan ? ' dan/atau ayat (2)' : '' }}, pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah peristiwa tersebut berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
                 </div>
             </div>
             <div class="pasal-item">
-                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-number">{{ $hasCapiKegiatan ? '(4)' : '(3)' }}</div>
                 <div class="pasal-item-content">
-                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2), pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah peristiwa tersebut berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
-                </div>
-            </div>
-            <div class="pasal-item">
-                <div class="pasal-item-number">(4)</div>
-                <div class="pasal-item-content">
-                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2) tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA.</strong>
+                    Apabila akibat peristiwa sebagaimana dimaksud pada ayat (1){{ $hasCapiKegiatan ? ' dan/atau ayat (2)' : '' }} tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA.</strong>
                 </div>
             </div>
         </div>

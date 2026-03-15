@@ -1946,16 +1946,16 @@ class BastController extends Controller
         );
 
         if ($merged && file_exists($mergedPath)) {
-            $pdfContent = file_get_contents($mergedPath);
-
-            // Cleanup temporary files
+            // Cleanup temp input files; mergedPath streams and deletes after send
             @unlink($mainPath);
             @unlink($lampiranPath);
-            @unlink($mergedPath);
 
-            return response($pdfContent)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="preview_BAST_'.$cleanNomorBast.'-'.$bastData['petugas']['nama'].'.pdf"');
+            return response()->file($mergedPath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="preview_BAST_'.$cleanNomorBast.'-'.$bastData['petugas']['nama'].'.pdf"',
+                'Cache-Control' => 'no-cache, must-revalidate',
+                'Expires' => '0',
+            ])->deleteFileAfterSend(true);
         }
         // Cleanup temporary files
         @unlink($mainPath);
@@ -1970,6 +1970,34 @@ class BastController extends Controller
      */
     public function downloadPdf(Bast $bast): \Symfony\Component\HttpFoundation\Response
     {
+        $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
+        $filename = 'BAST-'.$cleanNomorBast.'.pdf';
+
+        // Serve signed file if available (fastest path — no regeneration)
+        if ($bast->signed_file_path) {
+            $signedPath = public_path($bast->signed_file_path);
+            if (file_exists($signedPath)) {
+                return response()->file($signedPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                    'Cache-Control' => 'no-cache, must-revalidate',
+                ]);
+            }
+        }
+
+        // Serve pre-generated file if available
+        if ($bast->file_path) {
+            $generatedPath = public_path($bast->file_path);
+            if (file_exists($generatedPath)) {
+                return response()->file($generatedPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                    'Cache-Control' => 'no-cache, must-revalidate',
+                ]);
+            }
+        }
+
+        // Fallback: regenerate on-the-fly when no stored file exists
         $bast->load([
             'spk.alokasiPetugas.petugas',
             'spk.alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
@@ -2054,9 +2082,6 @@ class BastController extends Controller
 
         $pdf = Pdf::loadHTML($htmlContent);
         $pdf->setPaper('a4', 'portrait');
-
-        $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
-        $filename = 'BAST-'.$cleanNomorBast.'.pdf';
 
         return $pdf->download($filename);
     }
@@ -2372,10 +2397,20 @@ class BastController extends Controller
         $merged = $this->mergePdfStrings([$mainContent, $lampiranContent]);
         $fileName = 'BAST_PREVIEW_'.str_replace('/', '-', $nomorBast).'.pdf';
 
-        return response($merged, 200, [
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+        $tempFile = $tempPath.'/bast_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($tempFile, $merged);
+        unset($merged);
+
+        return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$fileName.'"',
-        ]);
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
