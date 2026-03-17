@@ -1981,10 +1981,11 @@ export default function Dashboard({
                                                     .requires_document ||
                                                 kegiatan.bast.is_complete;
                                             const bastCreateHref = `/bast/create?bulan=${currentMonth}&tahun=${currentYear}`;
-                                            const bastActionHref =
-                                                kegiatan.bast.is_complete
-                                                    ? kegiatan.bast.detail_url
-                                                    : bastCreateHref;
+                                            const bastActionHref = kegiatan.bast
+                                                .is_complete
+                                                ? (kegiatan.bast.detail_url ??
+                                                  bastCreateHref)
+                                                : bastCreateHref;
                                             const completionCount = [
                                                 hasAlokasi,
                                                 hasSk,
