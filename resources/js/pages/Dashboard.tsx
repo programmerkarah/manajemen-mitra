@@ -1980,6 +1980,11 @@ export default function Dashboard({
                                                 !kegiatan.bast
                                                     .requires_document ||
                                                 kegiatan.bast.is_complete;
+                                            const bastCreateHref = `/bast/create?bulan=${currentMonth}&tahun=${currentYear}`;
+                                            const bastActionHref =
+                                                kegiatan.bast.is_complete
+                                                    ? kegiatan.bast.detail_url
+                                                    : bastCreateHref;
                                             const completionCount = [
                                                 hasAlokasi,
                                                 hasSk,
@@ -2440,22 +2445,20 @@ export default function Dashboard({
                                                                         </span>
                                                                         {canViewMonthlyDocuments &&
                                                                             kegiatan
-                                                                                .bast
-                                                                                .detail_url && (
+                                                                                .periode_alokasi
+                                                                                ?.has_alokasi &&
+                                                                            bastActionHref && (
                                                                                 <Link
                                                                                     href={
-                                                                                        kegiatan
-                                                                                            .bast
-                                                                                            .detail_url
+                                                                                        bastActionHref
                                                                                     }
                                                                                 >
                                                                                     <Button
                                                                                         size="sm"
                                                                                         variant="ghost"
                                                                                     >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
+                                                                                        <Plus className="mr-1 size-3" />
+                                                                                        Buat
                                                                                     </Button>
                                                                                 </Link>
                                                                             )}
@@ -2469,22 +2472,19 @@ export default function Dashboard({
                                                                         </span>
                                                                         {canViewMonthlyDocuments &&
                                                                             kegiatan
-                                                                                .bast
-                                                                                .detail_url && (
+                                                                                .periode_alokasi
+                                                                                ?.has_alokasi && (
                                                                                 <Link
                                                                                     href={
-                                                                                        kegiatan
-                                                                                            .bast
-                                                                                            .detail_url
+                                                                                        bastActionHref
                                                                                     }
                                                                                 >
                                                                                     <Button
                                                                                         size="sm"
                                                                                         variant="ghost"
                                                                                     >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
+                                                                                        <Plus className="mr-1 size-3" />
+                                                                                        Buat
                                                                                     </Button>
                                                                                 </Link>
                                                                             )}
