@@ -49,6 +49,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface AlokasiPeriod {
     kegiatan_id: number;
+    periode_id: number;
     bulan: string;
     tahun: number;
     jenis_kegiatan: 'sensus' | 'survei';
@@ -63,6 +64,7 @@ interface AlokasiPeriod {
     latest_created_at: string;
     is_latest_periode: boolean;
     has_completed_revision_cycle: boolean;
+    has_spk_generated: boolean;
     kegiatan: Kegiatan;
 }
 
@@ -105,6 +107,8 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const decryptedAlokasi = useDecryptedData<AlokasiPeriod>(alokasi.encrypted);
     const isPJ = auth.activeRole?.name === 'pj';
     const isAdmin = auth.activeRole?.name === 'admin';
+    const isOperator = auth.activeRole?.name === 'operator';
+    const isAdminOrOperator = isAdmin || isOperator;
 
     // State for client-side filtering
     const [search, setSearch] = useState('');
@@ -799,24 +803,28 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             Salin
                                                                         </Link>
                                                                     </DropdownMenuItem>
-                                                                    <DropdownMenuItem
-                                                                        onClick={() =>
-                                                                            handleBatalkan(
-                                                                                periode
-                                                                                    .kegiatan
-                                                                                    .hashed_id,
-                                                                                periode.bulan,
-                                                                                periode.tahun,
-                                                                                periode
-                                                                                    .kegiatan
-                                                                                    .nama_kegiatan,
-                                                                            )
-                                                                        }
-                                                                        className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
-                                                                    >
-                                                                        <X className="h-4 w-4" />
-                                                                        Batalkan
-                                                                    </DropdownMenuItem>
+                                                                    {isAdminOrOperator &&
+                                                                        !periode.has_spk_generated && (
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleBatalkan(
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .hashed_id,
+                                                                                        periode.bulan,
+                                                                                        periode.tahun,
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .nama_kegiatan,
+                                                                                    )
+                                                                                }
+                                                                                className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
+                                                                            >
+                                                                                <X className="h-4 w-4" />
+                                                                                Batalkan
+                                                                                Alokasi
+                                                                            </DropdownMenuItem>
+                                                                        )}
                                                                 </>
                                                             )}
                                                         {!isPJ &&
@@ -856,6 +864,30 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             >
                                                                                 <RefreshCw className="h-4 w-4" />
                                                                                 Revisi
+                                                                            </DropdownMenuItem>
+                                                                        )}
+                                                                    {isAdminOrOperator &&
+                                                                        periode.status ===
+                                                                            'dikirim' &&
+                                                                        !periode.has_spk_generated && (
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleBatalkan(
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .hashed_id,
+                                                                                        periode.bulan,
+                                                                                        periode.tahun,
+                                                                                        periode
+                                                                                            .kegiatan
+                                                                                            .nama_kegiatan,
+                                                                                    )
+                                                                                }
+                                                                                className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
+                                                                            >
+                                                                                <X className="h-4 w-4" />
+                                                                                Batalkan
+                                                                                Alokasi
                                                                             </DropdownMenuItem>
                                                                         )}
                                                                 </>

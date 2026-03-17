@@ -105,4 +105,43 @@ class SpkLampiranHonorFilterTest extends TestCase
         $this->assertStringNotContainsString('Uraian Honor Nol', $html);
         $this->assertStringContainsString('Uraian Honor Positif', $html);
     }
+
+    public function test_spk_lampiran_renders_partial_volume_and_partial_honor_values(): void
+    {
+        $html = view('spk-lampiran', [
+            'petugas' => (object) [
+                'nama' => 'Petugas Uji',
+                'jenis_petugas' => 'non-organik',
+            ],
+            'kegiatan' => (object) [
+                'jenis_kegiatan' => 'survei',
+                'nama_kegiatan' => 'Survei Uji',
+            ],
+            'periode' => (object) [
+                'bulan' => 1,
+                'tahun' => 2026,
+            ],
+            'workType' => 'lapangan',
+            'nomorSpk' => '001/ABC/001',
+            'totalHonor' => 10000,
+            'bebanAnggaran' => '111.222',
+            'uraianTugas' => [
+                [
+                    'uraian' => 'Uraian Honor Parsial',
+                    'volume' => 2,
+                    'satuan' => 'DOK',
+                    'harga_satuan' => 5000,
+                    'jumlah' => 10000,
+                    'kode_coa' => '123',
+                    'tanggal_mulai' => '2026-01-01',
+                    'tanggal_selesai' => '2026-01-10',
+                ],
+            ],
+        ])->render();
+
+        $this->assertStringContainsString('Uraian Honor Parsial', $html);
+        $this->assertStringContainsString('>2<', $html);
+        $this->assertStringContainsString('10.000', $html);
+        $this->assertStringNotContainsString('>5<', $html);
+    }
 }

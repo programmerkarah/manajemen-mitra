@@ -120,4 +120,79 @@ class SbmlHonorTerendahTest extends TestCase
         $this->assertEquals(1500000, $petugasData['max_allowed']);
         $this->assertTrue($petugasData['exceeds']);
     }
+
+    public function test_rekap_honor_mengembalikan_jumlah_satuan_dibayarkan_dengan_fallback_ke_nilai_original(): void
+    {
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $tahun = 2025;
+        $bulan = '11';
+
+        Sbml::create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 9999999,
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $tahun,
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periode->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => (int) $bulan,
+            'tahun' => $tahun,
+            'status' => 'draft',
+            'jenis_kegiatan' => 'survei',
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 5,
+            'partial_jumlah_satuan' => 2,
+            'is_partial_payment' => 1,
+            'total_honor' => 500000,
+            'estimasi_honor_partial' => 200000,
+            'jumlah_satuan_listing' => 4,
+            'partial_jumlah_satuan_listing' => null,
+            'is_partial_payment_listing' => 1,
+            'total_honor_listing' => 400000,
+            'estimasi_honor_partial_listing' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
+        $user = User::factory()->create();
+        $user->roles()->attach($adminRole->id);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('sbml.report', ['tahun' => $tahun, 'bulan' => $bulan]));
+
+        $response->assertOk();
+        $data = decryptData($response->inertiaProps('petugas.encrypted'));
+
+        $petugasData = collect($data)->first();
+        $alokasi = collect($petugasData['kegiatan_details'])->first()['alokasi'][0];
+
+        $this->assertEquals(600000, $petugasData['total_honor']);
+        $this->assertEquals(2, $alokasi['jumlah_satuan_dibayarkan']);
+        $this->assertEquals(4, $alokasi['jumlah_satuan_listing_dibayarkan']);
+    }
 }

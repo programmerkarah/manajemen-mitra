@@ -20,7 +20,9 @@ import { useState } from 'react';
 interface AlokasiDetail {
     peran: string;
     jumlah_satuan: number;
+    jumlah_satuan_dibayarkan: number;
     jumlah_satuan_listing: number | null;
+    jumlah_satuan_listing_dibayarkan: number | null;
     total_honor_listing: number;
     total_honor: number;
     status_kepegawaian: string;
@@ -460,6 +462,11 @@ export default function Report({
                                                                                                 Jumlah
                                                                                                 Satuan
                                                                                             </th>
+                                                                                            <th className="p-2 text-center font-medium">
+                                                                                                Jumlah
+                                                                                                Satuan
+                                                                                                Dibayarkan
+                                                                                            </th>
                                                                                             <th className="p-2 text-right font-medium">
                                                                                                 Total
                                                                                                 Honor
@@ -489,6 +496,11 @@ export default function Report({
                                                                                                                         alokasi.jumlah_satuan_listing
                                                                                                                     }
                                                                                                                 </td>
+                                                                                                                <td className="p-2 text-center">
+                                                                                                                    {alokasi.jumlah_satuan_listing_dibayarkan ??
+                                                                                                                        alokasi.jumlah_satuan_listing ??
+                                                                                                                        0}
+                                                                                                                </td>
                                                                                                                 <td className="p-2 text-right font-medium">
                                                                                                                     {formatCurrency(
                                                                                                                         alokasi.total_honor_listing,
@@ -510,6 +522,11 @@ export default function Report({
                                                                                                                         alokasi.jumlah_satuan
                                                                                                                     }
                                                                                                                 </td>
+                                                                                                                <td className="p-2 text-center">
+                                                                                                                    {alokasi.jumlah_satuan_dibayarkan ??
+                                                                                                                        alokasi.jumlah_satuan ??
+                                                                                                                        0}
+                                                                                                                </td>
                                                                                                                 <td className="p-2 text-right font-medium">
                                                                                                                     {formatCurrency(
                                                                                                                         alokasi.total_honor,
@@ -530,6 +547,11 @@ export default function Report({
                                                                                                             {
                                                                                                                 alokasi.jumlah_satuan
                                                                                                             }
+                                                                                                        </td>
+                                                                                                        <td className="p-2 text-center">
+                                                                                                            {alokasi.jumlah_satuan_dibayarkan ??
+                                                                                                                alokasi.jumlah_satuan ??
+                                                                                                                0}
                                                                                                         </td>
                                                                                                         <td className="p-2 text-right font-medium">
                                                                                                             {formatCurrency(

@@ -128,14 +128,14 @@ export default function Edit({ kepalaBps }: EditProps) {
                                 <Label htmlFor="periode_mulai">
                                     Periode Mulai
                                 </Label>
-                            <DatePicker
-                                id="periode_mulai"
-                                value={data.periode_mulai}
-                                onChange={(v) =>
-                                    setData('periode_mulai', v)
-                                }
-                                className="h-10"
-                            />
+                                <DatePicker
+                                    id="periode_mulai"
+                                    value={data.periode_mulai}
+                                    onChange={(v) =>
+                                        setData('periode_mulai', v)
+                                    }
+                                    className="h-10"
+                                />
                                 <InputError message={errors.periode_mulai} />
                             </div>
 
@@ -144,17 +144,14 @@ export default function Edit({ kepalaBps }: EditProps) {
                                 <Label htmlFor="periode_selesai">
                                     Periode Selesai
                                 </Label>
-                            <DatePicker
-                                id="periode_selesai"
-                                value={data.periode_selesai}
-                                onChange={(v) =>
-                                    setData(
-                                        'periode_selesai',
-                                        v,
-                                    )
-                                }
-                                className="h-10"
-                            />
+                                <DatePicker
+                                    id="periode_selesai"
+                                    value={data.periode_selesai}
+                                    onChange={(v) =>
+                                        setData('periode_selesai', v)
+                                    }
+                                    className="h-10"
+                                />
                                 <InputError message={errors.periode_selesai} />
                             </div>
 

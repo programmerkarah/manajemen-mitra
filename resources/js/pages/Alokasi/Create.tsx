@@ -12,10 +12,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, Loader2, Save, Send, Trash2, X } from 'lucide-react';
+import {
+    ArrowLeft,
+    Copy,
+    Loader2,
+    Plus,
+    Save,
+    Send,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -63,6 +73,7 @@ interface RateHonor {
     };
     rate_listing?: number;
     satuan_listing_id?: string;
+    sbml_limit?: number | null;
 }
 
 interface AlokasiItem {
@@ -73,6 +84,12 @@ interface AlokasiItem {
     jumlah_satuan_listing?: string;
     estimasi_honor_listing?: number;
     catatan: string;
+    is_partial_payment?: boolean;
+    partial_jumlah_satuan?: string;
+    estimasi_honor_partial?: number;
+    is_partial_payment_listing?: boolean;
+    partial_jumlah_satuan_listing?: string;
+    estimasi_honor_partial_listing?: number;
 }
 
 /** Shape of alokasi data coming from the backend (edit/copy mode) */
@@ -84,6 +101,12 @@ interface BackendAlokasiItem {
     total_honor: string | number;
     total_honor_listing?: string | number;
     catatan?: string;
+    is_partial_payment?: boolean;
+    partial_jumlah_satuan?: string | number;
+    estimasi_honor_partial?: string | number;
+    is_partial_payment_listing?: boolean;
+    partial_jumlah_satuan_listing?: string | number;
+    estimasi_honor_partial_listing?: string | number;
 }
 
 interface AlokasiCreateProps {
@@ -117,6 +140,14 @@ interface AlokasiCreateProps {
             months?: number[]; // For non-listing kegiatan: [1, 2, 3]
         }
     >;
+    existing_allocations: Array<{
+        petugas_id: number;
+        bulan: number;
+        tahun: number;
+        total_honor_pencacahan: number;
+        total_honor_listing: number;
+        total_honor_combined: number;
+    }>;
     isEditMode?: boolean;
     isRevisiMode?: boolean;
     isViewMode?: boolean;
@@ -133,6 +164,7 @@ export default function Create({
     sourcePeriode,
     budget_info,
     used_months_info,
+    existing_allocations,
     isEditMode = false,
     isRevisiMode = false,
     isViewMode = false,
@@ -225,7 +257,7 @@ export default function Create({
         }>
     >([]);
     // Tidak perlu showPengolahan, dropdown peran akan dinamis dari rate_honors
-    const [jumlahPetugas, setJumlahPetugas] = useState(
+    const [jumlahPetugas, setJumlahPetugas] = useState<number | string>(
         isEditMode && copiedAlokasi ? copiedAlokasi.length : 1,
     );
     const [alokasiItems, setAlokasiItems] = useState<AlokasiItem[]>([
@@ -235,6 +267,12 @@ export default function Create({
             jumlah_satuan: '',
             estimasi_honor: 0,
             catatan: '',
+            is_partial_payment: false,
+            partial_jumlah_satuan: '',
+            estimasi_honor_partial: 0,
+            is_partial_payment_listing: false,
+            partial_jumlah_satuan_listing: '',
+            estimasi_honor_partial_listing: 0,
         },
     ]);
     const [restorableItemsByCount, setRestorableItemsByCount] = useState<
@@ -568,6 +606,27 @@ export default function Create({
                     parseFloat(String(alokasi.total_honor)) || 0;
                 const estimasiHonorListing =
                     parseFloat(String(alokasi.total_honor_listing ?? 0)) || 0;
+                const estimasiHonorPartial =
+                    parseFloat(String(alokasi.estimasi_honor_partial ?? 0)) ||
+                    0;
+                const estimasiHonorPartialListing =
+                    parseFloat(
+                        String(alokasi.estimasi_honor_partial_listing ?? 0),
+                    ) || 0;
+                const partialJumlahSatuan = String(
+                    alokasi.partial_jumlah_satuan ?? '',
+                );
+                const partialJumlahSatuanListing = String(
+                    alokasi.partial_jumlah_satuan_listing ?? '',
+                );
+                const hasPartialPayment =
+                    Boolean(alokasi.is_partial_payment) ||
+                    Number(partialJumlahSatuan || 0) > 0 ||
+                    estimasiHonorPartial > 0;
+                const hasPartialPaymentListing =
+                    Boolean(alokasi.is_partial_payment_listing) ||
+                    Number(partialJumlahSatuanListing || 0) > 0 ||
+                    estimasiHonorPartialListing > 0;
 
                 return {
                     petugas_id: String(alokasi.petugas_id || ''),
@@ -579,6 +638,12 @@ export default function Create({
                     estimasi_honor: estimasiHonor,
                     estimasi_honor_listing: estimasiHonorListing,
                     catatan: alokasi.catatan || '',
+                    is_partial_payment: hasPartialPayment,
+                    partial_jumlah_satuan: partialJumlahSatuan,
+                    estimasi_honor_partial: estimasiHonorPartial,
+                    is_partial_payment_listing: hasPartialPaymentListing,
+                    partial_jumlah_satuan_listing: partialJumlahSatuanListing,
+                    estimasi_honor_partial_listing: estimasiHonorPartialListing,
                 };
             });
 
@@ -679,6 +744,157 @@ export default function Create({
             return matchingRateHonor.rate_listing * parsedJumlahListing;
         },
         [selectedKegiatan, petugas],
+    );
+
+    // Calculate estimasi honor for partial payment (pencacahan)
+    const calculateEstimasiPartial = useCallback(
+        (petugasId: string, peran: string, partialJumlahSatuan: string) => {
+            if (
+                !petugasId ||
+                !peran ||
+                !partialJumlahSatuan ||
+                !selectedKegiatan
+            )
+                return 0;
+            const selectedPetugas = petugas.find(
+                (p) => String(p.id) === String(petugasId),
+            );
+            if (!selectedPetugas) return 0;
+            const statusKepegawaian =
+                selectedPetugas.jenis_petugas === 'organik'
+                    ? 'organik'
+                    : 'non_organik';
+            let jenisPenugasan = '';
+            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
+            else if (peran === 'PML') jenisPenugasan = 'pml';
+            else if (peran === 'Petugas Pengolahan')
+                jenisPenugasan = 'pengolahan';
+            else if (peran === 'Pengawas Pengolahan')
+                jenisPenugasan = 'pengawas_pengolahan';
+            if (!jenisPenugasan) return 0;
+            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
+                (r) =>
+                    r.status_kepegawaian === statusKepegawaian &&
+                    r.jenis_penugasan === jenisPenugasan,
+            );
+            if (!matchingRateHonor) return 0;
+            const parsedJumlah = parseFloat(partialJumlahSatuan) || 0;
+            return matchingRateHonor.rate * parsedJumlah;
+        },
+        [selectedKegiatan, petugas],
+    );
+
+    // Calculate estimasi honor for partial payment listing
+    const calculateEstimasiPartialListing = useCallback(
+        (
+            petugasId: string,
+            peran: string,
+            partialJumlahSatuanListing: string,
+        ) => {
+            if (
+                !petugasId ||
+                !peran ||
+                !partialJumlahSatuanListing ||
+                !selectedKegiatan ||
+                !selectedKegiatan.has_listing_updating
+            )
+                return 0;
+            const selectedPetugas = petugas.find(
+                (p) => String(p.id) === String(petugasId),
+            );
+            if (!selectedPetugas) return 0;
+            const statusKepegawaian =
+                selectedPetugas.jenis_petugas === 'organik'
+                    ? 'organik'
+                    : 'non_organik';
+            let jenisPenugasan = '';
+            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
+            else if (peran === 'PML') jenisPenugasan = 'pml';
+            else if (peran === 'Petugas Pengolahan')
+                jenisPenugasan = 'pengolahan';
+            else if (peran === 'Pengawas Pengolahan')
+                jenisPenugasan = 'pengawas_pengolahan';
+            if (!jenisPenugasan) return 0;
+            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
+                (r) =>
+                    r.status_kepegawaian === statusKepegawaian &&
+                    r.jenis_penugasan === jenisPenugasan,
+            );
+            if (!matchingRateHonor || !matchingRateHonor.rate_listing) return 0;
+            const parsedJumlahListing =
+                parseFloat(partialJumlahSatuanListing) || 0;
+            return matchingRateHonor.rate_listing * parsedJumlahListing;
+        },
+        [selectedKegiatan, petugas],
+    );
+
+    // Show partial payment toggle when full estimated honor exceeds SBML,
+    // and keep it visible after the user enables partial payment.
+    const shouldShowPartialPaymentToggle = useCallback(
+        (item: AlokasiItem): boolean => {
+            if (!selectedKegiatan || !item.petugas_id || !item.peran) {
+                return false;
+            }
+
+            const petugas_ = petugas.find(
+                (p) => String(p.id) === String(item.petugas_id),
+            );
+            if (!petugas_) {
+                return false;
+            }
+
+            const statusKepegawaian =
+                petugas_.jenis_petugas === 'organik'
+                    ? 'organik'
+                    : 'non_organik';
+
+            // Map frontend peran to backend jenis_penugasan
+            let jenisPenugasan = '';
+            if (item.peran === 'PCL') jenisPenugasan = 'pcl_ppl';
+            else if (item.peran === 'PML') jenisPenugasan = 'pml';
+            else if (item.peran === 'Petugas Pengolahan')
+                jenisPenugasan = 'pengolahan';
+            else if (item.peran === 'Pengawas Pengolahan')
+                jenisPenugasan = 'pengawas_pengolahan';
+
+            if (!jenisPenugasan) {
+                return false;
+            }
+
+            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
+                (r) =>
+                    r.status_kepegawaian === statusKepegawaian &&
+                    r.jenis_penugasan === jenisPenugasan,
+            );
+
+            if (!matchingRateHonor || !matchingRateHonor.sbml_limit) {
+                return false;
+            }
+
+            if (item.is_partial_payment || item.is_partial_payment_listing) {
+                return true;
+            }
+
+            const petugasIdNum = parseInt(String(item.petugas_id), 10);
+            const existingAllocation = existing_allocations.find(
+                (a) =>
+                    a.petugas_id === petugasIdNum &&
+                    a.tahun === Number(active_year) &&
+                    a.bulan === Number(bulan),
+            );
+
+            const existingHonor = existingAllocation?.total_honor_combined || 0;
+            const currentPencacahanHonor = Number(item.estimasi_honor || 0);
+            const currentListingHonor = Number(
+                item.estimasi_honor_listing || 0,
+            );
+            const currentInputHonor =
+                currentPencacahanHonor + currentListingHonor;
+            const totalHonor = existingHonor + currentInputHonor;
+
+            return totalHonor > matchingRateHonor.sbml_limit;
+        },
+        [selectedKegiatan, petugas, existing_allocations, active_year, bulan],
     );
 
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
@@ -800,6 +1016,12 @@ export default function Create({
                     jumlah_satuan: '',
                     estimasi_honor: 0,
                     catatan: '',
+                    is_partial_payment: false,
+                    partial_jumlah_satuan: '',
+                    estimasi_honor_partial: 0,
+                    is_partial_payment_listing: false,
+                    partial_jumlah_satuan_listing: '',
+                    estimasi_honor_partial_listing: 0,
                 }),
             );
 
@@ -834,6 +1056,31 @@ export default function Create({
         setRestorableItemsByCount([]);
     };
 
+    const handleAddPetugasAfter = (index: number) => {
+        const newItem: AlokasiItem = {
+            petugas_id: '',
+            peran: '',
+            jumlah_satuan: '',
+            estimasi_honor: 0,
+            catatan: '',
+            is_partial_payment: false,
+            partial_jumlah_satuan: '',
+            estimasi_honor_partial: 0,
+            is_partial_payment_listing: false,
+            partial_jumlah_satuan_listing: '',
+            estimasi_honor_partial_listing: 0,
+        };
+
+        const newItems = [
+            ...alokasiItems.slice(0, index + 1),
+            newItem,
+            ...alokasiItems.slice(index + 1),
+        ];
+
+        setAlokasiItems(newItems);
+        setJumlahPetugas(newItems.length);
+    };
+
     // Update alokasi item
     // Update alokasi item
     const updateAlokasiItem = (
@@ -846,8 +1093,65 @@ export default function Create({
             return;
         }
 
+        const clampPartialValue = (
+            inputValue: AlokasiItem[keyof AlokasiItem],
+            maxValue: number,
+        ): string => {
+            if (
+                inputValue === '' ||
+                inputValue === null ||
+                inputValue === undefined
+            ) {
+                return '';
+            }
+
+            const parsedValue = Number(inputValue);
+            if (Number.isNaN(parsedValue)) {
+                return '';
+            }
+
+            const normalizedMax = Math.max(0, maxValue);
+            const clampedValue = Math.min(
+                Math.max(0, parsedValue),
+                normalizedMax,
+            );
+
+            return String(clampedValue);
+        };
+
         const newItems = [...alokasiItems];
-        newItems[index] = { ...newItems[index], [field]: value };
+        let nextValue = value;
+
+        if (field === 'partial_jumlah_satuan') {
+            const maxPencacahan = Number(newItems[index].jumlah_satuan) || 0;
+            nextValue = clampPartialValue(value, maxPencacahan);
+        }
+
+        if (field === 'partial_jumlah_satuan_listing') {
+            const maxListing =
+                Number(newItems[index].jumlah_satuan_listing) || 0;
+            nextValue = clampPartialValue(value, maxListing);
+        }
+
+        newItems[index] = { ...newItems[index], [field]: nextValue };
+
+        if (field === 'jumlah_satuan') {
+            const maxPencacahan = Number(newItems[index].jumlah_satuan) || 0;
+            newItems[index].partial_jumlah_satuan = clampPartialValue(
+                newItems[index].partial_jumlah_satuan,
+                maxPencacahan,
+            );
+        }
+
+        if (field === 'jumlah_satuan_listing') {
+            const maxListing =
+                Number(newItems[index].jumlah_satuan_listing) || 0;
+            newItems[index].partial_jumlah_satuan_listing = clampPartialValue(
+                newItems[index].partial_jumlah_satuan_listing,
+                maxListing,
+            );
+        }
+
         // Recalculate estimasi honor for pencacahan
         if (
             field === 'petugas_id' ||
@@ -860,6 +1164,7 @@ export default function Create({
                 newItems[index].jumlah_satuan,
             );
         }
+
         // Recalculate estimasi honor for listing
         if (
             selectedKegiatan?.has_listing_updating &&
@@ -873,17 +1178,77 @@ export default function Create({
                 newItems[index].jumlah_satuan_listing || '',
             );
         }
+
+        // Recalculate estimasi honor for partial payment (pencacahan)
+        if (
+            field === 'petugas_id' ||
+            field === 'peran' ||
+            field === 'partial_jumlah_satuan'
+        ) {
+            if (
+                newItems[index].is_partial_payment &&
+                newItems[index].partial_jumlah_satuan
+            ) {
+                newItems[index].estimasi_honor_partial =
+                    calculateEstimasiPartial(
+                        newItems[index].petugas_id,
+                        newItems[index].peran,
+                        newItems[index].partial_jumlah_satuan || '',
+                    );
+            }
+        }
+
+        // Recalculate estimasi honor for partial payment listing
+        if (
+            selectedKegiatan?.has_listing_updating &&
+            (field === 'petugas_id' ||
+                field === 'peran' ||
+                field === 'partial_jumlah_satuan_listing')
+        ) {
+            if (
+                newItems[index].is_partial_payment_listing &&
+                newItems[index].partial_jumlah_satuan_listing
+            ) {
+                newItems[index].estimasi_honor_partial_listing =
+                    calculateEstimasiPartialListing(
+                        newItems[index].petugas_id,
+                        newItems[index].peran,
+                        newItems[index].partial_jumlah_satuan_listing || '',
+                    );
+            }
+        }
+
+        // Clear partial payment data when toggled off
+        if (field === 'is_partial_payment' && !value) {
+            newItems[index].partial_jumlah_satuan = '';
+            newItems[index].estimasi_honor_partial = 0;
+        }
+
+        if (field === 'is_partial_payment_listing' && !value) {
+            newItems[index].partial_jumlah_satuan_listing = '';
+            newItems[index].estimasi_honor_partial_listing = 0;
+        }
+
         setAlokasiItems(newItems);
     };
 
     // Calculate total estimasi for each phase
+    // If partial payment is enabled, use partial honor instead
     const totalEstimasiPencacahan = alokasiItems.reduce(
-        (sum, item) => sum + (item.estimasi_honor || 0),
+        (sum, item) =>
+            sum +
+            (item.is_partial_payment
+                ? item.estimasi_honor_partial || 0
+                : item.estimasi_honor || 0),
         0,
     );
     const totalEstimasiListing = selectedKegiatan?.has_listing_updating
         ? alokasiItems.reduce(
-              (sum, item) => sum + (item.estimasi_honor_listing || 0),
+              (sum, item) =>
+                  sum +
+                  (item.is_partial_payment_listing
+                      ? item.estimasi_honor_partial_listing || 0
+                      : item.estimasi_honor_listing || 0),
               0,
           )
         : 0;
@@ -1012,6 +1377,16 @@ export default function Create({
                     tahapan: selectedKegiatan?.has_listing_updating
                         ? tahapan
                         : 'both', // Always send tahapan
+                    is_partial_payment: item.is_partial_payment || false,
+                    partial_jumlah_satuan: item.is_partial_payment
+                        ? Number(item.partial_jumlah_satuan) || 0
+                        : undefined,
+                    is_partial_payment_listing:
+                        item.is_partial_payment_listing || false,
+                    partial_jumlah_satuan_listing:
+                        item.is_partial_payment_listing
+                            ? Number(item.partial_jumlah_satuan_listing) || 0
+                            : undefined,
                 };
 
                 // Handle based on tahapan
@@ -1684,9 +2059,7 @@ export default function Create({
                                                         ? setTanggalMulaiListing(
                                                               v,
                                                           )
-                                                        : setTanggalMulai(
-                                                              v,
-                                                          )
+                                                        : setTanggalMulai(v)
                                                 }
                                                 disabled={isViewMode}
                                             />
@@ -1735,9 +2108,7 @@ export default function Create({
                                                         ? setTanggalSelesaiListing(
                                                               v,
                                                           )
-                                                        : setTanggalSelesai(
-                                                              v,
-                                                          )
+                                                        : setTanggalSelesai(v)
                                                 }
                                                 min={
                                                     tahapan === 'listing_only'
@@ -1789,20 +2160,20 @@ export default function Create({
                                                                 Pengolahan
                                                                 Listing
                                                             </Label>
-                                                        <DatePicker
-                                                            id="jadwal_pengolahan_listing_mulai"
-                                                            value={
-                                                                jadwalPengolahanListingMulai
-                                                            }
-                                                            onChange={(v) =>
-                                                                setJadwalPengolahanListingMulai(
-                                                                    v,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                isViewMode
-                                                            }
-                                                        />
+                                                            <DatePicker
+                                                                id="jadwal_pengolahan_listing_mulai"
+                                                                value={
+                                                                    jadwalPengolahanListingMulai
+                                                                }
+                                                                onChange={(v) =>
+                                                                    setJadwalPengolahanListingMulai(
+                                                                        v,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                            />
                                                             {allErrors.jadwal_pengolahan_listing_mulai && (
                                                                 <p className="text-sm text-red-500">
                                                                     {
@@ -1817,23 +2188,23 @@ export default function Create({
                                                                 Pengolahan
                                                                 Listing
                                                             </Label>
-                                                        <DatePicker
-                                                            id="jadwal_pengolahan_listing_selesai"
-                                                            value={
-                                                                jadwalPengolahanListingSelesai
-                                                            }
-                                                            onChange={(v) =>
-                                                                setJadwalPengolahanListingSelesai(
-                                                                    v,
-                                                                )
-                                                            }
-                                                            min={
-                                                                jadwalPengolahanListingMulai
-                                                            }
-                                                            disabled={
-                                                                isViewMode
-                                                            }
-                                                        />
+                                                            <DatePicker
+                                                                id="jadwal_pengolahan_listing_selesai"
+                                                                value={
+                                                                    jadwalPengolahanListingSelesai
+                                                                }
+                                                                onChange={(v) =>
+                                                                    setJadwalPengolahanListingSelesai(
+                                                                        v,
+                                                                    )
+                                                                }
+                                                                min={
+                                                                    jadwalPengolahanListingMulai
+                                                                }
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                            />
                                                             {allErrors.jadwal_pengolahan_listing_selesai && (
                                                                 <p className="text-sm text-red-500">
                                                                     {
@@ -1860,20 +2231,20 @@ export default function Create({
                                                             Tanggal Mulai
                                                             Pengolahan
                                                         </Label>
-                                                    <DatePicker
-                                                        id="jadwal_pengolahan_pencacahan_mulai"
-                                                        value={
-                                                            jadwalPengolahanPencacahanMulai
-                                                        }
-                                                        onChange={(v) =>
-                                                            setJadwalPengolahanPencacahanMulai(
-                                                                v,
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            isViewMode
-                                                        }
-                                                    />
+                                                        <DatePicker
+                                                            id="jadwal_pengolahan_pencacahan_mulai"
+                                                            value={
+                                                                jadwalPengolahanPencacahanMulai
+                                                            }
+                                                            onChange={(v) =>
+                                                                setJadwalPengolahanPencacahanMulai(
+                                                                    v,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isViewMode
+                                                            }
+                                                        />
                                                         {allErrors.jadwal_pengolahan_pencacahan_mulai && (
                                                             <p className="text-sm text-red-500">
                                                                 {
@@ -1943,12 +2314,33 @@ export default function Create({
                             <Input
                                 type="number"
                                 id="jumlah_petugas"
-                                value={jumlahPetugas}
-                                onChange={(e) =>
-                                    handleJumlahPetugasChange(
-                                        parseInt(e.target.value) || 1,
-                                    )
+                                value={
+                                    jumlahPetugas === '' ? '' : jumlahPetugas
                                 }
+                                onChange={(e) => {
+                                    const inputValue = e.target.value;
+                                    if (inputValue === '') {
+                                        // Allow blank but don't change alokasiItems (keep at least 1)
+                                        setJumlahPetugas('');
+                                    } else {
+                                        const value = parseInt(inputValue);
+                                        if (!isNaN(value)) {
+                                            handleJumlahPetugasChange(value);
+                                        }
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    // When focus is lost, restore actual count or minimum 1
+                                    const value = parseInt(e.target.value);
+                                    if (isNaN(value) || value < 1) {
+                                        // Set to actual alokasiItems length or 1
+                                        setJumlahPetugas(
+                                            Math.max(1, alokasiItems.length),
+                                        );
+                                    } else {
+                                        handleJumlahPetugasChange(value);
+                                    }
+                                }}
                                 min="1"
                                 max="100"
                                 placeholder="Masukkan jumlah petugas"
@@ -1960,8 +2352,8 @@ export default function Create({
                                 }
                             />
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                {jumlahPetugas} baris input petugas akan
-                                ditampilkan
+                                Minimal 1 petugas. {jumlahPetugas} baris input
+                                petugas akan ditampilkan.
                             </p>
                         </div>
                     </div>
@@ -2168,9 +2560,9 @@ export default function Create({
                                                     </span>
                                                 </Label>
                                                 <Select
-                                                    value={
-                                                        item.peran || undefined
-                                                    }
+                                                    value={String(
+                                                        item.peran || '',
+                                                    )}
                                                     onValueChange={(value) =>
                                                         updateAlokasiItem(
                                                             index,
@@ -2355,6 +2747,143 @@ export default function Create({
                                                                 className="bg-neutral-50 dark:bg-neutral-900"
                                                             />
                                                         </div>
+
+                                                        {/* Pembayaran Parsial Listing */}
+                                                        {shouldShowPartialPaymentToggle(
+                                                            item,
+                                                        ) && (
+                                                            <>
+                                                                <div className="space-y-2 md:col-span-4">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <Label
+                                                                            htmlFor={`partial_payment_listing_${index}`}
+                                                                        >
+                                                                            Pembayaran
+                                                                            Parsial
+                                                                            Listing?
+                                                                        </Label>
+                                                                        <Switch
+                                                                            id={`partial_payment_listing_${index}`}
+                                                                            checked={
+                                                                                item.is_partial_payment_listing ||
+                                                                                false
+                                                                            }
+                                                                            onCheckedChange={(
+                                                                                checked: boolean,
+                                                                            ) => {
+                                                                                updateAlokasiItem(
+                                                                                    index,
+                                                                                    'is_partial_payment_listing',
+                                                                                    checked,
+                                                                                );
+                                                                            }}
+                                                                            disabled={
+                                                                                isViewMode
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Aktifkan
+                                                                        jika
+                                                                        honor
+                                                                        listing
+                                                                        yang
+                                                                        dibayarkan
+                                                                        berbeda
+                                                                        dari
+                                                                        estimasi
+                                                                    </p>
+                                                                </div>
+
+                                                                {item.is_partial_payment_listing && (
+                                                                    <>
+                                                                        <div className="space-y-2 md:col-span-4">
+                                                                            <Label
+                                                                                htmlFor={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                            >
+                                                                                Jumlah
+                                                                                Beban
+                                                                                Tugas
+                                                                                Listing
+                                                                                Parsial{' '}
+                                                                                <span className="text-red-500">
+                                                                                    *
+                                                                                </span>
+                                                                            </Label>
+                                                                            <Input
+                                                                                type="number"
+                                                                                id={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                                value={
+                                                                                    item.partial_jumlah_satuan_listing ||
+                                                                                    ''
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateAlokasiItem(
+                                                                                        index,
+                                                                                        'partial_jumlah_satuan_listing',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                min="0"
+                                                                                max={
+                                                                                    item.jumlah_satuan_listing ||
+                                                                                    undefined
+                                                                                }
+                                                                                placeholder="0"
+                                                                                disabled={
+                                                                                    isViewMode
+                                                                                }
+                                                                            />
+                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                                Maksimal:{' '}
+                                                                                {item.jumlah_satuan_listing ||
+                                                                                    0}{' '}
+                                                                                (jumlah
+                                                                                beban
+                                                                                tugas
+                                                                                listing
+                                                                                awal)
+                                                                            </p>
+                                                                        </div>
+
+                                                                        <div className="space-y-2 md:col-span-4">
+                                                                            <Label
+                                                                                htmlFor={`estimasi_honor_partial_listing_${index}`}
+                                                                            >
+                                                                                Estimasi
+                                                                                Honor
+                                                                                Listing
+                                                                                Parsial
+                                                                            </Label>
+                                                                            <Input
+                                                                                type="text"
+                                                                                id={`estimasi_honor_partial_listing_${index}`}
+                                                                                value={formatCurrency(
+                                                                                    item.estimasi_honor_partial_listing ||
+                                                                                        0,
+                                                                                )}
+                                                                                readOnly
+                                                                                className="bg-neutral-50 dark:bg-neutral-900"
+                                                                            />
+                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                                Dihitung
+                                                                                otomatis
+                                                                                berdasarkan
+                                                                                jumlah
+                                                                                beban
+                                                                                tugas
+                                                                                listing
+                                                                                parsial
+                                                                            </p>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        )}
                                                     </>
                                                 )}
 
@@ -2418,6 +2947,135 @@ export default function Create({
                                                             className="bg-neutral-50 dark:bg-neutral-900"
                                                         />
                                                     </div>
+
+                                                    {/* Pembayaran Parsial Pencacahan */}
+                                                    {shouldShowPartialPaymentToggle(
+                                                        item,
+                                                    ) && (
+                                                        <>
+                                                            <div className="space-y-2 md:col-span-4">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label
+                                                                        htmlFor={`partial_payment_${index}`}
+                                                                    >
+                                                                        Pembayaran
+                                                                        Parsial?
+                                                                    </Label>
+                                                                    <Switch
+                                                                        id={`partial_payment_${index}`}
+                                                                        checked={
+                                                                            item.is_partial_payment ||
+                                                                            false
+                                                                        }
+                                                                        onCheckedChange={(
+                                                                            checked: boolean,
+                                                                        ) => {
+                                                                            updateAlokasiItem(
+                                                                                index,
+                                                                                'is_partial_payment',
+                                                                                checked,
+                                                                            );
+                                                                        }}
+                                                                        disabled={
+                                                                            isViewMode
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                    Aktifkan
+                                                                    jika honor
+                                                                    yang
+                                                                    dibayarkan
+                                                                    berbeda dari
+                                                                    estimasi
+                                                                </p>
+                                                            </div>
+
+                                                            {item.is_partial_payment && (
+                                                                <>
+                                                                    <div className="space-y-2 md:col-span-4">
+                                                                        <Label
+                                                                            htmlFor={`partial_jumlah_satuan_value_${index}`}
+                                                                        >
+                                                                            Jumlah
+                                                                            Beban
+                                                                            Tugas
+                                                                            Parsial{' '}
+                                                                            <span className="text-red-500">
+                                                                                *
+                                                                            </span>
+                                                                        </Label>
+                                                                        <Input
+                                                                            type="number"
+                                                                            id={`partial_jumlah_satuan_value_${index}`}
+                                                                            value={
+                                                                                item.partial_jumlah_satuan ||
+                                                                                ''
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateAlokasiItem(
+                                                                                    index,
+                                                                                    'partial_jumlah_satuan',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            min="0"
+                                                                            max={
+                                                                                item.jumlah_satuan ||
+                                                                                undefined
+                                                                            }
+                                                                            placeholder="0"
+                                                                            disabled={
+                                                                                isViewMode
+                                                                            }
+                                                                        />
+                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                            Maksimal:{' '}
+                                                                            {item.jumlah_satuan ||
+                                                                                0}{' '}
+                                                                            (jumlah
+                                                                            beban
+                                                                            tugas
+                                                                            awal)
+                                                                        </p>
+                                                                    </div>
+
+                                                                    <div className="space-y-2 md:col-span-4">
+                                                                        <Label
+                                                                            htmlFor={`estimasi_honor_partial_${index}`}
+                                                                        >
+                                                                            Estimasi
+                                                                            Honor
+                                                                            Parsial
+                                                                        </Label>
+                                                                        <Input
+                                                                            type="text"
+                                                                            id={`estimasi_honor_partial_${index}`}
+                                                                            value={formatCurrency(
+                                                                                item.estimasi_honor_partial ||
+                                                                                    0,
+                                                                            )}
+                                                                            readOnly
+                                                                            className="bg-neutral-50 dark:bg-neutral-900"
+                                                                        />
+                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                            Dihitung
+                                                                            otomatis
+                                                                            berdasarkan
+                                                                            jumlah
+                                                                            beban
+                                                                            tugas
+                                                                            parsial
+                                                                        </p>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
 
@@ -2449,6 +3107,27 @@ export default function Create({
                                         </div>
                                     </div>
                                 ))}
+
+                                {/* Add Petugas Button - Outside individual cards */}
+                                {!isViewMode && (
+                                    <div className="mt-4 flex justify-center border-t border-neutral-200 pt-4 dark:border-neutral-700">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleAddPetugasAfter(
+                                                    alokasiItems.length - 1,
+                                                )
+                                            }
+                                            disabled={isRevisiLockedMode}
+                                            className="gap-1.5"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Tambah Petugas
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </ContentCard>

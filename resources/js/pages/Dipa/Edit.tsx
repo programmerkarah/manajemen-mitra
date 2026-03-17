@@ -131,9 +131,7 @@ export default function Edit({ dipa, tahunOptions }: EditProps) {
                                 <DatePicker
                                     id="tanggal_dipa"
                                     value={data.tanggal_dipa}
-                                    onChange={(v) =>
-                                        setData('tanggal_dipa', v)
-                                    }
+                                    onChange={(v) => setData('tanggal_dipa', v)}
                                     required
                                     className="h-10"
                                 />

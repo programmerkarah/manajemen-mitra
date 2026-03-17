@@ -61,7 +61,9 @@ class SbmlReportController extends Controller
             })
             ->where(function ($query) {
                 $query->where('jumlah_satuan', '>', 0)
-                    ->orWhere('jumlah_satuan_listing', '>', 0);
+                    ->orWhere('jumlah_satuan_listing', '>', 0)
+                    ->orWhere('partial_jumlah_satuan', '>', 0)
+                    ->orWhere('partial_jumlah_satuan_listing', '>', 0);
             })
             ->get()
             ->groupBy('petugas_id')
@@ -74,8 +76,14 @@ class SbmlReportController extends Controller
 
                 // Calculate total honor for this petugas in this month
                 $totalHonor = $alokasis->sum(function ($alokasi) {
-                    // Include both pencacahan and listing honor
-                    return $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
+                    $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                        ? (float) $alokasi->estimasi_honor_partial
+                        : (float) ($alokasi->total_honor ?? 0);
+                    $effectiveListingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                        ? (float) $alokasi->estimasi_honor_partial_listing
+                        : (float) ($alokasi->total_honor_listing ?? 0);
+
+                    return $effectivePencacahanHonor + $effectiveListingHonor;
                 });
 
                 // Get max SBML based on jenis penugasan from allocations
@@ -110,14 +118,28 @@ class SbmlReportController extends Controller
                         ];
                     }
 
-                    // Already filtered by jumlah > 0 in the query
-                    $kegiatanDetails[$kegiatanId]['total_honor'] += $alokasi->total_honor + ($alokasi->total_honor_listing ?? 0);
+                    $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                        ? (float) $alokasi->estimasi_honor_partial
+                        : (float) ($alokasi->total_honor ?? 0);
+                    $effectiveListingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                        ? (float) $alokasi->estimasi_honor_partial_listing
+                        : (float) ($alokasi->total_honor_listing ?? 0);
+                    $jumlahSatuanDibayarkan = $alokasi->partial_jumlah_satuan !== null
+                        ? (int) $alokasi->partial_jumlah_satuan
+                        : (int) ($alokasi->jumlah_satuan ?? 0);
+                    $jumlahSatuanListingDibayarkan = $alokasi->partial_jumlah_satuan_listing !== null
+                        ? (int) $alokasi->partial_jumlah_satuan_listing
+                        : (int) ($alokasi->jumlah_satuan_listing ?? 0);
+
+                    $kegiatanDetails[$kegiatanId]['total_honor'] += $effectivePencacahanHonor + $effectiveListingHonor;
                     $kegiatanDetails[$kegiatanId]['alokasi'][] = [
                         'peran' => $this->formatPeran($alokasi->peran),
                         'jumlah_satuan' => $alokasi->jumlah_satuan,
                         'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                        'total_honor' => $alokasi->total_honor,
-                        'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
+                        'jumlah_satuan_dibayarkan' => $jumlahSatuanDibayarkan,
+                        'jumlah_satuan_listing_dibayarkan' => $jumlahSatuanListingDibayarkan,
+                        'total_honor' => $effectivePencacahanHonor,
+                        'total_honor_listing' => $effectiveListingHonor,
                         'status_kepegawaian' => $alokasi->status_kepegawaian,
                         'catatan' => $alokasi->catatan,
                     ];

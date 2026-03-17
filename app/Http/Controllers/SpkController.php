@@ -1742,15 +1742,12 @@ class SpkController extends Controller
             ->get();
 
         $allAlokasi = $allAlokasi->filter(function ($alokasi) {
-            $totalHonor = (float) ($alokasi->total_honor ?? 0);
-            $totalHonorListing = (float) ($alokasi->total_honor_listing ?? 0);
-
-            return ($totalHonor + $totalHonorListing) > 0;
+            return $alokasi->getEffectiveCombinedHonor() > 0;
         })->values();
 
         // Calculate total honor (from both 'dikirim' and 'perubahan' status)
         $totalHonor = $allAlokasi->sum(function ($alokasi) {
-            return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+            return $alokasi->getEffectiveCombinedHonor();
         });
 
         // Build kegiatan list
@@ -1771,10 +1768,10 @@ class SpkController extends Controller
                 'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
                 'peran' => $alokasi->peran,
                 'peran_label' => $this->getPeranLabel($alokasi->peran),
-                'jumlah_satuan' => $alokasi->jumlah_satuan ?? 0,
-                'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing ?? 0,
-                'total_honor' => $alokasi->total_honor ?? 0,
-                'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
+                'jumlah_satuan' => $alokasi->getEffectiveJumlahSatuan(),
+                'jumlah_satuan_listing' => $alokasi->getEffectiveJumlahSatuanListing(),
+                'total_honor' => $alokasi->getEffectiveTotalHonor(),
+                'total_honor_listing' => $alokasi->getEffectiveTotalHonorListing(),
                 'satuan_kode' => $satuanKode,
                 'periode_mulai' => $periode->tanggal_mulai,
                 'periode_selesai' => $periode->tanggal_selesai,
@@ -2048,10 +2045,7 @@ class SpkController extends Controller
                 ->get();
 
             $allAlokasi = $allAlokasi->filter(function ($alokasi) {
-                $totalHonor = (float) ($alokasi->total_honor ?? 0);
-                $totalHonorListing = (float) ($alokasi->total_honor_listing ?? 0);
-
-                return ($totalHonor + $totalHonorListing) > 0;
+                return $alokasi->getEffectiveCombinedHonor() > 0;
             })->values();
 
             $mainAlokasi = $allAlokasi->first();
@@ -2061,7 +2055,7 @@ class SpkController extends Controller
             }
 
             $totalHonor = $allAlokasi->sum(function ($alokasi) {
-                return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                return $alokasi->getEffectiveCombinedHonor();
             });
 
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
@@ -2080,10 +2074,10 @@ class SpkController extends Controller
                     'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
                     'peran' => $alokasi->peran,
                     'peran_label' => $this->getPeranLabel($alokasi->peran),
-                    'jumlah_satuan' => $alokasi->jumlah_satuan ?? 0,
-                    'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing ?? 0,
-                    'total_honor' => $alokasi->total_honor ?? 0,
-                    'total_honor_listing' => $alokasi->total_honor_listing ?? 0,
+                    'jumlah_satuan' => $alokasi->getEffectiveJumlahSatuan(),
+                    'jumlah_satuan_listing' => $alokasi->getEffectiveJumlahSatuanListing(),
+                    'total_honor' => $alokasi->getEffectiveTotalHonor(),
+                    'total_honor_listing' => $alokasi->getEffectiveTotalHonorListing(),
                     'satuan_kode' => $satuanKode,
                     'periode_mulai' => $periode->tanggal_mulai,
                     'periode_selesai' => $periode->tanggal_selesai,
@@ -3126,28 +3120,7 @@ class SpkController extends Controller
      */
     private function calculateTotalHonor(Kegiatan $kegiatan, AlokasiPetugas $alokasi): float
     {
-        $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
-            ->where('jenis_penugasan', $alokasi->peran)
-            ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
-            ->first();
-
-        if (! $rateHonor) {
-            return 0;
-        }
-
-        $total = 0;
-
-        // Calculate from listing rate
-        if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
-            $total += $rateHonor->rate_listing * $alokasi->jumlah_satuan_listing;
-        }
-
-        // Calculate from regular rate (pencacahan)
-        if ($rateHonor->rate && $alokasi->jumlah_satuan) {
-            $total += $rateHonor->rate * $alokasi->jumlah_satuan;
-        }
-
-        return $total;
+        return $alokasi->getEffectiveCombinedHonor();
     }
 
     /**
@@ -3167,9 +3140,13 @@ class SpkController extends Controller
         if ($rateHonor) {
             // Check if this is a pengolahan role
             $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan']);
+            $effectiveListingVolume = $alokasi->getEffectiveJumlahSatuanListing();
+            $effectiveListingHonor = $alokasi->getEffectiveTotalHonorListing();
+            $effectivePencacahanVolume = $alokasi->getEffectiveJumlahSatuan();
+            $effectivePencacahanHonor = $alokasi->getEffectiveTotalHonor();
 
             // Add listing task if exists
-            if ($rateHonor->rate_listing && $alokasi->jumlah_satuan_listing) {
+            if ($effectiveListingVolume > 0 && $effectiveListingHonor > 0) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'listing');
 
                 // Use processing schedule for pengolahan roles, otherwise use regular schedule
@@ -3182,10 +3159,10 @@ class SpkController extends Controller
 
                 $uraian[] = [
                     'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran} (Listing)",
-                    'volume' => $alokasi->jumlah_satuan_listing,
+                    'volume' => $effectiveListingVolume,
                     'satuan' => $rateHonor->satuanListing->kode ?? 'DOK',
-                    'harga_satuan' => $rateHonor->rate_listing,
-                    'jumlah' => $rateHonor->rate_listing * $alokasi->jumlah_satuan_listing,
+                    'harga_satuan' => $effectiveListingVolume > 0 ? ($effectiveListingHonor / $effectiveListingVolume) : (float) ($rateHonor->rate_listing ?? 0),
+                    'jumlah' => $effectiveListingHonor,
                     'tanggal_mulai' => $tanggalMulai,
                     'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'listing',
@@ -3194,7 +3171,7 @@ class SpkController extends Controller
             }
 
             // Add regular task (pencacahan)
-            if ($rateHonor->rate && $alokasi->jumlah_satuan) {
+            if ($effectivePencacahanVolume > 0 && $effectivePencacahanHonor > 0) {
                 $peranKegiatan = $this->getPeranKegiatan($alokasi->peran, 'pencacahan');
 
                 // Use processing schedule for pengolahan roles, otherwise use regular schedule
@@ -3207,10 +3184,10 @@ class SpkController extends Controller
 
                 $uraian[] = [
                     'uraian' => "Melakukan {$peranKegiatan} {$kegiatan->nama_kegiatan} bulan {$this->getBulanLabel($periode->bulan)} Tahun {$kegiatan->tahun_anggaran}",
-                    'volume' => $alokasi->jumlah_satuan,
+                    'volume' => $effectivePencacahanVolume,
                     'satuan' => $rateHonor->satuan->kode ?? 'DOK',
-                    'harga_satuan' => $rateHonor->rate,
-                    'jumlah' => $rateHonor->rate * $alokasi->jumlah_satuan,
+                    'harga_satuan' => $effectivePencacahanVolume > 0 ? ($effectivePencacahanHonor / $effectivePencacahanVolume) : (float) ($rateHonor->rate ?? 0),
+                    'jumlah' => $effectivePencacahanHonor,
                     'tanggal_mulai' => $tanggalMulai,
                     'tanggal_selesai' => $tanggalSelesai,
                     'phase' => 'pencacahan',

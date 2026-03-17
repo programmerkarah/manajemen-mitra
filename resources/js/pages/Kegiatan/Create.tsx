@@ -778,10 +778,7 @@ export default function Create({
                                         id="tanggal_mulai"
                                         value={data.tanggal_mulai}
                                         onChange={(v) =>
-                                            setData(
-                                                'tanggal_mulai',
-                                                v,
-                                            )
+                                            setData('tanggal_mulai', v)
                                         }
                                         className="mt-2 h-11"
                                     />
@@ -804,10 +801,7 @@ export default function Create({
                                         id="tanggal_selesai"
                                         value={data.tanggal_selesai}
                                         onChange={(v) =>
-                                            setData(
-                                                'tanggal_selesai',
-                                                v,
-                                            )
+                                            setData('tanggal_selesai', v)
                                         }
                                         className="mt-2 h-11"
                                     />

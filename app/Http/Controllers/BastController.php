@@ -966,15 +966,15 @@ class BastController extends Controller
                                 continue;
                             }
                             $hasListing = ($kegiatanSpk->has_listing_updating ?? false)
-                                || ($alokasiSpk->jumlah_satuan_listing ?? 0) > 0;
+                                || $alokasiSpk->getEffectiveJumlahSatuanListing() > 0;
                             if ($hasListing && $isPendataanRole) {
-                                $totalListing += $alokasiSpk->jumlah_satuan_listing ?? 0;
+                                $totalListing += $alokasiSpk->getEffectiveJumlahSatuanListing();
                             }
                             if ($isPendataanRole) {
-                                $totalPendataan += $alokasiSpk->jumlah_satuan ?? 0;
+                                $totalPendataan += $alokasiSpk->getEffectiveJumlahSatuan();
                             }
                             if ($isPengolahanRole) {
-                                $totalPengolahan += $alokasiSpk->jumlah_satuan ?? 0;
+                                $totalPengolahan += $alokasiSpk->getEffectiveJumlahSatuan();
                             }
                             if ($alokasiSpk->catatan) {
                                 $catatan[] = $alokasiSpk->catatan;
@@ -1112,7 +1112,9 @@ class BastController extends Controller
 
             $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
-            $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+            $effectiveListingVolume = $alokasi->getEffectiveJumlahSatuanListing();
+            $effectivePencacahanVolume = $alokasi->getEffectiveJumlahSatuan();
+            $hasListing = ($kegiatan->has_listing_updating ?? false) || $effectiveListingVolume > 0;
 
             // Cari SPK dari petugas ini saja, bukan per kegiatan
             $spkPetugas = Spk::where('alokasi_petugas_id', $alokasi->id)->first();
@@ -1211,12 +1213,12 @@ class BastController extends Controller
                     $kegiatan->nama_kegiatan,
                     (int) $periode->bulan,
                     $periode->tahun,
-                    $alokasi->jumlah_satuan_listing ?? 0,
+                    $effectiveListingVolume,
                     0 // Force 0 untuk listing
                 );
             }
 
-            if ($isPendataanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+            if ($isPendataanRole && $effectivePencacahanVolume > 0) {
                 // Untuk pencacahan: paksa jumlah_satuan_listing = 0 agar generate uraian pencacahan
                 $uraianPencacahan = $this->generateUraianPekerjaan(
                     $alokasi->peran,
@@ -1224,7 +1226,7 @@ class BastController extends Controller
                     (int) $periode->bulan,
                     $periode->tahun,
                     0, // Force 0 untuk pencacahan
-                    $alokasi->jumlah_satuan ?? 0
+                    $effectivePencacahanVolume
                 );
             }
 
@@ -1239,12 +1241,12 @@ class BastController extends Controller
                     $kegiatan->nama_kegiatan,
                     (int) $periode->bulan,
                     $periode->tahun,
-                    $alokasi->jumlah_satuan_listing ?? 0,
+                    $effectiveListingVolume,
                     0
                 );
             }
 
-            if ($isPengolahanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+            if ($isPengolahanRole && $effectivePencacahanVolume > 0) {
                 // Untuk pengolahan pencacahan: paksa jumlah_satuan_listing = 0
                 $uraianPengolahanPencacahan = $this->generateUraianPekerjaan(
                     $alokasi->peran,
@@ -1252,7 +1254,7 @@ class BastController extends Controller
                     (int) $periode->bulan,
                     $periode->tahun,
                     0,
-                    $alokasi->jumlah_satuan ?? 0
+                    $effectivePencacahanVolume
                 );
             }
 
@@ -1262,8 +1264,8 @@ class BastController extends Controller
                 $kegiatan->nama_kegiatan,
                 (int) $periode->bulan,
                 $periode->tahun,
-                $alokasi->jumlah_satuan_listing ?? 0,
-                $alokasi->jumlah_satuan ?? 0
+                $effectiveListingVolume,
+                $effectivePencacahanVolume
             );
 
             $bastData['kegiatan_list'][] = [
@@ -1735,7 +1737,9 @@ class BastController extends Controller
 
             $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
             $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
-            $hasListing = ($kegiatan->has_listing_updating ?? false) || ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+            $effectiveListingVolume = $alokasi->getEffectiveJumlahSatuanListing();
+            $effectivePencacahanVolume = $alokasi->getEffectiveJumlahSatuan();
+            $hasListing = ($kegiatan->has_listing_updating ?? false) || $effectiveListingVolume > 0;
 
             // Cari SPK dari petugas ini untuk kegiatan yang sama di bulan yang sama
             // Tidak harus dari alokasi_id yang sama karena bisa jadi SPK dibuat dari periode lain yang sudah direvisi
@@ -1798,12 +1802,12 @@ class BastController extends Controller
                     $kegiatan->nama_kegiatan,
                     (int) $periode->bulan,
                     $periode->tahun,
-                    $alokasi->jumlah_satuan_listing ?? 0,
+                    $effectiveListingVolume,
                     0 // Force 0 untuk listing
                 );
             }
 
-            if ($isPendataanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+            if ($isPendataanRole && $effectivePencacahanVolume > 0) {
                 // Untuk pencacahan: paksa jumlah_satuan_listing = 0 agar generate uraian pencacahan
                 $uraianPencacahan = $this->generateUraianPekerjaan(
                     $alokasi->peran,
@@ -1811,7 +1815,7 @@ class BastController extends Controller
                     (int) $periode->bulan,
                     $periode->tahun,
                     0, // Force 0 untuk pencacahan
-                    $alokasi->jumlah_satuan ?? 0
+                    $effectivePencacahanVolume
                 );
             }
 
@@ -1826,12 +1830,12 @@ class BastController extends Controller
                     $kegiatan->nama_kegiatan,
                     (int) $periode->bulan,
                     $periode->tahun,
-                    $alokasi->jumlah_satuan_listing ?? 0,
+                    $effectiveListingVolume,
                     0
                 );
             }
 
-            if ($isPengolahanRole && ($alokasi->jumlah_satuan ?? 0) > 0) {
+            if ($isPengolahanRole && $effectivePencacahanVolume > 0) {
                 // Untuk pengolahan pencacahan: paksa jumlah_satuan_listing = 0
                 $uraianPengolahanPencacahan = $this->generateUraianPekerjaan(
                     $alokasi->peran,
@@ -1839,7 +1843,7 @@ class BastController extends Controller
                     (int) $periode->bulan,
                     $periode->tahun,
                     0,
-                    $alokasi->jumlah_satuan ?? 0
+                    $effectivePencacahanVolume
                 );
             }
 
@@ -1849,8 +1853,8 @@ class BastController extends Controller
                 $kegiatan->nama_kegiatan,
                 (int) $periode->bulan,
                 $periode->tahun,
-                $alokasi->jumlah_satuan_listing ?? 0,
-                $alokasi->jumlah_satuan ?? 0
+                $effectiveListingVolume,
+                $effectivePencacahanVolume
             );
 
             // Tanggal hari kerja terdekat dari tanggal selesai
@@ -1878,15 +1882,15 @@ class BastController extends Controller
                 'uraian_pengolahan_listing' => $uraianPengolahanListing,
                 'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
-                'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_listing' => ($hasListing && $isPendataanRole) ? $effectiveListingVolume : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
                 'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
-                'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pendataan_lapangan' => $isPendataanRole ? $effectivePencacahanVolume : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'non_response' => $isPendataanRole ? $alokasi->non_response : null,
-                'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pengolahan' => $isPengolahanRole ? $effectivePencacahanVolume : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
-                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $effectiveListingVolume : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
@@ -2636,18 +2640,20 @@ class BastController extends Controller
                 foreach ($alokasiGroup as $alokasi) {
                     $isPendataanRole = in_array($alokasi->peran, ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'], true);
                     $isPengolahanRole = in_array($alokasi->peran, ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'], true);
+                    $effectiveListingVolume = $alokasi->getEffectiveJumlahSatuanListing();
+                    $effectivePencacahanVolume = $alokasi->getEffectiveJumlahSatuan();
 
                     if ($isPendataanRole) {
-                        $totalHasilListing += $alokasi->jumlah_satuan_listing ?? 0;
-                        $totalHasilPendataanLapangan += $alokasi->jumlah_satuan ?? 0;
+                        $totalHasilListing += $effectiveListingVolume;
+                        $totalHasilPendataanLapangan += $effectivePencacahanVolume;
                         // Get satuan from the first non-null value
                         $satuanListing = $satuanListing ?? $alokasi->satuan_listing;
                         $satuanPendataanLapangan = $satuanPendataanLapangan ?? $alokasi->satuan_pendataan_lapangan;
                     }
 
                     if ($isPengolahanRole) {
-                        $totalHasilPengolahan += $alokasi->jumlah_satuan ?? 0;
-                        $totalHasilPengolahanListing += $alokasi->jumlah_satuan_listing ?? 0;
+                        $totalHasilPengolahan += $effectivePencacahanVolume;
+                        $totalHasilPengolahanListing += $effectiveListingVolume;
                         // Get satuan from the first non-null value
                         $satuanPengolahan = $satuanPengolahan ?? $alokasi->satuan_pengolahan;
                         $satuanPengolahanListing = $satuanPengolahanListing ?? $alokasi->satuan_listing;

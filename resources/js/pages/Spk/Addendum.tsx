@@ -2,13 +2,19 @@ import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Download, Eye, FileEdit, Loader2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    Download,
+    Eye,
+    FileEdit,
+    Loader2,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -104,7 +110,10 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             return;
         }
 
-        const sanitizedName = petugasData.petugas.nama.replace(/[^A-Za-z0-9_-]/g, '_');
+        const sanitizedName = petugasData.petugas.nama.replace(
+            /[^A-Za-z0-9_-]/g,
+            '_',
+        );
 
         try {
             await previewFileFromPost(

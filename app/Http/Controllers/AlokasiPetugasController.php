@@ -19,6 +19,8 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 use Vinkla\Hashids\Facades\Hashids;
@@ -162,8 +164,18 @@ class AlokasiPetugasController extends Controller
             ->groupBy('kegiatan_id')
             ->pluck('latest_bulan', 'kegiatan_id');
 
+        $periodeIds = $deduplicatedPeriodes->pluck('id')->filter()->values();
+        $periodeIdsWithGeneratedSpk = collect();
+        if ($periodeIds->isNotEmpty()) {
+            $periodeIdsWithGeneratedSpk = Spk::query()
+                ->join('alokasi_petugas', 'spk.alokasi_petugas_id', '=', 'alokasi_petugas.id')
+                ->whereIn('alokasi_petugas.periode_alokasi_id', $periodeIds)
+                ->pluck('alokasi_petugas.periode_alokasi_id')
+                ->unique();
+        }
+
         // Transform the result to include necessary data (client-side filtering and pagination)
-        $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll) {
+        $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll, $periodeIdsWithGeneratedSpk) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -217,6 +229,7 @@ class AlokasiPetugasController extends Controller
 
             return [
                 'kegiatan_id' => $periode->kegiatan_id,
+                'periode_id' => $periode->id,
                 'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
                 'tahun' => $periode->tahun,
                 'jenis_kegiatan' => $periode->jenis_kegiatan,
@@ -232,6 +245,7 @@ class AlokasiPetugasController extends Controller
                 'latest_created_at' => $periode->created_at,
                 'is_latest_periode' => $isLatestPeriode,
                 'has_completed_revision_cycle' => $hasCompletedRevisionCycle,
+                'has_spk_generated' => $periodeIdsWithGeneratedSpk->contains($periode->id),
                 'kegiatan' => [
                     'id' => $periode->kegiatan->id,
                     'hashed_id' => $periode->kegiatan->hashed_id,
@@ -309,7 +323,36 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
+            'alokasi.*.is_partial_payment' => 'nullable|boolean',
+            'alokasi.*.partial_jumlah_satuan' => 'nullable|integer|min:0',
+            'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
+            'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
         ]);
+
+        $partialValidationErrors = [];
+        foreach ($validated['alokasi'] as $alokasiData) {
+            $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : 0;
+            $jumlahSatuan = (int) ($alokasiData['jumlah_satuan'] ?? 0);
+
+            if ($isPartialPayment && $partialJumlahSatuan > $jumlahSatuan) {
+                $partialValidationErrors[] = 'Jumlah beban tugas parsial pencacahan tidak boleh melebihi jumlah beban tugas awal.';
+            }
+
+            $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
+            $partialJumlahSatuanListing = isset($alokasiData['partial_jumlah_satuan_listing']) ? (int) $alokasiData['partial_jumlah_satuan_listing'] : 0;
+            $jumlahSatuanListing = isset($alokasiData['jumlah_satuan_listing']) ? (int) $alokasiData['jumlah_satuan_listing'] : 0;
+
+            if ($isPartialPaymentListing && $partialJumlahSatuanListing > $jumlahSatuanListing) {
+                $partialValidationErrors[] = 'Jumlah beban tugas parsial listing tidak boleh melebihi jumlah beban tugas listing awal.';
+            }
+        }
+
+        if (! empty($partialValidationErrors)) {
+            return back()->withErrors([
+                'partial_validation' => implode("\n", array_unique($partialValidationErrors)),
+            ])->withInput();
+        }
 
         // Get tahapan from first alokasi item (all should have same tahapan in a batch)
         $tahapan = $validated['alokasi'][0]['tahapan'] ?? 'both';
@@ -367,6 +410,9 @@ class AlokasiPetugasController extends Controller
         DB::beginTransaction();
         $created = 0;
         $errors = [];
+        $hasKegiatanIdColumn = Schema::hasColumn('alokasi_petugas', 'kegiatan_id');
+        $hasBulanColumn = Schema::hasColumn('alokasi_petugas', 'bulan');
+        $hasTahunColumn = Schema::hasColumn('alokasi_petugas', 'tahun');
 
         // Group by periode (bulan+tahun+jenis_kegiatan) to create PeriodeAlokasi first
         $periodeGroups = [];
@@ -439,9 +485,31 @@ class AlokasiPetugasController extends Controller
                 }
             }
 
+            $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : null;
+            $estimasiHonorPartial = null;
+
+            if ($isPartialPayment && $partialJumlahSatuan !== null) {
+                $estimasiHonorPartial = $rateHonor->rate * $partialJumlahSatuan;
+            }
+
+            $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
+            $partialJumlahSatuanListing = isset($alokasiData['partial_jumlah_satuan_listing']) ? (int) $alokasiData['partial_jumlah_satuan_listing'] : null;
+            $estimasiHonorPartialListing = null;
+
+            if ($isPartialPaymentListing && $partialJumlahSatuanListing !== null && $rateHonor->rate_listing) {
+                $estimasiHonorPartialListing = $rateHonor->rate_listing * $partialJumlahSatuanListing;
+            }
+
+            $effectivePencacahanHonor = $isPartialPayment
+                ? ($estimasiHonorPartial ?? 0)
+                : $totalHonor;
+            $effectiveListingHonor = $isPartialPaymentListing
+                ? ($estimasiHonorPartialListing ?? 0)
+                : $totalHonorListing;
+
             // Check petugas total honor in month across all assignments (skip if honor is 0)
-            // Include listing honor so the cumulative check uses the complete payout amount
-            $combinedNewHonor = $totalHonor + $totalHonorListing;
+            $combinedNewHonor = $effectivePencacahanHonor + $effectiveListingHonor;
             if ($combinedNewHonor > 0) {
                 $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
                     $alokasiData['petugas_id'],
@@ -477,8 +545,14 @@ class AlokasiPetugasController extends Controller
                 'petugas_id' => $alokasiData['petugas_id'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'jumlah_satuan_listing' => $jumlahSatuanListing,
-                'total_honor' => $totalHonor,
-                'total_honor_listing' => $totalHonorListing,
+                'total_honor' => $effectivePencacahanHonor,
+                'total_honor_listing' => $effectiveListingHonor,
+                'is_partial_payment' => $isPartialPayment,
+                'partial_jumlah_satuan' => $isPartialPayment ? $partialJumlahSatuan : null,
+                'estimasi_honor_partial' => $isPartialPayment ? $estimasiHonorPartial : null,
+                'is_partial_payment_listing' => $isPartialPaymentListing,
+                'partial_jumlah_satuan_listing' => $isPartialPaymentListing ? $partialJumlahSatuanListing : null,
+                'estimasi_honor_partial_listing' => $isPartialPaymentListing ? $estimasiHonorPartialListing : null,
                 'peran' => $jenisPenugasan,
                 'status_kepegawaian' => $rateHonor->status_kepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
@@ -491,6 +565,27 @@ class AlokasiPetugasController extends Controller
         if (count($errors) > 0) {
             DB::rollBack();
             $errorMessage = implode("\n", $errors);
+
+            Log::error('Store multiple alokasi validation failed before save', [
+                'kegiatan_id' => $kegiatan->id,
+                'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                'error_count' => count($errors),
+                'errors' => $errors,
+                'request_alokasi_count' => count($validated['alokasi'] ?? []),
+                'user_id' => effectiveUser($request)->id,
+            ]);
+
+            ActivityLog::logError(
+                'Gagal Buat Alokasi Periode',
+                'alokasi',
+                'Validasi pembuatan alokasi gagal untuk '.$kegiatan->nama_kegiatan.': '.implode(' | ', $errors),
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'errors' => $errors,
+                    'request_alokasi_count' => count($validated['alokasi'] ?? []),
+                ]
+            );
 
             return back()->withErrors(['sbml_constraint' => $errorMessage]);
         }
@@ -618,17 +713,37 @@ class AlokasiPetugasController extends Controller
 
                 // Create AlokasiPetugas for this periode
                 foreach ($periodeData['alokasi'] as $alokasiItem) {
-                    AlokasiPetugas::create([
+                    $alokasiPayload = [
                         'periode_alokasi_id' => $periode->id,
                         'petugas_id' => $alokasiItem['petugas_id'],
                         'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
                         'jumlah_satuan_listing' => $alokasiItem['jumlah_satuan_listing'],
                         'total_honor' => $alokasiItem['total_honor'],
                         'total_honor_listing' => $alokasiItem['total_honor_listing'],
+                        'is_partial_payment' => $alokasiItem['is_partial_payment'] ?? false,
+                        'partial_jumlah_satuan' => $alokasiItem['partial_jumlah_satuan'] ?? null,
+                        'estimasi_honor_partial' => $alokasiItem['estimasi_honor_partial'] ?? null,
+                        'is_partial_payment_listing' => $alokasiItem['is_partial_payment_listing'] ?? false,
+                        'partial_jumlah_satuan_listing' => $alokasiItem['partial_jumlah_satuan_listing'] ?? null,
+                        'estimasi_honor_partial_listing' => $alokasiItem['estimasi_honor_partial_listing'] ?? null,
                         'peran' => $alokasiItem['peran'],
                         'status_kepegawaian' => $alokasiItem['status_kepegawaian'],
                         'catatan' => $alokasiItem['catatan'],
-                    ]);
+                    ];
+
+                    if ($hasKegiatanIdColumn) {
+                        $alokasiPayload['kegiatan_id'] = $kegiatan->id;
+                    }
+
+                    if ($hasBulanColumn) {
+                        $alokasiPayload['bulan'] = (int) $periodeData['bulan'];
+                    }
+
+                    if ($hasTahunColumn) {
+                        $alokasiPayload['tahun'] = (int) $periodeData['tahun'];
+                    }
+
+                    AlokasiPetugas::create($alokasiPayload);
                 }
             }
 
@@ -659,6 +774,27 @@ class AlokasiPetugasController extends Controller
                 ->with('success', "{$created} alokasi petugas berhasil ditambahkan.");
         } catch (\Exception $e) {
             DB::rollBack();
+
+            Log::error('Failed to store multiple alokasi', [
+                'kegiatan_id' => $kegiatan->id,
+                'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_alokasi_count' => count($validated['alokasi'] ?? []),
+                'user_id' => effectiveUser($request)->id,
+            ]);
+
+            ActivityLog::logError(
+                'Gagal Buat Alokasi Periode',
+                'alokasi',
+                'Terjadi exception saat menyimpan alokasi untuk '.$kegiatan->nama_kegiatan.': '.$e->getMessage(),
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'request_alokasi_count' => count($validated['alokasi'] ?? []),
+                    'error' => $e->getMessage(),
+                ]
+            );
 
             return back()->withErrors([
                 'error' => 'Terjadi kesalahan saat menyimpan alokasi: '.$e->getMessage(),
@@ -749,6 +885,16 @@ class AlokasiPetugasController extends Controller
                 if (! array_key_exists('satuan_listing_id', $rateHonor->getAttributes())) {
                     $rateHonor->satuan_listing_id = null;
                 }
+
+                // Add SBML limit for this rate honor
+                $sbml = Sbml::where('tahun_anggaran', $activeYear)
+                    ->where('jenis_kegiatan', $rateHonor->jenis_kegiatan)
+                    ->where('status_kepegawaian', $rateHonor->status_kepegawaian)
+                    ->where('jenis_penugasan', $rateHonor->jenis_penugasan)
+                    ->where('status', 'aktif')
+                    ->first();
+
+                $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
             }
         }
         // Calculate budget info for all kegiatans
@@ -823,6 +969,32 @@ class AlokasiPetugasController extends Controller
             ->select('id', 'nama', 'nik', 'email', 'jenis_petugas', 'jabatan')
             ->get();
 
+        // Get existing allocations per petugas per bulan (for SBML toggle check)
+        $existingAllocations = AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('CAST(pa.bulan AS UNSIGNED) as bulan')
+            ->selectRaw('pa.tahun')
+            ->selectRaw('SUM(CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) as total_honor_pencacahan')
+            ->selectRaw('SUM(CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END) as total_honor_listing')
+            ->selectRaw('SUM((CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) + (CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END)) as total_honor_combined')
+            ->groupBy('alokasi_petugas.petugas_id', 'pa.bulan', 'pa.tahun')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'petugas_id' => (int) $row->petugas_id,
+                    'bulan' => (int) $row->bulan,
+                    'tahun' => (int) $row->tahun,
+                    'total_honor_pencacahan' => (float) $row->total_honor_pencacahan,
+                    'total_honor_listing' => (float) $row->total_honor_listing,
+                    'total_honor_combined' => (float) $row->total_honor_combined,
+                ];
+            })
+            ->values()
+            ->all();
+
         // Handle pre-selected kegiatan from query string
         $selectedKegiatan = null;
         if ($request->filled('kegiatan_id')) {
@@ -844,6 +1016,20 @@ class AlokasiPetugasController extends Controller
                         ])
                         ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
                         ->first();
+
+                    // Add SBML limits to selected kegiatan's rate honors
+                    if ($selectedKegiatan) {
+                        foreach ($selectedKegiatan->rateHonors as $rateHonor) {
+                            $sbml = Sbml::where('tahun_anggaran', $activeYear)
+                                ->where('jenis_kegiatan', $rateHonor->jenis_kegiatan)
+                                ->where('status_kepegawaian', $rateHonor->status_kepegawaian)
+                                ->where('jenis_penugasan', $rateHonor->jenis_penugasan)
+                                ->where('status', 'aktif')
+                                ->first();
+
+                            $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
+                        }
+                    }
                 }
             } catch (\Exception $e) {
                 // Invalid hashed_id, just ignore
@@ -888,7 +1074,15 @@ class AlokasiPetugasController extends Controller
                                             'status_kepegawaian' => $alokasi->status_kepegawaian,
                                             'peran' => $alokasi->peran,
                                             'jumlah_satuan' => $alokasi->jumlah_satuan,
-                                            'total_honor' => $alokasi->total_honor,
+                                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
+                                            'total_honor' => (float) ($alokasi->total_honor ?? 0),
+                                            'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
+                                            'is_partial_payment' => (bool) $alokasi->is_partial_payment,
+                                            'partial_jumlah_satuan' => $alokasi->partial_jumlah_satuan,
+                                            'estimasi_honor_partial' => $alokasi->estimasi_honor_partial,
+                                            'is_partial_payment_listing' => (bool) $alokasi->is_partial_payment_listing,
+                                            'partial_jumlah_satuan_listing' => $alokasi->partial_jumlah_satuan_listing,
+                                            'estimasi_honor_partial_listing' => $alokasi->estimasi_honor_partial_listing,
                                             'catatan' => $alokasi->catatan,
                                         ];
                                     });
@@ -990,6 +1184,7 @@ class AlokasiPetugasController extends Controller
             'sourcePeriode' => $sourcePeriode,
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
+            'existing_allocations' => $existingAllocations,
         ]);
     }
 
@@ -1344,9 +1539,39 @@ class AlokasiPetugasController extends Controller
             ])
             ->firstOrFail();
 
+        $kegiatan->loadMissing([
+            'rateHonors' => function ($query) use ($tahun) {
+                $query->where('tahun_berlaku', $tahun)
+                    ->where('status', 'aktif');
+            },
+        ]);
+
+        $rateHonorByKey = $kegiatan->rateHonors->keyBy(function ($rateHonor) {
+            return $rateHonor->status_kepegawaian.'|'.$rateHonor->jenis_penugasan;
+        });
+
+        $resolveRateHonor = static function (AlokasiPetugas $alokasi) use ($rateHonorByKey) {
+            $statusKepegawaian = $alokasi->status_kepegawaian
+                ?? (($alokasi->petugas->jenis_petugas ?? 'non-organik') === 'organik' ? 'organik' : 'non_organik');
+
+            return $rateHonorByKey->get($statusKepegawaian.'|'.$alokasi->peran);
+        };
+
+        $resolveEffectivePencacahanHonor = static function (AlokasiPetugas $alokasi): float {
+            return $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                ? (float) $alokasi->estimasi_honor_partial
+                : (float) ($alokasi->total_honor ?? 0);
+        };
+
+        $resolveEffectiveListingHonor = static function (AlokasiPetugas $alokasi): float {
+            return $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                ? (float) $alokasi->estimasi_honor_partial_listing
+                : (float) ($alokasi->total_honor_listing ?? 0);
+        };
+
         // Calculate totals
-        $totalEstimasiPencacahan = $periode->alokasiPetugas->sum('total_honor');
-        $totalEstimasiListing = $periode->alokasiPetugas->sum('total_honor_listing');
+        $totalEstimasiPencacahan = $periode->alokasiPetugas->sum(fn ($alokasi) => $resolveEffectivePencacahanHonor($alokasi));
+        $totalEstimasiListing = $periode->alokasiPetugas->sum(fn ($alokasi) => $resolveEffectiveListingHonor($alokasi));
         $totalEstimasi = $totalEstimasiPencacahan + $totalEstimasiListing;
         $jumlahPetugas = $periode->alokasiPetugas->count();
 
@@ -1373,7 +1598,21 @@ class AlokasiPetugasController extends Controller
                 'hashed_id' => $kegiatan->hashed_id,
                 'has_listing_updating' => $kegiatan->has_listing_updating ?? false,
             ],
-            'alokasi_petugas' => $periode->alokasiPetugas->map(function ($alokasi) {
+            'alokasi_petugas' => $periode->alokasiPetugas->map(function ($alokasi) use ($resolveRateHonor) {
+                $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                    ? (float) $alokasi->estimasi_honor_partial
+                    : (float) ($alokasi->total_honor ?? 0);
+                $effectiveListingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                    ? (float) $alokasi->estimasi_honor_partial_listing
+                    : (float) ($alokasi->total_honor_listing ?? 0);
+                $paidJumlahSatuan = $alokasi->is_partial_payment && $alokasi->partial_jumlah_satuan !== null
+                    ? (int) $alokasi->partial_jumlah_satuan
+                    : (int) ($alokasi->jumlah_satuan ?? 0);
+                $paidJumlahSatuanListing = $alokasi->is_partial_payment_listing && $alokasi->partial_jumlah_satuan_listing !== null
+                    ? (int) $alokasi->partial_jumlah_satuan_listing
+                    : (int) ($alokasi->jumlah_satuan_listing ?? 0);
+                $rateHonor = $resolveRateHonor($alokasi);
+
                 return [
                     'id' => $alokasi->id,
                     'petugas' => [
@@ -1384,14 +1623,12 @@ class AlokasiPetugasController extends Controller
                     'peran' => $alokasi->peran,
                     'jumlah_satuan' => $alokasi->jumlah_satuan,
                     'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                    'total_honor' => $alokasi->total_honor,
-                    'total_honor_listing' => $alokasi->total_honor_listing,
-                    'rate_pencacahan' => $alokasi->jumlah_satuan > 0
-                        ? $alokasi->total_honor / $alokasi->jumlah_satuan
-                        : 0,
-                    'rate_listing' => ($alokasi->jumlah_satuan_listing ?? 0) > 0
-                        ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
-                        : 0,
+                    'jumlah_satuan_dibayarkan' => $paidJumlahSatuan,
+                    'jumlah_satuan_listing_dibayarkan' => $paidJumlahSatuanListing,
+                    'total_honor' => $effectivePencacahanHonor,
+                    'total_honor_listing' => $effectiveListingHonor,
+                    'rate_pencacahan' => (float) ($rateHonor?->rate ?? 0),
+                    'rate_listing' => (float) ($rateHonor?->rate_listing ?? 0),
                     'catatan' => $alokasi->catatan,
                     'non_response' => $alokasi->non_response,
                     'non_response_listing' => $alokasi->non_response_listing,
@@ -1421,9 +1658,9 @@ class AlokasiPetugasController extends Controller
                 'submittedBy:id,name',
             ])
             ->get()
-            ->map(function ($rev) {
-                $totalPencacahan = $rev->alokasiPetugas->sum('total_honor');
-                $totalListing = $rev->alokasiPetugas->sum('total_honor_listing');
+            ->map(function ($rev) use ($resolveEffectivePencacahanHonor, $resolveEffectiveListingHonor, $resolveRateHonor) {
+                $totalPencacahan = $rev->alokasiPetugas->sum(fn ($alokasi) => $resolveEffectivePencacahanHonor($alokasi));
+                $totalListing = $rev->alokasiPetugas->sum(fn ($alokasi) => $resolveEffectiveListingHonor($alokasi));
 
                 return [
                     'id' => $rev->id,
@@ -1431,7 +1668,21 @@ class AlokasiPetugasController extends Controller
                     'status' => $rev->status,
                     'submitted_at' => $rev->submitted_at,
                     'submitted_by_name' => $rev->submittedBy?->name,
-                    'alokasi_petugas' => $rev->alokasiPetugas->map(function ($alokasi) {
+                    'alokasi_petugas' => $rev->alokasiPetugas->map(function ($alokasi) use ($resolveRateHonor) {
+                        $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                            ? (float) $alokasi->estimasi_honor_partial
+                            : (float) ($alokasi->total_honor ?? 0);
+                        $effectiveListingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                            ? (float) $alokasi->estimasi_honor_partial_listing
+                            : (float) ($alokasi->total_honor_listing ?? 0);
+                        $paidJumlahSatuan = $alokasi->is_partial_payment && $alokasi->partial_jumlah_satuan !== null
+                            ? (int) $alokasi->partial_jumlah_satuan
+                            : (int) ($alokasi->jumlah_satuan ?? 0);
+                        $paidJumlahSatuanListing = $alokasi->is_partial_payment_listing && $alokasi->partial_jumlah_satuan_listing !== null
+                            ? (int) $alokasi->partial_jumlah_satuan_listing
+                            : (int) ($alokasi->jumlah_satuan_listing ?? 0);
+                        $rateHonor = $resolveRateHonor($alokasi);
+
                         return [
                             'id' => $alokasi->id,
                             'petugas' => [
@@ -1442,14 +1693,12 @@ class AlokasiPetugasController extends Controller
                             'peran' => $alokasi->peran,
                             'jumlah_satuan' => $alokasi->jumlah_satuan,
                             'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                            'total_honor' => $alokasi->total_honor,
-                            'total_honor_listing' => $alokasi->total_honor_listing,
-                            'rate_pencacahan' => $alokasi->jumlah_satuan > 0
-                                ? $alokasi->total_honor / $alokasi->jumlah_satuan
-                                : 0,
-                            'rate_listing' => ($alokasi->jumlah_satuan_listing ?? 0) > 0
-                                ? ($alokasi->total_honor_listing ?? 0) / $alokasi->jumlah_satuan_listing
-                                : 0,
+                            'jumlah_satuan_dibayarkan' => $paidJumlahSatuan,
+                            'jumlah_satuan_listing_dibayarkan' => $paidJumlahSatuanListing,
+                            'total_honor' => $effectivePencacahanHonor,
+                            'total_honor_listing' => $effectiveListingHonor,
+                            'rate_pencacahan' => (float) ($rateHonor?->rate ?? 0),
+                            'rate_listing' => (float) ($rateHonor?->rate_listing ?? 0),
                             'catatan' => $alokasi->catatan,
                             'non_response' => $alokasi->non_response,
                             'non_response_listing' => $alokasi->non_response_listing,
@@ -1499,8 +1748,35 @@ class AlokasiPetugasController extends Controller
                 ->with('error', 'Tidak ada alokasi untuk periode ini.');
         }
 
-        // Load kegiatan with rate honors and satuan
-        $kegiatanWithRates = Kegiatan::with(['rateHonors.satuan', 'rateHonors.satuanListing'])->findOrFail($kegiatan->id);
+        // Load kegiatan with active-year rate honors and enrich each rate with SBML limit,
+        // matching the structure used by create mode.
+        $activeYear = ActiveYearService::get();
+
+        $kegiatanWithRates = Kegiatan::where('id', $kegiatan->id)
+            ->with([
+                'rateHonors' => function ($query) use ($activeYear) {
+                    $query->where('status', 'aktif')
+                        ->where('tahun_berlaku', $activeYear)
+                        ->select('id', 'kegiatan_id', 'posisi', 'jenis_kegiatan', 'status_kepegawaian', 'jenis_penugasan', 'rate', 'rate_listing', 'satuan_id', 'satuan_listing_id')
+                        ->with([
+                            'satuan:id,kode,nama',
+                            'satuanListing:id,kode,nama',
+                        ]);
+                },
+            ])
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+            ->firstOrFail();
+
+        foreach ($kegiatanWithRates->rateHonors as $rateHonor) {
+            $sbml = Sbml::where('tahun_anggaran', $activeYear)
+                ->where('jenis_kegiatan', $rateHonor->jenis_kegiatan)
+                ->where('status_kepegawaian', $rateHonor->status_kepegawaian)
+                ->where('jenis_penugasan', $rateHonor->jenis_penugasan)
+                ->where('status', 'aktif')
+                ->first();
+
+            $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
+        }
 
         // Load all petugas
         $petugas = Petugas::select('id', 'nama', 'jenis_petugas', 'golongan', 'jabatan')
@@ -1524,11 +1800,42 @@ class AlokasiPetugasController extends Controller
                 'peran' => $alok->peran,
                 'jumlah_satuan' => $alok->jumlah_satuan,
                 'jumlah_satuan_listing' => $alok->jumlah_satuan_listing,
-                'total_honor' => $alok->total_honor,
-                'total_honor_listing' => $alok->total_honor_listing,
+                'total_honor' => (float) ($alok->total_honor ?? 0),
+                'total_honor_listing' => (float) ($alok->total_honor_listing ?? 0),
+                'is_partial_payment' => (bool) $alok->is_partial_payment,
+                'partial_jumlah_satuan' => $alok->partial_jumlah_satuan,
+                'estimasi_honor_partial' => $alok->estimasi_honor_partial,
+                'is_partial_payment_listing' => (bool) $alok->is_partial_payment_listing,
+                'partial_jumlah_satuan_listing' => $alok->partial_jumlah_satuan_listing,
+                'estimasi_honor_partial_listing' => $alok->estimasi_honor_partial_listing,
                 'catatan' => $alok->catatan,
             ];
         });
+
+        // Existing allocations by petugas in month/year for SBML toggle check (exclude current periode)
+        $existingAllocations = AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $tahun)
+            ->where('pa.bulan', $bulan)
+            ->whereIn('pa.status', ['draft', 'dikirim', 'perubahan', 'direvisi'])
+            ->where('pa.id', '!=', $periode->id)
+            ->select('alokasi_petugas.petugas_id', 'pa.bulan', 'pa.tahun')
+            ->selectRaw('SUM(CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) as total_honor_pencacahan')
+            ->selectRaw('SUM(CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END) as total_honor_listing')
+            ->selectRaw('SUM((CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) + (CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END)) as total_honor_combined')
+            ->groupBy('alokasi_petugas.petugas_id', 'pa.bulan', 'pa.tahun')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'petugas_id' => (int) $item->petugas_id,
+                    'bulan' => (int) $item->bulan,
+                    'tahun' => (int) $item->tahun,
+                    'total_honor_pencacahan' => (float) $item->total_honor_pencacahan,
+                    'total_honor_listing' => (float) $item->total_honor_listing,
+                    'total_honor_combined' => (float) $item->total_honor_combined,
+                ];
+            })
+            ->toArray();
 
         // Get used months for this kegiatan to prevent duplicates (exclude current month being edited)
         $usedMonths = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1538,9 +1845,6 @@ class AlokasiPetugasController extends Controller
             ->pluck('bulan')
             ->map(fn ($b) => (int) $b)
             ->toArray();
-
-        // Get active year
-        $activeYear = ActiveYearService::get();
 
         // Calculate budget info - exclude current periode being edited
         $totalSpent = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1597,6 +1901,7 @@ class AlokasiPetugasController extends Controller
                 'jadwal_pengolahan_pencacahan_mulai' => $periode->jadwal_pengolahan_pencacahan_mulai?->format('Y-m-d'),
                 'jadwal_pengolahan_pencacahan_selesai' => $periode->jadwal_pengolahan_pencacahan_selesai?->format('Y-m-d'),
             ],
+            'existing_allocations' => $existingAllocations,
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
             'isEditMode' => true,
@@ -1641,6 +1946,10 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
+            'alokasi.*.is_partial_payment' => 'nullable|boolean',
+            'alokasi.*.partial_jumlah_satuan' => 'nullable|integer|min:0',
+            'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
+            'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
             'tanggal_mulai' => 'nullable|date',
             'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
             'tanggal_mulai_listing' => 'nullable|date',
@@ -1651,8 +1960,37 @@ class AlokasiPetugasController extends Controller
             'jadwal_pengolahan_pencacahan_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_pencacahan_mulai',
         ]);
 
+        $partialValidationErrors = [];
+        foreach ($validated['alokasi'] as $alokasiData) {
+            $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : 0;
+            $jumlahSatuan = (int) ($alokasiData['jumlah_satuan'] ?? 0);
+
+            if ($isPartialPayment && $partialJumlahSatuan > $jumlahSatuan) {
+                $partialValidationErrors[] = 'Jumlah beban tugas parsial pencacahan tidak boleh melebihi jumlah beban tugas awal.';
+            }
+
+            $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
+            $partialJumlahSatuanListing = isset($alokasiData['partial_jumlah_satuan_listing']) ? (int) $alokasiData['partial_jumlah_satuan_listing'] : 0;
+            $jumlahSatuanListing = isset($alokasiData['jumlah_satuan_listing']) ? (int) $alokasiData['jumlah_satuan_listing'] : 0;
+
+            if ($isPartialPaymentListing && $partialJumlahSatuanListing > $jumlahSatuanListing) {
+                $partialValidationErrors[] = 'Jumlah beban tugas parsial listing tidak boleh melebihi jumlah beban tugas listing awal.';
+            }
+        }
+
+        if (! empty($partialValidationErrors)) {
+            return redirect()->back()->withErrors([
+                'partial_validation' => implode("\n", array_unique($partialValidationErrors)),
+            ])->withInput();
+        }
+
         DB::beginTransaction();
         try {
+            $hasKegiatanIdColumn = Schema::hasColumn('alokasi_petugas', 'kegiatan_id');
+            $hasBulanColumn = Schema::hasColumn('alokasi_petugas', 'bulan');
+            $hasTahunColumn = Schema::hasColumn('alokasi_petugas', 'tahun');
+
             // Check if this is a revision from session
             $isRevision = $request->session()->get('is_revisi_mode', false);
             $parentPeriodeId = $request->session()->get('revisi_parent_periode_id');
@@ -1746,6 +2084,8 @@ class AlokasiPetugasController extends Controller
             $errors = [];
             $created = 0;
 
+            $runningHonorByPetugas = [];
+
             foreach ($validated['alokasi'] as $index => $alokasiData) {
                 // Get petugas to determine jenis_petugas
                 $petugas = Petugas::find($alokasiData['petugas_id']);
@@ -1797,14 +2137,37 @@ class AlokasiPetugasController extends Controller
                     }
                 }
 
+                $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
+                $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : null;
+                $estimasiHonorPartial = null;
+
+                if ($isPartialPayment && $partialJumlahSatuan !== null) {
+                    $estimasiHonorPartial = $rateHonor->rate * $partialJumlahSatuan;
+                }
+
+                $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
+                $partialJumlahSatuanListing = isset($alokasiData['partial_jumlah_satuan_listing']) ? (int) $alokasiData['partial_jumlah_satuan_listing'] : null;
+                $estimasiHonorPartialListing = null;
+
+                if ($isPartialPaymentListing && $partialJumlahSatuanListing !== null && $rateHonor->rate_listing) {
+                    $estimasiHonorPartialListing = $rateHonor->rate_listing * $partialJumlahSatuanListing;
+                }
+
+                $effectivePencacahanHonor = $isPartialPayment
+                    ? ($estimasiHonorPartial ?? 0)
+                    : $totalHonor;
+                $effectiveListingHonor = $isPartialPaymentListing
+                    ? ($estimasiHonorPartialListing ?? 0)
+                    : $totalHonorListing;
+
                 // Check SBML constraint per assignment (skip if honor is 0)
-                if ($totalHonor > 0) {
+                if ($effectivePencacahanHonor > 0) {
                     $constraintError = $this->checkSbmlConstraint(
                         (int) $tahun,
                         $kegiatan->jenis_kegiatan,
                         $petugasType,
                         $jenisPenugasan,
-                        $totalHonor
+                        $effectivePencacahanHonor
                     );
 
                     if ($constraintError) {
@@ -1816,14 +2179,15 @@ class AlokasiPetugasController extends Controller
 
                 // Check petugas total honor in month across all assignments (skip if honor is 0)
                 // For edit/revision, exclude current periode from calculation
-                // Include listing honor so the cumulative check uses the complete payout amount
-                $combinedNewHonor = $totalHonor + $totalHonorListing;
+                $combinedNewHonor = $effectivePencacahanHonor + $effectiveListingHonor;
                 if ($combinedNewHonor > 0) {
+                    $runningCurrentHonor = $runningHonorByPetugas[$alokasiData['petugas_id']] ?? 0;
+
                     $petugasTotalError = $this->checkPetugasTotalHonorInMonth(
                         $alokasiData['petugas_id'],
                         (int) $tahun,
                         (int) $bulan,
-                        $combinedNewHonor,
+                        $combinedNewHonor + $runningCurrentHonor,
                         $periode->id,
                         $jenisPenugasan,
                         $kegiatan->jenis_kegiatan,
@@ -1835,20 +2199,42 @@ class AlokasiPetugasController extends Controller
 
                         continue;
                     }
+
+                    $runningHonorByPetugas[$alokasiData['petugas_id']] = $runningCurrentHonor + $combinedNewHonor;
                 }
 
                 // Create new alokasi
-                AlokasiPetugas::create([
+                $alokasiPayload = [
                     'periode_alokasi_id' => $periode->id,
                     'petugas_id' => $alokasiData['petugas_id'],
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                     'jumlah_satuan_listing' => $jumlahSatuanListing,
-                    'total_honor' => $totalHonor,
-                    'total_honor_listing' => $totalHonorListing,
+                    'total_honor' => $effectivePencacahanHonor,
+                    'total_honor_listing' => $effectiveListingHonor,
+                    'is_partial_payment' => $isPartialPayment,
+                    'partial_jumlah_satuan' => $isPartialPayment ? $partialJumlahSatuan : null,
+                    'estimasi_honor_partial' => $isPartialPayment ? $estimasiHonorPartial : null,
+                    'is_partial_payment_listing' => $isPartialPaymentListing,
+                    'partial_jumlah_satuan_listing' => $isPartialPaymentListing ? $partialJumlahSatuanListing : null,
+                    'estimasi_honor_partial_listing' => $isPartialPaymentListing ? $estimasiHonorPartialListing : null,
                     'peran' => $jenisPenugasan,
                     'status_kepegawaian' => $petugasType,
                     'catatan' => $alokasiData['catatan'] ?? null,
-                ]);
+                ];
+
+                if ($hasKegiatanIdColumn) {
+                    $alokasiPayload['kegiatan_id'] = $kegiatan->id;
+                }
+
+                if ($hasBulanColumn) {
+                    $alokasiPayload['bulan'] = (int) $bulan;
+                }
+
+                if ($hasTahunColumn) {
+                    $alokasiPayload['tahun'] = (int) $tahun;
+                }
+
+                AlokasiPetugas::create($alokasiPayload);
 
                 $created++;
             }
@@ -2031,6 +2417,21 @@ class AlokasiPetugasController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
+            ActivityLog::logError(
+                'Gagal Update Alokasi Periode',
+                'alokasi',
+                'Terjadi exception saat update alokasi '.$kegiatan->nama_kegiatan.' '.$bulan.'/'.$tahun.': '.$e->getMessage(),
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'tahun' => $tahun,
+                    'bulan' => $bulan,
+                    'request_alokasi_count' => count($validated['alokasi'] ?? []),
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]
+            );
+
             return back()->with('error', 'Gagal memperbarui alokasi: '.$e->getMessage());
         }
     }
@@ -2040,15 +2441,44 @@ class AlokasiPetugasController extends Controller
      */
     public function destroyPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
     {
-        // Allow deleting 'draft' or 'perubahan' that hasn't been submitted yet
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
+            abort(403, 'Hanya admin atau operator yang dapat membatalkan alokasi periode.');
+        }
+
+        // Allow canceling draft/dikirim when SPK has not been generated yet
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
             ->where('bulan', $bulan)
-            ->whereIn('status', ['draft', 'perubahan'])
+            ->whereIn('status', ['draft', 'dikirim'])
             ->first();
 
         if (! $periode) {
-            return back()->with('error', 'Tidak ada alokasi draft yang dapat dibatalkan.');
+            return back()->with('error', 'Tidak ada alokasi periode yang dapat dibatalkan.');
+        }
+
+        $hasGeneratedSpk = Spk::query()
+            ->whereHas('alokasiPetugas', function ($query) use ($periode) {
+                $query->where('periode_alokasi_id', $periode->id);
+            })
+            ->exists();
+
+        if ($hasGeneratedSpk) {
+            ActivityLog::log(
+                'Batalkan Alokasi Periode',
+                'alokasi',
+                'Gagal membatalkan alokasi '.$kegiatan->nama_kegiatan.' '.$bulan.'/'.$tahun.' karena Perjanjian Kerja sudah digenerate.',
+                'warning',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'periode_id' => $periode->id,
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                ]
+            );
+
+            return back()->with('warning', 'Alokasi tidak dapat dibatalkan karena Perjanjian Kerja sudah digenerate.');
         }
 
         // If this is a revision being deleted, restore the parent periode status
@@ -2063,8 +2493,24 @@ class AlokasiPetugasController extends Controller
         }
 
         // Delete the periode and its alokasi
+        $deletedPetugasCount = $periode->alokasiPetugas()->count();
         $periode->alokasiPetugas()->delete();
         $periode->delete();
+
+        ActivityLog::log(
+            'Batalkan Alokasi Periode',
+            'alokasi',
+            'Berhasil membatalkan alokasi '.$kegiatan->nama_kegiatan.' '.$bulan.'/'.$tahun,
+            'success',
+            [
+                'kegiatan_id' => $kegiatan->id,
+                'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                'periode_id' => $periode->id,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'deleted_petugas_count' => $deletedPetugasCount,
+            ]
+        );
 
         return redirect()->route('alokasi.index')
             ->with('success', 'Alokasi periode berhasil dibatalkan.');
@@ -2272,8 +2718,17 @@ class AlokasiPetugasController extends Controller
             ->where('petugas_id', $petugasId)
             ->get();
 
-        // Calculate existing total honor — include both pencacahan AND listing honor
-        $existingTotalHonor = $existingAlokasis->sum(fn ($a) => ($a->total_honor ?? 0) + ($a->total_honor_listing ?? 0));
+        $existingTotalHonor = $existingAlokasis->sum(function ($alokasi) {
+            $pencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                ? (float) $alokasi->estimasi_honor_partial
+                : (float) ($alokasi->total_honor ?? 0);
+
+            $listingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                ? (float) $alokasi->estimasi_honor_partial_listing
+                : (float) ($alokasi->total_honor_listing ?? 0);
+
+            return $pencacahanHonor + $listingHonor;
+        });
         $totalHonorInMonth = $existingTotalHonor + $newHonor;
 
         // Collect all jenis penugasan (peran) from existing allocations

@@ -29,6 +29,8 @@ interface AlokasiPetugas {
     peran: string;
     jumlah_satuan: number;
     jumlah_satuan_listing?: number;
+    jumlah_satuan_dibayarkan?: number;
+    jumlah_satuan_listing_dibayarkan?: number;
     total_honor: number;
     total_honor_listing?: number;
     rate_pencacahan?: number;
@@ -171,6 +173,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
     const canEditNonResponse = ['dikirim', 'perubahan'].includes(
         periode.status,
     );
+    const summaryColSpan = isKetua && hasPendataanRole ? 8 : 7;
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
@@ -428,13 +431,11 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                         Peran
                                     </th>
-                                    {periode.kegiatan.has_listing_updating && (
-                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Tahapan
-                                        </th>
-                                    )}
                                     <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                         Beban Tugas
+                                    </th>
+                                    <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                        Beban Tugas dibayarkan
                                     </th>
                                     {isKetuaTim && hasPendataanRole && (
                                         <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
@@ -446,9 +447,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     </th>
                                     <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                         Estimasi Honor
-                                    </th>
-                                    <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">
-                                        Catatan
                                     </th>
                                 </tr>
                             </thead>
@@ -465,16 +463,10 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         key={`${alokasi.id}-listing`}
                                                         className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                                     >
-                                                        <td
-                                                            className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white"
-                                                            rowSpan={2}
-                                                        >
+                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {index + 1}
                                                         </td>
-                                                        <td
-                                                            className="px-3 py-3"
-                                                            rowSpan={2}
-                                                        >
+                                                        <td className="px-3 py-3">
                                                             <div className="font-medium break-words text-neutral-900 dark:text-white">
                                                                 {
                                                                     alokasi
@@ -483,10 +475,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                 }
                                                             </div>
                                                         </td>
-                                                        <td
-                                                            className="px-3 py-3 whitespace-nowrap"
-                                                            rowSpan={2}
-                                                        >
+                                                        <td className="px-3 py-3 whitespace-nowrap">
                                                             <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
                                                                 {alokasi.petugas
                                                                     .jenis_petugas ===
@@ -495,21 +484,24 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                     : 'Mitra'}
                                                             </span>
                                                         </td>
-                                                        <td
-                                                            className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white"
-                                                            rowSpan={2}
-                                                        >
+                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {peranLabels[
                                                                 alokasi.peran
-                                                            ] || alokasi.peran}
-                                                        </td>
-                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                            Listing
+                                                            ] ||
+                                                                alokasi.peran}{' '}
+                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                (Listing)
+                                                            </span>
                                                         </td>
                                                         <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {
                                                                 alokasi.jumlah_satuan_listing
                                                             }
+                                                        </td>
+                                                        <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {alokasi.jumlah_satuan_listing_dibayarkan ??
+                                                                alokasi.jumlah_satuan_listing ??
+                                                                0}
                                                         </td>
                                                         {isKetuaTim &&
                                                             hasPendataanRole && (
@@ -565,15 +557,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                     0,
                                                             )}
                                                         </td>
-                                                        <td
-                                                            className="px-3 py-3 text-neutral-600 dark:text-neutral-400"
-                                                            rowSpan={2}
-                                                        >
-                                                            <div className="break-words">
-                                                                {alokasi.catatan ||
-                                                                    '-'}
-                                                            </div>
-                                                        </td>
                                                     </tr>
                                                 )}
                                             {/* Pencacahan Row */}
@@ -581,47 +564,41 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                 key={`${alokasi.id}-pencacahan`}
                                                 className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                             >
-                                                {!periode.kegiatan
-                                                    .has_listing_updating ||
-                                                (alokasi.jumlah_satuan_listing ??
-                                                    0) === 0 ? (
-                                                    <>
-                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                            {index + 1}
-                                                        </td>
-                                                        <td className="px-3 py-3">
-                                                            <div className="font-medium break-words text-neutral-900 dark:text-white">
-                                                                {
-                                                                    alokasi
-                                                                        .petugas
-                                                                        .nama
-                                                                }
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-3 py-3 whitespace-nowrap">
-                                                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
-                                                                {alokasi.petugas
-                                                                    .jenis_petugas ===
-                                                                'organik'
-                                                                    ? 'Organik'
-                                                                    : 'Mitra'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                            {peranLabels[
-                                                                alokasi.peran
-                                                            ] || alokasi.peran}
-                                                        </td>
-                                                    </>
-                                                ) : null}
-                                                {periode.kegiatan
-                                                    .has_listing_updating && (
-                                                    <td className="px-3 py-3 whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                        Pencacahan
-                                                    </td>
-                                                )}
+                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-3 py-3">
+                                                    <div className="font-medium break-words text-neutral-900 dark:text-white">
+                                                        {alokasi.petugas.nama}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-3 whitespace-nowrap">
+                                                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
+                                                        {alokasi.petugas
+                                                            .jenis_petugas ===
+                                                        'organik'
+                                                            ? 'Organik'
+                                                            : 'Mitra'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {peranLabels[
+                                                        alokasi.peran
+                                                    ] || alokasi.peran}{' '}
+                                                    {periode.kegiatan
+                                                        .has_listing_updating && (
+                                                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                            (Pencacahan)
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                     {alokasi.jumlah_satuan}
+                                                </td>
+                                                <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {alokasi.jumlah_satuan_dibayarkan ??
+                                                        alokasi.jumlah_satuan ??
+                                                        0}
                                                 </td>
                                                 {isKetuaTim &&
                                                     hasPendataanRole && (
@@ -676,17 +653,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         alokasi.total_honor,
                                                     )}
                                                 </td>
-                                                {!periode.kegiatan
-                                                    .has_listing_updating ||
-                                                (alokasi.jumlah_satuan_listing ??
-                                                    0) === 0 ? (
-                                                    <td className="px-3 py-3 text-neutral-600 dark:text-neutral-400">
-                                                        <div className="break-words">
-                                                            {alokasi.catatan ||
-                                                                '-'}
-                                                        </div>
-                                                    </td>
-                                                ) : null}
                                             </tr>
                                         </>
                                     ),
@@ -697,12 +663,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
                                             <td
-                                                colSpan={
-                                                    isKetuaTim &&
-                                                    hasPendataanRole
-                                                        ? 8
-                                                        : 7
-                                                }
+                                                colSpan={summaryColSpan}
                                                 className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
                                             >
                                                 Total Listing:
@@ -713,16 +674,10 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         0,
                                                 )}
                                             </td>
-                                            <td></td>
                                         </tr>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
                                             <td
-                                                colSpan={
-                                                    isKetuaTim &&
-                                                    hasPendataanRole
-                                                        ? 8
-                                                        : 7
-                                                }
+                                                colSpan={summaryColSpan}
                                                 className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
                                             >
                                                 Total Pencacahan:
@@ -733,22 +688,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         0,
                                                 )}
                                             </td>
-                                            <td></td>
                                         </tr>
                                     </>
                                 )}
                                 <tr>
                                     <td
-                                        colSpan={
-                                            periode.kegiatan
-                                                .has_listing_updating
-                                                ? isKetuaTim && hasPendataanRole
-                                                    ? 8
-                                                    : 7
-                                                : isKetuaTim && hasPendataanRole
-                                                  ? 7
-                                                  : 6
-                                        }
+                                        colSpan={summaryColSpan}
                                         className="px-3 py-3 text-right font-semibold whitespace-nowrap text-neutral-900 dark:text-white"
                                     >
                                         Total Keseluruhan:
@@ -756,7 +701,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     <td className="px-3 py-3 text-right text-xl font-bold whitespace-nowrap text-green-600 dark:text-green-400">
                                         {formatCurrency(periode.total_estimasi)}
                                     </td>
-                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>

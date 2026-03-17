@@ -22,8 +22,14 @@ class AlokasiPetugas extends Model
         return [
             'jumlah_satuan' => 'integer',
             'total_honor' => 'decimal:2',
+            'is_partial_payment' => 'boolean',
+            'partial_jumlah_satuan' => 'integer',
+            'estimasi_honor_partial' => 'decimal:2',
             'jumlah_satuan_listing' => 'integer',
             'total_honor_listing' => 'decimal:2',
+            'is_partial_payment_listing' => 'boolean',
+            'partial_jumlah_satuan_listing' => 'integer',
+            'estimasi_honor_partial_listing' => 'decimal:2',
             'non_response' => 'integer',
             'non_response_listing' => 'integer',
         ];
@@ -37,8 +43,14 @@ class AlokasiPetugas extends Model
         'petugas_id',
         'jumlah_satuan',
         'total_honor',
+        'is_partial_payment',
+        'partial_jumlah_satuan',
+        'estimasi_honor_partial',
         'jumlah_satuan_listing',
         'total_honor_listing',
+        'is_partial_payment_listing',
+        'partial_jumlah_satuan_listing',
+        'estimasi_honor_partial_listing',
         'peran',
         'status_kepegawaian',
         'catatan',
@@ -59,5 +71,46 @@ class AlokasiPetugas extends Model
     public function spk(): HasMany
     {
         return $this->hasMany(Spk::class);
+    }
+
+    public function getEffectiveJumlahSatuan(): int
+    {
+        if ($this->is_partial_payment && $this->partial_jumlah_satuan !== null) {
+            return (int) $this->partial_jumlah_satuan;
+        }
+
+        return (int) ($this->jumlah_satuan ?? 0);
+    }
+
+    public function getEffectiveJumlahSatuanListing(): int
+    {
+        if ($this->is_partial_payment_listing && $this->partial_jumlah_satuan_listing !== null) {
+            return (int) $this->partial_jumlah_satuan_listing;
+        }
+
+        return (int) ($this->jumlah_satuan_listing ?? 0);
+    }
+
+    public function getEffectiveTotalHonor(): float
+    {
+        if ($this->is_partial_payment && $this->estimasi_honor_partial !== null) {
+            return (float) $this->estimasi_honor_partial;
+        }
+
+        return (float) ($this->total_honor ?? 0);
+    }
+
+    public function getEffectiveTotalHonorListing(): float
+    {
+        if ($this->is_partial_payment_listing && $this->estimasi_honor_partial_listing !== null) {
+            return (float) $this->estimasi_honor_partial_listing;
+        }
+
+        return (float) ($this->total_honor_listing ?? 0);
+    }
+
+    public function getEffectiveCombinedHonor(): float
+    {
+        return $this->getEffectiveTotalHonor() + $this->getEffectiveTotalHonorListing();
     }
 }

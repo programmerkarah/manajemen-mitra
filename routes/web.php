@@ -311,7 +311,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'updatePeriode'])
             ->name('alokasi.periode.update');
         Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])
-            ->name('alokasi.periode.destroy');
+            ->name('alokasi.periode.destroy')
+            ->middleware('active.role:admin,operator');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
             ->name('alokasi.periode.revisi');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi/batal', [AlokasiPetugasController::class, 'batalkanRevisiPeriode'])

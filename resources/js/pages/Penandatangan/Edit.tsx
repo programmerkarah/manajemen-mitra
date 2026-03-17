@@ -194,10 +194,7 @@ export default function Edit({ Penandatangan }: EditProps) {
                                     id="periode_selesai"
                                     value={data.periode_selesai}
                                     onChange={(v) =>
-                                        setData(
-                                            'periode_selesai',
-                                            v,
-                                        )
+                                        setData('periode_selesai', v)
                                     }
                                     className="h-10"
                                 />
