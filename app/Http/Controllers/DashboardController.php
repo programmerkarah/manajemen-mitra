@@ -9,6 +9,7 @@ use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\ReviewPetugas;
 use App\Models\Sbml;
 use App\Models\SkKpa;
 use App\Models\Spk;
@@ -23,8 +24,10 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $user = effectiveUser($request);
+        $activeRole = $user->getActiveRole()?->name;
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
+        $currentMonthFormatted = str_pad((string) $currentMonth, 2, '0', STR_PAD_LEFT);
 
         // Basic stats
         $stats = [
@@ -132,6 +135,23 @@ class DashboardController extends Controller
                 ];
             });
 
+        $spkPetugasIdsCurrentMonth = Spk::query()
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($currentMonthFormatted, $currentYear) {
+                $query->where('bulan', $currentMonthFormatted)
+                    ->where('tahun', $currentYear);
+            })
+            ->pluck('petugas_id')
+            ->unique();
+
+        $bastPetugasIdsCurrentMonth = Spk::query()
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($currentMonthFormatted, $currentYear) {
+                $query->where('bulan', $currentMonthFormatted)
+                    ->where('tahun', $currentYear);
+            })
+            ->whereHas('bast')
+            ->pluck('petugas_id')
+            ->unique();
+
         // Get kegiatan bulan ini with details
         $kegiatanBulanIni = Kegiatan::query()
             ->with(['ketuaTim'])
@@ -143,29 +163,74 @@ class DashboardController extends Controller
                     ->whereYear('tanggal_selesai', '>=', $currentYear)
                     ->whereMonth('tanggal_selesai', '>=', $currentMonth);
             })
-            ->when($user->isKetuaTim(), function ($query) use ($user) {
+            ->when($activeRole === 'ketua_tim', function ($query) use ($user) {
                 $query->where('ketua_tim_user_id', $user->id);
             })
             ->get()
-            ->map(function ($kegiatan) use ($currentMonth, $currentYear) {
+            ->map(function ($kegiatan) use ($bastPetugasIdsCurrentMonth, $currentMonth, $currentYear, $currentMonthFormatted, $spkPetugasIdsCurrentMonth) {
                 // Get periode alokasi for current month
                 $periodeAlokasi = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                    ->where('bulan', $currentMonth)
+                    ->where('bulan', $currentMonthFormatted)
                     ->where('tahun', $currentYear)
+                    ->latest('updated_at')
                     ->first();
+
+                $hasCurrentMonthChangeIndicator = false;
+                if ($periodeAlokasi) {
+                    $hasCurrentMonthChangeIndicator = in_array($periodeAlokasi->status, ['draft', 'direvisi', 'perubahan'], true)
+                        || (int) ($periodeAlokasi->revision_number ?? 0) > 0
+                        || ! empty($periodeAlokasi->parent_periode_id);
+                }
 
                 // Get SK for current month
-                $sk = SkKpa::where('kegiatan_id', $kegiatan->id)
+                $skCurrentMonth = SkKpa::where('kegiatan_id', $kegiatan->id)
                     ->where('bulan', $currentMonth)
                     ->where('tahun', $currentYear)
                     ->first();
 
-                // Count SPK if SK exists
-                $spkCount = $sk ? Spk::whereMonth('tanggal_spk', $currentMonth)
-                    ->whereYear('tanggal_spk', $currentYear)
-                    ->count()
-                            : 0;
+                // Get latest SK up to current month (fallback when no change indication this month)
+                $skLatest = SkKpa::where('kegiatan_id', $kegiatan->id)
+                    ->where('tahun', $currentYear)
+                    ->where('bulan', '<=', $currentMonth)
+                    ->orderByDesc('bulan')
+                    ->latest('updated_at')
+                    ->first();
+
+                $skForDisplay = $skCurrentMonth;
+                $skSource = 'bulan_berjalan';
+
+                if (! $hasCurrentMonthChangeIndicator && $skLatest) {
+                    $skForDisplay = $skLatest;
+                    $skSource = $skCurrentMonth && $skLatest->id === $skCurrentMonth->id
+                        ? 'bulan_berjalan'
+                        : 'periode_terakhir';
+                }
+
+                $showMissingSk = ! $skForDisplay
+                    || ($hasCurrentMonthChangeIndicator && ! $skCurrentMonth);
+
+                $allocatedNonOrganikPetugasIds = $periodeAlokasi
+                    ? $periodeAlokasi->alokasiPetugas()
+                        ->whereHas('petugas', function ($query) {
+                            $query->where('jenis_petugas', 'non-organik');
+                        })
+                        ->where(function ($query) {
+                            $query->where('jumlah_satuan', '>', 0)
+                                ->orWhere('jumlah_satuan_listing', '>', 0)
+                                ->orWhere('total_honor', '>', 0)
+                                ->orWhere('total_honor_listing', '>', 0);
+                        })
+                        ->distinct()
+                        ->pluck('petugas_id')
+                    : collect();
+
+                $requiredDocumentCount = $allocatedNonOrganikPetugasIds->count();
+                $spkCount = $allocatedNonOrganikPetugasIds->intersect($spkPetugasIdsCurrentMonth)->count();
+                $bastCount = $allocatedNonOrganikPetugasIds->intersect($bastPetugasIdsCurrentMonth)->count();
                 $totalPetugasAlokasi = $periodeAlokasi ? $periodeAlokasi->alokasiPetugas()->count() : 0;
+
+                $spkRequiresDocument = $requiredDocumentCount > 0;
+                $bastRequiresDocument = $requiredDocumentCount > 0;
 
                 return [
                     'id' => $kegiatan->id,
@@ -180,19 +245,139 @@ class DashboardController extends Controller
                         'jumlah_petugas' => $totalPetugasAlokasi,
                         'has_alokasi' => $totalPetugasAlokasi > 0,
                     ] : null,
-                    'sk' => $sk ? [
-                        'id' => $sk->id,
-                        'hashed_id' => $sk->hashed_id,
-                        'nomor_sk' => $sk->nomor_sk,
-                        'status' => $sk->status,
-                        'is_signed' => $sk->is_signed,
+                    'sk' => $skForDisplay ? [
+                        'id' => $skForDisplay->id,
+                        'hashed_id' => $skForDisplay->hashed_id,
+                        'nomor_sk' => $skForDisplay->nomor_sk,
+                        'status' => $skForDisplay->status,
+                        'is_signed' => $skForDisplay->is_signed,
                     ] : null,
+                    'sk_meta' => [
+                        'show_missing' => $showMissingSk,
+                        'source' => $skSource,
+                        'source_bulan' => $skForDisplay?->bulan,
+                        'source_tahun' => $skForDisplay?->tahun,
+                    ],
                     'spk' => [
                         'count' => $spkCount,
                         'has_spk' => $spkCount > 0,
+                        'required_count' => $requiredDocumentCount,
+                        'requires_document' => $spkRequiresDocument,
+                        'is_complete' => $spkRequiresDocument && $spkCount >= $requiredDocumentCount,
+                        'detail_url' => $periodeAlokasi
+                            ? route('spk.show-by-month-get', ['bulan' => $periodeAlokasi->bulan, 'tahun' => $periodeAlokasi->tahun])
+                            : null,
+                    ],
+                    'bast' => [
+                        'count' => $bastCount,
+                        'has_bast' => $bastCount > 0,
+                        'required_count' => $requiredDocumentCount,
+                        'requires_document' => $bastRequiresDocument,
+                        'is_complete' => $bastRequiresDocument && $bastCount >= $requiredDocumentCount,
+                        'detail_url' => $periodeAlokasi
+                            ? route('bast.list', ['bulan' => $periodeAlokasi->bulan, 'tahun' => $periodeAlokasi->tahun])
+                            : null,
                     ],
                 ];
             });
+
+        $today = Carbon::today();
+        $attentionItems = collect();
+
+        if (in_array($activeRole, ['admin', 'operator', 'ketua_tim'], true)) {
+            $draftKegiatanQuery = Kegiatan::query()
+                ->where('status', 'draft')
+                ->where('tahun_anggaran', $currentYear);
+
+            if ($activeRole === 'ketua_tim') {
+                $draftKegiatanQuery->where('ketua_tim_user_id', $user->id);
+            }
+
+            $draftKegiatanCount = $draftKegiatanQuery->count();
+
+            if ($draftKegiatanCount > 0) {
+                $attentionItems->push([
+                    'key' => 'kegiatan_draft',
+                    'label' => 'kegiatan draft',
+                    'count' => $draftKegiatanCount,
+                    'url' => route('kegiatan.index'),
+                    'description' => 'Perlu ditindaklanjuti ke alokasi',
+                    'severity' => 'warning',
+                ]);
+            }
+        }
+
+        if (in_array($activeRole, ['admin', 'approver'], true)) {
+            $spkAttentionCount = $kegiatanBulanIni->filter(function ($kegiatan) {
+                return ($kegiatan['periode_alokasi']['has_alokasi'] ?? false)
+                    && ($kegiatan['spk']['requires_document'] ?? false)
+                    && ! ($kegiatan['spk']['is_complete'] ?? false);
+            })->count();
+
+            if ($spkAttentionCount > 0) {
+                $attentionItems->push([
+                    'key' => 'spk_missing',
+                    'label' => 'perjanjian kerja belum dibuat',
+                    'count' => $spkAttentionCount,
+                    'url' => route('spk.index'),
+                    'description' => 'Sudah ada SK dan alokasi, SPK perlu digenerate',
+                    'severity' => 'warning',
+                ]);
+            }
+        }
+
+        if (in_array($activeRole, ['admin', 'operator', 'pj', 'approver', 'ketua_tim'], true)) {
+            $spkBastQuery = Spk::query()
+                ->with(['alokasiPetugas:id,periode_alokasi_id'])
+                ->whereYear('tanggal_spk', $currentYear)
+                ->whereDoesntHave('bast');
+
+            if ($activeRole === 'ketua_tim') {
+                $kegiatanIds = Kegiatan::query()
+                    ->where('ketua_tim_user_id', $user->id)
+                    ->pluck('id');
+
+                $spkBastQuery->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($kegiatanIds) {
+                    $query->whereIn('kegiatan_id', $kegiatanIds);
+                });
+            }
+
+            $spkWithoutBast = $spkBastQuery->get();
+
+            $bastDueSoonCount = 0;
+            $bastOverdueCount = 0;
+
+            foreach ($spkWithoutBast as $spk) {
+                $expectedBastDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
+                if (! $expectedBastDate) {
+                    continue;
+                }
+
+                $targetDate = Carbon::parse($expectedBastDate);
+                while (in_array($targetDate->dayOfWeekIso, [6, 7], true)) {
+                    $targetDate->subDay();
+                }
+
+                if ($targetDate->lt($today)) {
+                    $bastOverdueCount++;
+                } elseif ($targetDate->betweenIncluded($today, $today->copy()->addDays(3))) {
+                    $bastDueSoonCount++;
+                }
+            }
+
+            $bastAttentionCount = $bastDueSoonCount + $bastOverdueCount;
+
+            if ($bastAttentionCount > 0) {
+                $attentionItems->push([
+                    'key' => 'bast_due',
+                    'label' => 'BAST mendekati / melewati target',
+                    'count' => $bastAttentionCount,
+                    'url' => route('bast.index'),
+                    'description' => sprintf('%d lewat target, %d mendekati target', $bastOverdueCount, $bastDueSoonCount),
+                    'severity' => $bastOverdueCount > 0 ? 'danger' : 'warning',
+                ]);
+            }
+        }
 
         // Chart data from January to current month
         $chartData = [];
@@ -200,19 +385,20 @@ class DashboardController extends Controller
 
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
+            $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
 
             // Count total non-organik petugas allocated for this month
             $totalPetugasAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
             // Count kegiatan for this month
-            $kegiatanCount = PeriodeAlokasi::where('bulan', $month)
+            $kegiatanCount = PeriodeAlokasi::where('bulan', $monthFormatted)
                 ->where('tahun', $currentYear)
                 ->distinct('kegiatan_id')
                 ->count('kegiatan_id');
@@ -232,7 +418,7 @@ class DashboardController extends Controller
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
@@ -258,12 +444,13 @@ class DashboardController extends Controller
         $honorInequalityData = [];
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
+            $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
 
             // Get all honor data for this month, prefer 'perubahan' over 'dikirim' per (petugas, kegiatan)
             $rawAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $month)
+                ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
@@ -414,6 +601,59 @@ class DashboardController extends Controller
             ];
         }
 
+        $reviewRows = ReviewPetugas::query()
+            ->with([
+                'petugas:id,nama',
+                'periodeAlokasi:id,bulan,tahun',
+            ])
+            ->whereHas('periodeAlokasi', function ($query) use ($currentYear) {
+                $query->where('tahun', $currentYear);
+            })
+            ->get();
+
+        $reviewRowsCurrentMonth = $reviewRows->filter(function ($review) use ($currentMonthFormatted) {
+            $reviewMonth = $review->reviewed_at?->format('m')
+                ?? str_pad((string) ($review->periodeAlokasi?->bulan ?? ''), 2, '0', STR_PAD_LEFT);
+
+            return $reviewMonth === $currentMonthFormatted;
+        });
+
+        $topMitra = $reviewRows
+            ->groupBy('petugas_id')
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'petugas_id' => $first->petugas_id,
+                    'petugas_nama' => $first->petugas?->nama ?? '-',
+                    'avg_rating' => round((float) $group->avg('rating'), 2),
+                    'total_review' => $group->count(),
+                ];
+            })
+            ->sortByDesc(fn ($item) => ($item['avg_rating'] * 1000) + $item['total_review'])
+            ->take(3)
+            ->values();
+
+        $mitraReviewSummary = [
+            'year' => [
+                'total_reviews' => $reviewRows->count(),
+                'avg_rating' => $reviewRows->count() > 0 ? round((float) $reviewRows->avg('rating'), 2) : 0,
+                'mitra_reviewed' => $reviewRows->pluck('petugas_id')->unique()->count(),
+                'positive_percentage' => $reviewRows->count() > 0
+                    ? round(($reviewRows->where('rating', '>=', 4)->count() / $reviewRows->count()) * 100, 1)
+                    : 0,
+            ],
+            'current_month' => [
+                'total_reviews' => $reviewRowsCurrentMonth->count(),
+                'avg_rating' => $reviewRowsCurrentMonth->count() > 0 ? round((float) $reviewRowsCurrentMonth->avg('rating'), 2) : 0,
+                'mitra_reviewed' => $reviewRowsCurrentMonth->pluck('petugas_id')->unique()->count(),
+                'positive_percentage' => $reviewRowsCurrentMonth->count() > 0
+                    ? round(($reviewRowsCurrentMonth->where('rating', '>=', 4)->count() / $reviewRowsCurrentMonth->count()) * 100, 1)
+                    : 0,
+            ],
+            'top_mitra' => $topMitra,
+        ];
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'additionalStats' => $additionalStats,
@@ -424,6 +664,8 @@ class DashboardController extends Controller
             'honorInequalityData' => $honorInequalityData,
             'petugasMonitoringSummary' => $petugasMonitoringSummary,
             'honorInequalitySummary' => $honorInequalitySummary,
+            'mitraReviewSummary' => $mitraReviewSummary,
+            'attentionItems' => $attentionItems->values(),
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
             'userRole' => $user->role,

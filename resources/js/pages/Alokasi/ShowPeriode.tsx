@@ -173,7 +173,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
     const canEditNonResponse = ['dikirim', 'perubahan'].includes(
         periode.status,
     );
-    const summaryColSpan = isKetua && hasPendataanRole ? 8 : 7;
+    const summaryColSpan = isKetuaTim && hasPendataanRole ? 8 : 7;
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {

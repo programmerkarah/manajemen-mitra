@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -88,20 +88,16 @@ export function DatePicker({
         Math.floor(initial.year / 12) * 12,
     );
 
-    useEffect(() => {
-        if (resolvedValue) {
-            const { year, month } = deriveViewDate(resolvedValue);
-            setViewYear(year);
-            setViewMonth(month);
+    const syncCalendarFromValue = (dateStr: string | undefined) => {
+        if (!dateStr) {
+            return;
         }
-    }, [resolvedValue]);
 
-    // Reset to days view when popover closes
-    useEffect(() => {
-        if (!open) {
-            setCalView('days');
-        }
-    }, [open]);
+        const { year, month } = deriveViewDate(dateStr);
+        setViewYear(year);
+        setViewMonth(month);
+        setYearRangeStart(Math.floor(year / 12) * 12);
+    };
 
     const handleSelect = (day: number) => {
         const dateStr = toDateStr(viewYear, viewMonth + 1, day);
@@ -218,6 +214,12 @@ export function DatePicker({
                 open={open}
                 onOpenChange={(o) => {
                     if (!disabled) {
+                        if (o) {
+                            syncCalendarFromValue(resolvedValue);
+                        } else {
+                            setCalView('days');
+                        }
+
                         setOpen(o);
                     }
                 }}

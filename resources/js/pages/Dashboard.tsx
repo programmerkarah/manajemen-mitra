@@ -1,37 +1,54 @@
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
+import { index as alokasiIndex } from '@/routes/alokasi';
+import { index as bastIndex } from '@/routes/bast';
+import { index as kegiatanIndex } from '@/routes/kegiatan';
+import { index as petugasIndex } from '@/routes/petugas';
+import { index as skKpaIndex } from '@/routes/sk-kpa';
+import { index as spkIndex } from '@/routes/spk';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertCircle,
     AlertTriangle,
+    ArrowRight,
     Briefcase,
     Calendar,
     CheckCircle,
+    ChevronRight,
     Clock,
     Eye,
     FileSignature,
     FileText,
     Plus,
     ScrollText,
+    Search,
+    Star,
     TrendingUp,
     Users,
     XCircle,
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import {
     Area,
     Bar,
     BarChart,
     CartesianGrid,
+    Tooltip as ChartTooltip,
     ComposedChart,
     Legend,
     Line,
     LineChart,
     ResponsiveContainer,
-    Tooltip,
     XAxis,
     YAxis,
 } from 'recharts';
@@ -48,6 +65,15 @@ interface DashboardStats {
     total_kegiatan: number;
     draft_kegiatan: number;
     bast_pending: number;
+}
+
+interface AttentionItem {
+    key: string;
+    label: string;
+    count: number;
+    url: string;
+    description: string;
+    severity: 'warning' | 'danger';
 }
 
 interface AdditionalStats {
@@ -152,9 +178,27 @@ interface KegiatanBulanIni {
         status: string;
         is_signed: boolean;
     } | null;
+    sk_meta: {
+        show_missing: boolean;
+        source: 'bulan_berjalan' | 'periode_terakhir';
+        source_bulan: number | null;
+        source_tahun: number | null;
+    };
     spk: {
         count: number;
         has_spk: boolean;
+        required_count: number;
+        requires_document: boolean;
+        is_complete: boolean;
+        detail_url: string | null;
+    };
+    bast: {
+        count: number;
+        has_bast: boolean;
+        required_count: number;
+        requires_document: boolean;
+        is_complete: boolean;
+        detail_url: string | null;
     };
 }
 
@@ -176,6 +220,27 @@ interface HonorInequalitySummary {
     total_petugas?: number;
 }
 
+interface MitraReviewSummary {
+    year: {
+        total_reviews: number;
+        avg_rating: number;
+        mitra_reviewed: number;
+        positive_percentage: number;
+    };
+    current_month: {
+        total_reviews: number;
+        avg_rating: number;
+        mitra_reviewed: number;
+        positive_percentage: number;
+    };
+    top_mitra: Array<{
+        petugas_id: number;
+        petugas_nama: string;
+        avg_rating: number;
+        total_review: number;
+    }>;
+}
+
 interface DashboardProps {
     stats: DashboardStats;
     additionalStats: AdditionalStats;
@@ -186,6 +251,8 @@ interface DashboardProps {
     honorInequalityData: HonorInequalityData[];
     petugasMonitoringSummary: PetugasMonitoringSummary;
     honorInequalitySummary: HonorInequalitySummary;
+    mitraReviewSummary: MitraReviewSummary;
+    attentionItems: AttentionItem[];
     currentMonth: number;
     currentYear: number;
     userRole: string;
@@ -216,29 +283,212 @@ export default function Dashboard({
     honorInequalityData,
     petugasMonitoringSummary,
     honorInequalitySummary,
+    mitraReviewSummary,
+    attentionItems,
     currentMonth,
     currentYear,
 }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
+    const [mitraInsightMode, setMitraInsightMode] = useState<
+        'current_month' | 'year'
+    >('current_month');
+    const [kegiatanSearch, setKegiatanSearch] = useState('');
+    const [kegiatanFilter, setKegiatanFilter] = useState<
+        | 'semua'
+        | 'butuh_alokasi'
+        | 'butuh_sk'
+        | 'butuh_spk'
+        | 'butuh_bast'
+        | 'lengkap'
+    >('semua');
+    const [kegiatanPage, setKegiatanPage] = useState(1);
+    const kegiatanPerPage = 6;
+
+    const kegiatanSummary = useMemo(() => {
+        const butuhAlokasi = kegiatanBulanIni.filter(
+            (kegiatan) => !kegiatan.periode_alokasi?.has_alokasi,
+        ).length;
+        const butuhSk = kegiatanBulanIni.filter(
+            (kegiatan) =>
+                kegiatan.periode_alokasi?.has_alokasi &&
+                kegiatan.sk_meta.show_missing,
+        ).length;
+        const butuhSpk = kegiatanBulanIni.filter(
+            (kegiatan) =>
+                kegiatan.periode_alokasi?.has_alokasi &&
+                kegiatan.spk.requires_document &&
+                !kegiatan.spk.is_complete,
+        ).length;
+        const butuhBast = kegiatanBulanIni.filter(
+            (kegiatan) =>
+                kegiatan.periode_alokasi?.has_alokasi &&
+                kegiatan.bast.requires_document &&
+                !kegiatan.bast.is_complete,
+        ).length;
+        const lengkap = kegiatanBulanIni.filter(
+            (kegiatan) =>
+                kegiatan.periode_alokasi?.has_alokasi &&
+                !!kegiatan.sk &&
+                (!kegiatan.spk.requires_document || kegiatan.spk.is_complete) &&
+                (!kegiatan.bast.requires_document || kegiatan.bast.is_complete),
+        ).length;
+
+        return {
+            semua: kegiatanBulanIni.length,
+            butuh_alokasi: butuhAlokasi,
+            butuh_sk: butuhSk,
+            butuh_spk: butuhSpk,
+            butuh_bast: butuhBast,
+            lengkap,
+        };
+    }, [kegiatanBulanIni]);
+
+    const filteredKegiatanBulanIni = useMemo(() => {
+        const search = kegiatanSearch.trim().toLowerCase();
+
+        return kegiatanBulanIni.filter((kegiatan) => {
+            const matchSearch =
+                search.length === 0 ||
+                kegiatan.nama_kegiatan.toLowerCase().includes(search) ||
+                kegiatan.kode_kegiatan.toLowerCase().includes(search);
+
+            if (!matchSearch) {
+                return false;
+            }
+
+            switch (kegiatanFilter) {
+                case 'butuh_alokasi':
+                    return !kegiatan.periode_alokasi?.has_alokasi;
+                case 'butuh_sk':
+                    return (
+                        kegiatan.periode_alokasi?.has_alokasi &&
+                        kegiatan.sk_meta.show_missing
+                    );
+                case 'butuh_spk':
+                    return (
+                        kegiatan.periode_alokasi?.has_alokasi &&
+                        kegiatan.spk.requires_document &&
+                        !kegiatan.spk.is_complete
+                    );
+                case 'butuh_bast':
+                    return (
+                        kegiatan.periode_alokasi?.has_alokasi &&
+                        kegiatan.bast.requires_document &&
+                        !kegiatan.bast.is_complete
+                    );
+                case 'lengkap':
+                    return (
+                        kegiatan.periode_alokasi?.has_alokasi &&
+                        !!kegiatan.sk &&
+                        (!kegiatan.spk.requires_document ||
+                            kegiatan.spk.is_complete) &&
+                        (!kegiatan.bast.requires_document ||
+                            kegiatan.bast.is_complete)
+                    );
+                case 'semua':
+                default:
+                    return true;
+            }
+        });
+    }, [kegiatanBulanIni, kegiatanFilter, kegiatanSearch]);
+
+    const totalKegiatanPages = Math.max(
+        1,
+        Math.ceil(filteredKegiatanBulanIni.length / kegiatanPerPage),
+    );
+
+    const currentKegiatanPage = Math.min(kegiatanPage, totalKegiatanPages);
+
+    const handleKegiatanSearchChange = (value: string) => {
+        setKegiatanSearch(value);
+        setKegiatanPage(1);
+    };
+
+    const handleKegiatanFilterChange = (
+        filter:
+            | 'semua'
+            | 'butuh_alokasi'
+            | 'butuh_sk'
+            | 'butuh_spk'
+            | 'butuh_bast'
+            | 'lengkap',
+    ) => {
+        setKegiatanFilter(filter);
+        setKegiatanPage(1);
+    };
+
+    const paginatedKegiatanBulanIni = useMemo(() => {
+        const start = (currentKegiatanPage - 1) * kegiatanPerPage;
+
+        return filteredKegiatanBulanIni.slice(start, start + kegiatanPerPage);
+    }, [filteredKegiatanBulanIni, currentKegiatanPage]);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex flex-1 flex-col gap-6 overflow-x-hidden">
                 {/* Welcome Section */}
                 <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-xl font-bold break-words text-neutral-900 dark:text-white">
-                        Selamat Datang, {auth.user.name}! 👋
-                    </h1>
-                    <p className="mt-2 text-sm break-words text-neutral-600 dark:text-neutral-400">
-                        SIMANTIK (Sistem Manajemen Petugas dan Administrasi
-                        Kegiatan Statistik) - Kelola data petugas, kegiatan, dan
-                        alokasi dengan mudah
-                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <h1 className="text-xl font-bold break-words text-neutral-900 dark:text-white">
+                                Selamat Datang, {auth.user.name}! 👋
+                            </h1>
+                            <p className="mt-1 text-sm break-words text-neutral-500 dark:text-neutral-400">
+                                {new Date().toLocaleDateString('id-ID', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                })}{' '}
+                                · SIMANTIK — Kelola petugas, kegiatan, dan
+                                alokasi dengan mudah
+                            </p>
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                            <Calendar className="size-3.5" />
+                            <span>
+                                {monthNames[currentMonth - 1]} {currentYear}
+                            </span>
+                        </div>
+                    </div>
+                    {attentionItems.length > 0 && (
+                        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/20">
+                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                Perlu Perhatian:
+                            </span>
+                            {attentionItems.map((item) => (
+                                <Link
+                                    key={item.key}
+                                    href={item.url}
+                                    className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                                        item.severity === 'danger'
+                                            ? 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/40 dark:text-red-300 dark:hover:bg-red-800/60'
+                                            : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-800/40 dark:text-amber-300 dark:hover:bg-amber-800/60'
+                                    }`}
+                                    title={item.description}
+                                >
+                                    {item.key === 'kegiatan_draft' ? (
+                                        <Clock className="size-3" />
+                                    ) : item.key === 'spk_missing' ? (
+                                        <ScrollText className="size-3" />
+                                    ) : (
+                                        <AlertCircle className="size-3" />
+                                    )}
+                                    {item.count} {item.label}
+                                    <ChevronRight className="size-3" />
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Stats Cards */}
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                    <Link
+                        href={petugasIndex().url}
+                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-blue-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-blue-700/30"
+                    >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -252,8 +502,14 @@ export default function Dashboard({
                                 <Users className="size-5 text-blue-600 dark:text-blue-400" />
                             </div>
                         </div>
-                    </div>
-                    <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="mt-3 flex items-center gap-1 text-xs text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">
+                            Lihat semua <ArrowRight className="size-3" />
+                        </div>
+                    </Link>
+                    <Link
+                        href={kegiatanIndex().url}
+                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-green-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-green-700/30"
+                    >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -267,8 +523,14 @@ export default function Dashboard({
                                 <Briefcase className="size-5 text-green-600 dark:text-green-400" />
                             </div>
                         </div>
-                    </div>
-                    <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="mt-3 flex items-center gap-1 text-xs text-green-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-green-400">
+                            Lihat semua <ArrowRight className="size-3" />
+                        </div>
+                    </Link>
+                    <Link
+                        href={kegiatanIndex().url}
+                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-amber-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-amber-700/30"
+                    >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -282,8 +544,14 @@ export default function Dashboard({
                                 <Clock className="size-5 text-amber-600 dark:text-amber-400" />
                             </div>
                         </div>
-                    </div>
-                    <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="mt-3 flex items-center gap-1 text-xs text-amber-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-amber-400">
+                            Lihat semua <ArrowRight className="size-3" />
+                        </div>
+                    </Link>
+                    <Link
+                        href={bastIndex().url}
+                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-purple-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-purple-700/30"
+                    >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -297,7 +565,10 @@ export default function Dashboard({
                                 <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
                             </div>
                         </div>
-                    </div>
+                        <div className="mt-3 flex items-center gap-1 text-xs text-purple-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-purple-400">
+                            Lihat semua <ArrowRight className="size-3" />
+                        </div>
+                    </Link>
                 </div>
 
                 {/* Comprehensive Statistics */}
@@ -316,6 +587,15 @@ export default function Dashboard({
                                     {additionalStats.sk.total}
                                 </p>
                             </div>
+                            <Link href={skKpaIndex().url}>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="size-7 p-0"
+                                >
+                                    <ArrowRight className="size-3.5" />
+                                </Button>
+                            </Link>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between text-sm">
@@ -334,6 +614,34 @@ export default function Dashboard({
                                     {additionalStats.sk.diterbitkan}
                                 </span>
                             </div>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-700">
+                                <div
+                                    className="h-full rounded-full bg-rose-500 transition-all"
+                                    style={{
+                                        width: `${
+                                            additionalStats.sk.total > 0
+                                                ? Math.round(
+                                                      (additionalStats.sk
+                                                          .diterbitkan /
+                                                          additionalStats.sk
+                                                              .total) *
+                                                          100,
+                                                  )
+                                                : 0
+                                        }%`,
+                                    }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                                {additionalStats.sk.total > 0
+                                    ? Math.round(
+                                          (additionalStats.sk.diterbitkan /
+                                              additionalStats.sk.total) *
+                                              100,
+                                      )
+                                    : 0}
+                                % diterbitkan
+                            </p>
                         </div>
                     </div>
 
@@ -351,6 +659,15 @@ export default function Dashboard({
                                     {additionalStats.spk.total}
                                 </p>
                             </div>
+                            <Link href={spkIndex().url}>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="size-7 p-0"
+                                >
+                                    <ArrowRight className="size-3.5" />
+                                </Button>
+                            </Link>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between text-sm">
@@ -373,9 +690,22 @@ export default function Dashboard({
                             <div className="flex-shrink-0 rounded-lg bg-sky-100 p-2.5 dark:bg-sky-900/30">
                                 <Users className="size-4 text-sky-600 dark:text-sky-400" />
                             </div>
-                            <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
                                 Petugas by Jenis
                             </h3>
+                            {['admin', 'operator', 'pj'].includes(
+                                auth.activeRole?.name ?? '',
+                            ) && (
+                                <Link href={petugasIndex().url}>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="size-7 p-0"
+                                    >
+                                        <ArrowRight className="size-3.5" />
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -394,6 +724,42 @@ export default function Dashboard({
                                     {additionalStats.petugas_detail.non_organik}
                                 </span>
                             </div>
+                            {additionalStats.petugas_detail.organik +
+                                additionalStats.petugas_detail.non_organik >
+                                0 && (
+                                <>
+                                    <div className="mt-1 flex h-1.5 overflow-hidden rounded-full">
+                                        <div
+                                            className="h-full bg-sky-400"
+                                            style={{
+                                                width: `${(
+                                                    (additionalStats
+                                                        .petugas_detail
+                                                        .organik /
+                                                        (additionalStats
+                                                            .petugas_detail
+                                                            .organik +
+                                                            additionalStats
+                                                                .petugas_detail
+                                                                .non_organik)) *
+                                                    100
+                                                ).toFixed(1)}%`,
+                                            }}
+                                        />
+                                        <div className="h-full flex-1 bg-teal-400" />
+                                    </div>
+                                    <div className="flex gap-3 text-[10px] text-neutral-500 dark:text-neutral-400">
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block size-1.5 rounded-full bg-sky-400" />
+                                            Organik
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block size-1.5 rounded-full bg-teal-400" />
+                                            Non-Organik
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -403,9 +769,18 @@ export default function Dashboard({
                             <div className="flex-shrink-0 rounded-lg bg-teal-100 p-2.5 dark:bg-teal-900/30">
                                 <Briefcase className="size-4 text-teal-600 dark:text-teal-400" />
                             </div>
-                            <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
                                 Kegiatan by Jenis
                             </h3>
+                            <Link href={kegiatanIndex().url}>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="size-7 p-0"
+                                >
+                                    <ArrowRight className="size-3.5" />
+                                </Button>
+                            </Link>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -424,6 +799,42 @@ export default function Dashboard({
                                     {additionalStats.kegiatan_detail.survei}
                                 </span>
                             </div>
+                            {additionalStats.kegiatan_detail.sensus +
+                                additionalStats.kegiatan_detail.survei >
+                                0 && (
+                                <>
+                                    <div className="mt-1 flex h-1.5 overflow-hidden rounded-full">
+                                        <div
+                                            className="h-full bg-teal-400"
+                                            style={{
+                                                width: `${(
+                                                    (additionalStats
+                                                        .kegiatan_detail
+                                                        .sensus /
+                                                        (additionalStats
+                                                            .kegiatan_detail
+                                                            .sensus +
+                                                            additionalStats
+                                                                .kegiatan_detail
+                                                                .survei)) *
+                                                    100
+                                                ).toFixed(1)}%`,
+                                            }}
+                                        />
+                                        <div className="h-full flex-1 bg-emerald-400" />
+                                    </div>
+                                    <div className="flex gap-3 text-[10px] text-neutral-500 dark:text-neutral-400">
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block size-1.5 rounded-full bg-teal-400" />
+                                            Sensus
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block size-1.5 rounded-full bg-emerald-400" />
+                                            Survei
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -433,9 +844,18 @@ export default function Dashboard({
                             <div className="flex-shrink-0 rounded-lg bg-fuchsia-100 p-2.5 dark:bg-fuchsia-900/30">
                                 <TrendingUp className="size-4 text-fuchsia-600 dark:text-fuchsia-400" />
                             </div>
-                            <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
                                 Alokasi by Status
                             </h3>
+                            <Link href={alokasiIndex().url}>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="size-7 p-0"
+                                >
+                                    <ArrowRight className="size-3.5" />
+                                </Button>
+                            </Link>
                         </div>
                         <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
                             <div className="flex items-center justify-between">
@@ -484,6 +904,129 @@ export default function Dashboard({
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Ringkasan Penilaian Mitra */}
+                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                        <div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                                Ringkasan Penilaian Mitra Statistik
+                            </h3>
+                            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                Snapshot kualitas mitra untuk pemantauan cepat
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    mitraInsightMode === 'current_month'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    setMitraInsightMode('current_month')
+                                }
+                            >
+                                Bulan Ini
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    mitraInsightMode === 'year'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() => setMitraInsightMode('year')}
+                            >
+                                Tahun Ini
+                            </Button>
+                            <Link href="/monitoring-penilaian-mitra">
+                                <Button size="sm" variant="outline">
+                                    Detail
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-lg bg-sky-50 p-3 dark:bg-sky-900/20">
+                            <p className="text-xs text-sky-700 dark:text-sky-300">
+                                Total Review
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-sky-900 dark:text-sky-200">
+                                {
+                                    mitraReviewSummary[mitraInsightMode]
+                                        .total_reviews
+                                }
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                                Rata-rata Rating
+                            </p>
+                            <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-amber-900 dark:text-amber-200">
+                                {
+                                    mitraReviewSummary[mitraInsightMode]
+                                        .avg_rating
+                                }
+                                <Star className="size-4 fill-amber-500 text-amber-500" />
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
+                            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                                Mitra Dinilai
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-200">
+                                {
+                                    mitraReviewSummary[mitraInsightMode]
+                                        .mitra_reviewed
+                                }
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
+                            <p className="text-xs text-purple-700 dark:text-purple-300">
+                                Rating Positif (4-5)
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-purple-900 dark:text-purple-200">
+                                {
+                                    mitraReviewSummary[mitraInsightMode]
+                                        .positive_percentage
+                                }
+                                %
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {mitraReviewSummary.top_mitra.map((mitra, index) => (
+                            <div
+                                key={mitra.petugas_id}
+                                className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Top {index + 1}
+                                </p>
+                                <p className="mt-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                                    {mitra.petugas_nama}
+                                </p>
+                                <div className="mt-2 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-300">
+                                    <span>{mitra.total_review} review</span>
+                                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                                        {mitra.avg_rating} / 5
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                        {mitraReviewSummary.top_mitra.length === 0 && (
+                            <div className="rounded-lg border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 md:col-span-3 dark:border-neutral-700 dark:text-neutral-400">
+                                Belum ada data penilaian mitra pada tahun aktif.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -543,7 +1086,7 @@ export default function Dashboard({
                                         tickLine={false}
                                         axisLine={false}
                                     />
-                                    <Tooltip
+                                    <ChartTooltip
                                         contentStyle={{
                                             backgroundColor: 'var(--color-bg)',
                                             border: '1px solid var(--color-border)',
@@ -645,7 +1188,7 @@ export default function Dashboard({
                                             ).format(value)
                                         }
                                     />
-                                    <Tooltip
+                                    <ChartTooltip
                                         contentStyle={{
                                             backgroundColor: 'var(--color-bg)',
                                             border: '1px solid var(--color-border)',
@@ -813,7 +1356,7 @@ export default function Dashboard({
                                             ).format(value)
                                         }
                                     />
-                                    <Tooltip
+                                    <ChartTooltip
                                         contentStyle={{
                                             backgroundColor: 'var(--color-bg)',
                                             border: '1px solid var(--color-border)',
@@ -954,7 +1497,7 @@ export default function Dashboard({
                                         }}
                                         tickFormatter={(value) => value + '%'}
                                     />
-                                    <Tooltip
+                                    <ChartTooltip
                                         contentStyle={{
                                             backgroundColor: 'var(--color-bg)',
                                             border: '1px solid var(--color-border)',
@@ -1287,152 +1830,318 @@ export default function Dashboard({
                                     </h3>
                                 </div>
                                 <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    {filteredKegiatanBulanIni.length} /{' '}
                                     {kegiatanBulanIni.length} kegiatan
                                 </span>
                             </div>
                         </div>
+                        <div className="mb-4 space-y-3">
+                            <div className="relative">
+                                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
+                                <Input
+                                    value={kegiatanSearch}
+                                    onChange={(event) =>
+                                        handleKegiatanSearchChange(
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="Cari nama atau kode kegiatan..."
+                                    className="pl-9"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-3 lg:grid-cols-6">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'semua'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange('semua')
+                                    }
+                                >
+                                    Semua ({kegiatanSummary.semua})
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'butuh_alokasi'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange(
+                                            'butuh_alokasi',
+                                        )
+                                    }
+                                >
+                                    Butuh Alokasi (
+                                    {kegiatanSummary.butuh_alokasi})
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'butuh_sk'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange('butuh_sk')
+                                    }
+                                >
+                                    Butuh SK ({kegiatanSummary.butuh_sk})
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'butuh_spk'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange('butuh_spk')
+                                    }
+                                >
+                                    Butuh SPK ({kegiatanSummary.butuh_spk})
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'butuh_bast'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange('butuh_bast')
+                                    }
+                                >
+                                    Butuh BAST ({kegiatanSummary.butuh_bast})
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        kegiatanFilter === 'lengkap'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        handleKegiatanFilterChange('lengkap')
+                                    }
+                                >
+                                    Lengkap ({kegiatanSummary.lengkap})
+                                </Button>
+                            </div>
+                        </div>
                         <div className="flex-1 overflow-auto">
-                            {kegiatanBulanIni.length > 0 ? (
+                            {filteredKegiatanBulanIni.length > 0 ? (
                                 <div className="space-y-4">
-                                    {kegiatanBulanIni.map((kegiatan) => {
-                                        const canEditAlokasi = [
-                                            'admin',
-                                            'operator',
-                                            'ketua_tim',
-                                        ].includes(auth.activeRole?.name ?? '');
-                                        const canEditSk = [
-                                            'admin',
-                                            'operator',
-                                            'pj',
-                                        ].includes(auth.activeRole?.name ?? '');
-                                        const canEditSpk = [
-                                            'admin',
-                                            'operator',
-                                            'approver',
-                                        ].includes(auth.activeRole?.name ?? '');
+                                    {paginatedKegiatanBulanIni.map(
+                                        (kegiatan) => {
+                                            const canEditAlokasi = [
+                                                'admin',
+                                                'operator',
+                                                'ketua_tim',
+                                            ].includes(
+                                                auth.activeRole?.name ?? '',
+                                            );
+                                            const canEditSk = [
+                                                'admin',
+                                                'operator',
+                                                'pj',
+                                            ].includes(
+                                                auth.activeRole?.name ?? '',
+                                            );
+                                            const canViewMonthlyDocuments = [
+                                                'admin',
+                                                'operator',
+                                                'pj',
+                                                'approver',
+                                                'ketua_tim',
+                                            ].includes(
+                                                auth.activeRole?.name ?? '',
+                                            );
 
-                                        return (
-                                            <div
-                                                key={kegiatan.id}
-                                                className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-                                            >
-                                                <div className="mb-3">
-                                                    <div className="font-medium text-neutral-900 dark:text-white">
-                                                        {kegiatan.nama_kegiatan}
-                                                    </div>
-                                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                        {kegiatan.kode_kegiatan}
-                                                    </div>
-                                                </div>
+                                            const hasAlokasi =
+                                                !!kegiatan.periode_alokasi
+                                                    ?.has_alokasi;
+                                            const hasSk = !!kegiatan.sk;
+                                            const hasSpk =
+                                                !kegiatan.spk
+                                                    .requires_document ||
+                                                kegiatan.spk.is_complete;
+                                            const hasBast =
+                                                !kegiatan.bast
+                                                    .requires_document ||
+                                                kegiatan.bast.is_complete;
+                                            const completionCount = [
+                                                hasAlokasi,
+                                                hasSk,
+                                                hasSpk,
+                                                hasBast,
+                                            ].filter(Boolean).length;
 
-                                                <div className="space-y-2">
-                                                    {/* Alokasi Petugas */}
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <div className="flex items-center gap-2">
-                                                            <Users className="size-4 text-neutral-500" />
-                                                            <span className="text-neutral-700 dark:text-neutral-300">
-                                                                Alokasi Petugas
-                                                            </span>
+                                            return (
+                                                <div
+                                                    key={kegiatan.id}
+                                                    className={`rounded-lg border bg-white p-4 transition-shadow hover:shadow-sm dark:bg-neutral-900 ${
+                                                        completionCount === 4
+                                                            ? 'border-l-4 border-neutral-200 border-l-green-500 dark:border-neutral-800 dark:border-l-green-600'
+                                                            : completionCount >
+                                                                0
+                                                              ? 'border-l-4 border-neutral-200 border-l-amber-500 dark:border-neutral-800 dark:border-l-amber-600'
+                                                              : 'border-l-4 border-neutral-200 border-l-red-400 dark:border-neutral-800 dark:border-l-red-500'
+                                                    }`}
+                                                >
+                                                    <div className="mb-3 flex items-start justify-between gap-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="font-medium text-neutral-900 dark:text-white">
+                                                                {
+                                                                    kegiatan.nama_kegiatan
+                                                                }
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {kegiatan
-                                                                .periode_alokasi
-                                                                ?.has_alokasi ? (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        {
-                                                                            kegiatan
-                                                                                .periode_alokasi
-                                                                                .jumlah_petugas
-                                                                        }{' '}
-                                                                        petugas
+                                                        <div className="flex flex-shrink-0 items-center gap-0.5">
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <span
+                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                            hasAlokasi
+                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                        }`}
+                                                                    >
+                                                                        1
                                                                     </span>
-                                                                    {canEditAlokasi && (
-                                                                        <Link
-                                                                            href={`/alokasi/periode/${kegiatan.hashed_id}/${currentYear}/${String(currentMonth).padStart(2, '0')}`}
-                                                                        >
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                            >
-                                                                                <Eye className="mr-1 size-3" />
-                                                                                Lihat
-                                                                            </Button>
-                                                                        </Link>
-                                                                    )}
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                                                        <AlertTriangle className="size-4" />
-                                                                        Belum
-                                                                        ada
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Alokasi
+                                                                    Petugas
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <span
+                                                                className={`mx-0.5 h-px w-3 ${hasSk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                            />
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <span
+                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                            hasSk
+                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                        }`}
+                                                                    >
+                                                                        2
                                                                     </span>
-                                                                    {canEditAlokasi && (
-                                                                        <Link
-                                                                            href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
-                                                                        >
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                            >
-                                                                                <Plus className="mr-1 size-3" />
-                                                                                Buat
-                                                                            </Button>
-                                                                        </Link>
-                                                                    )}
-                                                                </>
-                                                            )}
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    SK Petugas
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <span
+                                                                className={`mx-0.5 h-px w-3 ${hasSpk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                            />
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <span
+                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                            hasSpk
+                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                        }`}
+                                                                    >
+                                                                        3
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Perjanjian
+                                                                    Kerja
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <span
+                                                                className={`mx-0.5 h-px w-3 ${hasBast ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                            />
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
+                                                                    <span
+                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                            hasBast
+                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                        }`}
+                                                                    >
+                                                                        4
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    BAST
+                                                                </TooltipContent>
+                                                            </Tooltip>
                                                         </div>
                                                     </div>
 
-                                                    {/* SK Petugas */}
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="size-4 text-neutral-500" />
-                                                            <span className="text-neutral-700 dark:text-neutral-300">
-                                                                SK Petugas
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {kegiatan.sk ? (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        {kegiatan
-                                                                            .sk
-                                                                            .is_signed
-                                                                            ? 'Signed'
-                                                                            : 'Draft'}
-                                                                    </span>
-                                                                    {canEditSk && (
-                                                                        <Link
-                                                                            href={`/sk-kpa/${kegiatan.sk.hashed_id}`}
-                                                                        >
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                            >
-                                                                                <Eye className="mr-1 size-3" />
-                                                                                Lihat
-                                                                            </Button>
-                                                                        </Link>
-                                                                    )}
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                                                        <XCircle className="size-4" />
-                                                                        Belum
-                                                                        dibuat
-                                                                    </span>
-                                                                    {canEditSk &&
-                                                                        kegiatan
-                                                                            .periode_alokasi
-                                                                            ?.has_alokasi && (
+                                                    <div className="space-y-2">
+                                                        {/* Alokasi Petugas */}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <Users className="size-4 text-neutral-500" />
+                                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                                    Alokasi
+                                                                    Petugas
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {kegiatan
+                                                                    .periode_alokasi
+                                                                    ?.has_alokasi ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                            <CheckCircle className="size-4" />
+                                                                            {
+                                                                                kegiatan
+                                                                                    .periode_alokasi
+                                                                                    .jumlah_petugas
+                                                                            }{' '}
+                                                                            petugas
+                                                                        </span>
+                                                                        {canEditAlokasi && (
                                                                             <Link
-                                                                                href={`/sk-kpa/create?kegiatan_id=${kegiatan.id}`}
+                                                                                href={`/alokasi/periode/${kegiatan.hashed_id}/${currentYear}/${String(currentMonth).padStart(2, '0')}`}
+                                                                            >
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="ghost"
+                                                                                >
+                                                                                    <Eye className="mr-1 size-3" />
+                                                                                    Lihat
+                                                                                </Button>
+                                                                            </Link>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                            <AlertTriangle className="size-4" />
+                                                                            Belum
+                                                                            ada
+                                                                        </span>
+                                                                        {canEditAlokasi && (
+                                                                            <Link
+                                                                                href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
                                                                             >
                                                                                 <Button
                                                                                     size="sm"
@@ -1443,35 +2152,40 @@ export default function Dashboard({
                                                                                 </Button>
                                                                             </Link>
                                                                         )}
-                                                                </>
-                                                            )}
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* SPK */}
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="size-4 text-neutral-500" />
-                                                            <span className="text-neutral-700 dark:text-neutral-300">
-                                                                Perjanjian Kerja
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {kegiatan.spk
-                                                                .has_spk ? (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        {
-                                                                            kegiatan
-                                                                                .spk
-                                                                                .count
-                                                                        }{' '}
-                                                                        Perjanjian
-                                                                        Kerja
-                                                                    </span>
-                                                                    {canEditSpk &&
-                                                                        kegiatan.sk && (
+                                                        {/* SK Petugas */}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText className="size-4 text-neutral-500" />
+                                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                                    SK Petugas
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {kegiatan.sk ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                            <CheckCircle className="size-4" />
+                                                                            {kegiatan
+                                                                                .sk
+                                                                                .is_signed
+                                                                                ? 'Signed'
+                                                                                : 'Draft'}
+                                                                        </span>
+                                                                        {kegiatan
+                                                                            .sk_meta
+                                                                            .source ===
+                                                                            'periode_terakhir' && (
+                                                                            <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                                                                                Periode
+                                                                                terakhir
+                                                                            </span>
+                                                                        )}
+                                                                        {canEditSk && (
                                                                             <Link
                                                                                 href={`/sk-kpa/${kegiatan.sk.hashed_id}`}
                                                                             >
@@ -1484,42 +2198,361 @@ export default function Dashboard({
                                                                                 </Button>
                                                                             </Link>
                                                                         )}
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                                                        <XCircle className="size-4" />
-                                                                        Belum
-                                                                        dibuat
-                                                                    </span>
-                                                                    {canEditSpk &&
-                                                                        kegiatan.sk && (
-                                                                            <Link
-                                                                                href={`/sk-kpa/${kegiatan.sk.hashed_id}`}
-                                                                            >
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="ghost"
+                                                                    </>
+                                                                ) : kegiatan
+                                                                      .sk_meta
+                                                                      .show_missing ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                            <XCircle className="size-4" />
+                                                                            Belum
+                                                                            dibuat
+                                                                        </span>
+                                                                        {canEditSk &&
+                                                                            kegiatan
+                                                                                .periode_alokasi
+                                                                                ?.has_alokasi && (
+                                                                                <Link
+                                                                                    href={`/sk-kpa/kegiatan/${kegiatan.hashed_id}/create`}
                                                                                 >
-                                                                                    <Plus className="mr-1 size-3" />
-                                                                                    Buat
-                                                                                </Button>
-                                                                            </Link>
-                                                                        )}
-                                                                </>
-                                                            )}
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Plus className="mr-1 size-3" />
+                                                                                        Buat
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                        <CheckCircle className="size-4" />
+                                                                        Mengikuti
+                                                                        SK
+                                                                        periode
+                                                                        terakhir
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* SPK */}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText className="size-4 text-neutral-500" />
+                                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                                    Perjanjian
+                                                                    Kerja
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {!kegiatan.spk
+                                                                    .requires_document ? (
+                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                        <CheckCircle className="size-4" />
+                                                                        Tidak
+                                                                        memerlukan
+                                                                        Perjanjian
+                                                                        Kerja
+                                                                    </span>
+                                                                ) : kegiatan.spk
+                                                                      .is_complete ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                            <CheckCircle className="size-4" />
+                                                                            {
+                                                                                kegiatan
+                                                                                    .spk
+                                                                                    .count
+                                                                            }{' '}
+                                                                            Perjanjian
+                                                                            Kerja
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .spk
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .spk
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                ) : kegiatan.spk
+                                                                      .count >
+                                                                  0 ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                            <AlertTriangle className="size-4" />
+                                                                            {
+                                                                                kegiatan
+                                                                                    .spk
+                                                                                    .count
+                                                                            }
+                                                                            /
+                                                                            {
+                                                                                kegiatan
+                                                                                    .spk
+                                                                                    .required_count
+                                                                            }{' '}
+                                                                            Perjanjian
+                                                                            Kerja
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .spk
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .spk
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                            <XCircle className="size-4" />
+                                                                            Belum
+                                                                            dibuat
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .spk
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .spk
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* BAST */}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <ScrollText className="size-4 text-neutral-500" />
+                                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                                    BAST
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {!kegiatan.bast
+                                                                    .requires_document ? (
+                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                        <CheckCircle className="size-4" />
+                                                                        Tidak
+                                                                        memerlukan
+                                                                        BAST
+                                                                    </span>
+                                                                ) : kegiatan
+                                                                      .bast
+                                                                      .is_complete ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                            <CheckCircle className="size-4" />
+                                                                            {
+                                                                                kegiatan
+                                                                                    .bast
+                                                                                    .count
+                                                                            }{' '}
+                                                                            BAST
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .bast
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .bast
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                ) : kegiatan
+                                                                      .bast
+                                                                      .count >
+                                                                  0 ? (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                            <AlertTriangle className="size-4" />
+                                                                            {
+                                                                                kegiatan
+                                                                                    .bast
+                                                                                    .count
+                                                                            }
+                                                                            /
+                                                                            {
+                                                                                kegiatan
+                                                                                    .bast
+                                                                                    .required_count
+                                                                            }{' '}
+                                                                            BAST
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .bast
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .bast
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                            <XCircle className="size-4" />
+                                                                            Belum
+                                                                            dibuat
+                                                                        </span>
+                                                                        {canViewMonthlyDocuments &&
+                                                                            kegiatan
+                                                                                .bast
+                                                                                .detail_url && (
+                                                                                <Link
+                                                                                    href={
+                                                                                        kegiatan
+                                                                                            .bast
+                                                                                            .detail_url
+                                                                                    }
+                                                                                >
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        <Eye className="mr-1 size-3" />
+                                                                                        Lihat
+                                                                                        Detail
+                                                                                    </Button>
+                                                                                </Link>
+                                                                            )}
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
+                                            );
+                                        },
+                                    )}
+
+                                    {totalKegiatanPages > 1 && (
+                                        <div className="flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-800">
+                                            <span className="text-neutral-500 dark:text-neutral-400">
+                                                Halaman {currentKegiatanPage}{' '}
+                                                dari {totalKegiatanPages}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={
+                                                        currentKegiatanPage <= 1
+                                                    }
+                                                    onClick={() =>
+                                                        setKegiatanPage(
+                                                            (prev) =>
+                                                                Math.max(
+                                                                    prev - 1,
+                                                                    1,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    Sebelumnya
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={
+                                                        currentKegiatanPage >=
+                                                        totalKegiatanPages
+                                                    }
+                                                    onClick={() =>
+                                                        setKegiatanPage(
+                                                            (prev) =>
+                                                                Math.min(
+                                                                    prev + 1,
+                                                                    totalKegiatanPages,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    Berikutnya
+                                                </Button>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center dark:border-neutral-700 dark:bg-neutral-900">
                                     <Calendar className="mx-auto size-8 text-neutral-400" />
                                     <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                        Tidak ada kegiatan untuk bulan ini
+                                        Tidak ada kegiatan yang sesuai filter
                                     </p>
                                 </div>
                             )}

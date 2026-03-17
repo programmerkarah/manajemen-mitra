@@ -27,12 +27,17 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
-                // Manual chunking for better caching
-                manualChunks: {
-                    // Vendor packages in separate chunk
-                    vendor: ['react', 'react-dom', '@inertiajs/react'],
-                    // Icon libraries
-                    icons: ['lucide-react'],
+                // Keep recharts and its transitive modules in one chunk to avoid circular-chunk warnings
+                manualChunks(id) {
+                    if (id.includes('node_modules/recharts')) {
+                        return 'recharts';
+                    }
+
+                    if (id.includes('node_modules/lucide-react')) {
+                        return 'icons';
+                    }
+
+                    return undefined;
                 },
                 // Asset file names with hash for cache busting
                 assetFileNames: (assetInfo) => {

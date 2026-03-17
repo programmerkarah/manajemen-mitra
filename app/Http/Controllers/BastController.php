@@ -291,7 +291,7 @@ class BastController extends Controller
         }
 
         // Redirect to show page of first BAST
-        return redirect()->route('bast.show', ['bastHashedId' => $firstBast->hashed_id]);
+        return redirect()->route('bast.show', ['bast' => $firstBast->hashed_id]);
     }
 
     /**
