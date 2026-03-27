@@ -337,7 +337,7 @@ class AlokasiPetugasController extends Controller
         $validated = $request->validate([
             'alokasi' => 'required|array|min:1',
             'alokasi.*.petugas_id' => 'required|exists:petugas,id',
-            'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
+            'alokasi.*.peran' => 'required|string|in:PCL,PML,Koseka,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
             'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
@@ -451,6 +451,7 @@ class AlokasiPetugasController extends Controller
             $jenisPenugasan = match ($alokasiData['peran']) {
                 'PCL' => 'pcl_ppl',
                 'PML' => 'pml',
+                'Koseka' => 'koseka',
                 'Pengolahan', 'Petugas Pengolahan' => 'pengolahan',
                 'Pengawas Pengolahan' => 'pengawas_pengolahan',
                 default => null,
@@ -1110,6 +1111,7 @@ class AlokasiPetugasController extends Controller
                                     });
 
                                     $sourcePeriode = [
+                                        'id' => $sourcePeriodeData->id,
                                         'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
                                         'tahun' => $request->copy_from_tahun,
                                         'tahapan' => $sourcePeriodeData->tahapan ?? 'both',
@@ -1912,6 +1914,7 @@ class AlokasiPetugasController extends Controller
             'active_year' => $activeYear,
             'copiedAlokasi' => $existingAlokasi,
             'sourcePeriode' => [
+                'id' => $periode->id,
                 'bulan' => $bulan,
                 'tahun' => $tahun,
                 'tahapan' => $periode->tahapan ?? 'both',
@@ -1961,7 +1964,7 @@ class AlokasiPetugasController extends Controller
         $validated = $request->validate([
             'alokasi' => 'required|array|min:1',
             'alokasi.*.petugas_id' => 'required|exists:petugas,id',
-            'alokasi.*.peran' => 'required|string|in:PCL,PML,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
+            'alokasi.*.peran' => 'required|string|in:PCL,PML,Koseka,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
             'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
@@ -2037,6 +2040,7 @@ class AlokasiPetugasController extends Controller
                         'peran' => match ($a['peran']) {
                             'PCL' => 'pcl_ppl',
                             'PML' => 'pml',
+                            'Koseka' => 'koseka',
                             'Pengolahan' => 'pengolahan',
                             'Pengawas Pengolahan' => 'pengawas_pengolahan',
                             default => null,
@@ -2122,6 +2126,7 @@ class AlokasiPetugasController extends Controller
                 $jenisPenugasan = match ($alokasiData['peran']) {
                     'PCL' => 'pcl_ppl',
                     'PML' => 'pml',
+                    'Koseka' => 'koseka',
                     'Pengolahan' => 'pengolahan',
                     'Petugas Pengolahan' => 'pengolahan',
                     'Pengawas Pengolahan' => 'pengawas_pengolahan',
@@ -2950,6 +2955,156 @@ class AlokasiPetugasController extends Controller
 
             return redirect()->back()
                 ->with('error', 'Gagal memperbarui data non response: '.$e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Download alokasi petugas template for import
+     */
+    public function exportTemplate(?int $periodeAlokasiId = null, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\AlokasiPetugasTemplateExport($periodeAlokasiId, $type),
+            "alokasi-petugas-template-{$type}.xlsx"
+        );
+    }
+
+    /**
+     * Import alokasi petugas data from Excel
+     */
+    public function import(Request $request, int $periodeAlokasiId): RedirectResponse
+    {
+        // Get periode alokasi for reference
+        $periode = PeriodeAlokasi::findOrFail($periodeAlokasiId);
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ], [
+            'file.required' => 'File harus diupload',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV',
+        ]);
+
+        try {
+            $isCreate = $request->input('is_create', false) === 'true' || $request->input('is_create') === true;
+            $import = new \App\Imports\AlokasiPetugasImport($periodeAlokasiId, $isCreate);
+            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+            ActivityLog::log(
+                'Import Alokasi Petugas',
+                'alokasi',
+                "Berhasil mengimport alokasi petugas untuk {$periode->jenis_kegiatan} bulan {$periode->bulan}/{$periode->tahun} ({$import->getSuccessCount()} petugas)",
+                'success',
+                [
+                    'periode_id' => $periodeAlokasiId,
+                    'imported_count' => $import->getSuccessCount(),
+                    'kegiatan_id' => $periode->kegiatan_id,
+                ]
+            );
+
+            $backUrl = '/alokasi/periode/'.$periode->kegiatan->hashed_id.'/'.$periode->tahun.'/'.str_pad($periode->bulan, 2, '0', STR_PAD_LEFT);
+
+            return redirect($backUrl)
+                ->with('success', "Berhasil mengimport {$import->getSuccessCount()} data alokasi petugas");
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessage = 'Gagal mengimport file. Errors: ';
+            $errorDetails = [];
+            foreach ($failures as $failure) {
+                $errorDetails[] = "Baris {$failure->row()}: ".implode('; ', $failure->errors());
+            }
+
+            return back()->withErrors(['file' => $errorMessage.implode(' | ', array_slice($errorDetails, 0, 3))])
+                ->withInput();
+        } catch (\Exception $e) {
+            Log::error('AlokasiPetugasImport Error', ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+
+            return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    /**
+     * Import alokasi petugas for create mode (will create draft periode first).
+     */
+    public function importCreate(Request $request, Kegiatan $kegiatan): RedirectResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'bulan' => ['required', 'integer', 'between:1,12'],
+            'tahun' => ['required', 'integer', 'min:2020', 'max:2099'],
+            'tahapan' => ['nullable', 'in:both,listing_only,pencacahan_only'],
+            'tanggal_mulai' => ['nullable', 'date'],
+            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
+            'tanggal_mulai_listing' => ['nullable', 'date'],
+            'tanggal_selesai_listing' => ['nullable', 'date', 'after_or_equal:tanggal_mulai_listing'],
+            'jadwal_pengolahan_listing_mulai' => ['nullable', 'date'],
+            'jadwal_pengolahan_listing_selesai' => ['nullable', 'date', 'after_or_equal:jadwal_pengolahan_listing_mulai'],
+            'jadwal_pengolahan_pencacahan_mulai' => ['nullable', 'date'],
+            'jadwal_pengolahan_pencacahan_selesai' => ['nullable', 'date', 'after_or_equal:jadwal_pengolahan_pencacahan_mulai'],
+        ], [
+            'file.required' => 'File harus diupload',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV',
+        ]);
+
+        $existingPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $validated['tahun'])
+            ->where('bulan', str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT))
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi'])
+            ->first();
+
+        if ($existingPeriode) {
+            return back()->withErrors([
+                'file' => 'Periode untuk bulan/tahun tersebut sudah ada. Gunakan mode edit untuk import ulang.',
+            ])->withInput();
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $periode = PeriodeAlokasi::create([
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT),
+                'tahun' => $validated['tahun'],
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'status' => 'draft',
+                'tahapan' => $validated['tahapan'] ?? ($kegiatan->has_listing_updating ? 'both' : 'pencacahan_only'),
+                'tanggal_mulai' => $validated['tanggal_mulai'] ?? null,
+                'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+                'tanggal_mulai_listing' => $validated['tanggal_mulai_listing'] ?? null,
+                'tanggal_selesai_listing' => $validated['tanggal_selesai_listing'] ?? null,
+                'jadwal_pengolahan_listing_mulai' => $validated['jadwal_pengolahan_listing_mulai'] ?? null,
+                'jadwal_pengolahan_listing_selesai' => $validated['jadwal_pengolahan_listing_selesai'] ?? null,
+                'jadwal_pengolahan_pencacahan_mulai' => $validated['jadwal_pengolahan_pencacahan_mulai'] ?? null,
+                'jadwal_pengolahan_pencacahan_selesai' => $validated['jadwal_pengolahan_pencacahan_selesai'] ?? null,
+                'revision_number' => 0,
+            ]);
+
+            $import = new \App\Imports\AlokasiPetugasImport($periode->id, true);
+            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+            ActivityLog::log(
+                'Import Alokasi Petugas (Create)',
+                'alokasi',
+                "Berhasil mengimport alokasi {$kegiatan->nama_kegiatan} {$periode->bulan}/{$periode->tahun} ({$import->getSuccessCount()} petugas)",
+                'success',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'periode_id' => $periode->id,
+                    'imported_count' => $import->getSuccessCount(),
+                ]
+            );
+
+            DB::commit();
+
+            return redirect('/alokasi/periode/'.$kegiatan->hashed_id.'/'.$periode->tahun.'/'.$periode->bulan)
+                ->with('success', "Berhasil import {$import->getSuccessCount()} data alokasi petugas");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('AlokasiPetugas import create gagal', ['error' => $e->getMessage()]);
+
+            return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()])
                 ->withInput();
         }
     }

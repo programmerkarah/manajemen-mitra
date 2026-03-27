@@ -95,14 +95,14 @@ class KegiatanMetodePendataanTest extends TestCase
         ]);
     }
 
-    public function test_store_kegiatan_requires_metode_listing_when_has_listing_is_true(): void
+    public function test_store_kegiatan_sensus_forces_no_listing_updating(): void
     {
         [$user, $role] = $this->makeKetuaTim();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
             ->post('/kegiatan/store', [
-                'nama_kegiatan' => 'Sensus Listing',
+                'nama_kegiatan' => 'Sensus Tanpa Listing',
                 'jenis_kegiatan' => 'sensus',
                 'tanggal_mulai' => '2025-01-01',
                 'tanggal_selesai' => '2025-12-31',
@@ -110,21 +110,28 @@ class KegiatanMetodePendataanTest extends TestCase
                 'ketua_tim_user_id' => $user->id,
                 'metode_pendataan_pencacahan' => 'PAPI',
                 'has_listing_updating' => true,
-                // metode_pendataan_listing intentionally omitted
+                'metode_pendataan_listing' => 'CAPI',
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 9,
             ]);
 
-        $response->assertSessionHasErrors('metode_pendataan_listing');
+        $response->assertSessionDoesntHaveErrors('metode_pendataan_listing');
+        $this->assertDatabaseHas('kegiatan', [
+            'nama_kegiatan' => 'Sensus Tanpa Listing',
+            'has_listing_updating' => 0,
+            'metode_pendataan_listing' => null,
+        ]);
     }
 
-    public function test_store_kegiatan_accepts_listing_capi(): void
+    public function test_store_kegiatan_survei_accepts_listing_capi(): void
     {
         [$user, $role] = $this->makeKetuaTim();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
             ->post('/kegiatan/store', [
-                'nama_kegiatan' => 'Sensus Listing CAPI',
-                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Survei Listing CAPI',
+                'jenis_kegiatan' => 'survei',
                 'tanggal_mulai' => '2025-01-01',
                 'tanggal_selesai' => '2025-12-31',
                 'tahun_anggaran' => 2025,
@@ -139,7 +146,7 @@ class KegiatanMetodePendataanTest extends TestCase
 
         $response->assertSessionDoesntHaveErrors(['metode_pendataan_pencacahan', 'metode_pendataan_listing']);
         $this->assertDatabaseHas('kegiatan', [
-            'nama_kegiatan' => 'Sensus Listing CAPI',
+            'nama_kegiatan' => 'Survei Listing CAPI',
             'metode_pendataan_pencacahan' => 'PAPI',
             'metode_pendataan_listing' => 'CAPI',
         ]);
@@ -202,14 +209,14 @@ class KegiatanMetodePendataanTest extends TestCase
         $response->assertSessionHasErrors('bulan_pelatihan');
     }
 
-    public function test_store_kegiatan_allows_empty_bulan_pelatihan_when_metode_tidak_ada(): void
+    public function test_store_kegiatan_rejects_tidak_ada_pelatihan_method(): void
     {
         [$user, $role] = $this->makeKetuaTim();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
             ->post('/kegiatan/store', [
-                'nama_kegiatan' => 'Survei Tanpa Pelatihan',
+                'nama_kegiatan' => 'Survei Metode Pelatihan Lama',
                 'jenis_kegiatan' => 'survei',
                 'tanggal_mulai' => '2025-01-01',
                 'tanggal_selesai' => '2025-12-31',
@@ -220,11 +227,6 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pelatihan' => 'tidak_ada_pelatihan',
             ]);
 
-        $response->assertSessionDoesntHaveErrors('bulan_pelatihan');
-        $this->assertDatabaseHas('kegiatan', [
-            'nama_kegiatan' => 'Survei Tanpa Pelatihan',
-            'metode_pelatihan' => 'tidak_ada_pelatihan',
-            'bulan_pelatihan' => null,
-        ]);
+        $response->assertSessionHasErrors('metode_pelatihan');
     }
 }

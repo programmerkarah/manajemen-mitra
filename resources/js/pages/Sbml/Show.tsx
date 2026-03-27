@@ -50,6 +50,7 @@ export default function Show({
             pml: 'PML (Petugas Pemeriksaan Lapangan)',
             pengolahan: 'Petugas Pengolahan Data',
             pengawas_pengolahan: 'Pengawas Pengolahan',
+            koseka: 'Koseka (Koordinator Sensus Kecamatan)',
         };
         return labels[jenis] || jenis;
     };

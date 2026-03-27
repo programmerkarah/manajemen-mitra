@@ -224,13 +224,17 @@
             if ($jenisKegiatan === 'sensus') {
                 $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
                 if ($peran === 'pcl' || $peran === 'ppl') {
-                    $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                 } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                    $judulSpk = 'PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS PEMERIKSA LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                 } elseif (str_contains($peran, 'olah')) {
-                    $judulSpk = 'PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS PENGOLAHAN ' . strtoupper($kegiatan->nama_kegiatan);
+                } elseif ($peran === 'pengawas pengolahan' || str_contains($peran, 'awas olah')) {
+                    $judulSpk = 'PETUGAS PENGAWAS PENGOLAHAN ' . strtoupper($kegiatan->nama_kegiatan);
+                } elseif ($peran === 'koseka') {
+                    $judulSpk = 'KOSEKA ' . strtoupper($kegiatan->nama_kegiatan);
                 } else {
-                    $judulSpk = 'PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                    $judulSpk = 'PETUGAS LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                 }
                 $judulSpkText = strtolower($judulSpk);
             } else {

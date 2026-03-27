@@ -585,15 +585,24 @@ class KegiatanController extends Controller
         $request->validate([
             'rate_honors' => ['required', 'array'],
             'rate_honors.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
-            'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
+            'rate_honors.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,koseka,pengolahan,pengawas_pengolahan'],
             'rate_honors.*.rate' => ['required', 'numeric', 'min:0'],
             'rate_honors.*.satuan_id' => ['nullable', 'exists:satuan,id'],
             'rate_honors.*.satuan_listing_id' => ['nullable', 'exists:satuan,id'],
-            'satuan_id' => ['required', 'exists:satuan,id'],
+            'satuan_id' => ['nullable', 'exists:satuan,id'],
             'satuan_listing_id' => ['nullable', 'exists:satuan,id'],
             'rate_honors.*.rate_listing' => ['nullable', 'numeric', 'min:0'],
             'kode_coa' => ['nullable', 'string', 'max:100'],
         ]);
+
+        $obSatuanId = $this->resolveObSatuanId();
+        if ($obSatuanId === null) {
+            return back()->withErrors([
+                'satuan_id' => 'Satuan O-B (Orang/Bulan) belum tersedia. Hubungi admin untuk menambahkan satuan O-B.',
+            ])->withInput();
+        }
+
+        $isFasihOnly = $this->isFasihOnly($kegiatan);
 
         // Update kode_coa di kegiatan
         $kegiatan->update([
@@ -603,12 +612,17 @@ class KegiatanController extends Controller
         // Delete existing rate honors for this kegiatan
         RateHonor::where('kegiatan_id', $kegiatan->id)->delete();
 
-        // Prepare global satuan fallbacks
-        $globalSatuanId = $request->satuan_id ?? null;
-        $globalSatuanListingId = $request->satuan_listing_id ?? null;
+        $createdRateCount = 0;
 
         // Create new rate honors
         foreach ($request->rate_honors as $rateHonorData) {
+            if (
+                $isFasihOnly &&
+                in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)
+            ) {
+                continue;
+            }
+
             // Generate posisi label
             $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
                 ? 'Organik (PNS/PPPK)'
@@ -617,6 +631,7 @@ class KegiatanController extends Controller
             $penugasanLabels = [
                 'pcl_ppl' => 'PCL/PPL',
                 'pml' => 'PML',
+                'koseka' => 'Koseka (Koordinator Sensus Kecamatan)',
                 'pengolahan' => 'Pengolahan',
                 'pengawas_pengolahan' => 'Pengawas Pengolahan',
             ];
@@ -632,31 +647,22 @@ class KegiatanController extends Controller
                 'rate' => $rateHonorData['rate'],
                 'tahun_berlaku' => $kegiatan->tahun_anggaran,
                 'status' => 'aktif',
+                'satuan_id' => $obSatuanId,
             ];
-
-            // Only allow per-entry satuan override for pengolahan roles; otherwise use global satuan
-            if (in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)) {
-                $data['satuan_id'] = $rateHonorData['satuan_id'] ?? $globalSatuanId;
-            } else {
-                $data['satuan_id'] = $globalSatuanId;
-            }
 
             // Simpan rate_listing dan satuan_listing_id jika ada (untuk tahapan listing/updating)
             if (array_key_exists('rate_listing', $rateHonorData)) {
                 $data['rate_listing'] = $rateHonorData['rate_listing'] ?? null;
-                if (in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)) {
-                    $data['satuan_listing_id'] = $rateHonorData['satuan_listing_id'] ?? $globalSatuanListingId ?? null;
-                } else {
-                    $data['satuan_listing_id'] = $globalSatuanListingId ?? null;
-                }
+                $data['satuan_listing_id'] = $obSatuanId;
             }
             RateHonor::create($data);
+            $createdRateCount++;
         }
 
         ActivityLog::log(
             'Kelola Rate Honor',
             'kegiatan',
-            "Berhasil memperbarui rate honor untuk kegiatan: {$kegiatan->nama_kegiatan}, mengatur rate honor untuk ".count($request->rate_honors).' posisi.',
+            "Berhasil memperbarui rate honor untuk kegiatan: {$kegiatan->nama_kegiatan}, mengatur rate honor untuk {$createdRateCount} posisi.",
             'success',
             ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
         );
@@ -814,5 +820,31 @@ class KegiatanController extends Controller
         }
 
         return $changes;
+    }
+
+    private function resolveObSatuanId(): ?int
+    {
+        $obSatuan = Satuan::query()
+            ->where('status', 'aktif')
+            ->where(function ($query) {
+                $query->whereRaw('LOWER(kode) = ?', ['ob'])
+                    ->orWhereRaw('LOWER(kode) = ?', ['o-b'])
+                    ->orWhereRaw('LOWER(REPLACE(REPLACE(kode, "-", ""), " ", "")) = ?', ['ob'])
+                    ->orWhereRaw('LOWER(nama) = ?', ['ob'])
+                    ->orWhereRaw('LOWER(REPLACE(nama, "-", "")) = ?', ['orangbulan'])
+                    ->orWhereRaw('LOWER(REPLACE(nama, " ", "")) = ?', ['orangbulan'])
+                    ->orWhereRaw('LOWER(REPLACE(REPLACE(nama, "-", ""), " ", "")) = ?', ['ob']);
+            })
+            ->first();
+
+        return $obSatuan?->id;
+    }
+
+    private function isFasihOnly(Kegiatan $kegiatan): bool
+    {
+        $isPencacahanFasih = $kegiatan->metode_pendataan_pencacahan === 'CAPI';
+        $isListingFasih = ! $kegiatan->has_listing_updating || $kegiatan->metode_pendataan_listing === 'CAPI';
+
+        return $isPencacahanFasih && $isListingFasih;
     }
 }

@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, Sbml } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { ArrowLeft, Download, FileUp, Loader2, Save, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -26,7 +26,12 @@ interface SbmlEntry {
     id: number;
     jenis_kegiatan: 'sensus' | 'survei';
     status_kepegawaian: 'organik' | 'non_organik';
-    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    jenis_penugasan:
+        | 'pcl_ppl'
+        | 'pml'
+        | 'pengolahan'
+        | 'pengawas_pengolahan'
+        | 'koseka';
     honor_max: string;
 }
 
@@ -46,6 +51,8 @@ export default function Edit({
     const [keterangan, setKeterangan] = useState(initialKeterangan || '');
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>(initialStatus);
     const [processing, setProcessing] = useState(false);
+    const [importProcessing, setImportProcessing] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Initialize form entries from fetched data
@@ -75,6 +82,7 @@ export default function Edit({
             pml: 'PML (Petugas Pemeriksaan Lapangan)',
             pengolahan: 'Petugas Pengolahan Data',
             pengawas_pengolahan: 'Pengawas Pengolahan',
+            koseka: 'Koseka (Koordinator Sensus Kecamatan)',
         };
         return labels[jenis] || jenis;
     };
@@ -116,6 +124,48 @@ export default function Edit({
         });
     };
 
+    const handleImportSubmit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        if (!importFile) {
+            setErrors((prev) => ({
+                ...prev,
+                file: 'Pilih file template SBML terlebih dahulu.',
+            }));
+
+            return;
+        }
+
+        setImportProcessing(true);
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            delete nextErrors.file;
+            return nextErrors;
+        });
+
+        router.post(
+            `/sbml/${tahun}/import`,
+            { file: importFile },
+            {
+                forceFormData: true,
+                onSuccess: () => {
+                    setImportProcessing(false);
+                    setImportFile(null);
+                },
+                onError: (importErrors) => {
+                    setErrors((prev) => ({
+                        ...prev,
+                        ...importErrors,
+                    }));
+                    setImportProcessing(false);
+                },
+                onFinish: () => {
+                    setImportProcessing(false);
+                },
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Edit SBML" />
@@ -137,6 +187,62 @@ export default function Edit({
                         </Link>
                     </Button>
                 </PageHeader>
+
+                <ContentCard>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="text-base font-semibold">
+                                Template Edit SBML
+                            </Label>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Download template terisi dari data tahun ini,
+                                lakukan perubahan di Excel, lalu impor kembali.
+                            </p>
+                            <Button variant="outline" asChild className="gap-2">
+                                <a href={`/sbml/${tahun}/export/edit`}>
+                                    <Download className="h-4 w-4" />
+                                    Download Template Edit
+                                </a>
+                            </Button>
+                        </div>
+
+                        <form onSubmit={handleImportSubmit} className="space-y-2">
+                            <Label
+                                htmlFor="sbml_import_file"
+                                className="cursor-pointer text-base font-semibold"
+                            >
+                                Impor File Revisi SBML
+                            </Label>
+                            <Input
+                                id="sbml_import_file"
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                className='cursor-pointer'
+                                onChange={(e) =>
+                                    setImportFile(e.target.files?.[0] ?? null)
+                                }
+                            />
+                            {errors.file && (
+                                <p className="text-sm text-red-600">
+                                    {errors.file}
+                                </p>
+                            )}
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                className="cursor-pointer gap-2"
+                                disabled={importProcessing}
+                            >
+                                {importProcessing ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileUp className="h-4 w-4" />
+                                )}
+                                Impor & Perbarui
+                            </Button>
+                        </form>
+                    </div>
+                </ContentCard>
 
                 <form onSubmit={submit} className="space-y-6">
                     <ContentCard>

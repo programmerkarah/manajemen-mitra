@@ -19,6 +19,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Copy,
+    Download,
+    FileUp,
     Loader2,
     Plus,
     Save,
@@ -116,6 +118,7 @@ interface AlokasiCreateProps {
     active_year: number;
     copiedAlokasi?: BackendAlokasiItem[] | null;
     sourcePeriode?: {
+        id?: number;
         bulan: string;
         tahun: number;
         tahapan?: 'both' | 'listing_only' | 'pencacahan_only';
@@ -305,6 +308,8 @@ export default function Create({
         setJadwalPengolahanPencacahanSelesai,
     ] = useState(sourcePeriode?.jadwal_pengolahan_pencacahan_selesai || '');
     const [processing, setProcessing] = useState(false);
+    const [importProcessing, setImportProcessing] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [jenisPerubahanRevisi, setJenisPerubahanRevisi] =
         useState<JenisPerubahanRevisi>('perubahan_beban_tugas');
@@ -596,6 +601,8 @@ export default function Create({
                     peranLower === 'pengawas pengolahan'
                 ) {
                     peranDisplay = 'Pengawas Pengolahan';
+                } else if (peranLower === 'koseka') {
+                    peranDisplay = 'Koseka';
                 } else if (alokasi.peran) {
                     // If peran exists but doesn't match any known format, keep it as is
                     peranDisplay = alokasi.peran;
@@ -690,6 +697,7 @@ export default function Create({
             let jenisPenugasan = '';
             if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
             else if (peran === 'PML') jenisPenugasan = 'pml';
+            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
             else if (peran === 'Petugas Pengolahan')
                 jenisPenugasan = 'pengolahan';
             else if (peran === 'Pengawas Pengolahan')
@@ -733,6 +741,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
+            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -771,6 +780,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
+            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -814,6 +824,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
+                else if (peran === 'Koseka') jenisPenugasan = 'koseka';
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -856,6 +867,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (item.peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
+                else if (item.peran === 'Koseka') jenisPenugasan = 'koseka';
 
             if (!jenisPenugasan) {
                 return false;
@@ -957,6 +969,30 @@ export default function Create({
         calculateEstimasiListing,
     ]);
 
+    // For sensus kegiatan: auto-set jumlah_satuan to 1 and recalculate estimasi
+    useEffect(() => {
+        if (jenisKegiatan !== 'sensus') return;
+
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAlokasiItems((prevItems) =>
+            prevItems.map((item) => {
+                if (item.jumlah_satuan === '1') return item;
+
+                const newEstimasi = calculateEstimasi(
+                    item.petugas_id,
+                    item.peran,
+                    '1',
+                );
+
+                return {
+                    ...item,
+                    jumlah_satuan: '1',
+                    estimasi_honor: newEstimasi,
+                };
+            }),
+        );
+    }, [jenisKegiatan, calculateEstimasi]);
+
     // Handle tahapan change - clear/restore values based on tahapan
     useEffect(() => {
         if (originalAlokasiValues.length === 0) return; // Wait until original values are loaded
@@ -1013,7 +1049,7 @@ export default function Create({
                 () => ({
                     petugas_id: '',
                     peran: '',
-                    jumlah_satuan: '',
+                    jumlah_satuan: jenisKegiatan === 'sensus' ? '1' : '',
                     estimasi_honor: 0,
                     catatan: '',
                     is_partial_payment: false,
@@ -1060,7 +1096,7 @@ export default function Create({
         const newItem: AlokasiItem = {
             petugas_id: '',
             peran: '',
-            jumlah_satuan: '',
+            jumlah_satuan: jenisKegiatan === 'sensus' ? '1' : '',
             estimasi_honor: 0,
             catatan: '',
             is_partial_payment: false,
@@ -1091,6 +1127,11 @@ export default function Create({
         // Guard: Don't update peran with empty value if item already has a peran
         if (field === 'peran' && !value && alokasiItems[index]?.peran) {
             return;
+        }
+
+        // Guard: For sensus kegiatan, jumlah_satuan is always 1
+        if (field === 'jumlah_satuan' && jenisKegiatan === 'sensus') {
+            value = '1';
         }
 
         const clampPartialValue = (
@@ -1490,6 +1531,106 @@ export default function Create({
         }
     };
 
+    const handleImportAlokasi = () => {
+        if (!importFile) {
+            setErrors((prev) => ({
+                ...prev,
+                file: 'Pilih file template alokasi terlebih dahulu.',
+            }));
+            return;
+        }
+
+        setImportProcessing(true);
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            delete nextErrors.file;
+            return nextErrors;
+        });
+
+        if (isEditMode || isRevisiMode) {
+            if (!sourcePeriode?.id) {
+                setErrors((prev) => ({
+                    ...prev,
+                    file: 'Periode edit tidak ditemukan untuk proses impor.',
+                }));
+                setImportProcessing(false);
+                return;
+            }
+
+            router.post(
+                `/alokasi/periode/${sourcePeriode.id}/import`,
+                {
+                    file: importFile,
+                    is_create: false,
+                },
+                {
+                    forceFormData: true,
+                    onFinish: () => {
+                        setImportProcessing(false);
+                    },
+                    onError: (importErrors) => {
+                        setErrors((prev) => ({
+                            ...prev,
+                            ...importErrors,
+                        }));
+                    },
+                },
+            );
+
+            return;
+        }
+
+        if (!selectedKegiatan?.hashed_id) {
+            setErrors((prev) => ({
+                ...prev,
+                file: 'Pilih kegiatan terlebih dahulu sebelum impor.',
+            }));
+            setImportProcessing(false);
+            return;
+        }
+
+        router.post(
+            `/alokasi/kegiatan/${selectedKegiatan.hashed_id}/import`,
+            {
+                file: importFile,
+                bulan,
+                tahun: active_year,
+                tahapan,
+                tanggal_mulai: tanggalMulai || null,
+                tanggal_selesai: tanggalSelesai || null,
+                tanggal_mulai_listing: tanggalMulaiListing || null,
+                tanggal_selesai_listing: tanggalSelesaiListing || null,
+                jadwal_pengolahan_listing_mulai:
+                    jadwalPengolahanListingMulai || null,
+                jadwal_pengolahan_listing_selesai:
+                    jadwalPengolahanListingSelesai || null,
+                jadwal_pengolahan_pencacahan_mulai:
+                    jadwalPengolahanPencacahanMulai || null,
+                jadwal_pengolahan_pencacahan_selesai:
+                    jadwalPengolahanPencacahanSelesai || null,
+            },
+            {
+                forceFormData: true,
+                onFinish: () => {
+                    setImportProcessing(false);
+                },
+                onError: (importErrors) => {
+                    setErrors((prev) => ({
+                        ...prev,
+                        ...importErrors,
+                    }));
+                },
+            },
+        );
+    };
+
+    const exportTemplateUrl =
+        isEditMode || isRevisiMode
+            ? sourcePeriode?.id
+                ? `/alokasi/periode/${sourcePeriode.id}/export/edit`
+                : null
+            : '/alokasi/periode/0/export/create';
+
     const months = useMemo(
         () => [
             { value: 1, label: 'Januari' },
@@ -1661,6 +1802,69 @@ export default function Create({
                     </Link>
                 </Button>
             </PageHeader>
+
+            <ContentCard>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label className="text-base font-semibold">
+                            Template Impor Alokasi
+                        </Label>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            {isEditMode || isRevisiMode
+                                ? 'Download template berisi data alokasi periode ini untuk diedit massal.'
+                                : 'Download template kosong dengan contoh pengisian untuk tambah alokasi massal.'}
+                        </p>
+                        <Button
+                            variant="outline"
+                            asChild
+                            className="gap-2"
+                            disabled={!exportTemplateUrl}
+                        >
+                            <a href={exportTemplateUrl ?? '#'}>
+                                <Download className="h-4 w-4" />
+                                Download Template
+                            </a>
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label
+                            htmlFor="alokasi_import_file"
+                            className="cursor-pointer text-base font-semibold"
+                        >
+                            Impor File Alokasi
+                        </Label>
+                        <Input
+                            id="alokasi_import_file"
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={(e) =>
+                                setImportFile(e.target.files?.[0] ?? null)
+                            }
+                            disabled={isViewMode}
+                        />
+                        {allErrors.file && (
+                            <p className="text-sm text-red-500">
+                                {allErrors.file}
+                            </p>
+                        )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointergap-2"
+                            onClick={handleImportAlokasi}
+                            disabled={importProcessing || isViewMode}
+                        >
+                            {importProcessing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <FileUp className="h-4 w-4" />
+                            )}
+                            Impor ke Database
+                        </Button>
+                    </div>
+                </div>
+            </ContentCard>
 
             {isRevisiMode && (
                 <div className="rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 p-4 shadow-lg backdrop-blur-xl dark:border-indigo-500/25 dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-indigo-600/15">
@@ -2405,7 +2609,7 @@ export default function Create({
                                                         isRevisiLockedMode ||
                                                         alokasiItems.length <= 1
                                                     }
-                                                    className="h-8 gap-1.5"
+                                                    className="cursor-pointer h-8 gap-1.5"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                     Hapus
@@ -2602,6 +2806,7 @@ export default function Create({
                                                                     'Petugas Pengolahan',
                                                                 pengawas_pengolahan:
                                                                     'Pengawas Pengolahan',
+                                                                koseka: 'Koseka',
                                                             };
 
                                                             const statusKepegawaian =
@@ -2909,7 +3114,10 @@ export default function Create({
                                                             type="number"
                                                             id={`satuan_${index}`}
                                                             value={
-                                                                item.jumlah_satuan
+                                                                jenisKegiatan ===
+                                                                'sensus'
+                                                                    ? '1'
+                                                                    : item.jumlah_satuan
                                                             }
                                                             onChange={(e) =>
                                                                 updateAlokasiItem(
@@ -2922,9 +3130,25 @@ export default function Create({
                                                             min="0"
                                                             placeholder="0"
                                                             disabled={
-                                                                isViewMode
+                                                                isViewMode ||
+                                                                jenisKegiatan ===
+                                                                    'sensus'
+                                                            }
+                                                            className={
+                                                                jenisKegiatan ===
+                                                                'sensus'
+                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                    : ''
                                                             }
                                                         />
+                                                        {jenisKegiatan ===
+                                                            'sensus' && (
+                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                🔒 Beban tugas
+                                                                sensus otomatis
+                                                                1 (Orang/Bulan)
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     {/* Estimasi Honor Pencacahan (Read only) */}

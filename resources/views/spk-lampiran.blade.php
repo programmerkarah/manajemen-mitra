@@ -121,13 +121,17 @@
                 if ($jenisKegiatan === 'sensus') {
                     $peran = strtolower($peran ?? ($petugas->jenis_petugas ?? ''));
                     if ($peran === 'pcl' || $peran === 'ppl') {
-                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                     } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PEMERIKSA LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                     } elseif (str_contains($peran, 'olah')) {
-                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGOLAHAN ' . strtoupper($kegiatan->nama_kegiatan);
+                    } elseif (str_contains($peran, 'awas olah') || str_contains($peran, 'pengawas pengolahan')) {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS PENGAWAS PENGOLAHAN ' . strtoupper($kegiatan->nama_kegiatan);
+                    } elseif (str_contains($peran, 'koseka')) {
+                        $judulSpkLampiran = 'PERJANJIAN KERJA KOSEKA ' . strtoupper($kegiatan->nama_kegiatan);
                     } else {
-                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN (' . strtoupper($kegiatan->nama_kegiatan) . ')';
+                        $judulSpkLampiran = 'PERJANJIAN KERJA PETUGAS LAPANGAN ' . strtoupper($kegiatan->nama_kegiatan);
                     }
                 } else {
                     // For SURVEI, use work type

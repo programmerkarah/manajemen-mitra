@@ -473,6 +473,9 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                                                     'pml' &&
                                                                     'PML'}
                                                                 {rh.jenis_penugasan ===
+                                                                    'koseka' &&
+                                                                    'Koseka (Koordinator Sensus Kecamatan)'}
+                                                                {rh.jenis_penugasan ===
                                                                     'pengolahan' &&
                                                                     'Pengolahan'}
                                                                 {rh.jenis_penugasan ===

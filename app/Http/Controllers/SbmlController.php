@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Sbml;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -72,10 +73,10 @@ class SbmlController extends Controller
     {
         $validated = $request->validate([
             'tahun_anggaran' => ['required', 'integer', 'min:2020', 'max:2099'],
-            'entries' => ['required', 'array', 'size:15'],
+            'entries' => ['required', 'array', 'size:18'],
             'entries.*.jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'entries.*.status_kepegawaian' => ['required', 'in:organik,non_organik'],
-            'entries.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan'],
+            'entries.*.jenis_penugasan' => ['required', 'in:pcl_ppl,pml,pengolahan,pengawas_pengolahan,koseka'],
             'entries.*.honor_max' => ['required', 'numeric', 'min:0'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
             'status' => ['required', 'in:aktif,nonaktif'],
@@ -184,7 +185,7 @@ class SbmlController extends Controller
     public function update(Request $request, int $tahun): RedirectResponse
     {
         $validated = $request->validate([
-            'entries' => ['required', 'array', 'size:15'],
+            'entries' => ['required', 'array', 'size:18'],
             'entries.*.id' => ['required', 'exists:sbml,id'],
             'entries.*.honor_max' => ['required', 'numeric', 'min:0'],
             'keterangan' => ['nullable', 'string', 'max:1000'],
@@ -259,5 +260,57 @@ class SbmlController extends Controller
 
         return redirect()->route('sbml.index')
             ->with('success', 'SBML untuk tahun '.$tahun.' berhasil dihapus.');
+    }
+
+    /**
+     * Download SBML template for import
+     */
+    public function exportTemplate(int $tahun, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SbmlTemplateExport($tahun, $type),
+            "SBML-{$tahun}-template-{$type}.xlsx"
+        );
+    }
+
+    /**
+     * Import SBML data from Excel
+     */
+    public function import(Request $request, int $tahun): RedirectResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ], [
+            'file.required' => 'File harus diupload',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV',
+        ]);
+
+        try {
+            $import = new \App\Imports\SbmlImport($tahun);
+            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+            ActivityLog::log(
+                'Import SBML',
+                'sbml',
+                "Berhasil mengimport SBML untuk tahun {$tahun} ({$import->getSuccessCount()} entries)",
+                'success',
+                ['tahun_anggaran' => $tahun, 'imported_count' => $import->getSuccessCount()]
+            );
+
+            return redirect()->route('sbml.show', $tahun)
+                ->with('success', "Berhasil mengimport {$import->getSuccessCount()} data SBML");
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessage = 'Gagal mengimport file. Error pada baris: ';
+            foreach ($failures as $failure) {
+                $errorMessage .= $failure->row().', ';
+            }
+
+            return back()->withErrors(['file' => rtrim($errorMessage, ', ')]);
+        } catch (\Exception $e) {
+            Log::error('SBML Import Error', ['error' => $e->getMessage()]);
+
+            return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()]);
+        }
     }
 }

@@ -296,6 +296,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('alokasi/store', [AlokasiPetugasController::class, 'store'])->name('alokasi.store');
         Route::post('alokasi/kegiatan/{kegiatan}/store-multiple', [AlokasiPetugasController::class, 'storeMultiple'])
             ->name('alokasi.store-multiple');
+        Route::post('alokasi/kegiatan/{kegiatan}/import', [AlokasiPetugasController::class, 'importCreate'])
+            ->name('alokasi.import-create');
         Route::get('alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'edit'])->name('alokasi.edit');
         Route::put('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
         Route::patch('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update']);
@@ -313,6 +315,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])
             ->name('alokasi.periode.destroy')
             ->middleware('active.role:admin,operator');
+        Route::get('alokasi/periode/{periodeAlokasiId}/export/{type}', [AlokasiPetugasController::class, 'exportTemplate'])
+            ->name('alokasi.exportTemplate')
+            ->where(['periodeAlokasiId' => '[0-9]+', 'type' => 'create|edit']);
+        Route::post('alokasi/periode/{periodeAlokasiId}/import', [AlokasiPetugasController::class, 'import'])
+            ->name('alokasi.import')
+            ->where('periodeAlokasiId', '[0-9]+');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/kembalikan-draft', [AlokasiPetugasController::class, 'kembalikanKeDraft'])
             ->name('alokasi.periode.kembalikan-draft')
             ->middleware('active.role:admin,operator');
@@ -354,6 +362,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('sbml/{tahun}/edit', [SbmlController::class, 'edit'])->name('sbml.edit')->where('tahun', '[0-9]+');
         Route::patch('sbml/{tahun}', [SbmlController::class, 'update'])->name('sbml.update')->where('tahun', '[0-9]+');
         Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
+        Route::get('sbml/{tahun}/export/{type?}', [SbmlController::class, 'exportTemplate'])->name('sbml.exportTemplate')->where(['tahun' => '[0-9]+', 'type' => 'create|edit']);
+        Route::post('sbml/{tahun}/import', [SbmlController::class, 'import'])->name('sbml.import')->where('tahun', '[0-9]+');
     });
 
     // Master Data Management (Admin, Operator access)

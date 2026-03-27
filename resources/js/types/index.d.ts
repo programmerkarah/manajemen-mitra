@@ -137,7 +137,12 @@ export interface RateHonor {
     id: string;
     hashed_id: string;
     posisi: string;
-    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    jenis_penugasan:
+        | 'pcl_ppl'
+        | 'pml'
+        | 'koseka'
+        | 'pengolahan'
+        | 'pengawas_pengolahan';
     status_kepegawaian: 'organik' | 'non_organik';
     deskripsi: string | null;
     rate: number;

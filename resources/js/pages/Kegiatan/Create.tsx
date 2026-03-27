@@ -9,6 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
+import { useEffect } from 'react';
 
 const BULAN_OPTIONS = [
     { value: '1', label: 'Januari' },
@@ -101,14 +102,35 @@ export default function Create({
             | ''
             | 'daring'
             | 'luring'
-            | 'hybrid'
-            | 'tidak_ada_pelatihan',
+            | 'hybrid',
         bulan_pelatihan: '',
         ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
         tanggal_mulai: '',
         tanggal_selesai: '',
     });
+
+    const isSensus = data.jenis_kegiatan === 'sensus';
+
+    useEffect(() => {
+        if (isSensus && data.has_listing_updating) {
+            setData('has_listing_updating', false);
+        }
+
+        if (isSensus && data.pagu_listing !== '') {
+            setData('pagu_listing', '');
+        }
+
+        if (isSensus && data.metode_pendataan_listing !== '') {
+            setData('metode_pendataan_listing', '');
+        }
+    }, [
+        isSensus,
+        data.has_listing_updating,
+        data.pagu_listing,
+        data.metode_pendataan_listing,
+        setData,
+    ]);
 
     const hasSourceJenisKegiatan =
         data.jenis_kegiatan === 'sensus' || data.jenis_kegiatan === 'survei';
@@ -127,19 +149,16 @@ export default function Create({
                 ? Number(data.pagu_pencacahan)
                 : null,
             pagu_listing: data.pagu_listing ? Number(data.pagu_listing) : null,
-            has_listing_updating: data.has_listing_updating,
+            has_listing_updating: isSensus ? false : data.has_listing_updating,
             metode_pendataan_pencacahan:
                 data.metode_pendataan_pencacahan || null,
-            metode_pendataan_listing: data.has_listing_updating
+            metode_pendataan_listing: !isSensus && data.has_listing_updating
                 ? data.metode_pendataan_listing || null
                 : null,
             metode_pelatihan: data.metode_pelatihan || null,
-            bulan_pelatihan:
-                data.metode_pelatihan &&
-                data.metode_pelatihan !== 'tidak_ada_pelatihan' &&
-                data.bulan_pelatihan
-                    ? Number(data.bulan_pelatihan)
-                    : null,
+            bulan_pelatihan: data.bulan_pelatihan
+                ? Number(data.bulan_pelatihan)
+                : null,
             ketua_tim_user_id: data.ketua_tim_user_id || null,
             pj_lainnya_id: data.pj_lainnya_id || null,
             tanggal_mulai: data.tanggal_mulai,
@@ -340,35 +359,36 @@ export default function Create({
                                 />
                             </div>
 
-                            {/* Tahapan Listing/Updating */}
-                            <div>
-                                <label
-                                    htmlFor="has_listing_updating"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Apakah kegiatan ini memiliki tahapan
-                                    Listing/Updating?
-                                </label>
-                                <div className="mt-3 flex items-start gap-3">
-                                    <input
-                                        type="checkbox"
-                                        id="has_listing_updating"
-                                        checked={data.has_listing_updating}
-                                        onChange={(e) =>
-                                            setData(
-                                                'has_listing_updating',
-                                                e.target.checked,
-                                            )
-                                        }
-                                        className="mt-1 h-5 w-5 rounded border-2 border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:focus:ring-neutral-500/20"
-                                    />
-                                    <span className="text-base text-gray-700 dark:text-gray-300">
-                                        Aktifkan jika ada tahapan
-                                        listing/updating sebelum
-                                        pencacahan/pendataan lapangan.
-                                    </span>
+                            {!isSensus && (
+                                <div>
+                                    <label
+                                        htmlFor="has_listing_updating"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                    >
+                                        Apakah kegiatan ini memiliki tahapan
+                                        Listing/Updating?
+                                    </label>
+                                    <div className="mt-3 flex items-start gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="has_listing_updating"
+                                            checked={data.has_listing_updating}
+                                            onChange={(e) =>
+                                                setData(
+                                                    'has_listing_updating',
+                                                    e.target.checked,
+                                                )
+                                            }
+                                            className="mt-1 h-5 w-5 rounded border-2 border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:focus:ring-neutral-500/20"
+                                        />
+                                        <span className="text-base text-gray-700 dark:text-gray-300">
+                                            Aktifkan jika ada tahapan
+                                            listing/updating sebelum
+                                            pencacahan/pendataan lapangan.
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Pagu Listing */}
                             {data.has_listing_updating && (
@@ -539,10 +559,9 @@ export default function Create({
                                 </label>
                                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     Apakah pelatihan petugas dilaksanakan secara
-                                    daring, luring, hybrid, atau tidak ada
-                                    pelatihan?
+                                    daring, luring, atau hybrid?
                                 </p>
-                                <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                                     {(
                                         [
                                             {
@@ -559,11 +578,6 @@ export default function Create({
                                                 value: 'hybrid',
                                                 label: 'Hybrid',
                                                 desc: '(Campuran)',
-                                            },
-                                            {
-                                                value: 'tidak_ada_pelatihan',
-                                                label: 'Tidak Ada',
-                                                desc: '(Tanpa Pelatihan)',
                                             },
                                         ] as const
                                     ).map((opt) => (
@@ -585,16 +599,10 @@ export default function Create({
                                                     opt.value
                                                 }
                                                 onChange={() =>
-                                                    setData((previousData) => ({
-                                                        ...previousData,
-                                                        metode_pelatihan:
-                                                            opt.value,
-                                                        bulan_pelatihan:
-                                                            opt.value ===
-                                                            'tidak_ada_pelatihan'
-                                                                ? ''
-                                                                : previousData.bulan_pelatihan,
-                                                    }))
+                                                    setData(
+                                                        'metode_pelatihan',
+                                                        opt.value,
+                                                    )
                                                 }
                                                 className="h-4 w-4 text-neutral-900"
                                             />
@@ -615,48 +623,38 @@ export default function Create({
                                 />
                             </div>
 
-                            {data.metode_pelatihan !== '' &&
-                                data.metode_pelatihan !==
-                                    'tidak_ada_pelatihan' && (
-                                    <div>
-                                        <label
-                                            htmlFor="bulan_pelatihan"
-                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                        >
-                                            Bulan Pelatihan{' '}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
-                                        </label>
-                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Pilih bulan pelaksanaan pelatihan
-                                            untuk sinkronisasi pengajuan pulsa
-                                            pelatihan.
-                                        </p>
-                                        <SearchableSelect
-                                            options={BULAN_OPTIONS.map(
-                                                (bulan) => ({
-                                                    value: bulan.value,
-                                                    label: bulan.label,
-                                                }),
-                                            )}
-                                            value={data.bulan_pelatihan}
-                                            onValueChange={(value) =>
-                                                setData(
-                                                    'bulan_pelatihan',
-                                                    value,
-                                                )
-                                            }
-                                            placeholder="Pilih Bulan Pelatihan"
-                                            searchPlaceholder="Cari bulan..."
-                                            className="mt-2"
-                                        />
-                                        <InputError
-                                            message={errors.bulan_pelatihan}
-                                            className="mt-2"
-                                        />
-                                    </div>
-                                )}
+                            {data.metode_pelatihan !== '' && (
+                                <div>
+                                    <label
+                                        htmlFor="bulan_pelatihan"
+                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                    >
+                                        Bulan Pelatihan{' '}
+                                        <span className="text-red-500">*</span>
+                                    </label>
+                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        Pilih bulan pelaksanaan pelatihan untuk
+                                        sinkronisasi pengajuan pulsa pelatihan.
+                                    </p>
+                                    <SearchableSelect
+                                        options={BULAN_OPTIONS.map((bulan) => ({
+                                            value: bulan.value,
+                                            label: bulan.label,
+                                        }))}
+                                        value={data.bulan_pelatihan}
+                                        onValueChange={(value) =>
+                                            setData('bulan_pelatihan', value)
+                                        }
+                                        placeholder="Pilih Bulan Pelatihan"
+                                        searchPlaceholder="Cari bulan..."
+                                        className="mt-2"
+                                    />
+                                    <InputError
+                                        message={errors.bulan_pelatihan}
+                                        className="mt-2"
+                                    />
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
                                 {/* Pagu Pencacahan */}

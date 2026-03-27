@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { ArrowLeft, Download, FileUp, Loader2, Save, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -25,7 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface SbmlEntry {
     jenis_kegiatan: 'sensus' | 'survei';
     status_kepegawaian: 'organik' | 'non_organik';
-    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan';
+    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan' | 'koseka';
     honor_max: string;
 }
 
@@ -40,9 +40,9 @@ export default function Create({ tahun_options }: CreateProps) {
     const [keterangan, setKeterangan] = useState('');
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
-    // Define all 15 combinations in the order specified
+    // Define all 18 combinations in the order specified
     const initialEntries: SbmlEntry[] = [
-        // Survei - Non Organik
+        // Survei - Non Organik (4 jenis - TANPA koseka)
         {
             jenis_kegiatan: 'survei',
             status_kepegawaian: 'non_organik',
@@ -61,7 +61,13 @@ export default function Create({ tahun_options }: CreateProps) {
             jenis_penugasan: 'pengolahan',
             honor_max: '',
         },
-        // Survei - Organik
+        {
+            jenis_kegiatan: 'survei',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'pengawas_pengolahan',
+            honor_max: '',
+        },
+        // Survei - Organik (4 jenis - TANPA koseka)
         {
             jenis_kegiatan: 'survei',
             status_kepegawaian: 'organik',
@@ -86,7 +92,7 @@ export default function Create({ tahun_options }: CreateProps) {
             jenis_penugasan: 'pengawas_pengolahan',
             honor_max: '',
         },
-        // Sensus - Non Organik
+        // Sensus - Non Organik (5 jenis - DENGAN koseka)
         {
             jenis_kegiatan: 'sensus',
             status_kepegawaian: 'non_organik',
@@ -111,7 +117,13 @@ export default function Create({ tahun_options }: CreateProps) {
             jenis_penugasan: 'pengawas_pengolahan',
             honor_max: '',
         },
-        // Sensus - Organik
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'non_organik',
+            jenis_penugasan: 'koseka',
+            honor_max: '',
+        },
+        // Sensus - Organik (5 jenis - DENGAN koseka)
         {
             jenis_kegiatan: 'sensus',
             status_kepegawaian: 'organik',
@@ -134,12 +146,20 @@ export default function Create({ tahun_options }: CreateProps) {
             jenis_kegiatan: 'sensus',
             status_kepegawaian: 'organik',
             jenis_penugasan: 'pengawas_pengolahan',
+            honor_max: '',
+        },
+        {
+            jenis_kegiatan: 'sensus',
+            status_kepegawaian: 'organik',
+            jenis_penugasan: 'koseka',
             honor_max: '',
         },
     ];
 
     const [entries, setEntries] = useState<SbmlEntry[]>(initialEntries);
     const [processing, setProcessing] = useState(false);
+    const [importProcessing, setImportProcessing] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const getJenisKegiatanLabel = (jenis: string) => {
@@ -156,6 +176,7 @@ export default function Create({ tahun_options }: CreateProps) {
             pml: 'PML (Petugas Pemeriksaan Lapangan)',
             pengolahan: 'Petugas Pengolahan Data',
             pengawas_pengolahan: 'Pengawas Pengolahan',
+            koseka: 'Koseka (Koordinator Sensus Kecamatan)',
         };
         return labels[jenis] || jenis;
     };
@@ -204,6 +225,48 @@ export default function Create({ tahun_options }: CreateProps) {
         });
     };
 
+    const handleImportSubmit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        if (!importFile) {
+            setErrors((prev) => ({
+                ...prev,
+                file: 'Pilih file template SBML terlebih dahulu.',
+            }));
+
+            return;
+        }
+
+        setImportProcessing(true);
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+            delete nextErrors.file;
+            return nextErrors;
+        });
+
+        router.post(
+            `/sbml/${tahun}/import`,
+            { file: importFile },
+            {
+                forceFormData: true,
+                onSuccess: () => {
+                    setImportProcessing(false);
+                    setImportFile(null);
+                },
+                onError: (importErrors) => {
+                    setErrors((prev) => ({
+                        ...prev,
+                        ...importErrors,
+                    }));
+                    setImportProcessing(false);
+                },
+                onFinish: () => {
+                    setImportProcessing(false);
+                },
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tambah SBML" />
@@ -225,6 +288,62 @@ export default function Create({ tahun_options }: CreateProps) {
                         </Link>
                     </Button>
                 </PageHeader>
+
+                <ContentCard>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="text-base font-semibold">
+                                Template Impor SBML
+                            </Label>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Download template kosong sesuai kombinasi SBML,
+                                lalu isi kolom honor maksimal.
+                            </p>
+                            <Button variant="outline" asChild className="gap-2">
+                                <a href={`/sbml/${tahun}/export/create`}>
+                                    <Download className="h-4 w-4" />
+                                    Download Template
+                                </a>
+                            </Button>
+                        </div>
+
+                        <form onSubmit={handleImportSubmit} className="space-y-2">
+                            <Label
+                                htmlFor="sbml_import_file"
+                                className="text-base font-semibold"
+                            >
+                                Impor File SBML
+                            </Label>
+                            <Input
+                                id="sbml_import_file"
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                className='cursor-pointer'
+                                onChange={(e) =>
+                                    setImportFile(e.target.files?.[0] ?? null)
+                                }
+                            />
+                            {errors.file && (
+                                <p className="text-sm text-red-600">
+                                    {errors.file}
+                                </p>
+                            )}
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                className="cursor-pointer gap-2"
+                                disabled={importProcessing}
+                            >
+                                {importProcessing ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileUp className="h-4 w-4" />
+                                )}
+                                Impor & Simpan
+                            </Button>
+                        </form>
+                    </div>
+                </ContentCard>
 
                 <form onSubmit={submit} className="space-y-6">
                     <ContentCard>
