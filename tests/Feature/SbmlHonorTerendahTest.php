@@ -195,4 +195,25 @@ class SbmlHonorTerendahTest extends TestCase
         $this->assertEquals(2, $alokasi['jumlah_satuan_dibayarkan']);
         $this->assertEquals(4, $alokasi['jumlah_satuan_listing_dibayarkan']);
     }
+
+    public function test_rekap_honor_default_filter_menggunakan_bulan_dan_tahun_sekarang(): void
+    {
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
+        $user = User::factory()->create();
+        $user->roles()->attach($adminRole->id);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('sbml.report'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Sbml/Report')
+            ->where('filters.decrypted.tahun', (int) date('Y'))
+            ->where('filters.decrypted.bulan', str_pad(date('m'), 2, '0', STR_PAD_LEFT))
+        );
+    }
 }

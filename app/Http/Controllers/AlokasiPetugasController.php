@@ -166,16 +166,37 @@ class AlokasiPetugasController extends Controller
 
         $periodeIds = $deduplicatedPeriodes->pluck('id')->filter()->values();
         $periodeIdsWithGeneratedSpk = collect();
+        $periodeIdsWithNonOrganikSpkInKegiatan = collect();
         if ($periodeIds->isNotEmpty()) {
+            // SPK that are directly linked to this exact periode (used by Batalkan Alokasi on draft)
             $periodeIdsWithGeneratedSpk = Spk::query()
                 ->join('alokasi_petugas', 'spk.alokasi_petugas_id', '=', 'alokasi_petugas.id')
                 ->whereIn('alokasi_petugas.periode_alokasi_id', $periodeIds)
+                ->whereNull('spk.deleted_at')
                 ->pluck('alokasi_petugas.periode_alokasi_id')
+                ->unique();
+
+            // Non-organik officers in this periode that already have SPK in the same kegiatan (any month)
+            $periodeIdsWithNonOrganikSpkInKegiatan = DB::table('alokasi_petugas as ap_current')
+                ->join('periode_alokasi as p_current', 'p_current.id', '=', 'ap_current.periode_alokasi_id')
+                ->whereIn('ap_current.periode_alokasi_id', $periodeIds)
+                ->where('ap_current.status_kepegawaian', 'non_organik')
+                ->whereExists(function ($query) {
+                    $query->selectRaw('1')
+                        ->from('spk')
+                        ->join('alokasi_petugas as ap_spk', 'ap_spk.id', '=', 'spk.alokasi_petugas_id')
+                        ->join('periode_alokasi as p_spk', 'p_spk.id', '=', 'ap_spk.periode_alokasi_id')
+                        ->whereColumn('ap_spk.petugas_id', 'ap_current.petugas_id')
+                        ->whereColumn('p_spk.kegiatan_id', 'p_current.kegiatan_id')
+                        ->whereNull('spk.deleted_at')
+                        ->where('spk.status', '!=', 'dibatalkan');
+                })
+                ->pluck('ap_current.periode_alokasi_id')
                 ->unique();
         }
 
         // Transform the result to include necessary data (client-side filtering and pagination)
-        $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll, $periodeIdsWithGeneratedSpk) {
+        $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll, $periodeIdsWithGeneratedSpk, $periodeIdsWithNonOrganikSpkInKegiatan) {
             // Hitung ulang total honor untuk periode ini
             $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
             $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
@@ -246,6 +267,7 @@ class AlokasiPetugasController extends Controller
                 'is_latest_periode' => $isLatestPeriode,
                 'has_completed_revision_cycle' => $hasCompletedRevisionCycle,
                 'has_spk_generated' => $periodeIdsWithGeneratedSpk->contains($periode->id),
+                'has_non_organik_spk_in_kegiatan' => $periodeIdsWithNonOrganikSpkInKegiatan->contains($periode->id),
                 'kegiatan' => [
                     'id' => $periode->kegiatan->id,
                     'hashed_id' => $periode->kegiatan->hashed_id,
@@ -1582,6 +1604,7 @@ class AlokasiPetugasController extends Controller
             'bulan' => $periode->bulan,
             'tahun' => $periode->tahun,
             'jenis_kegiatan' => $periode->jenis_kegiatan,
+            'tahapan' => $periode->tahapan,
             'tanggal_mulai' => $periode->tanggal_mulai?->format('Y-m-d'),
             'tanggal_selesai' => $periode->tanggal_selesai?->format('Y-m-d'),
             'tanggal_mulai_listing' => $periode->tanggal_mulai_listing?->format('Y-m-d'),
@@ -2446,15 +2469,15 @@ class AlokasiPetugasController extends Controller
             abort(403, 'Hanya admin atau operator yang dapat membatalkan alokasi periode.');
         }
 
-        // Allow canceling draft/dikirim when SPK has not been generated yet
+        // Only allow canceling draft (dikirim can be reverted to draft via kembalikanKeDraft)
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
             ->where('bulan', $bulan)
-            ->whereIn('status', ['draft', 'dikirim'])
+            ->where('status', 'draft')
             ->first();
 
         if (! $periode) {
-            return back()->with('error', 'Tidak ada alokasi periode yang dapat dibatalkan.');
+            return back()->with('error', 'Tidak ada alokasi periode berstatus draft yang dapat dibatalkan.');
         }
 
         $hasGeneratedSpk = Spk::query()
@@ -2514,6 +2537,86 @@ class AlokasiPetugasController extends Controller
 
         return redirect()->route('alokasi.index')
             ->with('success', 'Alokasi periode berhasil dibatalkan.');
+    }
+
+    /**
+     * Revert a submitted (dikirim) periode back to draft status.
+     * Allowed only when at least one officer's Perjanjian Kerja has not been printed.
+     */
+    public function kembalikanKeDraft(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    {
+        $effectiveUser = effectiveUser($request);
+        if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
+            abort(403, 'Hanya admin atau operator yang dapat mengembalikan periode ke draft.');
+        }
+
+        $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->where('status', 'dikirim')
+            ->first();
+
+        if (! $periode) {
+            return back()->with('error', 'Tidak ada alokasi periode berstatus dikirim yang dapat dikembalikan ke draft.');
+        }
+
+        // Block if any non-organik officer in this periode already has SPK in the same kegiatan
+        $hasGeneratedSpk = DB::table('alokasi_petugas as ap_current')
+            ->join('periode_alokasi as p_current', 'p_current.id', '=', 'ap_current.periode_alokasi_id')
+            ->where('ap_current.periode_alokasi_id', $periode->id)
+            ->where('ap_current.status_kepegawaian', 'non_organik')
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('spk')
+                    ->join('alokasi_petugas as ap_spk', 'ap_spk.id', '=', 'spk.alokasi_petugas_id')
+                    ->join('periode_alokasi as p_spk', 'p_spk.id', '=', 'ap_spk.periode_alokasi_id')
+                    ->whereColumn('ap_spk.petugas_id', 'ap_current.petugas_id')
+                    ->whereColumn('p_spk.kegiatan_id', 'p_current.kegiatan_id')
+                    ->whereNull('spk.deleted_at')
+                    ->where('spk.status', '!=', 'dibatalkan');
+            })
+            ->exists();
+
+        if ($hasGeneratedSpk) {
+            ActivityLog::log(
+                'Kembalikan Alokasi ke Draft',
+                'alokasi',
+                'Gagal mengembalikan alokasi '.$kegiatan->nama_kegiatan.' '.$bulan.'/'.$tahun.' ke draft karena Perjanjian Kerja sudah dibuat.',
+                'warning',
+                [
+                    'kegiatan_id' => $kegiatan->id,
+                    'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                    'periode_id' => $periode->id,
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                ]
+            );
+
+            return back()->with('warning', 'Periode tidak dapat dikembalikan ke draft karena Perjanjian Kerja sudah dibuat.');
+        }
+
+        $periode->update([
+            'status' => 'draft',
+            'submitted_at' => null,
+            'submitted_by' => null,
+        ]);
+
+        ActivityLog::log(
+            'Kembalikan Alokasi ke Draft',
+            'alokasi',
+            'Berhasil mengembalikan alokasi '.$kegiatan->nama_kegiatan.' '.$bulan.'/'.$tahun.' ke draft.',
+            'success',
+            [
+                'kegiatan_id' => $kegiatan->id,
+                'kegiatan_nama' => $kegiatan->nama_kegiatan,
+                'periode_id' => $periode->id,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+            ]
+        );
+
+        return redirect()->route('alokasi.index')
+            ->with('success', 'Alokasi periode berhasil dikembalikan ke draft.');
     }
 
     /**

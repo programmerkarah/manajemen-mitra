@@ -46,6 +46,7 @@ interface PeriodeAlokasi {
     bulan: string;
     tahun: number;
     jenis_kegiatan: 'sensus' | 'survei';
+    tahapan?: 'both' | 'listing_only' | 'pencacahan_only' | null;
     tanggal_mulai?: string | null;
     tanggal_selesai?: string | null;
     tanggal_mulai_listing?: string | null;
@@ -152,8 +153,55 @@ function formatDate(dateString: string | null | undefined): string {
     }).format(date);
 }
 
+function getDisplayedBebanTugas(alokasi: AlokasiPetugas): number {
+    const paidPencacahan =
+        alokasi.jumlah_satuan_dibayarkan ?? alokasi.jumlah_satuan ?? 0;
+    const paidListing =
+        alokasi.jumlah_satuan_listing_dibayarkan ??
+        alokasi.jumlah_satuan_listing ??
+        0;
+
+    return paidPencacahan + paidListing;
+}
+
+function getDisplayedHonor(alokasi: AlokasiPetugas): number {
+    return (alokasi.total_honor ?? 0) + (alokasi.total_honor_listing ?? 0);
+}
+
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
+    const hasListingValues = periode.alokasi_petugas.some((alokasi) => {
+        const listingBeban =
+            alokasi.jumlah_satuan_listing_dibayarkan ??
+            alokasi.jumlah_satuan_listing ??
+            0;
+
+        return listingBeban > 0 || (alokasi.total_honor_listing ?? 0) > 0;
+    });
+
+    const hasPencacahanValues = periode.alokasi_petugas.some((alokasi) => {
+        const pencacahanBeban =
+            alokasi.jumlah_satuan_dibayarkan ?? alokasi.jumlah_satuan ?? 0;
+
+        return pencacahanBeban > 0 || (alokasi.total_honor ?? 0) > 0;
+    });
+
+    const isListingOnly =
+        periode.tahapan === 'listing_only' ||
+        (periode.tahapan !== 'pencacahan_only' &&
+            hasListingValues &&
+            !hasPencacahanValues);
+    const isPencacahanOnly =
+        periode.tahapan === 'pencacahan_only' ||
+        (periode.tahapan !== 'listing_only' &&
+            hasPencacahanValues &&
+            !hasListingValues);
+    const showListingSection =
+        !!periode.kegiatan.has_listing_updating && !isPencacahanOnly;
+    const showPencacahanSection = !isListingOnly;
+    const pelaksanaanRangeLabel = isListingOnly
+        ? `${formatDate(periode.tanggal_mulai_listing)} - ${formatDate(periode.tanggal_selesai_listing)}`
+        : `${formatDate(periode.tanggal_mulai)} - ${formatDate(periode.tanggal_selesai)}`;
     const { auth } = usePage<SharedData>().props;
     const isKetuaTim =
         auth.activeRole?.name === 'ketua_tim' ||
@@ -290,9 +338,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         : 'Survei'}
                                 </div>
                                 <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    Pelaksanaan:{' '}
-                                    {formatDate(periode.tanggal_mulai)} -{' '}
-                                    {formatDate(periode.tanggal_selesai)}
+                                    Pelaksanaan: {pelaksanaanRangeLabel}
                                 </div>
                             </div>
                         </div>
@@ -323,7 +369,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                 <div className="text-xl font-bold text-green-600 dark:text-green-400">
                                     {formatCurrency(periode.total_estimasi)}
                                 </div>
-                                {periode.kegiatan.has_listing_updating && (
+                                {showListingSection && (
                                     <div className="mt-1 space-y-0.5 text-xs text-neutral-500 dark:text-neutral-400">
                                         <div>
                                             Listing:{' '}
@@ -332,13 +378,15 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                     0,
                                             )}
                                         </div>
-                                        <div>
-                                            Pencacahan:{' '}
-                                            {formatCurrency(
-                                                periode.total_estimasi_pencacahan ||
-                                                    0,
-                                            )}
-                                        </div>
+                                        {showPencacahanSection && (
+                                            <div>
+                                                Pencacahan:{' '}
+                                                {formatCurrency(
+                                                    periode.total_estimasi_pencacahan ||
+                                                        0,
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -455,8 +503,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     (alokasi, index) => (
                                         <>
                                             {/* Listing Row - only if has_listing_updating and has listing data */}
-                                            {periode.kegiatan
-                                                .has_listing_updating &&
+                                            {showListingSection &&
                                                 (alokasi.jumlah_satuan_listing ??
                                                     0) > 0 && (
                                                     <tr
@@ -560,106 +607,110 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                     </tr>
                                                 )}
                                             {/* Pencacahan Row */}
-                                            <tr
-                                                key={`${alokasi.id}-pencacahan`}
-                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                                            >
-                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {index + 1}
-                                                </td>
-                                                <td className="px-3 py-3">
-                                                    <div className="font-medium break-words text-neutral-900 dark:text-white">
-                                                        {alokasi.petugas.nama}
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-3 whitespace-nowrap">
-                                                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
-                                                        {alokasi.petugas
-                                                            .jenis_petugas ===
-                                                        'organik'
-                                                            ? 'Organik'
-                                                            : 'Mitra'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {peranLabels[
-                                                        alokasi.peran
-                                                    ] || alokasi.peran}{' '}
-                                                    {periode.kegiatan
-                                                        .has_listing_updating && (
-                                                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            (Pencacahan)
+                                            {showPencacahanSection && (
+                                                <tr
+                                                    key={`${alokasi.id}-pencacahan`}
+                                                    className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                                >
+                                                    <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        <div className="font-medium break-words text-neutral-900 dark:text-white">
+                                                            {
+                                                                alokasi.petugas
+                                                                    .nama
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
+                                                            {alokasi.petugas
+                                                                .jenis_petugas ===
+                                                            'organik'
+                                                                ? 'Organik'
+                                                                : 'Mitra'}
                                                         </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {alokasi.jumlah_satuan}
-                                                </td>
-                                                <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {alokasi.jumlah_satuan_dibayarkan ??
-                                                        alokasi.jumlah_satuan ??
-                                                        0}
-                                                </td>
-                                                {isKetuaTim &&
-                                                    hasPendataanRole && (
-                                                        <td className="px-3 py-3 text-right whitespace-nowrap">
-                                                            {isEditMode ? (
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={
-                                                                        editedData[
-                                                                            alokasi
-                                                                                .id
-                                                                        ]
-                                                                            ?.non_response ||
-                                                                        0
-                                                                    }
-                                                                    onChange={(
-                                                                        e,
-                                                                    ) =>
-                                                                        handleInputChange(
-                                                                            alokasi.id,
-                                                                            'non_response',
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        alokasi.peran ===
-                                                                            'pengolahan' ||
-                                                                        alokasi.peran ===
-                                                                            'pengawas_pengolahan'
-                                                                    }
-                                                                    className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-neutral-900 dark:text-white">
-                                                                    {alokasi.non_response ||
-                                                                        0}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                    )}
-                                                <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {formatCurrency(
-                                                        alokasi.rate_pencacahan ||
-                                                            0,
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
-                                                    {formatCurrency(
-                                                        alokasi.total_honor,
-                                                    )}
-                                                </td>
-                                            </tr>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {peranLabels[
+                                                            alokasi.peran
+                                                        ] || alokasi.peran}{' '}
+                                                        {showListingSection && (
+                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                (Pencacahan)
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {alokasi.jumlah_satuan}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {alokasi.jumlah_satuan_dibayarkan ??
+                                                            alokasi.jumlah_satuan ??
+                                                            0}
+                                                    </td>
+                                                    {isKetuaTim &&
+                                                        hasPendataanRole && (
+                                                            <td className="px-3 py-3 text-right whitespace-nowrap">
+                                                                {isEditMode ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        value={
+                                                                            editedData[
+                                                                                alokasi
+                                                                                    .id
+                                                                            ]
+                                                                                ?.non_response ||
+                                                                            0
+                                                                        }
+                                                                        onChange={(
+                                                                            e,
+                                                                        ) =>
+                                                                            handleInputChange(
+                                                                                alokasi.id,
+                                                                                'non_response',
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            alokasi.peran ===
+                                                                                'pengolahan' ||
+                                                                            alokasi.peran ===
+                                                                                'pengawas_pengolahan'
+                                                                        }
+                                                                        className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-neutral-900 dark:text-white">
+                                                                        {alokasi.non_response ||
+                                                                            0}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        )}
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {formatCurrency(
+                                                            alokasi.rate_pencacahan ||
+                                                                0,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
+                                                        {formatCurrency(
+                                                            alokasi.total_honor,
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </>
                                     ),
                                 )}
                             </tbody>
                             <tfoot className="bg-neutral-100 dark:bg-neutral-900">
-                                {periode.kegiatan.has_listing_updating && (
+                                {showListingSection && (
                                     <>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800">
                                             <td
@@ -675,20 +726,22 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                 )}
                                             </td>
                                         </tr>
-                                        <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                                            <td
-                                                colSpan={summaryColSpan}
-                                                className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
-                                            >
-                                                Total Pencacahan:
-                                            </td>
-                                            <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
-                                                {formatCurrency(
-                                                    periode.total_estimasi_pencacahan ||
-                                                        0,
-                                                )}
-                                            </td>
-                                        </tr>
+                                        {showPencacahanSection && (
+                                            <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                                                <td
+                                                    colSpan={summaryColSpan}
+                                                    className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
+                                                >
+                                                    Total Pencacahan:
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
+                                                    {formatCurrency(
+                                                        periode.total_estimasi_pencacahan ||
+                                                            0,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )}
                                     </>
                                 )}
                                 <tr>
@@ -819,12 +872,20 @@ export default function ShowPeriode({ periode, revisions }: Props) {
 
                                                             const bebanChanged =
                                                                 nextRevisionAlokasi &&
-                                                                nextRevisionAlokasi.jumlah_satuan !==
-                                                                    alokasi.jumlah_satuan;
+                                                                getDisplayedBebanTugas(
+                                                                    nextRevisionAlokasi,
+                                                                ) !==
+                                                                    getDisplayedBebanTugas(
+                                                                        alokasi,
+                                                                    );
                                                             const honorChanged =
                                                                 nextRevisionAlokasi &&
-                                                                nextRevisionAlokasi.total_honor !==
-                                                                    alokasi.total_honor;
+                                                                getDisplayedHonor(
+                                                                    nextRevisionAlokasi,
+                                                                ) !==
+                                                                    getDisplayedHonor(
+                                                                        alokasi,
+                                                                    );
 
                                                             return (
                                                                 <tr
@@ -858,16 +919,16 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                                     : 'text-neutral-900 dark:text-white'
                                                                             }
                                                                         >
-                                                                            {
-                                                                                alokasi.jumlah_satuan
-                                                                            }
+                                                                            {getDisplayedBebanTugas(
+                                                                                alokasi,
+                                                                            )}
                                                                             {bebanChanged &&
                                                                                 nextRevisionAlokasi && (
                                                                                     <span className="ml-1 text-xs">
                                                                                         →{' '}
-                                                                                        {
-                                                                                            nextRevisionAlokasi.jumlah_satuan
-                                                                                        }
+                                                                                        {getDisplayedBebanTugas(
+                                                                                            nextRevisionAlokasi,
+                                                                                        )}
                                                                                     </span>
                                                                                 )}
                                                                         </div>
@@ -881,14 +942,18 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                             }
                                                                         >
                                                                             {formatCurrency(
-                                                                                alokasi.total_honor,
+                                                                                getDisplayedHonor(
+                                                                                    alokasi,
+                                                                                ),
                                                                             )}
                                                                             {honorChanged &&
                                                                                 nextRevisionAlokasi && (
                                                                                     <div className="text-xs">
                                                                                         →{' '}
                                                                                         {formatCurrency(
-                                                                                            nextRevisionAlokasi.total_honor,
+                                                                                            getDisplayedHonor(
+                                                                                                nextRevisionAlokasi,
+                                                                                            ),
                                                                                         )}
                                                                                     </div>
                                                                                 )}

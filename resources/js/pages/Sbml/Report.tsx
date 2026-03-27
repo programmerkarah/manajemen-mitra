@@ -80,9 +80,13 @@ export default function Report({
     tahun_options,
 }: Props) {
     const decryptedPetugas = useDecryptedData<PetugasData>(petugas.encrypted);
+    const currentMonthValue = String(new Date().getMonth() + 1).padStart(
+        2,
+        '0',
+    );
     const initialFilters = filters.decrypted || {
         tahun: new Date().getFullYear(),
-        bulan: '01',
+        bulan: currentMonthValue,
     };
     const [selectedTahun, setSelectedTahun] = useState(
         initialFilters.tahun.toString(),

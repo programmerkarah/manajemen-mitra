@@ -7,6 +7,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { buildNavItems } from '@/lib/nav-items';
 import { dashboard } from '@/routes';
 import { index as alokasiIndex } from '@/routes/alokasi';
 import { index as bastIndex } from '@/routes/bast';
@@ -289,6 +290,37 @@ export default function Dashboard({
     currentYear,
 }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
+    const accessibleLinks = useMemo(() => {
+        const items = buildNavItems(auth.activeRole?.name);
+        const links = new Set<string>();
+
+        const collect = (
+            navItems: Array<{ href: string; items?: Array<unknown> }>,
+        ) => {
+            navItems.forEach((item) => {
+                if (typeof item.href === 'string' && item.href !== '#') {
+                    links.add(item.href);
+                }
+
+                if (Array.isArray(item.items)) {
+                    collect(
+                        item.items as Array<{
+                            href: string;
+                            items?: Array<unknown>;
+                        }>,
+                    );
+                }
+            });
+        };
+
+        collect(items as Array<{ href: string; items?: Array<unknown> }>);
+
+        return links;
+    }, [auth.activeRole?.name]);
+
+    const canViewPetugas = accessibleLinks.has('/petugas');
+    const canViewKegiatan = accessibleLinks.has('/kegiatan');
+    const canViewBast = accessibleLinks.has('/bast');
     const [mitraInsightMode, setMitraInsightMode] = useState<
         'current_month' | 'year'
     >('current_month');
@@ -485,10 +517,11 @@ export default function Dashboard({
 
                 {/* Stats Cards */}
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Link
-                        href={petugasIndex().url}
-                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-blue-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-blue-700/30"
-                    >
+                    {canViewPetugas ? (
+                        <Link
+                            href={petugasIndex().url}
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-blue-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-blue-700/30"
+                        >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -502,14 +535,32 @@ export default function Dashboard({
                                 <Users className="size-5 text-blue-600 dark:text-blue-400" />
                             </div>
                         </div>
-                        <div className="mt-3 flex items-center gap-1 text-xs text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">
-                            Lihat semua <ArrowRight className="size-3" />
+                            <div className="mt-3 flex items-center gap-1 text-xs text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">
+                                Lihat semua <ArrowRight className="size-3" />
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Petugas Aktif
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
+                                        {stats.total_petugas}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-blue-100 p-2.5 dark:bg-neutral-700/50">
+                                    <Users className="size-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                            </div>
                         </div>
-                    </Link>
-                    <Link
-                        href={kegiatanIndex().url}
-                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-green-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-green-700/30"
-                    >
+                    )}
+                    {canViewKegiatan ? (
+                        <Link
+                            href={kegiatanIndex().url}
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-green-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-green-700/30"
+                        >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -523,14 +574,32 @@ export default function Dashboard({
                                 <Briefcase className="size-5 text-green-600 dark:text-green-400" />
                             </div>
                         </div>
-                        <div className="mt-3 flex items-center gap-1 text-xs text-green-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-green-400">
-                            Lihat semua <ArrowRight className="size-3" />
+                            <div className="mt-3 flex items-center gap-1 text-xs text-green-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-green-400">
+                                Lihat semua <ArrowRight className="size-3" />
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Kegiatan Berjalan
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
+                                        {stats.total_kegiatan}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30">
+                                    <Briefcase className="size-5 text-green-600 dark:text-green-400" />
+                                </div>
+                            </div>
                         </div>
-                    </Link>
-                    <Link
-                        href={kegiatanIndex().url}
-                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-amber-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-amber-700/30"
-                    >
+                    )}
+                    {canViewKegiatan ? (
+                        <Link
+                            href={kegiatanIndex().url}
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-amber-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-amber-700/30"
+                        >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -544,14 +613,32 @@ export default function Dashboard({
                                 <Clock className="size-5 text-amber-600 dark:text-amber-400" />
                             </div>
                         </div>
-                        <div className="mt-3 flex items-center gap-1 text-xs text-amber-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-amber-400">
-                            Lihat semua <ArrowRight className="size-3" />
+                            <div className="mt-3 flex items-center gap-1 text-xs text-amber-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-amber-400">
+                                Lihat semua <ArrowRight className="size-3" />
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Draft Kegiatan
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                        {stats.draft_kegiatan}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
+                                    <Clock className="size-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                            </div>
                         </div>
-                    </Link>
-                    <Link
-                        href={bastIndex().url}
-                        className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-purple-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-purple-700/30"
-                    >
+                    )}
+                    {canViewBast ? (
+                        <Link
+                            href={bastIndex().url}
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-purple-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-purple-700/30"
+                        >
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -565,10 +652,27 @@ export default function Dashboard({
                                 <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
                             </div>
                         </div>
-                        <div className="mt-3 flex items-center gap-1 text-xs text-purple-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-purple-400">
-                            Lihat semua <ArrowRight className="size-3" />
+                            <div className="mt-3 flex items-center gap-1 text-xs text-purple-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-purple-400">
+                                Lihat semua <ArrowRight className="size-3" />
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        BAST Pending
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                        {stats.bast_pending}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-purple-100 p-2.5 dark:bg-purple-900/30">
+                                    <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
+                                </div>
+                            </div>
                         </div>
-                    </Link>
+                    )}
                 </div>
 
                 {/* Comprehensive Statistics */}

@@ -313,6 +313,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])
             ->name('alokasi.periode.destroy')
             ->middleware('active.role:admin,operator');
+        Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/kembalikan-draft', [AlokasiPetugasController::class, 'kembalikanKeDraft'])
+            ->name('alokasi.periode.kembalikan-draft')
+            ->middleware('active.role:admin,operator');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
             ->name('alokasi.periode.revisi');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi/batal', [AlokasiPetugasController::class, 'batalkanRevisiPeriode'])

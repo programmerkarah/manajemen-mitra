@@ -18,20 +18,9 @@ class SbmlReportController extends Controller
     {
         $validated = $request->validated();
 
-        // Get the latest month with data if no filter is provided
-        if (empty($validated['tahun']) || empty($validated['bulan'])) {
-            $latestPeriode = \App\Models\PeriodeAlokasi::whereIn('status', ['draft', 'dikirim', 'perubahan'])
-                ->whereNull('deleted_at')
-                ->orderBy('tahun', 'desc')
-                ->orderBy('bulan', 'desc')
-                ->first();
-
-            $defaultTahun = $latestPeriode?->tahun ?? date('Y');
-            $defaultBulan = $latestPeriode?->bulan ?? str_pad(date('m'), 2, '0', STR_PAD_LEFT);
-        } else {
-            $defaultTahun = date('Y');
-            $defaultBulan = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
-        }
+        // Default filter must always follow current month/year when filter is empty
+        $defaultTahun = (int) date('Y');
+        $defaultBulan = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
 
         $tahun = (int) ($validated['tahun'] ?? $defaultTahun);
         $bulan = str_pad((string) ($validated['bulan'] ?? $defaultBulan), 2, '0', STR_PAD_LEFT);

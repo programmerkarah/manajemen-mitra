@@ -65,6 +65,7 @@ interface AlokasiPeriod {
     is_latest_periode: boolean;
     has_completed_revision_cycle: boolean;
     has_spk_generated: boolean;
+    has_non_organik_spk_in_kegiatan: boolean;
     kegiatan: Kegiatan;
 }
 
@@ -198,6 +199,8 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const [showBatalkanRevisiModal, setShowBatalkanRevisiModal] =
         useState(false);
     const [showRevisiModal, setShowRevisiModal] = useState(false);
+    const [showKembalikanDraftModal, setShowKembalikanDraftModal] =
+        useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryCardType, setSummaryCardType] =
         useState<SummaryCardType>('all');
@@ -355,6 +358,37 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                 {
                     onSuccess: () => {
                         setShowBatalkanModal(false);
+                        setSelectedPeriode(null);
+                    },
+                },
+            );
+        }
+    };
+
+    const handleKembalikanDraft = (
+        kegiatanHashedId: string,
+        bulan: string,
+        tahun: number,
+        namaKegiatan: string,
+    ) => {
+        setSelectedPeriode({
+            kegiatanId: 0,
+            bulan,
+            tahun,
+            namaKegiatan,
+            kegiatanHashedId,
+        });
+        setShowKembalikanDraftModal(true);
+    };
+
+    const confirmKembalikanDraft = () => {
+        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+            router.post(
+                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/kembalikan-draft`,
+                {},
+                {
+                    onSuccess: () => {
+                        setShowKembalikanDraftModal(false);
                         setSelectedPeriode(null);
                     },
                 },
@@ -869,10 +903,10 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                     {isAdminOrOperator &&
                                                                         periode.status ===
                                                                             'dikirim' &&
-                                                                        !periode.has_spk_generated && (
+                                                                        !periode.has_non_organik_spk_in_kegiatan && (
                                                                             <DropdownMenuItem
                                                                                 onClick={() =>
-                                                                                    handleBatalkan(
+                                                                                    handleKembalikanDraft(
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .hashed_id,
@@ -883,11 +917,12 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                                             .nama_kegiatan,
                                                                                     )
                                                                                 }
-                                                                                className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
+                                                                                className="cursor-pointer gap-2 text-amber-600 dark:text-amber-400"
                                                                             >
-                                                                                <X className="h-4 w-4" />
-                                                                                Batalkan
-                                                                                Alokasi
+                                                                                <RotateCcw className="h-4 w-4" />
+                                                                                Kembalikan
+                                                                                ke
+                                                                                Draft
                                                                             </DropdownMenuItem>
                                                                         )}
                                                                 </>
@@ -1176,6 +1211,96 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                         >
                             <X className="mr-2 h-4 w-4" />
                             Ya, Batalkan Alokasi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Kembalikan ke Draft */}
+            <Dialog
+                open={showKembalikanDraftModal}
+                onOpenChange={setShowKembalikanDraftModal}
+            >
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                                <RotateCcw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <span className="text-amber-600 dark:text-amber-400">
+                                Kembalikan ke Draft
+                            </span>
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-base">
+                            Status alokasi akan dikembalikan ke{' '}
+                            <strong>draft</strong>. Data petugas tidak akan
+                            dihapus.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedPeriode && (
+                        <div className="space-y-4 border-y border-white/20 py-4 dark:border-neutral-700/30">
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-amber-500/30 via-amber-400/20 to-amber-300/10 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                            📋
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+                                            Kegiatan
+                                        </p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {selectedPeriode.namaKegiatan}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-amber-500/30 via-amber-400/20 to-amber-300/10 backdrop-blur-sm">
+                                        <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                            📅
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+                                            Periode
+                                        </p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {getBulanLabel(
+                                                selectedPeriode.bulan,
+                                            )}{' '}
+                                            {selectedPeriode.tahun}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-500/20 via-amber-400/10 to-amber-300/10 p-3 shadow-lg backdrop-blur-xl">
+                                <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                                        Periode akan kembali ke status draft dan
+                                        dapat diedit kembali. Tindakan ini hanya
+                                        diizinkan jika setidaknya satu
+                                        Perjanjian Kerja belum dicetak.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowKembalikanDraftModal(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Tidak, Kembali
+                        </Button>
+                        <Button
+                            onClick={confirmKembalikanDraft}
+                            className="w-full gap-2 bg-amber-600 text-white hover:bg-amber-700 sm:w-auto dark:bg-amber-600 dark:hover:bg-amber-700"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            Ya, Kembalikan ke Draft
                         </Button>
                     </DialogFooter>
                 </DialogContent>

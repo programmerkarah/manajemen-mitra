@@ -39,6 +39,11 @@ class KegiatanController extends Controller
         $query = Kegiatan::query()
             ->select('kegiatan.*')
             ->with('ketuaTim:id,name')
+            ->withCount([
+                'periodeAlokasi as periode_alokasi_count' => function ($q) {
+                    $q->where('status', '!=', 'dihapus');
+                },
+            ])
             ->where('tahun_anggaran', $activeYear);
 
         // Search
@@ -519,6 +524,15 @@ class KegiatanController extends Controller
     {
         // Authorization via policy
         $this->authorize('delete', $kegiatan);
+
+        $allowedStatuses = ['divalidasi', 'aktif'];
+        $hasPeriodeAlokasi = $kegiatan->periodeAlokasi()
+            ->where('status', '!=', 'dihapus')
+            ->exists();
+
+        if (! in_array($kegiatan->status, $allowedStatuses, true) || $hasPeriodeAlokasi) {
+            return back()->with('error', 'Kegiatan hanya dapat dihapus jika sudah disetujui dan belum memiliki periode alokasi.');
+        }
 
         ActivityLog::log(
             'Hapus Kegiatan',

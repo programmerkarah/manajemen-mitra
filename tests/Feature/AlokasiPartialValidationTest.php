@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
@@ -365,7 +364,7 @@ class AlokasiPartialValidationTest extends TestCase
         );
     }
 
-    public function test_destroy_periode_allows_admin_to_cancel_submitted_periode_when_spk_not_generated(): void
+    public function test_destroy_periode_allows_admin_to_cancel_draft_periode_when_spk_not_generated(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();
         $tahun = ActiveYearService::get();
@@ -381,7 +380,7 @@ class AlokasiPartialValidationTest extends TestCase
             'bulan' => '03',
             'tahun' => $tahun,
             'jenis_kegiatan' => 'survei',
-            'status' => 'dikirim',
+            'status' => 'draft',
         ]);
 
         $alokasi = AlokasiPetugas::factory()->create([
@@ -416,7 +415,174 @@ class AlokasiPartialValidationTest extends TestCase
         ]);
     }
 
-    public function test_destroy_periode_rejects_when_spk_already_generated_and_logs_activity(): void
+    public function test_destroy_periode_rejects_when_periode_is_not_draft(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'tahapan' => 'listing_only',
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 3,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->delete("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03");
+
+        $response->assertSessionHas('error');
+
+        $this->assertDatabaseHas('periode_alokasi', [
+            'id' => $periode->id,
+            'status' => 'dikirim',
+        ]);
+    }
+
+    public function test_destroy_periode_still_allows_draft_cancel_when_spk_exists_in_different_month_for_same_petugas(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periodeJanuari = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+        ]);
+
+        $alokasiJanuari = AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeJanuari->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 1,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $this->createSpkForAlokasi($alokasiJanuari, $admin);
+
+        $periodeApril = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '04',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'draft',
+        ]);
+
+        $alokasiApril = AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeApril->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 4,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->delete("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/04");
+
+        $response->assertRedirect(route('alokasi.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('periode_alokasi', [
+            'id' => $periodeApril->id,
+        ]);
+        $this->assertDatabaseMissing('alokasi_petugas', [
+            'id' => $alokasiApril->id,
+        ]);
+    }
+
+    public function test_kembalikan_ke_draft_allows_admin_when_no_spk_has_been_generated(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+            'submitted_at' => now(),
+            'submitted_by' => $admin->id,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 3,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        // No SPK created yet for any officer
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03/kembalikan-draft");
+
+        $response->assertRedirect(route('alokasi.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('periode_alokasi', [
+            'id' => $periode->id,
+            'status' => 'draft',
+            'submitted_at' => null,
+            'submitted_by' => null,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'Kembalikan Alokasi ke Draft',
+            'type' => 'alokasi',
+            'status' => 'success',
+        ]);
+    }
+
+    public function test_kembalikan_ke_draft_rejects_when_spk_has_been_generated_and_logs_activity(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();
         $tahun = ActiveYearService::get();
@@ -447,26 +613,89 @@ class AlokasiPartialValidationTest extends TestCase
             'status_kepegawaian' => 'non_organik',
         ]);
 
+        // SPK exists (regardless of file_path) → cannot revert
         $this->createSpkForAlokasi($alokasi, $admin);
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->delete("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03");
+            ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03/kembalikan-draft");
 
         $response->assertSessionHas('warning');
 
         $this->assertDatabaseHas('periode_alokasi', [
             'id' => $periode->id,
-        ]);
-        $this->assertDatabaseHas('alokasi_petugas', [
-            'id' => $alokasi->id,
+            'status' => 'dikirim',
         ]);
         $this->assertDatabaseHas('activity_logs', [
-            'action' => 'Batalkan Alokasi Periode',
+            'action' => 'Kembalikan Alokasi ke Draft',
             'type' => 'alokasi',
             'status' => 'warning',
         ]);
-        $this->assertSame(1, ActivityLog::query()->where('action', 'Batalkan Alokasi Periode')->where('status', 'warning')->count());
+    }
+
+    public function test_kembalikan_ke_draft_rejects_when_non_organik_petugas_has_spk_in_same_kegiatan_different_month(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periodeJanuari = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+        ]);
+
+        $alokasiJanuari = AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeJanuari->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 1,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $this->createSpkForAlokasi($alokasiJanuari, $admin);
+
+        $periodeFebruari = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '02',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeFebruari->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 2,
+            'tahun' => $tahun,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/02/kembalikan-draft");
+
+        $response->assertSessionHas('warning');
+
+        $this->assertDatabaseHas('periode_alokasi', [
+            'id' => $periodeFebruari->id,
+            'status' => 'dikirim',
+        ]);
     }
 
     public function test_show_periode_returns_paid_workload_and_rate_honor_from_master_rate(): void

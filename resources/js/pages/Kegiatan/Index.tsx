@@ -38,6 +38,7 @@ import {
     RotateCcw,
     Search,
     Send,
+    Trash2,
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -72,6 +73,7 @@ interface Kegiatan {
         | 'hybrid'
         | 'tidak_ada_pelatihan'
         | null;
+    periode_alokasi_count: number;
 }
 
 interface KegiatanIndexProps {
@@ -122,6 +124,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
     const [showSubmitDialog, setShowSubmitDialog] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryCardType, setSummaryCardType] =
         useState<SummaryCardType>('all');
@@ -314,6 +317,25 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
         );
     };
 
+    const handleDeleteClick = (kegiatan: Kegiatan) => {
+        setSelectedKegiatan(kegiatan);
+        setShowDeleteDialog(true);
+    };
+
+    const handleDelete = () => {
+        if (!selectedKegiatan) return;
+
+        setProcessing(true);
+        router.delete(`/kegiatan/${selectedKegiatan.hashed_id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false);
+                setShowDeleteDialog(false);
+                setSelectedKegiatan(null);
+            },
+        });
+    };
+
     const canEdit = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
         // Only allow editing draft or divalidasi status
@@ -369,6 +391,15 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
             (auth.user.active_role === 'admin' ||
                 auth.user.active_role === 'approver') &&
             (kegiatan.status === 'draft' || kegiatan.status === 'diajukan')
+        );
+    };
+
+    const canDelete = (kegiatan: Kegiatan) => {
+        if (!auth.user.active_role) return false;
+        return (
+            auth.user.active_role === 'admin' &&
+            ['divalidasi', 'aktif'].includes(kegiatan.status) &&
+            (kegiatan.periode_alokasi_count ?? 0) === 0
         );
     };
 
@@ -637,6 +668,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                             type="button"
                             variant="outline"
                             size="sm"
+                            className="cursor-pointer gap-2"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
                         >
@@ -812,7 +844,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                         <Button
                                                             variant="destructive"
                                                             size="sm"
-                                                            className="gap-2"
+                                                            className="cursor-pointer gap-2"
                                                             onClick={() =>
                                                                 handleRejectClick(
                                                                     kegiatan,
@@ -874,6 +906,23 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             </Link>
                                                         </Button>
                                                     )}
+                                                    {canDelete(kegiatan) && (
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            className="cursor-pointer gap-2"
+                                                            onClick={() =>
+                                                                handleDeleteClick(
+                                                                    kegiatan,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Hapus
+                                                            </span>
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -893,6 +942,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    className="cursor-pointer gap-2"
                                     size="sm"
                                     onClick={() =>
                                         setCurrentPage(currentPage - 1)
@@ -913,6 +963,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                 ? 'default'
                                                 : 'outline'
                                         }
+                                        className="cursor-pointer gap-2"
                                         size="sm"
                                         onClick={() => setCurrentPage(page)}
                                     >
@@ -923,6 +974,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    className="cursor-pointer gap-2"
                                     onClick={() =>
                                         setCurrentPage(currentPage + 1)
                                     }
@@ -1071,6 +1123,53 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                 disabled={!rejectNotes.trim() || processing}
                             >
                                 {processing ? 'Memproses...' : 'Tolak Kegiatan'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Delete Dialog */}
+                <Dialog
+                    open={showDeleteDialog}
+                    onOpenChange={setShowDeleteDialog}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Hapus Kegiatan</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Apakah Anda yakin ingin menghapus kegiatan{' '}
+                                <span className="font-semibold text-neutral-900 dark:text-white">
+                                    {selectedKegiatan?.nama_kegiatan}
+                                </span>
+                                ?
+                            </p>
+                            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+                                Aksi ini hanya tersedia untuk kegiatan yang
+                                sudah disetujui dan belum memiliki periode
+                                alokasi.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowDeleteDialog(false);
+                                    setSelectedKegiatan(null);
+                                }}
+                                className="cursor-pointer gap-2"
+                                disabled={processing}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDelete}
+                                className="cursor-pointer gap-2"
+                                disabled={processing}
+                            >
+                                {processing ? 'Memproses...' : 'Hapus Kegiatan'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
