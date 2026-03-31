@@ -155,10 +155,12 @@ class SbmlReportController extends Controller
         // Generate month options for dropdown
         $bulanOptions = collect(range(1, 12))->map(function ($m) {
             $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
+            $date = \Carbon\Carbon::create()->month($m);
+            $date->setLocale('id');
 
             return [
                 'value' => $monthStr,
-                'label' => bulanIndonesia($monthStr),
+                'label' => $date->translatedFormat('F'),
             ];
         });
 

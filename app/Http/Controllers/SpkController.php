@@ -53,18 +53,51 @@ class SpkController extends Controller
 
             // Count unique non-organik petugas across all kegiatan in this month
             // Only count petugas with honor > 0
+            // Use effective allocations (latest status per kegiatan per petugas)
             $allPetugasIds = collect();
-            foreach ($monthPeriodes as $periode) {
-                $petugasIds = $periode->alokasiPetugas
-                    ->filter(function ($alokasi) {
-                        return $alokasi->petugas &&
-                               $alokasi->petugas->jenis_petugas === 'non-organik' &&
-                               (($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0);
-                    })
-                    ->pluck('petugas_id');
-                $allPetugasIds = $allPetugasIds->merge($petugasIds);
-            }
-            $totalPetugasNonOrganik = $allPetugasIds->unique()->count();
+            
+            // Get all alokasi for this month
+            $allAlokasi = $monthPeriodes->flatMap(function ($periode) {
+                return $periode->alokasiPetugas;
+            });
+            
+            // Group by petugas_id, then by kegiatan_id to get effective allocations
+            $effectivePetugasIds = $allAlokasi
+                ->filter(function ($alokasi) {
+                    return $alokasi->petugas && 
+                           $alokasi->petugas->jenis_petugas === 'non-organik';
+                })
+                ->groupBy('petugas_id')
+                ->flatMap(function ($petugasAlokasi) {
+                    // For each petugas, get effective allocation per kegiatan
+                    $byKegiatan = $petugasAlokasi->groupBy(function ($alokasi) {
+                        return $alokasi->periodeAlokasi->kegiatan_id;
+                    });
+                    
+                    $effectiveAlokasi = $byKegiatan->map(function ($kegiatanAlokasi) {
+                        // Priority: perubahan > direvisi > disetujui > dikirim
+                        $perubahan = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'perubahan');
+                        if ($perubahan) return $perubahan;
+                        
+                        $direvisi = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'direvisi');
+                        if ($direvisi) return $direvisi;
+                        
+                        $disetujui = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'disetujui');
+                        if ($disetujui) return $disetujui;
+                        
+                        return $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'dikirim');
+                    })->filter();
+                    
+                    // Only include petugas if they have positive honor
+                    $hasPositiveHonor = $effectiveAlokasi->contains(function ($alokasi) {
+                        return ($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0;
+                    });
+                    
+                    return $hasPositiveHonor ? [$effectiveAlokasi->first()->petugas_id] : [];
+                })
+                ->unique();
+            
+            $totalPetugasNonOrganik = $effectivePetugasIds->count();
 
             // Count total SPK created
             $totalSpk = $monthPeriodes->sum(function ($periode) {
@@ -1550,6 +1583,7 @@ class SpkController extends Controller
                     return null; // Skip petugas without original SPK
                 }
 
+                // Get latest document (original SPK or latest addendum) to compare with current state
                 $latestDocument = Spk::where('petugas_id', $firstAlokasi->petugas_id)
                     ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                         $q->where('bulan', $bulanFormatted)
@@ -1563,6 +1597,48 @@ class SpkController extends Controller
                     return null;
                 }
 
+                // Get alokasi_petugas_ids from latest document
+                $latestAlokasIds = $latestDocument->alokasi_petugas_ids ?? [$latestDocument->alokasi_petugas_id];
+
+                // Get periode_alokasi_ids from those alokasi
+                $latestPeriodeIds = AlokasiPetugas::whereIn('id', $latestAlokasIds)
+                    ->pluck('periode_alokasi_id')
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
+                // Get current effective allocations (latest status for each kegiatan)
+                $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
+
+                // Get current periode_alokasi_ids
+                $currentPeriodeIds = $effectiveAlokasiByKegiatan
+                    ->pluck('periode_alokasi_id')
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
+                // Calculate current total honor
+                $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
+                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                });
+
+                // Calculate nilai_kontrak from latest document
+                $latestNilaiKontrak = (float) $latestDocument->nilai_kontrak;
+
+                // Check if addendum is needed:
+                // 1. periode_alokasi_ids changed (new kegiatan added or removed)
+                // 2. OR nilai_kontrak changed
+                $periodeIdsChanged = $latestPeriodeIds !== $currentPeriodeIds;
+                $nilaiKontrakChanged = abs($latestNilaiKontrak - $currentTotalHonor) > 0.01;
+
+                $needsAddendum = $periodeIdsChanged || $nilaiKontrakChanged;
+
+                // Only show petugas who need addendum
+                if (! $needsAddendum) {
+                    return null;
+                }
+
+                // Check if there's any change after latest document was created
                 $hasChangeAfterLatestDocument = $this->hasAllocationDeltaAfterReferenceForPetugas(
                     $firstAlokasi->petugas_id,
                     $bulanFormatted,
@@ -1574,11 +1650,7 @@ class SpkController extends Controller
                     return null;
                 }
 
-                $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
-
-                $totalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
-                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                });
+                $totalHonor = $currentTotalHonor;
 
                 // Skip if total honor from perubahan is 0
                 if ($totalHonor <= 0) {
@@ -2118,6 +2190,7 @@ class SpkController extends Controller
             $generatedSpk = Spk::create([
                 'petugas_id' => $petugasId,
                 'alokasi_petugas_id' => $mainAlokasi->id,
+                'alokasi_petugas_ids' => $allAlokasi->pluck('id')->toArray(),
                 'nomor_spk' => $nomorSpk,
                 'tanggal_spk' => $tanggalSpk,
                 'tanggal_mulai_kerja' => $parentSpk->tanggal_mulai_kerja,
@@ -3045,6 +3118,7 @@ class SpkController extends Controller
             $spk = Spk::create([
                 'nomor_spk' => $nomorSpk,
                 'alokasi_petugas_id' => $allAlokasi->first()->id,
+                'alokasi_petugas_ids' => $allAlokasi->pluck('id')->toArray(),
                 'tanggal_spk' => $validated['tanggal_spk'],
                 'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
                 'tanggal_selesai_kerja' => \Carbon\Carbon::parse($calculatedSampaiTanggal),
@@ -3640,6 +3714,7 @@ class SpkController extends Controller
                     // Save previous file_path and signed_file_path before updating
                     $updateData = [
                         'nomor_urut_base' => $noUrut, // Populate base number if NULL
+                        'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
                         'tanggal_spk' => $validated['tanggal_spk'],
                         'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
@@ -3672,6 +3747,7 @@ class SpkController extends Controller
                         'nomor_urut_base' => $noUrut,
                         'petugas_id' => $petugasId,
                         'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
+                        'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
                         'tanggal_spk' => $validated['tanggal_spk'],
                         'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
@@ -4100,11 +4176,15 @@ class SpkController extends Controller
             })
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt) {
                 $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun)
-                    ->whereIn('status', ['direvisi', 'perubahan']);
+                    ->where('tahun', $tahun);
 
+                // When checking reference state (upToCreatedAt is set), only get direvisi/perubahan that existed before
                 if ($upToCreatedAt) {
-                    $q->where('created_at', '<=', $upToCreatedAt);
+                    $q->whereIn('status', ['direvisi', 'perubahan'])
+                        ->where('created_at', '<=', $upToCreatedAt);
+                } else {
+                    // Current state: include direvisi and perubahan normally
+                    $q->whereIn('status', ['direvisi', 'perubahan']);
                 }
             })
             ->with('periodeAlokasi:id,kegiatan_id,created_at')
@@ -4114,7 +4194,7 @@ class SpkController extends Controller
             return [];
         }
 
-        return $alokasiQuery
+        $snapshot = $alokasiQuery
             ->sortByDesc(function ($alokasi) {
                 return sprintf(
                     '%s-%012d',
@@ -4138,6 +4218,44 @@ class SpkController extends Controller
             })
             ->sortKeys()
             ->all();
+
+        // If building current snapshot (upToCreatedAt is null), also check for NEW dikirim allocations
+        // that are for kegiatans not yet in direvisi/perubahan AND were created AFTER reference
+        // (this detects brand new task allocations added after SPK creation)
+        if (! $upToCreatedAt) {
+            $newDikirims = AlokasiPetugas::query()
+                ->where('petugas_id', $petugasId)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->where('status', 'dikirim');
+                })
+                ->with('periodeAlokasi:id,kegiatan_id,created_at')
+                ->get();
+
+            // Only include dikirim if:
+            // 1. It's for a kegiatan not already in snapshot (not in direvisi/perubahan)
+            // 2. It was created AFTER the original SPK creation (truly new allocation)
+            foreach ($newDikirims as $dikirimAlokasi) {
+                $kegiatanId = $dikirimAlokasi->periodeAlokasi?->kegiatan_id;
+                // Check if this dikirim period was created at least slightly before "now"
+                // to exclude allocations that are part of the original SPK context
+                $dikirimCreatedAt = $dikirimAlokasi->periodeAlokasi?->created_at;
+
+                if ($kegiatanId && ! isset($snapshot[$kegiatanId]) && $dikirimCreatedAt) {
+                    $snapshot[$kegiatanId] = [
+                        'peran' => $dikirimAlokasi->peran,
+                        'jumlah_satuan' => (int) ($dikirimAlokasi->jumlah_satuan ?? 0),
+                        'jumlah_satuan_listing' => (int) ($dikirimAlokasi->jumlah_satuan_listing ?? 0),
+                        'total_honor' => (float) ($dikirimAlokasi->total_honor ?? 0),
+                        'total_honor_listing' => (float) ($dikirimAlokasi->total_honor_listing ?? 0),
+                    ];
+                }
+            }
+            ksort($snapshot);
+        }
+
+        return $snapshot;
     }
 
     /**

@@ -25,6 +25,7 @@ class Spk extends Model
             'tanggal_mulai_kerja' => 'date:Y-m-d',
             'tanggal_selesai_kerja' => 'date:Y-m-d',
             'nilai_kontrak' => 'decimal:2',
+            'alokasi_petugas_ids' => 'array',
         ];
     }
 
@@ -34,6 +35,7 @@ class Spk extends Model
         'nomor_urut_suffix',
         'petugas_id',
         'alokasi_petugas_id',
+        'alokasi_petugas_ids',
         'parent_spk_id',
         'addendum_number',
         'tanggal_spk',
