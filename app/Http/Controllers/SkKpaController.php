@@ -6,8 +6,10 @@ use App\Http\Requests\FilterRequest;
 use App\Models\ActivityLog;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
+use App\Models\PeriodeAlokasi;
 use App\Models\SkKpa;
 use App\Services\ActiveYearService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -511,15 +513,11 @@ class SkKpaController extends Controller
         // Get periode for petugas data
         // Jika SK Perubahan, ambil periode terbaru (latest)
         // Jika SK pertama, ambil periode pertama
-        $periodeQuery = $kegiatan->periodeAlokasi()
-            ->with(['alokasiPetugas' => function ($query) {
-                $query->with('petugas');
-            }])
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-            ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
-            ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
+        $periode = $this->resolveSkTargetPeriode($kegiatan->id, $existingSk !== null);
 
-        $periode = $periodeQuery->firstOrFail();
+        if (! $periode) {
+            abort(404);
+        }
 
         // Get previous SK petugas list for comparison (if this is a revision)
         $deletedPetugas = [];
@@ -528,14 +526,10 @@ class SkKpaController extends Controller
 
         if ($revisionNumber > 0 && $existingSk) {
             // Get the previous periode (not the current one)
-            $previousPeriode = $kegiatan->periodeAlokasi()
-                ->with(['alokasiPetugas' => function ($query) {
-                    $query->with('petugas');
-                }])
-                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-                ->where('id', '!=', $periode->id) // Exclude current periode
-                ->orderBy('created_at', 'desc')
-                ->first();
+            $previousPeriode = $this->resolvePreviousSkComparisonPeriode(
+                $kegiatan->id,
+                $periode->id,
+            );
 
             if ($previousPeriode) {
                 $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
@@ -746,15 +740,11 @@ class SkKpaController extends Controller
         // Get periode for petugas data
         // Jika SK Perubahan, ambil periode terbaru (latest)
         // Jika SK pertama, ambil periode pertama
-        $periodeQuery = $kegiatan->periodeAlokasi()
-            ->with(['alokasiPetugas' => function ($query) {
-                $query->with('petugas');
-            }])
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-            ->orderBy('tahun', $existingSk ? 'desc' : 'asc')
-            ->orderBy('bulan', $existingSk ? 'desc' : 'asc');
+        $periode = $this->resolveSkTargetPeriode($kegiatan->id, $existingSk !== null);
 
-        $periode = $periodeQuery->firstOrFail();
+        if (! $periode) {
+            abort(404);
+        }
 
         // Get previous SK petugas list for comparison (if this is a revision)
         $deletedPetugas = [];
@@ -763,14 +753,10 @@ class SkKpaController extends Controller
 
         if ($revisionNumber > 0 && $existingSk) {
             // Get the previous periode (not the current one)
-            $previousPeriode = $kegiatan->periodeAlokasi()
-                ->with(['alokasiPetugas' => function ($query) {
-                    $query->with('petugas');
-                }])
-                ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-                ->where('id', '!=', $periode->id) // Exclude current periode
-                ->orderBy('created_at', 'desc')
-                ->first();
+            $previousPeriode = $this->resolvePreviousSkComparisonPeriode(
+                $kegiatan->id,
+                $periode->id,
+            );
 
             if ($previousPeriode) {
                 $previousPetugasList = $previousPeriode->alokasiPetugas->pluck('petugas.nama', 'petugas_id')->toArray();
@@ -978,11 +964,13 @@ class SkKpaController extends Controller
         $activeYear = ActiveYearService::get();
 
         // Get all approved/submitted periods for this kegiatan
-        $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
-            ->where('tahun', $activeYear)
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-            ->with('alokasiPetugas')
-            ->orderBy('bulan')
+        $periods = $this->applyPeriodeSkOrdering(
+            $this->buildEligiblePeriodeQuery(
+                $kegiatanId,
+                $activeYear,
+                ['alokasiPetugas'],
+            ),
+        )
             ->get();
 
         // If no SK exists yet, return false (this is for first SK creation, not changes)
@@ -991,28 +979,21 @@ class SkKpaController extends Controller
             return false;
         }
 
-        // Get periods that exist AFTER the latest SK bulan
-        $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
+        $referencePeriode = $this->resolveReferencePeriodeForStoredSk($latestSk, ['alokasiPetugas']);
+
+        if (! $referencePeriode) {
+            return false;
+        }
+
+        $periodsAfterSk = $periods->filter(fn ($periode) => $periode->created_at->gt($latestSk->created_at));
 
         // No periods after SK = no changes possible
         if ($periodsAfterSk->isEmpty()) {
             return false;
         }
 
-        // Find the latest periode that was used when the SK was created
-        // This should be the periode with bulan <= latestSk->bulan (the last one before or at SK creation)
-        $lastPeriodeBeforeSk = $periods
-            ->filter(fn ($p) => $p->bulan <= $latestSk->bulan)
-            ->sortByDesc('bulan')
-            ->first();
-
-        if (! $lastPeriodeBeforeSk) {
-            // If we can't find reference periode, can't determine changes
-            return false;
-        }
-
         // Get personnel from the last periode before/at SK creation
-        $referencePersonnel = $lastPeriodeBeforeSk->alokasiPetugas
+        $referencePersonnel = $referencePeriode->alokasiPetugas
             ->pluck('petugas_id')
             ->sort()
             ->values()
@@ -1073,29 +1054,28 @@ class SkKpaController extends Controller
         ];
 
         // Get all approved/submitted periods for this kegiatan
-        $periods = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
-            ->where('tahun', $activeYear)
-            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
-            ->with('alokasiPetugas.petugas:id,nama,jenis_petugas')
-            ->orderBy('bulan')
+        $periods = $this->applyPeriodeSkOrdering(
+            $this->buildEligiblePeriodeQuery(
+                $kegiatanId,
+                $activeYear,
+                ['alokasiPetugas.petugas:id,nama,jenis_petugas'],
+            ),
+        )
             ->get();
 
-        // Get periods that exist AFTER the latest SK
-        $periodsAfterSk = $periods->filter(fn ($p) => $p->bulan > $latestSk->bulan);
+        $referencePeriode = $this->resolveReferencePeriodeForStoredSk(
+            $latestSk,
+            ['alokasiPetugas.petugas:id,nama,jenis_petugas'],
+        );
 
-        // If no periods after SK, no SK Perubahan needed
-        if ($periodsAfterSk->isEmpty()) {
+        if (! $referencePeriode) {
             return null;
         }
 
-        // Find the reference periode (last one before or at SK creation)
-        $referencePeriode = $periods
-            ->filter(fn ($p) => $p->bulan <= $latestSk->bulan)
-            ->sortByDesc('bulan')
-            ->first();
+        $periodsAfterSk = $periods->filter(fn ($periode) => $periode->created_at->gt($latestSk->created_at));
 
-        // If no reference found, return null
-        if (! $referencePeriode) {
+        // If no periods after SK, no SK Perubahan needed
+        if ($periodsAfterSk->isEmpty()) {
             return null;
         }
 
@@ -1161,5 +1141,86 @@ class SkKpaController extends Controller
             'total_changes' => count($changes),
             'changes' => $changes,
         ];
+    }
+
+    /**
+     * @param  array<int, string>|array<string, string>  $relations
+     */
+    private function buildEligiblePeriodeQuery(int $kegiatanId, ?int $tahun = null, array $relations = []): Builder
+    {
+        $query = PeriodeAlokasi::query()
+            ->where('kegiatan_id', $kegiatanId)
+            ->whereIn('status', ['dikirim', 'perubahan', 'direvisi']);
+
+        if ($tahun !== null) {
+            $query->where('tahun', $tahun);
+        }
+
+        if ($relations !== []) {
+            $query->with($relations);
+        }
+
+        return $query;
+    }
+
+    private function applyPeriodeSkOrdering(Builder $query, string $direction = 'asc'): Builder
+    {
+        return $query
+            ->orderBy('tahun', $direction)
+            ->orderByRaw('CAST(bulan AS UNSIGNED) '.$direction)
+            ->orderBy('created_at', $direction)
+            ->orderBy('id', $direction);
+    }
+
+    private function resolveSkTargetPeriode(int $kegiatanId, bool $useLatest): ?PeriodeAlokasi
+    {
+        return $this->applyPeriodeSkOrdering(
+            $this->buildEligiblePeriodeQuery($kegiatanId, null, [
+                'alokasiPetugas' => function ($query) {
+                    $query->with('petugas');
+                },
+            ]),
+            $useLatest ? 'desc' : 'asc',
+        )->first();
+    }
+
+    private function resolvePreviousSkComparisonPeriode(int $kegiatanId, int $currentPeriodeId): ?PeriodeAlokasi
+    {
+        return $this->applyPeriodeSkOrdering(
+            $this->buildEligiblePeriodeQuery($kegiatanId, null, [
+                'alokasiPetugas' => function ($query) {
+                    $query->with('petugas');
+                },
+            ])->where('id', '!=', $currentPeriodeId),
+            'desc',
+        )->first();
+    }
+
+    private function hasPreviousStoredSk(SkKpa $sk): bool
+    {
+        return SkKpa::query()
+            ->where('kegiatan_id', $sk->kegiatan_id)
+            ->where(function (Builder $query) use ($sk) {
+                $query->where('created_at', '<', $sk->created_at)
+                    ->orWhere(function (Builder $sameTimestampQuery) use ($sk) {
+                        $sameTimestampQuery->where('created_at', $sk->created_at)
+                            ->where('id', '<', $sk->id);
+                    });
+            })
+            ->exists();
+    }
+
+    /**
+     * @param  array<int, string>|array<string, string>  $relations
+     */
+    private function resolveReferencePeriodeForStoredSk(SkKpa $sk, array $relations = []): ?PeriodeAlokasi
+    {
+        $query = $this->buildEligiblePeriodeQuery($sk->kegiatan_id, null, $relations)
+            ->where('created_at', '<=', $sk->created_at);
+
+        return $this->applyPeriodeSkOrdering(
+            $query,
+            $this->hasPreviousStoredSk($sk) ? 'desc' : 'asc',
+        )->first();
     }
 }

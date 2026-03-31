@@ -522,19 +522,19 @@ export default function Dashboard({
                             href={petugasIndex().url}
                             className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-blue-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-blue-700/30"
                         >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                                    Petugas Aktif
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {stats.total_petugas}
-                                </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Petugas Aktif
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
+                                        {stats.total_petugas}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-blue-100 p-2.5 dark:bg-neutral-700/50">
+                                    <Users className="size-5 text-blue-600 dark:text-blue-400" />
+                                </div>
                             </div>
-                            <div className="flex-shrink-0 rounded-lg bg-blue-100 p-2.5 dark:bg-neutral-700/50">
-                                <Users className="size-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">
                                 Lihat semua <ArrowRight className="size-3" />
                             </div>
@@ -561,19 +561,19 @@ export default function Dashboard({
                             href={kegiatanIndex().url}
                             className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-green-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-green-700/30"
                         >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                                    Kegiatan Berjalan
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {stats.total_kegiatan}
-                                </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Kegiatan Berjalan
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
+                                        {stats.total_kegiatan}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30">
+                                    <Briefcase className="size-5 text-green-600 dark:text-green-400" />
+                                </div>
                             </div>
-                            <div className="flex-shrink-0 rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30">
-                                <Briefcase className="size-5 text-green-600 dark:text-green-400" />
-                            </div>
-                        </div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-green-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-green-400">
                                 Lihat semua <ArrowRight className="size-3" />
                             </div>
@@ -600,19 +600,19 @@ export default function Dashboard({
                             href={kegiatanIndex().url}
                             className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-amber-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-amber-700/30"
                         >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                                    Draft Kegiatan
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
-                                    {stats.draft_kegiatan}
-                                </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        Draft Kegiatan
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                        {stats.draft_kegiatan}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
+                                    <Clock className="size-5 text-amber-600 dark:text-amber-400" />
+                                </div>
                             </div>
-                            <div className="flex-shrink-0 rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
-                                <Clock className="size-5 text-amber-600 dark:text-amber-400" />
-                            </div>
-                        </div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-amber-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-amber-400">
                                 Lihat semua <ArrowRight className="size-3" />
                             </div>
@@ -639,19 +639,19 @@ export default function Dashboard({
                             href={bastIndex().url}
                             className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-purple-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-purple-700/30"
                         >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                                    BAST Pending
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                    {stats.bast_pending}
-                                </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                        BAST Pending
+                                    </p>
+                                    <p className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                        {stats.bast_pending}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0 rounded-lg bg-purple-100 p-2.5 dark:bg-purple-900/30">
+                                    <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
+                                </div>
                             </div>
-                            <div className="flex-shrink-0 rounded-lg bg-purple-100 p-2.5 dark:bg-purple-900/30">
-                                <AlertCircle className="size-5 text-purple-600 dark:text-purple-400" />
-                            </div>
-                        </div>
                             <div className="mt-3 flex items-center gap-1 text-xs text-purple-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-purple-400">
                                 Lihat semua <ArrowRight className="size-3" />
                             </div>

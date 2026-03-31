@@ -595,10 +595,26 @@ class KegiatanController extends Controller
             'kode_coa' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $obSatuanId = $this->resolveObSatuanId();
-        if ($obSatuanId === null) {
+        $isSensus = $kegiatan->jenis_kegiatan === 'sensus';
+        $obSatuanId = $isSensus ? $this->resolveObSatuanId() : null;
+        if ($isSensus && $obSatuanId === null) {
             return back()->withErrors([
                 'satuan_id' => 'Satuan O-B (Orang/Bulan) belum tersedia. Hubungi admin untuk menambahkan satuan O-B.',
+            ])->withInput();
+        }
+
+        $selectedSatuanId = $this->resolveSubmittedSatuanId($request, 'satuan_id');
+        $selectedSatuanListingId = $this->resolveSubmittedSatuanId($request, 'satuan_listing_id');
+
+        if (! $isSensus && $selectedSatuanId === null) {
+            return back()->withErrors([
+                'satuan_id' => 'Satuan pencacahan wajib dipilih untuk kegiatan survei.',
+            ])->withInput();
+        }
+
+        if ($kegiatan->has_listing_updating && ! $isSensus && $selectedSatuanListingId === null) {
+            return back()->withErrors([
+                'satuan_listing_id' => 'Satuan listing/updating wajib dipilih untuk kegiatan survei.',
             ])->withInput();
         }
 
@@ -622,6 +638,13 @@ class KegiatanController extends Controller
             ) {
                 continue;
             }
+
+            $rateSatuanId = $isSensus
+                ? $obSatuanId
+                : $this->resolveRateHonorSatuanId($rateHonorData, 'satuan_id', $selectedSatuanId);
+            $rateSatuanListingId = $isSensus
+                ? $obSatuanId
+                : $this->resolveRateHonorSatuanId($rateHonorData, 'satuan_listing_id', $selectedSatuanListingId);
 
             // Generate posisi label
             $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
@@ -647,13 +670,13 @@ class KegiatanController extends Controller
                 'rate' => $rateHonorData['rate'],
                 'tahun_berlaku' => $kegiatan->tahun_anggaran,
                 'status' => 'aktif',
-                'satuan_id' => $obSatuanId,
+                'satuan_id' => $rateSatuanId,
             ];
 
             // Simpan rate_listing dan satuan_listing_id jika ada (untuk tahapan listing/updating)
             if (array_key_exists('rate_listing', $rateHonorData)) {
                 $data['rate_listing'] = $rateHonorData['rate_listing'] ?? null;
-                $data['satuan_listing_id'] = $obSatuanId;
+                $data['satuan_listing_id'] = $rateSatuanListingId;
             }
             RateHonor::create($data);
             $createdRateCount++;
@@ -672,7 +695,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * Approve kegiatan (change status from draft/diajukan to divalidasi)
+     * Approve kegiatan (change status from diajukan to divalidasi)
      */
     public function approve(Request $request, Kegiatan $kegiatan): RedirectResponse
     {
@@ -680,7 +703,7 @@ class KegiatanController extends Controller
         $this->authorize('approve', $kegiatan);
 
         // Validate that kegiatan is in correct status
-        if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
+        if ($kegiatan->status !== 'diajukan') {
             return redirect()->back()
                 ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat disetujui.');
         }
@@ -717,7 +740,7 @@ class KegiatanController extends Controller
         ]);
 
         // Validate that kegiatan is in correct status
-        if (! in_array($kegiatan->status, ['draft', 'diajukan'])) {
+        if ($kegiatan->status !== 'diajukan') {
             return redirect()->back()
                 ->with('error', 'Kegiatan dengan status '.$kegiatan->status.' tidak dapat ditolak.');
         }
@@ -838,6 +861,30 @@ class KegiatanController extends Controller
             ->first();
 
         return $obSatuan?->id;
+    }
+
+    private function resolveSubmittedSatuanId(Request $request, string $field): ?int
+    {
+        $directValue = $request->input($field);
+        if (filled($directValue)) {
+            return (int) $directValue;
+        }
+
+        $rowValue = collect($request->input('rate_honors', []))
+            ->pluck($field)
+            ->first(fn ($value) => filled($value));
+
+        return filled($rowValue) ? (int) $rowValue : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rateHonorData
+     */
+    private function resolveRateHonorSatuanId(array $rateHonorData, string $field, ?int $fallback): ?int
+    {
+        $value = $rateHonorData[$field] ?? null;
+
+        return filled($value) ? (int) $value : $fallback;
     }
 
     private function isFasihOnly(Kegiatan $kegiatan): bool

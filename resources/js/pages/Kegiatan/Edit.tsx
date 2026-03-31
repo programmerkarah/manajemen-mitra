@@ -154,9 +154,10 @@ export default function Edit({
             has_listing_updating: isSensus ? false : data.has_listing_updating,
             metode_pendataan_pencacahan:
                 data.metode_pendataan_pencacahan || null,
-            metode_pendataan_listing: !isSensus && data.has_listing_updating
-                ? data.metode_pendataan_listing || null
-                : null,
+            metode_pendataan_listing:
+                !isSensus && data.has_listing_updating
+                    ? data.metode_pendataan_listing || null
+                    : null,
             metode_pelatihan: data.metode_pelatihan || null,
             bulan_pelatihan: data.bulan_pelatihan
                 ? Number(data.bulan_pelatihan)
@@ -256,7 +257,7 @@ export default function Edit({
                                             : 'Survei'
                                     }
                                     disabled
-                                    className="h-11 bg-neutral-100 capitalize text-base dark:bg-neutral-800/60"
+                                    className="h-11 bg-neutral-100 text-base capitalize dark:bg-neutral-800/60"
                                 />
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                     🔒 Jenis kegiatan tidak dapat diubah setelah

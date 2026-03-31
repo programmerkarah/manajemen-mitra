@@ -118,4 +118,64 @@ class KegiatanPolicyTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_admin_cannot_approve_kegiatan_draft(): void
+    {
+        [$admin, $adminRole] = $this->makeAdmin();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/kegiatan/{$kegiatan->hashed_id}/approve");
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('kegiatan', [
+            'id' => $kegiatan->id,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_admin_cannot_reject_kegiatan_draft(): void
+    {
+        [$admin, $adminRole] = $this->makeAdmin();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/kegiatan/{$kegiatan->hashed_id}/reject", [
+                'catatan' => 'Masih draft.',
+            ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('kegiatan', [
+            'id' => $kegiatan->id,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_admin_can_approve_kegiatan_diajukan(): void
+    {
+        [$admin, $adminRole] = $this->makeAdmin();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'diajukan',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/kegiatan/{$kegiatan->hashed_id}/approve");
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('kegiatan', [
+            'id' => $kegiatan->id,
+            'status' => 'divalidasi',
+        ]);
+    }
 }

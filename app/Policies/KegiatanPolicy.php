@@ -138,8 +138,8 @@ class KegiatanPolicy
             return false;
         }
 
-        // Hanya bisa approve kegiatan dengan status draft atau diajukan
-        return in_array($kegiatan->status, ['draft', 'diajukan']);
+        // Hanya bisa approve kegiatan yang sudah diajukan
+        return $kegiatan->status === 'diajukan';
     }
 
     /**

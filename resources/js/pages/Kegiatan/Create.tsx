@@ -98,11 +98,7 @@ export default function Create({
         has_listing_updating: copyData?.has_listing_updating || false,
         metode_pendataan_pencacahan: '' as '' | 'PAPI' | 'CAPI',
         metode_pendataan_listing: '' as '' | 'PAPI' | 'CAPI',
-        metode_pelatihan: '' as
-            | ''
-            | 'daring'
-            | 'luring'
-            | 'hybrid',
+        metode_pelatihan: '' as '' | 'daring' | 'luring' | 'hybrid',
         bulan_pelatihan: '',
         ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
@@ -152,9 +148,10 @@ export default function Create({
             has_listing_updating: isSensus ? false : data.has_listing_updating,
             metode_pendataan_pencacahan:
                 data.metode_pendataan_pencacahan || null,
-            metode_pendataan_listing: !isSensus && data.has_listing_updating
-                ? data.metode_pendataan_listing || null
-                : null,
+            metode_pendataan_listing:
+                !isSensus && data.has_listing_updating
+                    ? data.metode_pendataan_listing || null
+                    : null,
             metode_pelatihan: data.metode_pelatihan || null,
             bulan_pelatihan: data.bulan_pelatihan
                 ? Number(data.bulan_pelatihan)

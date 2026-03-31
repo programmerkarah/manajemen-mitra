@@ -69,6 +69,7 @@ class RateHonorManagementTest extends TestCase
         // Create kegiatan with valid status for rate honor management
         $this->kegiatan = Kegiatan::factory()->create([
             'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
         ]);
     }
 
@@ -87,6 +88,41 @@ class RateHonorManagementTest extends TestCase
 
     public function test_operator_can_set_rate_honor_with_satuan_and_rate(): void
     {
+        $surveiKegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $response = $this->actingAs($this->operator)
+            ->post("/kegiatan/{$surveiKegiatan->hashed_id}/rate-honor/bulk", [
+                'satuan_id' => $this->satuan->id,
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 250000,
+                        'satuan_id' => $this->satuan->id,
+                    ],
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        // Verify rate honor created for kegiatan
+        $rateHonor = RateHonor::where('kegiatan_id', $surveiKegiatan->id)
+            ->where('status_kepegawaian', 'non_organik')
+            ->where('jenis_penugasan', 'pcl_ppl')
+            ->first();
+
+        $this->assertNotNull($rateHonor);
+        $this->assertEquals($this->satuan->id, $rateHonor->satuan_id);
+        $this->assertEquals(250000, $rateHonor->rate);
+        $this->assertEquals($surveiKegiatan->tahun_anggaran, $rateHonor->tahun_berlaku);
+    }
+
+    public function test_sensus_rate_honor_forces_ob_satuan_even_when_other_satuan_is_submitted(): void
+    {
         $response = $this->actingAs($this->operator)
             ->post("/kegiatan/{$this->kegiatan->hashed_id}/rate-honor/bulk", [
                 'satuan_id' => $this->satuan->id,
@@ -103,16 +139,11 @@ class RateHonorManagementTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
-        // Verify rate honor created for kegiatan
-        $rateHonor = RateHonor::where('kegiatan_id', $this->kegiatan->id)
-            ->where('status_kepegawaian', 'non_organik')
-            ->where('jenis_penugasan', 'pcl_ppl')
-            ->first();
-
-        $this->assertNotNull($rateHonor);
-        $this->assertEquals($this->obSatuan->id, $rateHonor->satuan_id);
-        $this->assertEquals(250000, $rateHonor->rate);
-        $this->assertEquals($this->kegiatan->tahun_anggaran, $rateHonor->tahun_berlaku);
+        $this->assertDatabaseHas('rate_honor', [
+            'kegiatan_id' => $this->kegiatan->id,
+            'jenis_penugasan' => 'pcl_ppl',
+            'satuan_id' => $this->obSatuan->id,
+        ]);
     }
 
     public function test_rate_honor_is_updated_when_same_posisi_and_satuan_already_exists(): void

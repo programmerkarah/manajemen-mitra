@@ -25,7 +25,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface SbmlEntry {
     jenis_kegiatan: 'sensus' | 'survei';
     status_kepegawaian: 'organik' | 'non_organik';
-    jenis_penugasan: 'pcl_ppl' | 'pml' | 'pengolahan' | 'pengawas_pengolahan' | 'koseka';
+    jenis_penugasan:
+        | 'pcl_ppl'
+        | 'pml'
+        | 'pengolahan'
+        | 'pengawas_pengolahan'
+        | 'koseka';
     honor_max: string;
 }
 
@@ -307,7 +312,10 @@ export default function Create({ tahun_options }: CreateProps) {
                             </Button>
                         </div>
 
-                        <form onSubmit={handleImportSubmit} className="space-y-2">
+                        <form
+                            onSubmit={handleImportSubmit}
+                            className="space-y-2"
+                        >
                             <Label
                                 htmlFor="sbml_import_file"
                                 className="text-base font-semibold"
@@ -318,7 +326,7 @@ export default function Create({ tahun_options }: CreateProps) {
                                 id="sbml_import_file"
                                 type="file"
                                 accept=".xlsx,.xls,.csv"
-                                className='cursor-pointer'
+                                className="cursor-pointer"
                                 onChange={(e) =>
                                     setImportFile(e.target.files?.[0] ?? null)
                                 }

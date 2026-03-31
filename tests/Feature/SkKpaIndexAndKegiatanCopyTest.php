@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\SkKpa;
 use App\Models\User;
@@ -114,6 +117,79 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             ->component('Kegiatan/Create')
             ->where('ketuaTimUsers', fn ($users) => collect($users)->contains('id', $sourceKetua->id))
             ->where('pjLainnyaUsers', fn ($users) => collect($users)->contains('id', $sourcePj->id))
+        );
+    }
+
+    public function test_create_sk_page_detects_same_month_revision_as_sk_perubahan_candidate(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+        $activeYear = (int) ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $activeYear,
+            'status' => 'aktif',
+        ]);
+
+        $periodeAwal = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $activeYear,
+            'bulan' => '03',
+            'status' => 'dikirim',
+            'created_at' => now()->subDays(10),
+        ]);
+
+        $petugasAwal = Petugas::factory()->create();
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeAwal->id,
+            'petugas_id' => $petugasAwal->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        SkKpa::create([
+            'nomor_sk' => '003/SK/TEST',
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 3,
+            'tahun' => $activeYear,
+            'tanggal_sk' => "{$activeYear}-03-15",
+            'nama_kpa' => 'Nama KPA',
+            'perihal' => 'Perihal SK',
+            'dasar_hukum' => json_encode([]),
+            'file_path' => 'sk/test-existing.pdf',
+            'status' => 'draft',
+            'created_by' => $admin->id,
+            'created_at' => now()->subDays(9),
+            'updated_at' => now()->subDays(9),
+        ]);
+
+        $periodeRevisi = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $activeYear,
+            'bulan' => '03',
+            'status' => 'perubahan',
+            'created_at' => now()->subDay(),
+        ]);
+
+        $petugasBaru = Petugas::factory()->create();
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periodeRevisi->id,
+            'petugas_id' => $petugasBaru->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get("/sk-kpa/kegiatan/{$kegiatan->hashed_id}/create");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('SkKpa/Create')
+            ->where('personnelChangeInfo.has_changes', true)
+            ->where('personnelChangeInfo.total_changes', 1)
+            ->where('personnelChangeInfo.first_change_month', 'Maret')
         );
     }
 }

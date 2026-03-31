@@ -206,7 +206,10 @@ export default function Edit({
                             </Button>
                         </div>
 
-                        <form onSubmit={handleImportSubmit} className="space-y-2">
+                        <form
+                            onSubmit={handleImportSubmit}
+                            className="space-y-2"
+                        >
                             <Label
                                 htmlFor="sbml_import_file"
                                 className="cursor-pointer text-base font-semibold"
@@ -217,7 +220,7 @@ export default function Edit({
                                 id="sbml_import_file"
                                 type="file"
                                 accept=".xlsx,.xls,.csv"
-                                className='cursor-pointer'
+                                className="cursor-pointer"
                                 onChange={(e) =>
                                     setImportFile(e.target.files?.[0] ?? null)
                                 }

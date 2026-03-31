@@ -824,7 +824,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
-                else if (peran === 'Koseka') jenisPenugasan = 'koseka';
+            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -867,7 +867,7 @@ export default function Create({
                 jenisPenugasan = 'pengolahan';
             else if (item.peran === 'Pengawas Pengolahan')
                 jenisPenugasan = 'pengawas_pengolahan';
-                else if (item.peran === 'Koseka') jenisPenugasan = 'koseka';
+            else if (item.peran === 'Koseka') jenisPenugasan = 'koseka';
 
             if (!jenisPenugasan) {
                 return false;
@@ -2609,7 +2609,7 @@ export default function Create({
                                                         isRevisiLockedMode ||
                                                         alokasiItems.length <= 1
                                                     }
-                                                    className="cursor-pointer h-8 gap-1.5"
+                                                    className="h-8 cursor-pointer gap-1.5"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                     Hapus

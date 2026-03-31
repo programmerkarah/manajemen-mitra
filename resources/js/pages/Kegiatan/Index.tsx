@@ -390,7 +390,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
         return (
             (auth.user.active_role === 'admin' ||
                 auth.user.active_role === 'approver') &&
-            (kegiatan.status === 'draft' || kegiatan.status === 'diajukan')
+            kegiatan.status === 'diajukan'
         );
     };
 
