@@ -268,14 +268,15 @@ export default function Index({ data, active_year }: IndexProps) {
                                             <div className="flex items-center justify-center gap-2">
                                                 {item.has_spk &&
                                                     !item.all_completed && (
-                                                        <Link
+                                                       
+                                                            <Button size="sm" asChild>
+                                                             <Link
                                                             href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
                                                         >
-                                                            <Button size="sm">
                                                                 <Plus className="mr-1 h-4 w-4" />
                                                                 Generate BAST
+                                                                </Link>
                                                             </Button>
-                                                        </Link>
                                                     )}
                                                 {item.spk_with_bast > 0 &&
                                                     item.first_bast_hashed_id && (

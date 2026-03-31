@@ -461,7 +461,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 copyingMonth ===
                                                                 `${monthData.tahun}-${monthData.bulan}`
                                                             }
-                                                            className="w-full justify-start gap-1"
+                                                            className="cursor-pointer w-full justify-start gap-1"
                                                         >
                                                             <Copy className="h-3.5 w-3.5" />
                                                             {copyingMonth ===
@@ -486,7 +486,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                             <Button
                                                                 size="sm"
                                                                 asChild
-                                                                className="w-full justify-start gap-1"
+                                                                className="cursor-pointer w-full justify-start gap-1"
                                                             >
                                                                 <Link
                                                                     href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
@@ -514,7 +514,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 size="sm"
                                                                 variant="default"
                                                                 asChild
-                                                                className="w-full justify-start gap-1 bg-orange-600 hover:bg-orange-700"
+                                                                className="cursor-pointer w-full justify-start gap-1 bg-orange-600 hover:bg-orange-700"
                                                             >
                                                                 <Link
                                                                     href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
@@ -542,7 +542,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                     },
                                                                 )
                                                             }
-                                                            className="w-full justify-start gap-1"
+                                                            className="cursor-pointer w-full justify-start gap-1"
                                                         >
                                                             <Eye className="h-3.5 w-3.5" />
                                                             Lihat Detail

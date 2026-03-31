@@ -143,32 +143,51 @@ class BastController extends Controller
         return collect($candidates)->filter()->max();
     }
 
+    /**
+     * Get effective allocation by kegiatan using priority:
+     * perubahan > direvisi > disetujui > dikirim
+     */
+    private function getEffectiveAlokasiByKegiatan(\Illuminate\Support\Collection $alokasiGroup): \Illuminate\Support\Collection
+    {
+        return $alokasiGroup
+            ->groupBy(function ($alokasi) {
+                return $alokasi->periodeAlokasi->kegiatan_id;
+            })
+            ->map(function ($kegiatanGroup) {
+                // Priority: perubahan > direvisi > disetujui > dikirim
+                $perubahan = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
+                if ($perubahan) {
+                    return $perubahan;
+                }
+
+                $direvisi = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
+                if ($direvisi) {
+                    return $direvisi;
+                }
+
+                $disetujui = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
+                if ($disetujui) {
+                    return $disetujui;
+                }
+
+                return $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
+            })
+            ->filter();
+    }
+
     private function getEffectiveAlokasiForPetugasInMonth(int $petugasId, string $bulanFormatted, int $tahun): \Illuminate\Support\Collection
     {
-        return AlokasiPetugas::query()
+        $allAlokasi = AlokasiPetugas::query()
             ->where('petugas_id', $petugasId)
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                 $q->where('bulan', $bulanFormatted)
                     ->where('tahun', $tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
-            ->with('periodeAlokasi:id,kegiatan_id,created_at')
-            ->get()
-            ->sortByDesc(function ($alokasi) {
-                return sprintf(
-                    '%s-%012d',
-                    $alokasi->periodeAlokasi?->created_at?->format('Y-m-d H:i:s.u') ?? '',
-                    $alokasi->periodeAlokasi?->id ?? 0,
-                );
-            })
-            ->groupBy(function ($alokasi) {
-                return $alokasi->periodeAlokasi?->kegiatan_id;
-            })
-            ->map(function ($group) {
-                return $group->first();
-            })
-            ->filter()
-            ->values();
+            ->with('periodeAlokasi:id,kegiatan_id,status,created_at')
+            ->get();
+
+        return $this->getEffectiveAlokasiByKegiatan($allAlokasi)->values();
     }
 
     private function hasPositiveBastAttachmentPayloadForPetugas(int $petugasId, string $bulanFormatted, int $tahun): bool
@@ -199,7 +218,7 @@ class BastController extends Controller
             ->values()
             ->toArray();
 
-        // Get all allocations for this month
+        // Get all allocations for this petugas in this month
         $allAlokasi = AlokasiPetugas::query()
             ->where('petugas_id', $petugasId)
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
@@ -214,30 +233,8 @@ class BastController extends Controller
             return false;
         }
 
-        // Get effective allocations (latest status for each kegiatan)
-        $byKegiatan = $allAlokasi->groupBy(function ($alokasi) {
-            return $alokasi->periodeAlokasi->kegiatan_id;
-        });
-
-        $effectiveAlokasi = $byKegiatan->map(function ($alokasiGroup) {
-            // Priority: perubahan > direvisi > disetujui > dikirim
-            $perubahan = $alokasiGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
-            if ($perubahan) {
-                return $perubahan;
-            }
-
-            $direvisi = $alokasiGroup->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
-            if ($direvisi) {
-                return $direvisi;
-            }
-
-            $disetujui = $alokasiGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
-            if ($disetujui) {
-                return $disetujui;
-            }
-
-            return $alokasiGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
-        })->filter();
+        // Get effective allocations using priority: perubahan > direvisi > disetujui > dikirim
+        $effectiveAlokasi = $this->getEffectiveAlokasiByKegiatan($allAlokasi);
 
         // Get current periode_alokasi_ids
         $currentPeriodeIds = $effectiveAlokasi
@@ -254,13 +251,13 @@ class BastController extends Controller
         // Calculate nilai_kontrak from latest document
         $latestNilaiKontrak = (float) $latestDocument->nilai_kontrak;
 
-        // Check if addendum is needed:
-        // 1. periode_alokasi_ids changed (new kegiatan added or removed)
-        // 2. OR nilai_kontrak changed
+        // BAST can only be created if:
+        // 1. NO change in daftar kegiatan (periode_alokasi_ids unchanged), AND
+        // 2. NO change in total honor (nilai_kontrak unchanged)
         $periodeIdsChanged = $latestPeriodeIds !== $currentPeriodeIds;
         $nilaiKontrakChanged = abs($latestNilaiKontrak - $currentTotalHonor) > 0.01;
 
-        // If addendum is needed, BAST cannot be created yet
+        // If there are changes, addendum is needed first - cannot create BAST
         if ($periodeIdsChanged || $nilaiKontrakChanged) {
             return false;
         }
