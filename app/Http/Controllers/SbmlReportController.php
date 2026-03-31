@@ -158,7 +158,7 @@ class SbmlReportController extends Controller
 
             return [
                 'value' => $monthStr,
-                'label' => \Carbon\Carbon::create()->month($m)->translatedFormat('F'),
+                'label' => bulanIndonesia($monthStr),
             ];
         });
 

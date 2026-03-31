@@ -568,7 +568,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full justify-start gap-1"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=addendum`}
                                                                 >
                                                                     <FileEdit className="h-3.5 w-3.5" />
                                                                     Addendum
@@ -595,7 +595,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
+                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=regenerate`}
                                                                 >
                                                                     <FileEdit className="h-3.5 w-3.5" />
                                                                     Re-generate
@@ -769,7 +769,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                             asChild
                                                         >
                                                             <Link
-                                                                href={`/spk/periode/${periodeHashedId}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}`}
+                                                                href={`/spk/periode/${periodeHashedId}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=${monthData.has_addendum_changes ? 'regenerate' : 'addendum'}`}
                                                             >
                                                                 <FileEdit className="h-3.5 w-3.5" />
                                                             </Link>

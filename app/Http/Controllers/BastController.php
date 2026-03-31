@@ -143,6 +143,51 @@ class BastController extends Controller
         return collect($candidates)->filter()->max();
     }
 
+    private function getEffectiveAlokasiForPetugasInMonth(int $petugasId, string $bulanFormatted, int $tahun): \Illuminate\Support\Collection
+    {
+        $latestPeriodeIds = PeriodeAlokasi::query()
+            ->where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan'])
+            ->get(['id', 'kegiatan_id', 'created_at'])
+            ->sortByDesc(function ($periode) {
+                return sprintf(
+                    '%s-%012d',
+                    $periode->created_at?->format('Y-m-d H:i:s.u') ?? '',
+                    $periode->id ?? 0,
+                );
+            })
+            ->groupBy('kegiatan_id')
+            ->map(function ($group) {
+                return $group->first()?->id;
+            })
+            ->filter()
+            ->values();
+
+        if ($latestPeriodeIds->isEmpty()) {
+            return collect();
+        }
+
+        return AlokasiPetugas::query()
+            ->where('petugas_id', $petugasId)
+            ->whereIn('periode_alokasi_id', $latestPeriodeIds)
+            ->with('periodeAlokasi:id,kegiatan_id,created_at')
+            ->get()
+            ->values();
+    }
+
+    private function hasPositiveBastAttachmentPayloadForPetugas(int $petugasId, string $bulanFormatted, int $tahun): bool
+    {
+        return $this->getEffectiveAlokasiForPetugasInMonth($petugasId, $bulanFormatted, $tahun)
+            ->contains(function ($alokasi) {
+                return
+                    (int) ($alokasi->jumlah_satuan ?? 0) > 0 ||
+                    (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0 ||
+                    (float) ($alokasi->total_honor ?? 0) > 0 ||
+                    (float) ($alokasi->total_honor_listing ?? 0) > 0;
+            });
+    }
+
     /**
      * Display a listing of the resource.
      * Menampilkan periode bulan (Januari-Desember) dengan informasi BAST yang sudah/belum dibuat
@@ -313,43 +358,49 @@ class BastController extends Controller
                 ->with('error', 'Bulan harus diisi');
         }
 
-        // Ambil semua SPK eligible di tahun berjalan
-        // Hanya SPK yang memiliki alokasi dengan jumlah > 0
-        $eligibleSpks = Spk::where('addendum_number', 0)
-            ->with(['alokasiPetugas.periodeAlokasi', 'bast'])
-            ->whereHas('alokasiPetugas', function ($q) use ($tahun) {
-                $q->whereHas('periodeAlokasi', function ($q2) use ($tahun) {
-                    $q2->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
-                })->where(function ($q3) {
-                    $q3->where('jumlah_satuan', '>', 0)
-                        ->orWhere('jumlah_satuan_listing', '>', 0)
-                        ->orWhere('total_honor', '>', 0)
-                        ->orWhere('total_honor_listing', '>', 0);
+        $spks = Spk::query()
+            ->with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi', 'bast'])
+            ->whereHas('alokasiPetugas', function ($q) use ($tahun, $bulanFormatted) {
+                $q->whereHas('petugas', function ($q2) {
+                    $q2->where('jenis_petugas', 'non-organik');
+                })
+                    ->whereHas('periodeAlokasi', function ($q2) use ($tahun, $bulanFormatted) {
+                        $q2->where('tahun', $tahun)
+                            ->where('bulan', $bulanFormatted)
+                            ->whereIn('status', ['dikirim', 'direvisi', 'perubahan']);
+                    })
+                    ->where(function ($q2) {
+                        $q2->where('jumlah_satuan', '>', 0)
+                            ->orWhere('jumlah_satuan_listing', '>', 0)
+                            ->orWhere('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    });
+            })
+            ->orderByDesc('addendum_number')
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('petugas_id')
+            ->map(function ($spkGroup) use ($tahun, $bulan) {
+                return $spkGroup->first(function ($spk) use ($tahun, $bulan) {
+                    return ! $spk->bast->contains(function ($bast) use ($tahun, $bulan) {
+                        if (! $bast->tanggal_bast) {
+                            return false;
+                        }
+
+                        return (int) $bast->tanggal_bast->format('Y') === (int) $tahun
+                            && (int) $bast->tanggal_bast->format('n') === (int) $bulan;
+                    });
                 });
             })
-            ->get();
-
-        // Untuk setiap SPK, tentukan bulan periode alokasi pertamanya di tahun berjalan
-        $spks = collect();
-        foreach ($eligibleSpks as $spk) {
-            $periodes = $spk->alokasiPetugas && $spk->alokasiPetugas->periodeAlokasi
-                ? [$spk->alokasiPetugas->periodeAlokasi]
-                : [];
-            if (method_exists($spk->alokasiPetugas, 'getCollection')) {
-                $periodes = $spk->alokasiPetugas->pluck('periodeAlokasi')->all();
-            }
-            $firstPeriode = collect($periodes)
-                ->where('tahun', $tahun)
-                ->sortBy('bulan')
-                ->first();
-            if ($firstPeriode && (int) ltrim($firstPeriode->bulan, '0') === (int) $bulan) {
-                // Hanya tampilkan SPK yang belum punya BAST
-                if (! ($spk->bast && $spk->bast->count() > 0)) {
-                    $spks->push($spk);
-                }
-            }
-        }
+            ->filter()
+            ->filter(function ($spk) use ($bulanFormatted, $tahun) {
+                return $this->hasPositiveBastAttachmentPayloadForPetugas(
+                    (int) $spk->petugas_id,
+                    $bulanFormatted,
+                    (int) $tahun,
+                );
+            })
+            ->values();
 
         if ($spks->isEmpty()) {
             return redirect()->route('bast.index')
@@ -382,18 +433,10 @@ class BastController extends Controller
         $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun) {
             // Get tanggal berakhir untuk SPK A
             $petugasA = $a->alokasiPetugas?->petugas;
-            $allAlokasiA = AlokasiPetugas::where('petugas_id', $petugasA?->id)
-                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
-                })
-                ->where(function ($query) {
-                    $query->where('jumlah_satuan', '>', 0)
-                        ->orWhere('jumlah_satuan_listing', '>', 0);
-                })
-                ->with('periodeAlokasi')
-                ->get();
+            $allAlokasiA = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasA?->id ?? 0), $bulanFormatted, (int) $tahun)
+                ->filter(function ($alokasi) {
+                    return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                });
 
             $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
                 return $this->getAlokasiLatestTanggalSelesai($alokasi);
@@ -405,18 +448,10 @@ class BastController extends Controller
 
             // Get tanggal berakhir untuk SPK B
             $petugasB = $b->alokasiPetugas?->petugas;
-            $allAlokasiB = AlokasiPetugas::where('petugas_id', $petugasB?->id)
-                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
-                })
-                ->where(function ($query) {
-                    $query->where('jumlah_satuan', '>', 0)
-                        ->orWhere('jumlah_satuan_listing', '>', 0);
-                })
-                ->with('periodeAlokasi')
-                ->get();
+            $allAlokasiB = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasB?->id ?? 0), $bulanFormatted, (int) $tahun)
+                ->filter(function ($alokasi) {
+                    return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                });
 
             $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
                 return $this->getAlokasiLatestTanggalSelesai($alokasi);
@@ -441,27 +476,19 @@ class BastController extends Controller
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
-            $allAlokasi = AlokasiPetugas::with([
-                'periodeAlokasi.kegiatan',
-                'spk' => function ($query) {
-                    $query->orderByDesc('addendum_number'); // prioritas addendum terbaru
-                },
-            ])
-                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
+            $allAlokasi = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugas?->id ?? 0), $bulanFormatted, (int) $tahun)
+                ->filter(function ($alokasi) {
+                    return
+                        (float) ($alokasi->total_honor ?? 0) > 0 ||
+                        (float) ($alokasi->total_honor_listing ?? 0) > 0;
                 })
-                ->where('petugas_id', $petugas?->id)
-                ->whereHas('petugas', function ($q) {
-                    $q->where('jenis_petugas', 'non-organik');
-                })
-                ->where(function ($query) {
-                    $query->where('total_honor', '>', 0)
-                        ->orWhere('total_honor_listing', '>', 0);
-                })
-                // REMOVED ->whereHas('spk') - show ALL allocations, even without SPK
-                ->get();
+                ->load([
+                    'periodeAlokasi.kegiatan',
+                    'spk' => function ($query) {
+                        $query->orderByDesc('addendum_number');
+                    },
+                ])
+                ->values();
 
             // Kumpulkan kegiatan unik dengan detail dari semua alokasi petugas
             $kegiatanList = $allAlokasi->map(function ($alokasi) {

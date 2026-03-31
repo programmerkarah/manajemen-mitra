@@ -80,6 +80,43 @@ const BULAN_LIST: Array<[string, string]> = [
 ];
 const BULAN_LABELS: Record<string, string> = Object.fromEntries(BULAN_LIST);
 
+const normalizeBulanValue = (raw: string): string => {
+    const value = String(raw ?? '').trim();
+
+    if (/^\d{1,2}$/.test(value)) {
+        const numeric = Number(value);
+        if (numeric >= 1 && numeric <= 12) {
+            return String(numeric).padStart(2, '0');
+        }
+    }
+
+    const monthNameMap: Record<string, string> = {
+        january: '01',
+        february: '02',
+        march: '03',
+        april: '04',
+        may: '05',
+        june: '06',
+        july: '07',
+        august: '08',
+        september: '09',
+        october: '10',
+        november: '11',
+        december: '12',
+        januari: '01',
+        februari: '02',
+        maret: '03',
+        mei: '05',
+        juni: '06',
+        juli: '07',
+        agustus: '08',
+        oktober: '10',
+        desember: '12',
+    };
+
+    return monthNameMap[value.toLowerCase()] ?? value;
+};
+
 const formatCurrency = (value: number) =>
     new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -108,15 +145,17 @@ export default function MonitoringPulsaIndex({
 }: Props) {
     const items = useDecryptedData<PengajuanPulsaItem>(pengajuanList.encrypted);
 
-    const [bulan, setBulan] = useState(filters.bulan);
+    const initialBulan = normalizeBulanValue(filters.bulan);
+    const [bulan, setBulan] = useState(initialBulan);
     const tahun = filters.tahun;
     const [activeTab, setActiveTab] = useState<ActiveTab>('semua');
 
     const handleFilterChange = (newBulan: string) => {
-        setBulan(newBulan);
+        const normalizedBulan = normalizeBulanValue(newBulan);
+        setBulan(normalizedBulan);
         router.get(
             '/monitoring-pulsa',
-            { bulan: newBulan },
+            { bulan: normalizedBulan },
             { preserveState: true },
         );
     };

@@ -432,7 +432,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                             Daftar Alokasi Petugas
                         </h3>
                         {isKetuaTim && hasPendataanRole && (
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap justify-end gap-2">
                                 {isEditMode ? (
                                     <>
                                         <Button
@@ -463,8 +463,8 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                         )}
                     </div>
 
-                    <div className="w-full">
-                        <table className="w-full text-left text-sm">
+                    <div className="w-full overflow-x-auto">
+                        <table className="w-full min-w-[980px] text-left text-sm">
                             <thead className="bg-neutral-100 dark:bg-neutral-900">
                                 <tr>
                                     <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">

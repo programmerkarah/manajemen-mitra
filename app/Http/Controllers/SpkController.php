@@ -1472,6 +1472,7 @@ class SpkController extends Controller
         $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
+        $requestedMode = $request->input('mode');
 
         if (! $periodeId || ! $bulan || ! $tahun) {
             abort(404);
@@ -1524,7 +1525,10 @@ class SpkController extends Controller
             ->pluck('petugas_id')
             ->toArray();
 
-        $isRegenerateAddendum = ! empty($petugasWithAddendum);
+        $resolvedMode = in_array($requestedMode, ['addendum', 'regenerate'], true)
+            ? $requestedMode
+            : (! empty($petugasWithAddendum) ? 'regenerate' : 'addendum');
+        $isRegenerateAddendum = $resolvedMode === 'regenerate';
 
         // Group by petugas_id and aggregate their data
         $petugasListRaw = $allAlokasi->groupBy('petugas_id')
@@ -1546,52 +1550,27 @@ class SpkController extends Controller
                     return null; // Skip petugas without original SPK
                 }
 
-                // Ambil semua alokasi 'perubahan' (bisa lebih dari satu kegiatan)
-                $alokasiPerubahanList = $alokasiGroup->filter(function ($alokasi) {
-                    return $alokasi->periodeAlokasi->status === 'perubahan';
-                });
-                if ($alokasiPerubahanList->isEmpty()) {
+                $latestDocument = Spk::where('petugas_id', $firstAlokasi->petugas_id)
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                        $q->where('bulan', $bulanFormatted)
+                            ->where('tahun', $tahun);
+                    })
+                    ->orderBy('addendum_number', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if (! $latestDocument) {
                     return null;
                 }
 
-                $isBerubah = false;
-                foreach ($alokasiPerubahanList as $alokasiPerubahan) {
-                    // Cari alokasi PERTAMA (earliest) untuk kegiatan yang sama dari periode status direvisi
-                    // Bandingkan dengan periode direvisi PERTAMA, bukan yang terakhir
-                    $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
-                        ->where('periode_alokasi_id', '!=', $alokasiPerubahan->periode_alokasi_id)
-                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $alokasiPerubahan) {
-                            $q->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun)
-                                ->where('kegiatan_id', $alokasiPerubahan->periodeAlokasi->kegiatan_id)
-                                ->where('status', 'direvisi');
-                        })
-                        ->orderBy('created_at', 'asc') // Get the FIRST (earliest) direvisi
-                        ->first();
+                $hasChangeAfterLatestDocument = $this->hasAllocationDeltaAfterReferenceForPetugas(
+                    $firstAlokasi->petugas_id,
+                    $bulanFormatted,
+                    (int) $tahun,
+                    $latestDocument->created_at,
+                );
 
-                    // Jika tidak ada alokasi direvisi untuk kegiatan ini, skip
-                    if (! $alokasiSebelumnya) {
-                        continue;
-                    }
-
-                    $selisih_jumlah_satuan = (int) ($alokasiPerubahan->jumlah_satuan ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan ?? 0);
-                    $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
-                    $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
-                    $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
-
-                    if (
-                        $selisih_jumlah_satuan !== 0 ||
-                        $selisih_jumlah_satuan_listing !== 0 ||
-                        abs($selisih_total_honor) > 0.01 ||
-                        abs($selisih_total_honor_listing) > 0.01 ||
-                        $alokasiPerubahan->peran !== ($alokasiSebelumnya->peran ?? null)
-                    ) {
-                        $isBerubah = true;
-                        break;
-                    }
-                }
-
-                if (! $isBerubah) {
+                if (! $hasChangeAfterLatestDocument) {
                     return null;
                 }
 
@@ -1644,9 +1623,12 @@ class SpkController extends Controller
                 ];
             })
             ->filter() // Remove nulls
-            ->filter(function ($item) {
-                // Hanya tampilkan petugas yang BELUM punya addendum
-                return ! $item['has_addendum'];
+            ->filter(function ($item) use ($isRegenerateAddendum) {
+                // Generate addendum biasa hanya untuk petugas tanpa addendum.
+                // Re-generate addendum hanya untuk petugas yang sudah punya addendum.
+                return $isRegenerateAddendum
+                    ? $item['has_addendum']
+                    : ! $item['has_addendum'];
             })
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
@@ -1676,7 +1658,7 @@ class SpkController extends Controller
                 ],
             ],
             'petugas_list' => $petugasListRaw->values()->all(),
-            'is_regenerate_addendum' => false, // Always false, only show petugas without addendum
+            'is_regenerate_addendum' => $isRegenerateAddendum,
         ]);
     }
 
@@ -3947,13 +3929,12 @@ class SpkController extends Controller
             return false;
         }
 
-        // Get all alokasi (including honor 0) for comparison purposes
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->get()
-            ->filter(function ($alokasi) {
-                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
-            });
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->with(['petugas'])
+            ->get();
 
         // Get petugas who already have addendum
         $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
@@ -3965,94 +3946,32 @@ class SpkController extends Controller
             ->pluck('petugas_id')
             ->toArray();
 
-        // Group by petugas_id and check for changes
-        $petugasWithChanges = $allAlokasi->groupBy('petugas_id')
-            ->filter(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum) {
-                $firstAlokasi = $alokasiGroup->first();
+        $petugasIds = $allAlokasi->pluck('petugas_id')->unique();
 
-                // Skip if petugas already has addendum
-                if (in_array($firstAlokasi->petugas_id, $petugasWithAddendum)) {
-                    return false;
-                }
+        foreach ($petugasIds as $petugasId) {
+            if (in_array($petugasId, $petugasWithAddendum)) {
+                continue;
+            }
 
-                // Get existing SPK for this petugas in this month
-                $existingSpk = Spk::whereHas('alokasiPetugas', function ($q) use ($firstAlokasi, $bulanFormatted, $tahun) {
-                    $q->where('petugas_id', $firstAlokasi->petugas_id)
-                        ->whereHas('periodeAlokasi', function ($q2) use ($bulanFormatted, $tahun) {
-                            $q2->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun);
-                        });
+            $originalSpk = Spk::where('petugas_id', $petugasId)
+                ->where('addendum_number', 0)
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun);
                 })
-                    ->where('addendum_number', 0)
-                    ->first();
+                ->orderBy('created_at', 'asc')
+                ->first();
 
-                if (! $existingSpk) {
-                    return false; // Skip petugas without original SPK
-                }
+            if (! $originalSpk) {
+                continue;
+            }
 
-                // Get alokasi 'perubahan'
-                $alokasiPerubahanList = $alokasiGroup->filter(function ($alokasi) {
-                    return $alokasi->periodeAlokasi->status === 'perubahan';
-                });
+            if ($this->hasAllocationDeltaAfterReferenceForPetugas($petugasId, $bulanFormatted, $tahun, $originalSpk->created_at)) {
+                return true;
+            }
+        }
 
-                if ($alokasiPerubahanList->isEmpty()) {
-                    return false;
-                }
-
-                // Check for actual changes
-                $isBerubah = false;
-                foreach ($alokasiPerubahanList as $alokasiPerubahan) {
-                    // Find first direvisi for the same kegiatan
-                    $alokasiSebelumnya = AlokasiPetugas::where('petugas_id', $firstAlokasi->petugas_id)
-                        ->where('periode_alokasi_id', '!=', $alokasiPerubahan->periode_alokasi_id)
-                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $alokasiPerubahan) {
-                            $q->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun)
-                                ->where('kegiatan_id', $alokasiPerubahan->periodeAlokasi->kegiatan_id)
-                                ->where('status', 'direvisi');
-                        })
-                        ->orderBy('created_at', 'asc')
-                        ->first();
-
-                    if (! $alokasiSebelumnya) {
-                        continue;
-                    }
-
-                    $selisih_jumlah_satuan = (int) ($alokasiPerubahan->jumlah_satuan ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan ?? 0);
-                    $selisih_jumlah_satuan_listing = (int) ($alokasiPerubahan->jumlah_satuan_listing ?? 0) - (int) ($alokasiSebelumnya->jumlah_satuan_listing ?? 0);
-                    $selisih_total_honor = (float) ($alokasiPerubahan->total_honor ?? 0) - (float) ($alokasiSebelumnya->total_honor ?? 0);
-                    $selisih_total_honor_listing = (float) ($alokasiPerubahan->total_honor_listing ?? 0) - (float) ($alokasiSebelumnya->total_honor_listing ?? 0);
-
-                    if (
-                        $selisih_jumlah_satuan !== 0 ||
-                        $selisih_jumlah_satuan_listing !== 0 ||
-                        abs($selisih_total_honor) > 0.01 ||
-                        abs($selisih_total_honor_listing) > 0.01 ||
-                        $alokasiPerubahan->peran !== ($alokasiSebelumnya->peran ?? null)
-                    ) {
-                        $isBerubah = true;
-                        break;
-                    }
-                }
-
-                if (! $isBerubah) {
-                    return false;
-                }
-
-                // Calculate total honor from 'perubahan'
-                $totalHonor = $alokasiGroup
-                    ->filter(function ($alokasi) {
-                        return $alokasi->periodeAlokasi->status === 'perubahan';
-                    })
-                    ->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
-
-                // Only include if total honor > 0
-                return $totalHonor > 0;
-            });
-
-        return $petugasWithChanges->isNotEmpty();
+        return false;
     }
 
     /**
@@ -4060,20 +3979,165 @@ class SpkController extends Controller
      */
     private function hasAddendumChanges(int $tahun, int $bulan, $monthPeriodes): bool
     {
-        // This method should return TRUE if there are petugas who:
-        // 1. Already have addendum SPK
-        // 2. But have NEW kegiatan changes that are NOT yet covered by any addendum
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Since we don't store kegiatan_ids in SPK table, we cannot reliably determine
-        // if there are "new" changes after the last addendum was created.
-        // The "Re-generate Addendum" button should only show if hasIncompleteAddendum returns true
-        // (meaning there are petugas who need addendum but don't have one yet)
+        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['direvisi', 'perubahan'])
+            ->pluck('id');
 
-        // For petugas who already have addendum, we cannot determine if they have new changes
-        // without storing kegiatan_ids. So we return false here to avoid showing the button
-        // when all petugas already have their addendum.
+        if ($allPeriodeInMonth->isEmpty()) {
+            return false;
+        }
+
+        $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                $q->where('bulan', $bulanFormatted)
+                    ->where('tahun', $tahun);
+            })
+            ->distinct()
+            ->pluck('petugas_id')
+            ->toArray();
+
+        if (empty($petugasWithAddendum)) {
+            return false;
+        }
+
+        foreach ($petugasWithAddendum as $petugasId) {
+            $latestAddendum = Spk::where('petugas_id', $petugasId)
+                ->where('addendum_number', '>', 0)
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun);
+                })
+                ->orderBy('addendum_number', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (! $latestAddendum) {
+                continue;
+            }
+
+            $currentSnapshot = $this->buildEffectiveAllocationSnapshotForPetugas(
+                $petugasId,
+                $bulanFormatted,
+                $tahun,
+                null,
+            );
+
+            if (empty($currentSnapshot)) {
+                continue;
+            }
+
+            if ($this->hasAllocationDeltaAfterReferenceForPetugas($petugasId, $bulanFormatted, $tahun, $latestAddendum->created_at)) {
+                return true;
+            }
+        }
 
         return false;
+    }
+
+    private function hasAllocationDeltaAfterReferenceForPetugas(int $petugasId, string $bulanFormatted, int $tahun, $referenceCreatedAt): bool
+    {
+        $referenceSnapshot = $this->buildEffectiveAllocationSnapshotForPetugas(
+            $petugasId,
+            $bulanFormatted,
+            $tahun,
+            $referenceCreatedAt,
+        );
+
+        $currentSnapshot = $this->buildEffectiveAllocationSnapshotForPetugas(
+            $petugasId,
+            $bulanFormatted,
+            $tahun,
+            null,
+        );
+
+        if (empty($currentSnapshot)) {
+            return false;
+        }
+
+        if (array_keys($referenceSnapshot) !== array_keys($currentSnapshot)) {
+            return true;
+        }
+
+        foreach ($currentSnapshot as $kegiatanId => $current) {
+            $reference = $referenceSnapshot[$kegiatanId] ?? null;
+
+            if (! $reference) {
+                return true;
+            }
+
+            if (
+                $current['peran'] !== $reference['peran'] ||
+                $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
+                $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
+                abs($current['total_honor'] - $reference['total_honor']) > 0.01 ||
+                abs($current['total_honor_listing'] - $reference['total_honor_listing']) > 0.01
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build latest effective allocation snapshot keyed by kegiatan_id.
+     *
+     * @return array<int, array{peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
+     */
+    private function buildEffectiveAllocationSnapshotForPetugas(
+        int $petugasId,
+        string $bulanFormatted,
+        int $tahun,
+        $upToCreatedAt,
+    ): array {
+        $alokasiQuery = AlokasiPetugas::query()
+            ->where('petugas_id', $petugasId)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt) {
+                $q->where('bulan', $bulanFormatted)
+                    ->where('tahun', $tahun)
+                    ->whereIn('status', ['direvisi', 'perubahan']);
+
+                if ($upToCreatedAt) {
+                    $q->where('created_at', '<=', $upToCreatedAt);
+                }
+            })
+            ->with('periodeAlokasi:id,kegiatan_id,created_at')
+            ->get();
+
+        if ($alokasiQuery->isEmpty()) {
+            return [];
+        }
+
+        return $alokasiQuery
+            ->sortByDesc(function ($alokasi) {
+                return sprintf(
+                    '%s-%012d',
+                    $alokasi->periodeAlokasi?->created_at?->format('Y-m-d H:i:s.u') ?? '',
+                    $alokasi->periodeAlokasi?->id ?? 0,
+                );
+            })
+            ->groupBy(function ($alokasi) {
+                return $alokasi->periodeAlokasi?->kegiatan_id;
+            })
+            ->map(function ($group) {
+                $effective = $group->first();
+
+                return [
+                    'peran' => $effective?->peran,
+                    'jumlah_satuan' => (int) ($effective->jumlah_satuan ?? 0),
+                    'jumlah_satuan_listing' => (int) ($effective->jumlah_satuan_listing ?? 0),
+                    'total_honor' => (float) ($effective->total_honor ?? 0),
+                    'total_honor_listing' => (float) ($effective->total_honor_listing ?? 0),
+                ];
+            })
+            ->sortKeys()
+            ->all();
     }
 
     /**
