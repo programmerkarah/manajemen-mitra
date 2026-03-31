@@ -49,8 +49,8 @@ class UpdateKegiatanRequest extends FormRequest
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai,dibatalkan'],
             'metode_pendataan_pencacahan' => ['required', 'in:PAPI,CAPI'],
             'metode_pendataan_listing' => ['required_if:has_listing_updating,true', 'nullable', 'in:PAPI,CAPI'],
-            'metode_pelatihan' => ['required', 'in:daring,luring,hybrid'],
-            'bulan_pelatihan' => ['required', 'integer', 'between:1,12'],
+            'metode_pelatihan' => ['required', 'in:daring,luring,hybrid,tidak_ada_pelatihan'],
+            'bulan_pelatihan' => ['required_unless:metode_pelatihan,tidak_ada_pelatihan', 'nullable', 'integer', 'between:1,12'],
         ];
     }
 
@@ -82,8 +82,8 @@ class UpdateKegiatanRequest extends FormRequest
             'metode_pendataan_listing.required_if' => 'Metode pendataan listing wajib dipilih jika kegiatan memiliki tahap listing.',
             'metode_pendataan_listing.in' => 'Metode pendataan listing harus PAPI atau CAPI.',
             'metode_pelatihan.required' => 'Metode pelatihan wajib dipilih.',
-            'metode_pelatihan.in' => 'Metode pelatihan harus daring, luring, atau hybrid.',
-            'bulan_pelatihan.required' => 'Bulan pelatihan wajib dipilih.',
+            'metode_pelatihan.in' => 'Metode pelatihan harus daring, luring, hybrid, atau tidak ada.',
+            'bulan_pelatihan.required_unless' => 'Bulan pelatihan wajib dipilih jika metode pelatihan bukan tidak ada.',
             'bulan_pelatihan.integer' => 'Bulan pelatihan harus berupa angka.',
             'bulan_pelatihan.between' => 'Bulan pelatihan harus antara 1 sampai 12.',
         ];

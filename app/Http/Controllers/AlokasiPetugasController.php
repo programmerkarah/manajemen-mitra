@@ -414,6 +414,49 @@ class AlokasiPetugasController extends Controller
             }
         }
 
+        // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
+        $periodeBulan = (int) $validated['alokasi'][0]['bulan'];
+        $periodeTahun = (int) $validated['alokasi'][0]['tahun'];
+        $dateValidationErrors = [];
+
+        if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
+            $tanggalMulaiBulan = \Carbon\Carbon::parse($validated['tanggal_mulai'])->month;
+            $tanggalMulaiTahun = \Carbon\Carbon::parse($validated['tanggal_mulai'])->year;
+            if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
+            $tanggalSelesaiBulan = \Carbon\Carbon::parse($validated['tanggal_selesai'])->month;
+            $tanggalSelesaiTahun = \Carbon\Carbon::parse($validated['tanggal_selesai'])->year;
+            if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
+            $tanggalMulaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->month;
+            $tanggalMulaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->year;
+            if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
+            $tanggalSelesaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->month;
+            $tanggalSelesaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->year;
+            if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (! empty($dateValidationErrors)) {
+            return back()->withErrors([
+                'date_validation' => implode("\n", $dateValidationErrors),
+            ])->withInput();
+        }
+
         // Validate jadwal pengolahan fields (optional, based on rate honor configuration)
         $request->validate([
             'jadwal_pengolahan_listing_mulai' => 'nullable|date',
@@ -1984,7 +2027,56 @@ class AlokasiPetugasController extends Controller
             'jadwal_pengolahan_listing_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_listing_mulai',
             'jadwal_pengolahan_pencacahan_mulai' => 'nullable|date',
             'jadwal_pengolahan_pencacahan_selesai' => 'nullable|date|after_or_equal:jadwal_pengolahan_pencacahan_mulai',
+        ], [
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal mulai.',
+            'tanggal_selesai_listing.after_or_equal' => 'Tanggal selesai listing harus setelah atau sama dengan tanggal mulai listing.',
+            'jadwal_pengolahan_listing_selesai.after_or_equal' => 'Tanggal selesai pengolahan listing harus setelah atau sama dengan tanggal mulai.',
+            'jadwal_pengolahan_pencacahan_selesai.after_or_equal' => 'Tanggal selesai pengolahan pencacahan harus setelah atau sama dengan tanggal mulai.',
         ]);
+
+        // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
+        $periodeBulan = (int) $bulan;
+        $periodeTahun = (int) $tahun;
+        $tahapan = $validated['alokasi'][0]['tahapan'] ?? 'both';
+        $dateValidationErrors = [];
+
+        if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
+            $tanggalMulaiBulan = \Carbon\Carbon::parse($validated['tanggal_mulai'])->month;
+            $tanggalMulaiTahun = \Carbon\Carbon::parse($validated['tanggal_mulai'])->year;
+            if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
+            $tanggalSelesaiBulan = \Carbon\Carbon::parse($validated['tanggal_selesai'])->month;
+            $tanggalSelesaiTahun = \Carbon\Carbon::parse($validated['tanggal_selesai'])->year;
+            if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
+            $tanggalMulaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->month;
+            $tanggalMulaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->year;
+            if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
+            $tanggalSelesaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->month;
+            $tanggalSelesaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->year;
+            if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
+                $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+            }
+        }
+
+        if (! empty($dateValidationErrors)) {
+            return redirect()->back()->withErrors([
+                'date_validation' => implode("\n", $dateValidationErrors),
+            ])->withInput();
+        }
 
         $partialValidationErrors = [];
         foreach ($validated['alokasi'] as $alokasiData) {

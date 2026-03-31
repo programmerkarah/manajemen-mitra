@@ -783,9 +783,10 @@ class KegiatanController extends Controller
                 ->with('error', 'Hanya kegiatan dengan status draft yang dapat diajukan.');
         }
 
-        // Update status to diajukan
+        // Update status to diajukan and clear any previous rejection notes
         $kegiatan->update([
             'status' => 'diajukan',
+            'catatan' => null,
         ]);
 
         ActivityLog::log(

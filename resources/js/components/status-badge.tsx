@@ -103,6 +103,13 @@ export function StatusBadge({
             icon: Ban,
         },
         // Kegiatan statuses
+        draft_ditolak: {
+            label: 'Ditolak',
+            bgColor: 'bg-red-100 dark:bg-red-900',
+            textColor: 'text-red-900 dark:text-red-200',
+            borderColor: 'border-red-300 dark:border-red-600',
+            icon: XCircle,
+        },
         aktif: {
             label: 'Aktif',
             bgColor: 'bg-green-100 dark:bg-green-900',

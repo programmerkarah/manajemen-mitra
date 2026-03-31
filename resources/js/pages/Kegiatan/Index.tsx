@@ -32,6 +32,7 @@ import {
     ChevronUp,
     Copy,
     Eye,
+    MessageSquareWarning,
     Pencil,
     Plus,
     RefreshCw,
@@ -74,6 +75,7 @@ interface Kegiatan {
         | 'tidak_ada_pelatihan'
         | null;
     periode_alokasi_count: number;
+    catatan: string | null;
 }
 
 interface KegiatanIndexProps {
@@ -128,6 +130,10 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryCardType, setSummaryCardType] =
         useState<SummaryCardType>('all');
+    const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+    const [rejectionKegiatan, setRejectionKegiatan] = useState<Kegiatan | null>(
+        null,
+    );
     const [rejectNotes, setRejectNotes] = useState('');
     const [selectedKegiatan, setSelectedKegiatan] = useState<Kegiatan | null>(
         null,
@@ -774,6 +780,30 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             </span>
                                                         </div>
                                                     )}
+                                                    {kegiatan.status ===
+                                                        'draft' &&
+                                                        kegiatan.catatan && (
+                                                            <button
+                                                                type="button"
+                                                                className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                                                onClick={() => {
+                                                                    setRejectionKegiatan(
+                                                                        kegiatan,
+                                                                    );
+                                                                    setShowRejectionDialog(
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <MessageSquareWarning className="h-3.5 w-3.5 shrink-0" />
+                                                                <span>
+                                                                    Pengajuan
+                                                                    ditolak
+                                                                    &mdash;
+                                                                    lihat alasan
+                                                                </span>
+                                                            </button>
+                                                        )}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
@@ -801,7 +831,13 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                             </td>
                                             <td className="px-3 py-3 text-center">
                                                 <StatusBadge
-                                                    status={kegiatan.status}
+                                                    status={
+                                                        kegiatan.status ===
+                                                            'draft' &&
+                                                        kegiatan.catatan
+                                                            ? 'draft_ditolak'
+                                                            : kegiatan.status
+                                                    }
                                                 />
                                             </td>
                                             <td className="px-3 py-3">
@@ -827,7 +863,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                         <Button
                                                             variant="default"
                                                             size="sm"
-                                                            className="gap-2 bg-green-600 hover:bg-green-700"
+                                                            className="cursor-pointer gap-2 bg-green-600 hover:bg-green-700"
                                                             onClick={() =>
                                                                 handleApproveClick(
                                                                     kegiatan,
@@ -835,7 +871,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                             }
                                                         >
                                                             <Check className="h-4 w-4" />
-                                                            <span className="sr-only cursor-pointer sm:not-sr-only">
+                                                            <span className="sr-only sm:not-sr-only">
                                                                 Setujui
                                                             </span>
                                                         </Button>
@@ -1058,6 +1094,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                         <DialogFooter>
                             <Button
                                 variant="outline"
+                                className="cursor-pointer"
                                 onClick={() => {
                                     setShowApproveDialog(false);
                                     setSelectedKegiatan(null);
@@ -1069,7 +1106,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                             <Button
                                 onClick={handleApprove}
                                 disabled={processing}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="cursor-pointer bg-green-600 hover:bg-green-700"
                             >
                                 {processing
                                     ? 'Memproses...'
@@ -1222,6 +1259,51 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                 ))
                             )}
                         </div>
+                    </DialogContent>
+                </Dialog>
+                {/* Rejection Reason Dialog */}
+                <Dialog
+                    open={showRejectionDialog}
+                    onOpenChange={(open) => {
+                        setShowRejectionDialog(open);
+                        if (!open) setRejectionKegiatan(null);
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                <MessageSquareWarning className="h-5 w-5" />
+                                Alasan Penolakan
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Pengajuan kegiatan{' '}
+                                <span className="font-semibold text-neutral-900 dark:text-white">
+                                    {rejectionKegiatan?.nama_kegiatan}
+                                </span>{' '}
+                                ditolak dengan alasan:
+                            </p>
+                            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+                                {rejectionKegiatan?.catatan}
+                            </div>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                Perbaiki kegiatan sesuai catatan di atas, lalu
+                                ajukan kembali.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                className="cursor-pointer gap-2"
+                                onClick={() => {
+                                    setShowRejectionDialog(false);
+                                    setRejectionKegiatan(null);
+                                }}
+                            >
+                                Tutup
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>

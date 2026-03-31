@@ -98,7 +98,12 @@ export default function Create({
         has_listing_updating: copyData?.has_listing_updating || false,
         metode_pendataan_pencacahan: '' as '' | 'PAPI' | 'CAPI',
         metode_pendataan_listing: '' as '' | 'PAPI' | 'CAPI',
-        metode_pelatihan: '' as '' | 'daring' | 'luring' | 'hybrid',
+        metode_pelatihan: '' as
+            | ''
+            | 'daring'
+            | 'luring'
+            | 'hybrid'
+            | 'tidak_ada_pelatihan',
         bulan_pelatihan: '',
         ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
@@ -120,11 +125,16 @@ export default function Create({
         if (isSensus && data.metode_pendataan_listing !== '') {
             setData('metode_pendataan_listing', '');
         }
+
+        if (isSensus && data.metode_pelatihan === 'tidak_ada_pelatihan') {
+            setData('metode_pelatihan', '');
+        }
     }, [
         isSensus,
         data.has_listing_updating,
         data.pagu_listing,
         data.metode_pendataan_listing,
+        data.metode_pelatihan,
         setData,
     ]);
 
@@ -558,7 +568,9 @@ export default function Create({
                                     Apakah pelatihan petugas dilaksanakan secara
                                     daring, luring, atau hybrid?
                                 </p>
-                                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <div
+                                    className={`mt-2 grid grid-cols-1 gap-3 ${isSensus ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}
+                                >
                                     {(
                                         [
                                             {
@@ -576,43 +588,55 @@ export default function Create({
                                                 label: 'Hybrid',
                                                 desc: '(Campuran)',
                                             },
+                                            {
+                                                value: 'tidak_ada_pelatihan',
+                                                label: 'Tidak Ada',
+                                                desc: '(Tidak ada pelatihan)',
+                                            },
                                         ] as const
-                                    ).map((opt) => (
-                                        <label
-                                            key={opt.value}
-                                            className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
-                                                data.metode_pelatihan ===
-                                                opt.value
-                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
-                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                            }`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="metode_pelatihan"
-                                                value={opt.value}
-                                                checked={
+                                    )
+                                        .filter(
+                                            (opt) =>
+                                                !isSensus ||
+                                                opt.value !==
+                                                    'tidak_ada_pelatihan',
+                                        )
+                                        .map((opt) => (
+                                            <label
+                                                key={opt.value}
+                                                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
                                                     data.metode_pelatihan ===
                                                     opt.value
-                                                }
-                                                onChange={() =>
-                                                    setData(
-                                                        'metode_pelatihan',
-                                                        opt.value,
-                                                    )
-                                                }
-                                                className="h-4 w-4 text-neutral-900"
-                                            />
-                                            <div>
-                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                                    {opt.label}
-                                                </span>
-                                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                                                    {opt.desc}
-                                                </span>
-                                            </div>
-                                        </label>
-                                    ))}
+                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="metode_pelatihan"
+                                                    value={opt.value}
+                                                    checked={
+                                                        data.metode_pelatihan ===
+                                                        opt.value
+                                                    }
+                                                    onChange={() =>
+                                                        setData(
+                                                            'metode_pelatihan',
+                                                            opt.value,
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 text-neutral-900"
+                                                />
+                                                <div>
+                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                        {opt.label}
+                                                    </span>
+                                                    <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                                                        {opt.desc}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        ))}
                                 </div>
                                 <InputError
                                     message={errors.metode_pelatihan}
@@ -620,38 +644,48 @@ export default function Create({
                                 />
                             </div>
 
-                            {data.metode_pelatihan !== '' && (
-                                <div>
-                                    <label
-                                        htmlFor="bulan_pelatihan"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Bulan Pelatihan{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        Pilih bulan pelaksanaan pelatihan untuk
-                                        sinkronisasi pengajuan pulsa pelatihan.
-                                    </p>
-                                    <SearchableSelect
-                                        options={BULAN_OPTIONS.map((bulan) => ({
-                                            value: bulan.value,
-                                            label: bulan.label,
-                                        }))}
-                                        value={data.bulan_pelatihan}
-                                        onValueChange={(value) =>
-                                            setData('bulan_pelatihan', value)
-                                        }
-                                        placeholder="Pilih Bulan Pelatihan"
-                                        searchPlaceholder="Cari bulan..."
-                                        className="mt-2"
-                                    />
-                                    <InputError
-                                        message={errors.bulan_pelatihan}
-                                        className="mt-2"
-                                    />
-                                </div>
-                            )}
+                            {data.metode_pelatihan !== '' &&
+                                data.metode_pelatihan !==
+                                    'tidak_ada_pelatihan' && (
+                                    <div>
+                                        <label
+                                            htmlFor="bulan_pelatihan"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Bulan Pelatihan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                        </label>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            Pilih bulan pelaksanaan pelatihan
+                                            untuk sinkronisasi pengajuan pulsa
+                                            pelatihan.
+                                        </p>
+                                        <SearchableSelect
+                                            options={BULAN_OPTIONS.map(
+                                                (bulan) => ({
+                                                    value: bulan.value,
+                                                    label: bulan.label,
+                                                }),
+                                            )}
+                                            value={data.bulan_pelatihan}
+                                            onValueChange={(value) =>
+                                                setData(
+                                                    'bulan_pelatihan',
+                                                    value,
+                                                )
+                                            }
+                                            placeholder="Pilih Bulan Pelatihan"
+                                            searchPlaceholder="Cari bulan..."
+                                            className="mt-2"
+                                        />
+                                        <InputError
+                                            message={errors.bulan_pelatihan}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                )}
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
                                 {/* Pagu Pencacahan */}

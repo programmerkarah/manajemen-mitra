@@ -16,7 +16,7 @@ class TwoFactorPromptTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('dashboard'));
 
-        $response->assertOk();
+        $response->assertRedirect(route('two-factor.prompt'));
     }
 
     public function test_user_with_two_factor_can_access_dashboard(): void

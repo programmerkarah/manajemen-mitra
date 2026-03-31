@@ -209,14 +209,14 @@ class KegiatanMetodePendataanTest extends TestCase
         $response->assertSessionHasErrors('bulan_pelatihan');
     }
 
-    public function test_store_kegiatan_rejects_tidak_ada_pelatihan_method(): void
+    public function test_store_kegiatan_accepts_tidak_ada_pelatihan_for_survei(): void
     {
         [$user, $role] = $this->makeKetuaTim();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
             ->post('/kegiatan/store', [
-                'nama_kegiatan' => 'Survei Metode Pelatihan Lama',
+                'nama_kegiatan' => 'Survei Tanpa Pelatihan',
                 'jenis_kegiatan' => 'survei',
                 'tanggal_mulai' => '2025-01-01',
                 'tanggal_selesai' => '2025-12-31',
@@ -227,6 +227,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pelatihan' => 'tidak_ada_pelatihan',
             ]);
 
-        $response->assertSessionHasErrors('metode_pelatihan');
+        $response->assertSessionDoesntHaveErrors(['metode_pelatihan', 'bulan_pelatihan']);
+        $response->assertRedirect();
     }
 }

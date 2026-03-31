@@ -242,6 +242,7 @@ class RateHonorManagementTest extends TestCase
     {
         $kegiatanFasih = Kegiatan::factory()->create([
             'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
             'metode_pendataan_pencacahan' => 'CAPI',
             'has_listing_updating' => false,
             'metode_pendataan_listing' => null,

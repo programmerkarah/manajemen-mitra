@@ -65,7 +65,7 @@ export function YearSwitcher() {
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gray-400 text-sidebar-primary-foreground dark:bg-slate-500">
                         <Calendar1 className="size-5 text-white dark:text-white" />
                     </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
+                    <div className="grid flex-1 cursor-pointer text-left text-sm leading-tight">
                         <span className="truncate font-semibold">
                             Tahun Aktif
                         </span>
@@ -87,7 +87,7 @@ export function YearSwitcher() {
                     <DropdownMenuItem
                         key={year}
                         onClick={() => handleYearSwitch(year)}
-                        className={year === activeYear ? 'bg-accent' : ''}
+                        className={`cursor-pointer ${year === activeYear ? 'bg-accent' : ''}`}
                     >
                         <div className="flex items-center gap-2">
                             {year === activeYear && (

@@ -133,7 +133,7 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
         $periodeAwal = PeriodeAlokasi::factory()->create([
             'kegiatan_id' => $kegiatan->id,
             'tahun' => $activeYear,
-            'bulan' => '03',
+            'bulan' => 3,
             'status' => 'dikirim',
             'created_at' => now()->subDays(10),
         ]);
@@ -143,6 +143,8 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'periode_alokasi_id' => $periodeAwal->id,
             'petugas_id' => $petugasAwal->id,
+            'bulan' => 3,
+            'tahun' => $activeYear,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
         ]);
@@ -166,7 +168,7 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
         $periodeRevisi = PeriodeAlokasi::factory()->create([
             'kegiatan_id' => $kegiatan->id,
             'tahun' => $activeYear,
-            'bulan' => '03',
+            'bulan' => 3,
             'status' => 'perubahan',
             'created_at' => now()->subDay(),
         ]);
@@ -176,6 +178,8 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'periode_alokasi_id' => $periodeRevisi->id,
             'petugas_id' => $petugasBaru->id,
+            'bulan' => 3,
+            'tahun' => $activeYear,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
         ]);
