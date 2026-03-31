@@ -457,6 +457,7 @@ export default function Create({
                                 variant="outline"
                                 size="sm"
                                 onClick={handleSelectAllDasarHukum}
+                                className="cursor-pointer"
                             >
                                 {selectedDasarHukum.length ===
                                 dasarHukumList.length
@@ -516,7 +517,7 @@ export default function Create({
                             disabled={
                                 processing || selectedDasarHukum.length === 0
                             }
-                            className="gap-2"
+                            className="cursor-pointer gap-2"
                         >
                             Preview SK
                         </Button>
@@ -525,7 +526,7 @@ export default function Create({
                             disabled={
                                 processing || selectedDasarHukum.length === 0
                             }
-                            className="min-w-[180px] gap-2"
+                            className="min-w-[180px] cursor-pointer gap-2"
                         >
                             {processing ? (
                                 <>

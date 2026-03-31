@@ -1072,9 +1072,23 @@ class SkKpaController extends Controller
             return null;
         }
 
-        $periodsAfterSk = $periods->filter(fn ($periode) => $periode->created_at->gt($latestSk->created_at));
+        // Filter periods that are AFTER or IN THE SAME MONTH as the latest SK
+        // This allows SK Perubahan for changes within the same month
+        $periodsAfterSk = $periods->filter(function ($periode) use ($latestSk) {
+            // Compare year first
+            if ($periode->tahun > $latestSk->tahun) {
+                return true;
+            }
 
-        // If no periods after SK, no SK Perubahan needed
+            // Same year - compare month
+            if ($periode->tahun === $latestSk->tahun) {
+                return $periode->bulan >= $latestSk->bulan;
+            }
+
+            return false;
+        });
+
+        // If no periods after or in same month as SK, no SK Perubahan needed
         if ($periodsAfterSk->isEmpty()) {
             return null;
         }

@@ -119,7 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('two-factor.prompt');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

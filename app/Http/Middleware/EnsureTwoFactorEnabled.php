@@ -24,7 +24,6 @@ class EnsureTwoFactorEnabled
 
         // Skip for 2FA setup prompt, 2FA routes, settings, verification, and logout routes
         if (
-            $request->routeIs('home') ||
             $request->routeIs('two-factor.prompt') ||
             $request->routeIs('two-factor.*') ||
             $request->routeIs('profile.*') ||
