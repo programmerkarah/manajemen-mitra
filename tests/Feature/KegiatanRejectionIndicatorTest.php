@@ -71,10 +71,10 @@ class KegiatanRejectionIndicatorTest extends TestCase
             ->get('/kegiatan');
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->component('Kegiatan/Index'));
-
-        $encryptedPayload = $response->json('props.kegiatans.encrypted');
-        $this->assertNotNull($encryptedPayload);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Kegiatan/Index')
+            ->has('kegiatans.encrypted')
+        );
     }
 
     public function test_submit_clears_catatan(): void
