@@ -288,7 +288,12 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
         Route::get('alokasi/{alokasi}', [AlokasiPetugasController::class, 'show'])->name('alokasi.show');
         // Show periode detail (read-only) - accessible by PJ
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'showPeriode'])
-            ->name('alokasi.periode.show');
+            ->name('alokasi.periode.show')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
     });
 
     // Alokasi modification routes (Admin, Operator, Ketua Tim only)
@@ -298,6 +303,8 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
             ->name('alokasi.store-multiple');
         Route::post('alokasi/kegiatan/{kegiatan}/import', [AlokasiPetugasController::class, 'importCreate'])
             ->name('alokasi.import-create');
+        Route::post('alokasi/kegiatan/{kegiatan}/import-preview', [AlokasiPetugasController::class, 'importPreview'])
+            ->name('alokasi.import-preview');
         Route::get('alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'edit'])->name('alokasi.edit');
         Route::put('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
         Route::patch('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update']);
@@ -305,29 +312,67 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
 
         // Periode-based actions
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/submit', [AlokasiPetugasController::class, 'submitPeriode'])
-            ->name('alokasi.periode.submit');
+            ->name('alokasi.periode.submit')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
         // Edit periode
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit', [AlokasiPetugasController::class, 'editPeriode'])
-            ->name('alokasi.periode.edit');
+            ->name('alokasi.periode.edit')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
         // Update periode
         Route::put('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'updatePeriode'])
-            ->name('alokasi.periode.update');
+            ->name('alokasi.periode.update')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
         Route::delete('alokasi/periode/{kegiatan}/{tahun}/{bulan}', [AlokasiPetugasController::class, 'destroyPeriode'])
             ->name('alokasi.periode.destroy')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ])
             ->middleware('active.role:admin,operator');
-        Route::get('alokasi/periode/{periodeAlokasiId}/export/{type}', [AlokasiPetugasController::class, 'exportTemplate'])
+        Route::get('alokasi/periode/export/{type}', [AlokasiPetugasController::class, 'exportTemplateCreate'])
+            ->name('alokasi.exportTemplateCreate')
+            ->where('type', 'create|edit');
+        Route::get('alokasi/periode/{periodeAlokasiHash}/export/{type}', [AlokasiPetugasController::class, 'exportTemplate'])
             ->name('alokasi.exportTemplate')
-            ->where(['periodeAlokasiId' => '[0-9]+', 'type' => 'create|edit']);
+            ->where(['periodeAlokasiHash' => '[A-Za-z0-9]+', 'type' => 'create|edit']);
         Route::post('alokasi/periode/{periodeAlokasiId}/import', [AlokasiPetugasController::class, 'import'])
             ->name('alokasi.import')
             ->where('periodeAlokasiId', '[0-9]+');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/kembalikan-draft', [AlokasiPetugasController::class, 'kembalikanKeDraft'])
             ->name('alokasi.periode.kembalikan-draft')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ])
             ->middleware('active.role:admin,operator');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi', [AlokasiPetugasController::class, 'revisiPeriode'])
-            ->name('alokasi.periode.revisi');
+            ->name('alokasi.periode.revisi')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/revisi/batal', [AlokasiPetugasController::class, 'batalkanRevisiPeriode'])
             ->name('alokasi.periode.revisi.batalkan')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ])
             ->middleware('active.role:admin');
     });
 

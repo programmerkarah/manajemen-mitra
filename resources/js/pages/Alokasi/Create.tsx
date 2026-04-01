@@ -94,6 +94,11 @@ interface AlokasiItem {
     estimasi_honor_partial_listing?: number;
 }
 
+interface ImportPreviewRow extends AlokasiItem {
+    petugas_nama: string;
+    nik: string;
+}
+
 /** Shape of alokasi data coming from the backend (edit/copy mode) */
 interface BackendAlokasiItem {
     petugas_id?: string | number;
@@ -119,6 +124,7 @@ interface AlokasiCreateProps {
     copiedAlokasi?: BackendAlokasiItem[] | null;
     sourcePeriode?: {
         id?: number;
+        hashed_id?: string;
         bulan: string;
         tahun: number;
         tahapan?: 'both' | 'listing_only' | 'pencacahan_only';
@@ -310,6 +316,12 @@ export default function Create({
     const [processing, setProcessing] = useState(false);
     const [importProcessing, setImportProcessing] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
+    const [importPreviewRows, setImportPreviewRows] = useState<
+        ImportPreviewRow[]
+    >([]);
+    const [importPreviewErrors, setImportPreviewErrors] = useState<string[]>(
+        [],
+    );
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [jenisPerubahanRevisi, setJenisPerubahanRevisi] =
         useState<JenisPerubahanRevisi>('perubahan_beban_tugas');
@@ -1540,96 +1552,105 @@ export default function Create({
             return;
         }
 
+        if (!selectedKegiatan?.hashed_id) {
+            setErrors((prev) => ({
+                ...prev,
+                file: 'Pilih kegiatan terlebih dahulu sebelum impor.',
+            }));
+            return;
+        }
+
         setImportProcessing(true);
+        setImportPreviewRows([]);
+        setImportPreviewErrors([]);
         setErrors((prev) => {
             const nextErrors = { ...prev };
             delete nextErrors.file;
             return nextErrors;
         });
 
-        if (isEditMode || isRevisiMode) {
-            if (!sourcePeriode?.id) {
+        const formData = new FormData();
+        formData.append('file', importFile);
+        formData.append('tahapan', tahapan);
+
+        const csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') || '';
+
+        fetch(
+            `/alokasi/kegiatan/${selectedKegiatan.hashed_id}/import-preview`,
+            {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+                body: formData,
+            },
+        )
+            .then(async (response) => {
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const message =
+                        payload?.message ||
+                        payload?.errors?.file?.[0] ||
+                        'Gagal membaca file impor.';
+                    throw new Error(message);
+                }
+
+                setImportPreviewRows(payload.rows || []);
+                setImportPreviewErrors(payload.errors || []);
+            })
+            .catch((error: Error) => {
                 setErrors((prev) => ({
                     ...prev,
-                    file: 'Periode edit tidak ditemukan untuk proses impor.',
+                    file: error.message,
                 }));
+            })
+            .finally(() => {
                 setImportProcessing(false);
-                return;
-            }
+            });
+    };
 
-            router.post(
-                `/alokasi/periode/${sourcePeriode.id}/import`,
-                {
-                    file: importFile,
-                    is_create: false,
-                },
-                {
-                    forceFormData: true,
-                    onFinish: () => {
-                        setImportProcessing(false);
-                    },
-                    onError: (importErrors) => {
-                        setErrors((prev) => ({
-                            ...prev,
-                            ...importErrors,
-                        }));
-                    },
-                },
-            );
-
+    const applyImportPreviewToForm = () => {
+        if (importPreviewRows.length === 0) {
             return;
         }
 
-        if (!selectedKegiatan?.hashed_id) {
-            setErrors((prev) => ({
-                ...prev,
-                file: 'Pilih kegiatan terlebih dahulu sebelum impor.',
-            }));
-            setImportProcessing(false);
-            return;
-        }
+        const mappedItems: AlokasiItem[] = importPreviewRows.map((row) => ({
+            petugas_id: row.petugas_id,
+            peran: row.peran,
+            jumlah_satuan: row.jumlah_satuan,
+            estimasi_honor: row.estimasi_honor,
+            jumlah_satuan_listing: row.jumlah_satuan_listing,
+            estimasi_honor_listing: row.estimasi_honor_listing,
+            catatan: row.catatan || '',
+            is_partial_payment: row.is_partial_payment,
+            partial_jumlah_satuan: row.partial_jumlah_satuan,
+            estimasi_honor_partial: row.estimasi_honor_partial,
+            is_partial_payment_listing: row.is_partial_payment_listing,
+            partial_jumlah_satuan_listing: row.partial_jumlah_satuan_listing,
+            estimasi_honor_partial_listing: row.estimasi_honor_partial_listing,
+        }));
 
-        router.post(
-            `/alokasi/kegiatan/${selectedKegiatan.hashed_id}/import`,
-            {
-                file: importFile,
-                bulan,
-                tahun: active_year,
-                tahapan,
-                tanggal_mulai: tanggalMulai || null,
-                tanggal_selesai: tanggalSelesai || null,
-                tanggal_mulai_listing: tanggalMulaiListing || null,
-                tanggal_selesai_listing: tanggalSelesaiListing || null,
-                jadwal_pengolahan_listing_mulai:
-                    jadwalPengolahanListingMulai || null,
-                jadwal_pengolahan_listing_selesai:
-                    jadwalPengolahanListingSelesai || null,
-                jadwal_pengolahan_pencacahan_mulai:
-                    jadwalPengolahanPencacahanMulai || null,
-                jadwal_pengolahan_pencacahan_selesai:
-                    jadwalPengolahanPencacahanSelesai || null,
-            },
-            {
-                forceFormData: true,
-                onFinish: () => {
-                    setImportProcessing(false);
-                },
-                onError: (importErrors) => {
-                    setErrors((prev) => ({
-                        ...prev,
-                        ...importErrors,
-                    }));
-                },
-            },
-        );
+        setAlokasiItems(mappedItems);
+        setJumlahPetugas(mappedItems.length);
+        setImportPreviewRows([]);
+        setImportPreviewErrors([]);
+        setImportFile(null);
     };
 
     const exportTemplateUrl =
         isEditMode || isRevisiMode
-            ? sourcePeriode?.id
-                ? `/alokasi/periode/${sourcePeriode.id}/export/edit`
+            ? sourcePeriode?.hashed_id
+                ? `/alokasi/periode/${sourcePeriode.hashed_id}/export/edit`
                 : null
-            : '/alokasi/periode/0/export/create';
+            : selectedKegiatan?.hashed_id
+              ? `/alokasi/periode/export/create?kegiatan=${selectedKegiatan.hashed_id}&tahapan=${tahapan}`
+              : null;
 
     const months = useMemo(
         () => [
@@ -1812,7 +1833,9 @@ export default function Create({
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             {isEditMode || isRevisiMode
                                 ? 'Download template berisi data alokasi periode ini untuk diedit massal.'
-                                : 'Download template kosong dengan contoh pengisian untuk tambah alokasi massal.'}
+                                : selectedKegiatan
+                                  ? 'Download template yang menyesuaikan jenis kegiatan yang dipilih.'
+                                  : 'Pilih kegiatan terlebih dahulu untuk mengunduh template yang sesuai.'}
                         </p>
                         <Button
                             variant="outline"
@@ -1860,8 +1883,107 @@ export default function Create({
                             ) : (
                                 <FileUp className="h-4 w-4" />
                             )}
-                            Impor ke Database
+                            Preview Data Impor
                         </Button>
+
+                        {(importPreviewRows.length > 0 ||
+                            importPreviewErrors.length > 0) && (
+                            <div className="mt-3 space-y-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                                <p className="text-sm font-medium">
+                                    Preview Impor ({importPreviewRows.length}{' '}
+                                    baris valid)
+                                </p>
+
+                                {importPreviewErrors.length > 0 && (
+                                    <div className="space-y-1 rounded-md bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                                        {importPreviewErrors.map((error) => (
+                                            <p key={error}>{error}</p>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {importPreviewRows.length > 0 && (
+                                    <div className="max-h-40 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-neutral-100 dark:bg-neutral-800">
+                                                <tr>
+                                                    <th className="px-2 py-1 text-left">
+                                                        NIK
+                                                    </th>
+                                                    <th className="px-2 py-1 text-left">
+                                                        Nama
+                                                    </th>
+                                                    <th className="px-2 py-1 text-left">
+                                                        Peran
+                                                    </th>
+                                                    <th className="px-2 py-1 text-right">
+                                                        Pencacahan
+                                                    </th>
+                                                    <th className="px-2 py-1 text-right">
+                                                        Listing
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {importPreviewRows.map(
+                                                    (row, index) => (
+                                                        <tr
+                                                            key={`${row.petugas_id}-${index}`}
+                                                            className="border-t border-neutral-200 dark:border-neutral-700"
+                                                        >
+                                                            <td className="px-2 py-1">
+                                                                {row.nik}
+                                                            </td>
+                                                            <td className="px-2 py-1">
+                                                                {
+                                                                    row.petugas_nama
+                                                                }
+                                                            </td>
+                                                            <td className="px-2 py-1">
+                                                                {row.peran}
+                                                            </td>
+                                                            <td className="px-2 py-1 text-right">
+                                                                {
+                                                                    row.jumlah_satuan
+                                                                }
+                                                            </td>
+                                                            <td className="px-2 py-1 text-right">
+                                                                {row.jumlah_satuan_listing ||
+                                                                    0}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={applyImportPreviewToForm}
+                                        disabled={
+                                            importPreviewRows.length === 0
+                                        }
+                                    >
+                                        Konfirmasi & Terapkan ke Form
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setImportPreviewRows([]);
+                                            setImportPreviewErrors([]);
+                                        }}
+                                    >
+                                        Batal
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </ContentCard>

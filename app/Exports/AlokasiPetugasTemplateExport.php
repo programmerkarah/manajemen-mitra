@@ -3,157 +3,234 @@
 namespace App\Exports;
 
 use App\Models\AlokasiPetugas;
+use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AlokasiPetugasTemplateExport implements FromArray, WithHeadings, WithStyles, WithTitle
+class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithHeadings, WithStyles, WithTitle
 {
-    /**
-     * Constructor to set periode alokasi and type (create or edit)
-     */
     public function __construct(
         protected ?int $periodeAlokasiId,
-        protected string $type = 'create', // 'create' or 'edit'
+        protected string $type = 'create',
+        protected ?Kegiatan $kegiatan = null,
+        protected ?string $tahapan = null,
     ) {}
+
+    /**
+     * Whether listing columns should appear:
+     * only for survei with has_listing_updating=true where tahapan is not pencacahan_only.
+     * Defaults to true (full template) when kegiatan is unknown.
+     */
+    private function hasListing(): bool
+    {
+        if ($this->kegiatan === null) {
+            return true;
+        }
+
+        if ($this->kegiatan->jenis_kegiatan !== 'survei' || ! $this->kegiatan->has_listing_updating) {
+            return false;
+        }
+
+        return $this->tahapan !== 'pencacahan_only';
+    }
+
+    /**
+     * Whether parsial columns should appear: only for survei.
+     * Defaults to true when kegiatan is unknown.
+     */
+    private function hasParsial(): bool
+    {
+        if ($this->kegiatan === null) {
+            return true;
+        }
+
+        return $this->kegiatan->jenis_kegiatan === 'survei';
+    }
 
     public function array(): array
     {
+        $hasListing = $this->hasListing();
+        $hasParsial = $this->hasParsial();
         $data = [];
 
         if ($this->type === 'edit' && $this->periodeAlokasiId) {
-            // For edit: fetch existing allocations
             $entries = AlokasiPetugas::where('periode_alokasi_id', $this->periodeAlokasiId)
-                ->with(['petugas', 'periodeAlokasi'])
+                ->with(['petugas'])
                 ->get();
 
             foreach ($entries as $entry) {
-                $data[] = [
+                $row = [
                     $entry->petugas?->nik ?? '',
-                    $entry->petugas?->nama ?? '',
-                    $this->getStatusKepegawaianLabel($entry->status_kepegawaian),
-                    $this->getPeranLabel($entry->peran),
-                    $entry->jumlah_satuan ?? '',
-                    $entry->total_honor ?? '',
-                    $entry->is_partial_payment ? 'Ya' : 'Tidak',
-                    $entry->partial_jumlah_satuan ?? '',
-                    $entry->estimasi_honor_partial ?? '',
-                    $entry->jumlah_satuan_listing ?? '',
-                    $entry->total_honor_listing ?? '',
-                    $entry->non_response ?? '',
-                    $entry->non_response_listing ?? '',
-                    $entry->catatan ?? '',
+                    $this->mapPeranCodeForTemplate($entry->peran),
                 ];
+
+                if ($hasListing) {
+                    $row[] = $entry->jumlah_satuan_listing ?? '';
+                }
+
+                $row[] = $entry->jumlah_satuan ?? '';
+
+                if ($hasParsial) {
+                    $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
+                }
+
+                if ($hasListing && $hasParsial) {
+                    $row[] = $entry->partial_jumlah_satuan_listing ?? '';
+                }
+
+                if ($hasParsial) {
+                    $row[] = $entry->partial_jumlah_satuan ?? '';
+                }
+
+                $data[] = $row;
             }
         } else {
-            // For create: provide empty template with sample rows
-            $data[] = [
-                '1234567890123456',
-                'John Doe',
-                'Non-Organik',
-                'PCL/PPL (Petugas Pencacahan/Pendataan Lapangan)',
-                '10',
-                '1500000',
-                'Tidak',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'Contoh catatan',
-            ];
+            $sampleRow = ['1234567890123456', 'pcl_ppl'];
 
-            // Add 5 more empty rows
+            if ($hasListing) {
+                $sampleRow[] = '5';
+            }
+
+            $sampleRow[] = '10';
+
+            if ($hasParsial) {
+                $sampleRow[] = 'Tidak';
+            }
+
+            if ($hasListing && $hasParsial) {
+                $sampleRow[] = '';
+            }
+
+            if ($hasParsial) {
+                $sampleRow[] = '';
+            }
+
+            $data[] = $sampleRow;
+
+            $emptyRow = array_fill(0, count($sampleRow), '');
             for ($i = 0; $i < 5; $i++) {
-                $data[] = [
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    'Tidak',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                ];
+                $data[] = $emptyRow;
             }
         }
 
-        // Add instruction row
         $data[] = [''];
         $data[] = ['Petunjuk Pengisian:'];
-        $data[] = ['1. NIK dan Nama Petugas harus sesuai dengan data yang sudah terdaftar di sistem'];
-        $data[] = ['2. Status Kepegawaian: Organik (PNS/PPPK) atau Non-Organik'];
-        $data[] = ['3. Jenis Penugasan: PCL/PPL, PML, Petugas Pengolahan Data, Pengawas Pengolahan, atau Koseka'];
-        $data[] = ['4. Jumlah Satuan: Jumlah unit pencacahan yang ditugaskan'];
-        $data[] = ['5. Honor: Honor total untuk pencacahan'];
+        $data[] = ['1. Isi NIK sesuai data petugas yang sudah terdaftar di sistem'];
+        $data[] = ['2. Kode Penugasan wajib salah satu: pcl_ppl, pml, pengolahan, pengawasan_pengolahan, koseka'];
+
+        $num = 3;
+
+        if ($hasListing) {
+            $data[] = ["{$num}. Jumlah Satuan Listing diisi angka bulat >= 0"];
+            $num++;
+        }
+
+        $data[] = ["{$num}. Jumlah Satuan Pencacahan diisi angka bulat >= 0"];
+        $num++;
+
+        if ($hasParsial) {
+            $data[] = ["{$num}. Pembayaran Parsial diisi Ya/Tidak"];
+            $num++;
+
+            if ($hasListing) {
+                $data[] = ["{$num}. Jika Pembayaran Parsial = Ya, isi jumlah satuan parsial listing dan/atau pencacahan"];
+            } else {
+                $data[] = ["{$num}. Jika Pembayaran Parsial = Ya, isi jumlah satuan parsial pencacahan"];
+            }
+        }
 
         return $data;
     }
 
     public function headings(): array
     {
-        return [
-            'NIK Petugas',
-            'Nama Petugas',
-            'Status Kepegawaian',
-            'Jenis Penugasan',
-            'Jumlah Satuan (Pencacahan)',
-            'Honor (Pencacahan)',
-            'Pembayaran Parsial',
-            'Jumlah Satuan Parsial',
-            'Honor Parsial',
-            'Jumlah Satuan Listing',
-            'Honor Listing',
-            'Non Response Pencacahan',
-            'Non Response Listing',
-            'Catatan',
-        ];
+        $hasListing = $this->hasListing();
+        $hasParsial = $this->hasParsial();
+
+        $columns = ['NIK', 'Kode Penugasan'];
+
+        if ($hasListing) {
+            $columns[] = 'Jumlah Satuan Listing';
+        }
+
+        $columns[] = 'Jumlah Satuan Pencacahan';
+
+        if ($hasParsial) {
+            $columns[] = 'Pembayaran Parsial';
+        }
+
+        if ($hasListing && $hasParsial) {
+            $columns[] = 'Jumlah Satuan Parsial Listing';
+        }
+
+        if ($hasParsial) {
+            $columns[] = 'Jumlah Satuan Parsial Pencacahan';
+        }
+
+        return $columns;
     }
 
     public function styles(Worksheet $sheet)
     {
-        // Set column widths
-        $sheet->getColumnDimension('A')->setWidth(18);
-        $sheet->getColumnDimension('B')->setWidth(25);
-        $sheet->getColumnDimension('C')->setWidth(22);
-        $sheet->getColumnDimension('D')->setWidth(40);
-        $sheet->getColumnDimension('E')->setWidth(20);
-        $sheet->getColumnDimension('F')->setWidth(20);
-        $sheet->getColumnDimension('G')->setWidth(18);
-        $sheet->getColumnDimension('H')->setWidth(20);
-        $sheet->getColumnDimension('I')->setWidth(15);
-        $sheet->getColumnDimension('J')->setWidth(20);
-        $sheet->getColumnDimension('K')->setWidth(15);
-        $sheet->getColumnDimension('L')->setWidth(20);
-        $sheet->getColumnDimension('M')->setWidth(20);
-        $sheet->getColumnDimension('N')->setWidth(25);
+        $hasListing = $this->hasListing();
+        $hasParsial = $this->hasParsial();
 
-        // Style header row
+        $widths = [22, 30];
+
+        if ($hasListing) {
+            $widths[] = 22;
+        }
+
+        $widths[] = 26;
+
+        if ($hasParsial) {
+            $widths[] = 20;
+        }
+
+        if ($hasListing && $hasParsial) {
+            $widths[] = 28;
+        }
+
+        if ($hasParsial) {
+            $widths[] = 32;
+        }
+
+        $colLetter = 'A';
+        foreach ($widths as $width) {
+            $sheet->getColumnDimension($colLetter)->setWidth($width);
+            $colLetter++;
+        }
+
         $sheet->getStyle('1')->getFont()->setBold(true);
         $sheet->getStyle('1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle('1')->getAlignment()->setWrapText(true);
         $sheet->getStyle('1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $sheet->getStyle('1')->getFill()->getStartColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_YELLOW);
-
-        // Set row height for header
         $sheet->getRowDimension(1)->setRowHeight(40);
 
-        // Highlight required columns (A, B, C, D, E, F)
-        for ($col = 'A'; $col <= 'F'; $col++) {
+        // Pre-format the entire NIK column as text so that any value typed by
+        // the user is stored as text. This prevents 16-digit NIKs from being
+        // truncated due to IEEE 754 float precision (max ~15 significant digits).
+        $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+
+        // Required: NIK, Kode, (Listing?), Pencacahan, (Parsial flag?)
+        $requiredCount = 2 + ($hasListing ? 1 : 0) + 1 + ($hasParsial ? 1 : 0);
+        $requiredLastCol = chr(ord('A') + $requiredCount - 1);
+
+        for ($col = 'A'; $col <= $requiredLastCol; $col++) {
             $sheet->getStyle("{$col}2:{$col}100")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-            $sheet->getStyle("{$col}2:{$col}100")->getFill()->getStartColor()->setARGB('FFFFCCCC'); // Light red
+            $sheet->getStyle("{$col}2:{$col}100")->getFill()->getStartColor()->setARGB('FFFFCCCC');
         }
 
         return [];
@@ -171,21 +248,30 @@ class AlokasiPetugasTemplateExport implements FromArray, WithHeadings, WithStyle
         return 'Alokasi Petugas';
     }
 
-    private function getStatusKepegawaianLabel(string $status): string
+    /**
+     * Force column A data cells to be stored as a string type so NIK values
+     * (16-digit numbers) are never rendered in scientific notation by Excel.
+     */
+    public function bindValue(Cell $cell, $value): bool
     {
-        return $status === 'organik' ? 'Organik (PNS/PPPK)' : 'Non-Organik';
+        if ($cell->getColumn() === 'A' && $cell->getRow() > 1) {
+            $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
+
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
     }
 
-    private function getPeranLabel(string $peran): string
+    private function mapPeranCodeForTemplate(string $peran): string
     {
-        $labels = [
-            'pcl_ppl' => 'PCL/PPL (Petugas Pencacahan/Pendataan Lapangan)',
-            'pml' => 'PML (Petugas Pemeriksaan Lapangan)',
-            'pengolahan' => 'Petugas Pengolahan Data',
-            'pengawas_pengolahan' => 'Pengawas Pengolahan',
-            'koseka' => 'Koseka (Koordinator Sensus Kecamatan)',
-        ];
-
-        return $labels[$peran] ?? $peran;
+        return match ($peran) {
+            'pcl_ppl' => 'pcl_ppl',
+            'pml' => 'pml',
+            'pengolahan' => 'pengolahan',
+            'pengawas_pengolahan' => 'pengawasan_pengolahan',
+            'koseka' => 'koseka',
+            default => $peran,
+        };
     }
 }

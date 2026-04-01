@@ -16,6 +16,7 @@ use App\Models\Sbml;
 use App\Models\Spk;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1155,6 +1156,7 @@ class AlokasiPetugasController extends Controller
 
                                     $sourcePeriode = [
                                         'id' => $sourcePeriodeData->id,
+                                        'hashed_id' => $sourcePeriodeData->hashed_id,
                                         'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
                                         'tahun' => $request->copy_from_tahun,
                                         'tahapan' => $sourcePeriodeData->tahapan ?? 'both',
@@ -1958,6 +1960,7 @@ class AlokasiPetugasController extends Controller
             'copiedAlokasi' => $existingAlokasi,
             'sourcePeriode' => [
                 'id' => $periode->id,
+                'hashed_id' => $periode->hashed_id,
                 'bulan' => $bulan,
                 'tahun' => $tahun,
                 'tahapan' => $periode->tahapan ?? 'both',
@@ -3052,12 +3055,50 @@ class AlokasiPetugasController extends Controller
     }
 
     /**
-     * Download alokasi petugas template for import
+     * Download alokasi petugas template for import (create mode).
+     * Accepts optional ?kegiatan=<hash>&tahapan=<value> query params to produce a dynamically-structured template.
      */
-    public function exportTemplate(?int $periodeAlokasiId = null, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function exportTemplateCreate(Request $request, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
+        $kegiatan = null;
+        $tahapan = $request->query('tahapan');
+
+        if ($kegiatanHash = $request->query('kegiatan')) {
+            $decoded = Hashids::decode((string) $kegiatanHash);
+            if (! empty($decoded)) {
+                $kegiatan = Kegiatan::find((int) $decoded[0]);
+            }
+        }
+
         return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\AlokasiPetugasTemplateExport($periodeAlokasiId, $type),
+            new \App\Exports\AlokasiPetugasTemplateExport(null, $type, $kegiatan, $tahapan),
+            "alokasi-petugas-template-{$type}.xlsx"
+        );
+    }
+
+    /**
+     * Download alokasi petugas template for import (edit mode).
+     * Kegiatan and tahapan are derived from the existing PeriodeAlokasi record.
+     */
+    public function exportTemplate(?string $periodeAlokasiHash = null, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $periodeAlokasiId = null;
+        $kegiatan = null;
+        $tahapan = null;
+
+        if ($periodeAlokasiHash !== null) {
+            $decodedId = Hashids::decode($periodeAlokasiHash)[0] ?? null;
+            $periodeAlokasiId = $decodedId !== null ? (int) $decodedId : (is_numeric($periodeAlokasiHash) ? (int) $periodeAlokasiHash : null);
+        }
+
+        if ($periodeAlokasiId) {
+            $periode = PeriodeAlokasi::find($periodeAlokasiId);
+            $kegiatan = $periode?->kegiatan;
+            $tahapan = $periode?->tahapan;
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\AlokasiPetugasTemplateExport($periodeAlokasiId, $type, $kegiatan, $tahapan),
             "alokasi-petugas-template-{$type}.xlsx"
         );
     }
@@ -3114,6 +3155,134 @@ class AlokasiPetugasController extends Controller
             return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()])
                 ->withInput();
         }
+    }
+
+    /**
+     * Preview alokasi petugas data from Excel without persisting to database.
+     */
+    public function importPreview(Request $request, Kegiatan $kegiatan): JsonResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'tahapan' => ['nullable', 'in:both,listing_only,pencacahan_only'],
+        ], [
+            'file.required' => 'File harus diupload',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV',
+        ]);
+
+        $tahapan = $validated['tahapan'] ?? ($kegiatan->has_listing_updating ? 'both' : 'pencacahan_only');
+
+        $import = new \App\Imports\AlokasiPetugasPreviewImport();
+        \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+        $rows = $import->rows();
+        $previewRows = [];
+        $errors = [];
+
+        $rateByKey = $kegiatan->rateHonors()
+            ->where('status', 'aktif')
+            ->get()
+            ->keyBy(fn ($rate) => $rate->status_kepegawaian.'|'.$rate->jenis_penugasan);
+
+        // NIK is encrypted in the DB — load all petugas and build a decrypted NIK → Petugas map.
+        $petugasByNik = Petugas::query()
+            ->get()
+            ->keyBy(fn (Petugas $p) => $p->getAttribute('nik'));
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+
+            $nik = $this->parseImportNik($row['nik'] ?? $row['nik_petugas'] ?? '');
+            $kodePenugasan = trim((string) ($row['kode_penugasan'] ?? $row['jenis_penugasan'] ?? $row['jenis_penugasan_kode'] ?? ''));
+
+            // Skip empty rows and instruction/note rows (NIK must be all digits).
+            if ($nik === '' || ! ctype_digit($nik)) {
+                continue;
+            }
+
+            $petugas = $petugasByNik->get($nik);
+            if (! $petugas) {
+                $errors[] = "Baris {$rowNumber}: Petugas dengan NIK {$nik} tidak ditemukan.";
+                continue;
+            }
+
+            $peranCode = $this->normalizeImportPeranCode($kodePenugasan);
+            if (! $peranCode) {
+                $errors[] = "Baris {$rowNumber}: Kode penugasan '{$kodePenugasan}' tidak valid.";
+                continue;
+            }
+
+            $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+            $rate = $rateByKey->get($statusKepegawaian.'|'.$peranCode);
+
+            if (! $rate) {
+                $errors[] = "Baris {$rowNumber}: Rate honor tidak ditemukan untuk {$petugas->nama} ({$statusKepegawaian}, {$peranCode}).";
+                continue;
+            }
+
+            $jumlahSatuanPencacahan = $this->parseImportInteger($row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0);
+            $jumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_listing'] ?? 0);
+
+            if ($tahapan === 'listing_only') {
+                $jumlahSatuanPencacahan = 0;
+            }
+
+            if ($tahapan === 'pencacahan_only') {
+                $jumlahSatuanListing = 0;
+            }
+
+            $isPartialPayment = $this->parseImportBoolean($row['pembayaran_parsial'] ?? false);
+            $partialJumlahSatuan = $this->parseImportInteger($row['jumlah_satuan_parsial_pencacahan'] ?? $row['jumlah_satuan_parsial'] ?? 0);
+            $partialJumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_parsial_listing'] ?? 0);
+
+            if (! $isPartialPayment) {
+                $partialJumlahSatuan = 0;
+                $partialJumlahSatuanListing = 0;
+            }
+
+            if ($partialJumlahSatuan > $jumlahSatuanPencacahan) {
+                $errors[] = "Baris {$rowNumber}: Jumlah satuan parsial pencacahan tidak boleh lebih besar dari jumlah satuan pencacahan.";
+                continue;
+            }
+
+            if ($partialJumlahSatuanListing > $jumlahSatuanListing) {
+                $errors[] = "Baris {$rowNumber}: Jumlah satuan parsial listing tidak boleh lebih besar dari jumlah satuan listing.";
+                continue;
+            }
+
+            $estimasiHonor = (float) ($rate->rate ?? 0) * $jumlahSatuanPencacahan;
+            $estimasiHonorListing = (float) ($rate->rate_listing ?? 0) * $jumlahSatuanListing;
+            $estimasiHonorPartial = $isPartialPayment ? (float) ($rate->rate ?? 0) * $partialJumlahSatuan : 0;
+            $estimasiHonorPartialListing = $isPartialPayment ? (float) ($rate->rate_listing ?? 0) * $partialJumlahSatuanListing : 0;
+
+            $previewRows[] = [
+                'petugas_id' => (string) $petugas->id,
+                'petugas_nama' => $petugas->nama,
+                'nik' => $petugas->nik,
+                'peran' => $this->mapPeranCodeToDisplayLabel($peranCode),
+                'jumlah_satuan' => (string) $jumlahSatuanPencacahan,
+                'estimasi_honor' => $estimasiHonor,
+                'jumlah_satuan_listing' => (string) $jumlahSatuanListing,
+                'estimasi_honor_listing' => $estimasiHonorListing,
+                'catatan' => '',
+                'is_partial_payment' => $isPartialPayment,
+                'partial_jumlah_satuan' => $isPartialPayment ? (string) $partialJumlahSatuan : '',
+                'estimasi_honor_partial' => $estimasiHonorPartial,
+                'is_partial_payment_listing' => $isPartialPayment,
+                'partial_jumlah_satuan_listing' => $isPartialPayment ? (string) $partialJumlahSatuanListing : '',
+                'estimasi_honor_partial_listing' => $estimasiHonorPartialListing,
+            ];
+        }
+
+        return response()->json([
+            'rows' => $previewRows,
+            'errors' => $errors,
+            'summary' => [
+                'total_rows' => $rows->count(),
+                'valid_rows' => count($previewRows),
+                'error_count' => count($errors),
+            ],
+        ]);
     }
 
     /**
@@ -3199,5 +3368,71 @@ class AlokasiPetugasController extends Controller
             return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()])
                 ->withInput();
         }
+    }
+
+    private function parseImportNik(mixed $value): string
+    {
+        if (is_int($value)) {
+            return (string) $value;
+        }
+
+        if (is_float($value)) {
+            return sprintf('%.0f', $value);
+        }
+
+        $value = trim((string) $value);
+
+        // Handle scientific notation strings like "1.373012410970002E+15"
+        if ($value !== '' && is_numeric($value) && stripos($value, 'E') !== false) {
+            return sprintf('%.0f', (float) $value);
+        }
+
+        return $value;
+    }
+
+    private function parseImportInteger(mixed $value): int
+    {
+        $stringValue = trim((string) $value);
+
+        if ($stringValue === '') {
+            return 0;
+        }
+
+        $normalized = str_replace(['.', ','], '', $stringValue);
+
+        return is_numeric($normalized) ? max(0, (int) $normalized) : 0;
+    }
+
+    private function parseImportBoolean(mixed $value): bool
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['1', 'true', 'ya', 'yes', 'y'], true);
+    }
+
+    private function normalizeImportPeranCode(string $value): ?string
+    {
+        $normalized = strtolower(trim($value));
+
+        return match ($normalized) {
+            'pcl_ppl' => 'pcl_ppl',
+            'pml' => 'pml',
+            'pengolahan' => 'pengolahan',
+            'pengawas_pengolahan', 'pengawasan_pengolahan' => 'pengawas_pengolahan',
+            'koseka' => 'koseka',
+            default => null,
+        };
+    }
+
+    private function mapPeranCodeToDisplayLabel(string $peranCode): string
+    {
+        return match ($peranCode) {
+            'pcl_ppl' => 'PCL',
+            'pml' => 'PML',
+            'pengolahan' => 'Petugas Pengolahan',
+            'pengawas_pengolahan' => 'Pengawas Pengolahan',
+            'koseka' => 'Koseka',
+            default => 'PCL',
+        };
     }
 }
