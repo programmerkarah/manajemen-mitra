@@ -612,8 +612,8 @@ class AlokasiPetugasController extends Controller
                 'petugas_id' => $alokasiData['petugas_id'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'jumlah_satuan_listing' => $jumlahSatuanListing,
-                'total_honor' => $effectivePencacahanHonor,
-                'total_honor_listing' => $effectiveListingHonor,
+                'total_honor' => $totalHonor,
+                'total_honor_listing' => $totalHonorListing,
                 'is_partial_payment' => $isPartialPayment,
                 'partial_jumlah_satuan' => $isPartialPayment ? $partialJumlahSatuan : null,
                 'estimasi_honor_partial' => $isPartialPayment ? $estimasiHonorPartial : null,
@@ -2332,8 +2332,8 @@ class AlokasiPetugasController extends Controller
                     'petugas_id' => $alokasiData['petugas_id'],
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                     'jumlah_satuan_listing' => $jumlahSatuanListing,
-                    'total_honor' => $effectivePencacahanHonor,
-                    'total_honor_listing' => $effectiveListingHonor,
+                    'total_honor' => $totalHonor,
+                    'total_honor_listing' => $totalHonorListing,
                     'is_partial_payment' => $isPartialPayment,
                     'partial_jumlah_satuan' => $isPartialPayment ? $partialJumlahSatuan : null,
                     'estimasi_honor_partial' => $isPartialPayment ? $estimasiHonorPartial : null,
@@ -3172,7 +3172,7 @@ class AlokasiPetugasController extends Controller
 
         $tahapan = $validated['tahapan'] ?? ($kegiatan->has_listing_updating ? 'both' : 'pencacahan_only');
 
-        $import = new \App\Imports\AlokasiPetugasPreviewImport();
+        $import = new \App\Imports\AlokasiPetugasPreviewImport;
         \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
 
         $rows = $import->rows();
@@ -3203,12 +3203,14 @@ class AlokasiPetugasController extends Controller
             $petugas = $petugasByNik->get($nik);
             if (! $petugas) {
                 $errors[] = "Baris {$rowNumber}: Petugas dengan NIK {$nik} tidak ditemukan.";
+
                 continue;
             }
 
             $peranCode = $this->normalizeImportPeranCode($kodePenugasan);
             if (! $peranCode) {
                 $errors[] = "Baris {$rowNumber}: Kode penugasan '{$kodePenugasan}' tidak valid.";
+
                 continue;
             }
 
@@ -3217,6 +3219,7 @@ class AlokasiPetugasController extends Controller
 
             if (! $rate) {
                 $errors[] = "Baris {$rowNumber}: Rate honor tidak ditemukan untuk {$petugas->nama} ({$statusKepegawaian}, {$peranCode}).";
+
                 continue;
             }
 
@@ -3242,11 +3245,13 @@ class AlokasiPetugasController extends Controller
 
             if ($partialJumlahSatuan > $jumlahSatuanPencacahan) {
                 $errors[] = "Baris {$rowNumber}: Jumlah satuan parsial pencacahan tidak boleh lebih besar dari jumlah satuan pencacahan.";
+
                 continue;
             }
 
             if ($partialJumlahSatuanListing > $jumlahSatuanListing) {
                 $errors[] = "Baris {$rowNumber}: Jumlah satuan parsial listing tidak boleh lebih besar dari jumlah satuan listing.";
+
                 continue;
             }
 

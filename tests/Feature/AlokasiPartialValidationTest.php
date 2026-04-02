@@ -201,7 +201,7 @@ class AlokasiPartialValidationTest extends TestCase
             'is_partial_payment' => 1,
             'partial_jumlah_satuan' => 1,
             'estimasi_honor_partial' => 1083000,
-            'total_honor' => 1083000,
+            'total_honor' => 2166000,
         ]);
     }
 
