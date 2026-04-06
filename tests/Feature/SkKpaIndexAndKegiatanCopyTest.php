@@ -47,6 +47,64 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'tahun_anggaran' => $activeYear,
         ]);
 
+        $kegiatanTanpaAlokasi = Kegiatan::factory()->create([
+            'tahun_anggaran' => $activeYear,
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $periodeKegiatanTanpaSk = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanTanpaSk->id,
+            'tahun' => (int) $activeYear,
+            'bulan' => 3,
+            'status' => 'dikirim',
+        ]);
+
+        $periodeKegiatanSkGenerate = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanSkGenerate->id,
+            'tahun' => (int) $activeYear,
+            'bulan' => 3,
+            'status' => 'dikirim',
+        ]);
+
+        $periodeKegiatanSkDisahkan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanSkDisahkan->id,
+            'tahun' => (int) $activeYear,
+            'bulan' => 3,
+            'status' => 'dikirim',
+        ]);
+
+        PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanTanpaAlokasi->id,
+            'tahun' => (int) $activeYear,
+            'bulan' => 3,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatanTanpaSk->id,
+            'periode_alokasi_id' => $periodeKegiatanTanpaSk->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 3,
+            'tahun' => (int) $activeYear,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatanSkGenerate->id,
+            'periode_alokasi_id' => $periodeKegiatanSkGenerate->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 3,
+            'tahun' => (int) $activeYear,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'kegiatan_id' => $kegiatanSkDisahkan->id,
+            'periode_alokasi_id' => $periodeKegiatanSkDisahkan->id,
+            'petugas_id' => $petugas->id,
+            'bulan' => 3,
+            'tahun' => (int) $activeYear,
+        ]);
+
         SkKpa::create([
             'nomor_sk' => '001/SK/TEST',
             'kegiatan_id' => $kegiatanSkGenerate->id,

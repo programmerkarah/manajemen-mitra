@@ -43,6 +43,11 @@ class SkKpaController extends Controller
             ->withCount(['skKpa' => function ($q) {
                 $q->select(DB::raw('count(*)'));
             }])
+            ->whereHas('periodeAlokasi', function ($q) use ($activeYear) {
+                $q->where('tahun', $activeYear)
+                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+                    ->whereHas('alokasiPetugas');
+            })
             ->where('tahun_anggaran', $activeYear);
 
         // Search filter
