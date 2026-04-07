@@ -2,6 +2,14 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -105,6 +113,23 @@ export default function CreateForMonth({
 
     const [selectedSpks, setSelectedSpks] = useState<number[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [modalAlert, setModalAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
 
     const handleSelectAll = () => {
         if (selectedSpks.length === sortedSpkList.length) {
@@ -124,7 +149,10 @@ export default function CreateForMonth({
 
     const handleGenerateBast = () => {
         if (selectedSpks.length === 0) {
-            alert('Pilih minimal 1 Perjanjian Kerja untuk generate BAST');
+            showModalAlert(
+                'Data Belum Lengkap',
+                'Pilih minimal 1 Perjanjian Kerja untuk generate BAST.',
+            );
             return;
         }
 
@@ -169,13 +197,45 @@ export default function CreateForMonth({
                 'Preview_BAST.pdf',
             );
         } catch {
-            alert('Gagal membuka preview BAST. Silakan coba lagi.');
+            showModalAlert(
+                'Preview Gagal',
+                'Gagal membuka preview BAST. Silakan coba lagi.',
+            );
         }
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Generate BAST - ${bulan_label} ${tahun}`} />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <PageHeader
                 title={`Generate BAST - ${bulan_label} ${tahun}`}

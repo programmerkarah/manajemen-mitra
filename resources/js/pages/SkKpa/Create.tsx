@@ -3,6 +3,14 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -87,6 +95,23 @@ export default function Create({
         oldInput?.dasar_hukum_ids?.map((id) => parseInt(id)) || [],
     );
     const [processing, setProcessing] = useState(false);
+    const [modalAlert, setModalAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
 
     const handleSelectAllDasarHukum = () => {
         if (selectedDasarHukum.length === dasarHukumList.length) {
@@ -98,12 +123,18 @@ export default function Create({
 
     const handlePreview = async () => {
         if (selectedDasarHukum.length === 0) {
-            alert('Pilih minimal 1 dasar hukum');
+            showModalAlert(
+                'Data Belum Lengkap',
+                'Pilih minimal 1 dasar hukum.',
+            );
             return;
         }
 
         if (!formData.nomor_sk || !formData.tanggal_sk) {
-            alert('Lengkapi form terlebih dahulu');
+            showModalAlert(
+                'Data Belum Lengkap',
+                'Lengkapi form terlebih dahulu.',
+            );
             return;
         }
 
@@ -123,7 +154,10 @@ export default function Create({
                 `Preview_SK_${sanitizedKegiatanName}.pdf`,
             );
         } catch {
-            alert('Gagal membuka preview SK. Silakan coba lagi.');
+            showModalAlert(
+                'Preview Gagal',
+                'Gagal membuka preview SK. Silakan coba lagi.',
+            );
         }
     };
 
@@ -215,6 +249,35 @@ export default function Create({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Buat SK - ${kegiatan.nama_kegiatan}`} />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <PageHeader
                 title="Generate SK Petugas"

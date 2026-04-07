@@ -2,6 +2,14 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -78,9 +86,26 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
     const [isUploading, setIsUploading] = useState(false);
+    const [modalAlert, setModalAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
     const { data, setData, post, errors } = useForm({
         signed_file: null as File | null,
     });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -92,7 +117,10 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
         e.preventDefault();
 
         if (!data.signed_file) {
-            alert('Pilih file PDF yang sudah ditandatangani');
+            showModalAlert(
+                'File Belum Dipilih',
+                'Pilih file PDF yang sudah ditandatangani.',
+            );
             return;
         }
 
@@ -151,6 +179,35 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Detail SK - ${kegiatan.nama_kegiatan}`} />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <PageHeader
                 title="Detail SK KPA"

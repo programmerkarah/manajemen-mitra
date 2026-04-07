@@ -6,6 +6,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -114,6 +115,23 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
     const [summaryModalType, setSummaryModalType] =
         useState<SummaryModalType>('active');
+    const [modalAlert, setModalAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
     // Client-side filtering and sorting
     const filteredAndSortedKegiatan = useMemo(() => {
         let result: KegiatanItem[] = [...allKegiatan];
@@ -265,14 +283,14 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const handleDownload = (keg: KegiatanItem) => {
         const latestSk = keg.latest_sk;
         if (!latestSk) {
-            alert('SK tidak tersedia');
+            showModalAlert('File Tidak Tersedia', 'SK tidak tersedia.');
             return;
         }
 
         // Prioritaskan signed file jika ada
         const filePath = latestSk.signed_file_path || latestSk.file_path;
         if (!filePath) {
-            alert('File SK tidak tersedia');
+            showModalAlert('File Tidak Tersedia', 'File SK tidak tersedia.');
             return;
         }
 
@@ -282,6 +300,35 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SK KPA" />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="space-y-6">
                 <PageHeader

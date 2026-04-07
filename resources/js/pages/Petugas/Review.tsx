@@ -3,6 +3,14 @@ import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -74,6 +82,23 @@ export default function Review({
         null,
     );
     const [savingKey, setSavingKey] = useState<string | null>(null);
+    const [modalAlert, setModalAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
 
     const initialDrafts = useMemo(() => {
         const map: Record<string, { rating: number; ulasan: string }> = {};
@@ -134,7 +159,10 @@ export default function Review({
         const draft = drafts[key];
 
         if (!draft || draft.rating < 1 || draft.rating > 5) {
-            window.alert('Nilai bintang wajib diisi antara 1 sampai 5.');
+            showModalAlert(
+                'Input Belum Valid',
+                'Nilai bintang wajib diisi antara 1 sampai 5.',
+            );
             return;
         }
 
@@ -161,6 +189,35 @@ export default function Review({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Penilaian Mitra Statistik" />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="space-y-6">
                 <PageHeader

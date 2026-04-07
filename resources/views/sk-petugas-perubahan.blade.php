@@ -210,12 +210,6 @@
             page-break-after: avoid !important;
         }
 
-        /* Keep first 3-5 rows on first page */
-        table.petugas tbody tr.first-page-row {
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-        }
-
         /* First header row - double top border, single bottom */
         table.petugas thead tr:first-child th {
             border-top: 3px double black;
@@ -258,16 +252,14 @@
             page-break-before: avoid !important;
         }
 
-        /* Keep last 1-2 rows with signature */
-        table.petugas tbody tr.keep-with-signature,
-        table.petugas tbody tr.keep-with-signature-last-2 {
-            page-break-after: avoid !important;
-        }
-
         /* Signature must stay with last rows */
         .signature {
             page-break-before: avoid !important;
             page-break-inside: avoid !important;
+        }
+
+        .approval-block {
+            page-break-inside: avoid;
         }
 
         .page-break {
@@ -582,6 +574,38 @@
         @endif
     </div>
 
+    @php
+        $minimumRowsForApproval = 1;
+        $alokasiArray = $alokasiList->values()->all();
+        $approvalGroupIndexes = [];
+        $approvalRowCount = 0;
+
+        for ($index = count($alokasiArray) - 1; $index >= 0; $index--) {
+            if (count($approvalGroupIndexes) > 0 && $approvalRowCount >= $minimumRowsForApproval) {
+                break;
+            }
+
+            $approvalGroupIndexes[] = $index;
+            $approvalRowCount += count($alokasiArray[$index]->roles);
+        }
+
+        $shouldSplitApprovalBlock = count($approvalGroupIndexes) > 0
+            && count($approvalGroupIndexes) < count($alokasiArray)
+            && $approvalRowCount >= $minimumRowsForApproval;
+
+        $mainGroups = [];
+        $approvalGroups = [];
+
+        foreach ($alokasiArray as $index => $alokasi) {
+            if ($shouldSplitApprovalBlock && in_array($index, $approvalGroupIndexes, true)) {
+                $approvalGroups[] = $alokasi;
+                continue;
+            }
+
+            $mainGroups[] = $alokasi;
+        }
+    @endphp
+
     <table class="petugas">
         <thead>
             <tr>
@@ -602,19 +626,13 @@
         <tbody>
             @php
             $counter = 1;
-            $globalRowCounter = 0;
-            $totalRows = 0;
-            foreach($alokasiList as $alok) {
-                $totalRows += count($alok->roles);
-            }
             @endphp
-            @foreach($alokasiList as $alokasiIndex => $alokasi)
+            @foreach($mainGroups as $alokasi)
             @php
             $roleCount = count($alokasi->roles);
             @endphp
             @foreach($alokasi->roles as $roleIndex => $role)
             @php
-            $globalRowCounter++;
             $groupClass = '';
             
             // Keep rows of same petugas together
@@ -626,18 +644,6 @@
                 } else {
                     $groupClass .= ' petugas-middle';
                 }
-            }
-            
-            // Keep first 4-5 rows on first page
-            if ($globalRowCounter <= 5) {
-                $groupClass .= ' first-page-row';
-            }
-            
-            // Keep last 1-2 rows with signature
-            if ($globalRowCounter >= $totalRows - 1) {
-                $groupClass .= ' keep-with-signature';
-            } elseif ($globalRowCounter >= $totalRows - 2) {
-                $groupClass .= ' keep-with-signature-last-2';
             }
             @endphp
             <tr class="{{ $groupClass }}">
@@ -665,14 +671,82 @@
         </tbody>
     </table>
 
-    <div class="signature" style="margin-top: 60px;">
-        <div class="signature-content">
-            <div>
-                KEPALA BADAN PUSAT STATISTIK<br>
-                KOTA SAWAHLUNTO,
-            </div>
-            <div style="margin-top: 80px; font-weight: bold;">
-                {{ strtoupper($kepalaBps) }}
+    <div class="approval-block">
+        @if(count($approvalGroups) > 0)
+        <table class="petugas">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: 30%;">Nama/Jabatan</th>
+                    <th style="width: 25%;">NIP/Golongan</th>
+                    <th style="width: 20%;">Ditetapkan Sebagai</th>
+                    <th style="width: 20%;">Biaya Satuan (Rp)</th>
+                </tr>
+                <tr>
+                    <th>(1)</th>
+                    <th>(2)</th>
+                    <th>(3)</th>
+                    <th>(4)</th>
+                    <th>(5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $counter = count($mainGroups) + 1;
+                @endphp
+                @foreach($approvalGroups as $alokasi)
+                    @php
+                        $roleCount = count($alokasi->roles);
+                    @endphp
+                    @foreach($alokasi->roles as $roleIndex => $role)
+                        @php
+                            $groupClass = '';
+
+                            if ($roleCount > 1) {
+                                if ($roleIndex === 0) {
+                                    $groupClass .= ' petugas-start';
+                                } elseif ($roleIndex === $roleCount - 1) {
+                                    $groupClass .= ' petugas-end';
+                                } else {
+                                    $groupClass .= ' petugas-middle';
+                                }
+                            }
+                        @endphp
+                        <tr class="{{ $groupClass }}">
+                            @if($roleIndex === 0)
+                            <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">{{ $counter }}.</td>
+                            <td style="vertical-align: top;" rowspan="{{ $roleCount }}">
+                                {{ $alokasi->nama }}/<br>
+                                {{ $alokasi->jabatan }}
+                            </td>
+                            <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">
+                                @if($alokasi->nip && $alokasi->nip !== '-'&& $alokasi->golongan !=="Non PNS")
+                                {{ $alokasi->nip }}/<br>
+                                {{ $alokasi->golongan }}
+                                @else
+                                Non PNS
+                                @endif
+                            </td>
+                            @endif
+                            <td style="vertical-align: top;">{{ $role->peran }}</td>
+                            <td style="text-align: right; vertical-align: top;">{{ $role->biaya_satuan }}</td>
+                        </tr>
+                    @endforeach
+                    @php $counter++; @endphp
+                @endforeach
+            </tbody>
+        </table>
+        @endif
+
+        <div class="signature" style="margin-top: 10px;">
+            <div class="signature-content">
+                <div>
+                    KEPALA BADAN PUSAT STATISTIK<br>
+                    KOTA SAWAHLUNTO,
+                </div>
+                <div style="margin-top: 80px; font-weight: bold;">
+                    {{ strtoupper($kepalaBps) }}
+                </div>
             </div>
         </div>
     </div>

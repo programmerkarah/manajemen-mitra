@@ -3,6 +3,14 @@ import React from 'react';
 import { ContentCard } from '@/components/content-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
@@ -43,6 +51,23 @@ export default function SystemSettings() {
     const [editMessage, setEditMessage] = React.useState(initialMessage || '');
     const [saving, setSaving] = React.useState(false);
     const [showSaved, setShowSaved] = React.useState(false);
+    const [modalAlert, setModalAlert] = React.useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+    });
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
 
     function getCsrfToken() {
         if (typeof document !== 'undefined') {
@@ -90,7 +115,10 @@ export default function SystemSettings() {
             }
         } catch (error) {
             console.error('Failed to toggle maintenance:', error);
-            alert('Gagal mengubah status maintenance. Silakan coba lagi.');
+            showModalAlert(
+                'Aksi Gagal',
+                'Gagal mengubah status maintenance. Silakan coba lagi.',
+            );
             setLoading(false);
         }
     };
@@ -131,6 +159,35 @@ export default function SystemSettings() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="System Settings" />
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Header Section */}
             <div className="mb-6">
