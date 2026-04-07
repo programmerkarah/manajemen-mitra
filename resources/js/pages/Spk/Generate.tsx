@@ -84,10 +84,6 @@ export default function Generate({
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-    const hasNewPetugas = petugas_list.some(
-        (a) => !existing_spk_map[a.petugas.id],
-    );
-
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },
         {
@@ -717,23 +713,23 @@ export default function Generate({
                         <Button variant="outline" asChild>
                             <Link href="/spk">Batal</Link>
                         </Button>
-                        {(!is_regenerate || hasNewPetugas) && (
-                            <Button
-                                onClick={handleGenerateAll}
-                                disabled={
-                                    processing ||
-                                    selectedPetugas.length === 0 ||
-                                    !formData.tanggal_spk ||
-                                    has_draft_periode
-                                }
-                            >
-                                {processing
-                                    ? 'Memproses...'
-                                    : has_draft_periode
-                                      ? 'Tidak dapat generate (ada periode draft)'
-                                      : `Generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`}
-                            </Button>
-                        )}
+                        <Button
+                            onClick={handleGenerateAll}
+                            disabled={
+                                processing ||
+                                selectedPetugas.length === 0 ||
+                                !formData.tanggal_spk ||
+                                has_draft_periode
+                            }
+                        >
+                            {processing
+                                ? 'Memproses...'
+                                : has_draft_periode
+                                  ? 'Tidak dapat generate (ada periode draft)'
+                                  : is_regenerate
+                                    ? `Re-generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`
+                                    : `Generate Perjanjian Kerja (${selectedPetugas.length} Petugas)`}
+                        </Button>
                     </div>
                 </ContentCard>
             </div>

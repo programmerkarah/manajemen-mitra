@@ -134,7 +134,6 @@ export default function Index({ periodeList }: IndexProps) {
             return (
                 canCreateSpk &&
                 monthData.total_spk > 0 &&
-                monthData.has_revision &&
                 (monthData.has_incomplete_addendum ||
                     monthData.has_addendum_changes)
             );
@@ -558,7 +557,6 @@ export default function Index({ periodeList }: IndexProps) {
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
-                                                        monthData.has_revision &&
                                                         monthData.has_incomplete_addendum &&
                                                         !monthData.has_addendum_changes && (
                                                             <Button
@@ -586,7 +584,6 @@ export default function Index({ periodeList }: IndexProps) {
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
-                                                        monthData.has_revision &&
                                                         monthData.has_addendum_changes && (
                                                             <Button
                                                                 size="sm"
