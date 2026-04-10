@@ -4469,6 +4469,8 @@ class BastController extends Controller
         Request $request,
         ?Bast $currentBast = null,
     ): \Illuminate\Support\Collection {
+        $user = $this->getRequestUser($request);
+
         return Bast::with([
             'spk.alokasiPetugas.petugas',
             'createdBy:id,name',
@@ -4477,6 +4479,11 @@ class BastController extends Controller
             ->whereHas('periodeAlokasi', function ($query) use ($periode) {
                 $query->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun);
+            })
+            ->when($isKetuaTim, function ($query) use ($user) {
+                $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {
+                    $q->where('ketua_tim_user_id', $user?->id);
+                });
             })
             ->orderBy('nomor_bast')
             ->get()
