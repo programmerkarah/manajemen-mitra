@@ -14,6 +14,7 @@ class BastKegiatan extends Model
 
     protected $fillable = [
         'bast_id',
+        'spk_id',
         'kegiatan_id',
         'periode_alokasi_id',
         'kode_kegiatan',
@@ -48,5 +49,10 @@ class BastKegiatan extends Model
     public function periodeAlokasi(): BelongsTo
     {
         return $this->belongsTo(PeriodeAlokasi::class);
+    }
+
+    public function spk(): BelongsTo
+    {
+        return $this->belongsTo(Spk::class);
     }
 }

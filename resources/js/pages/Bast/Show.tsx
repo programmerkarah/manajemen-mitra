@@ -29,7 +29,7 @@ import {
     PenLine,
     Upload,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Bast {
     id: number;
@@ -101,6 +101,7 @@ interface LampiranItem {
     can_download: boolean;
     can_generate: boolean;
     can_upload_signed: boolean;
+    can_preview: boolean;
     ready_to_generate: boolean;
     preview_spk_id?: number | null;
 }
@@ -194,9 +195,27 @@ export default function Show({
     tahun,
     bulan_label,
 }: ShowProps) {
-    const { auth } = usePage<SharedData>().props;
+    usePage<SharedData>();
     const [uploadingTarget, setUploadingTarget] = useState<string | null>(null);
     const isPreviewOnlyMode = !bast.hashed_id;
+    const listScrollRef = useRef<HTMLDivElement>(null);
+    const SCROLL_KEY = `bast-list-scroll-${bulan}-${tahun}`;
+
+    useEffect(() => {
+        const saved = sessionStorage.getItem(SCROLL_KEY);
+        if (saved && listScrollRef.current) {
+            listScrollRef.current.scrollTop = parseInt(saved, 10);
+        }
+    }, [SCROLL_KEY]);
+
+    const handleListLinkClick = () => {
+        if (listScrollRef.current) {
+            sessionStorage.setItem(
+                SCROLL_KEY,
+                String(listScrollRef.current.scrollTop),
+            );
+        }
+    };
 
     const reloadDetailData = () => {
         router.get(
@@ -497,7 +516,7 @@ export default function Show({
                 </ContentCard>
 
                 <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-                    <div className="space-y-6">
+                    <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
                         <ContentCard>
                             <div className="space-y-4">
                                 <div>
@@ -508,12 +527,16 @@ export default function Show({
                                         Dokumen periode {bulan_label} {tahun}
                                     </p>
                                 </div>
-                                <div className="space-y-2">
+                                <div
+                                    ref={listScrollRef}
+                                    className="max-h-[calc(100vh-16rem)] space-y-2 overflow-y-auto pr-1"
+                                >
                                     {sortedBastList.map((item) => (
                                         <Link
                                             key={item.id}
                                             href={`/bast/${item.hashed_id}`}
                                             preserveScroll
+                                            onClick={handleListLinkClick}
                                             className={`block h-auto w-full rounded-xl border p-4 text-left transition-colors ${
                                                 item.is_current
                                                     ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
@@ -566,6 +589,9 @@ export default function Show({
                                                     key={`pending-${idx}`}
                                                     href={item.open_detail_url}
                                                     preserveScroll
+                                                    onClick={
+                                                        handleListLinkClick
+                                                    }
                                                     className="block h-auto w-full rounded-xl border border-dashed border-neutral-200 p-4 transition-colors hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600"
                                                 >
                                                     {content}
@@ -599,9 +625,6 @@ export default function Show({
                                             Nomor {bast.nomor_bast}
                                         </p>
                                     </div>
-                                    <Badge variant="outline">
-                                        {auth.activeRole?.name ?? 'role'}
-                                    </Badge>
                                 </div>
 
                                 <div className="grid gap-4 md:grid-cols-2">
@@ -620,19 +643,13 @@ export default function Show({
                                         </div>
                                     )}
                                     {petugas?.alamat && (
-                                        <div className="md:col-span-2">
+                                        <div>
                                             <Label>Alamat</Label>
                                             <p className="font-medium text-neutral-900 dark:text-white">
                                                 {petugas.alamat}
                                             </p>
                                         </div>
                                     )}
-                                    <div>
-                                        <Label>Tanggal BAST</Label>
-                                        <p className="font-medium text-neutral-900 dark:text-white">
-                                            {bast.tanggal_bast}
-                                        </p>
-                                    </div>
                                     <div>
                                         <Label>Tanggal Serah Terima</Label>
                                         <p className="font-medium text-neutral-900 dark:text-white">
@@ -642,11 +659,15 @@ export default function Show({
                                 </div>
 
                                 <div className="flex flex-wrap gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-700">
-                                    {bast.file_path && (
+                                    {(bast.file_path ||
+                                        (bast.is_legacy_mode &&
+                                            bast.signed_file_path)) && (
                                         <Button
                                             onClick={() =>
                                                 openFastDownload(
-                                                    `/bast/${bast.hashed_id}/download`,
+                                                    bast.file_path
+                                                        ? `/bast/${bast.hashed_id}/download`
+                                                        : `/bast/${bast.hashed_id}/download-signed`,
                                                 )
                                             }
                                         >
@@ -655,7 +676,8 @@ export default function Show({
                                         </Button>
                                     )}
 
-                                    {bast.compiled_file_path &&
+                                    {!bast.is_legacy_mode &&
+                                        bast.compiled_file_path &&
                                         summary.all_lampiran_generated && (
                                             <Button
                                                 variant="outline"
@@ -671,6 +693,24 @@ export default function Show({
                                         )}
 
                                     {summary.final_signed_ready &&
+                                        bast.signed_file_path &&
+                                        !bast.is_legacy_mode && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                    openFastDownload(
+                                                        `/bast/${bast.hashed_id}/download-signed`,
+                                                    )
+                                                }
+                                            >
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download Gabungan Bertanda
+                                                Tangan
+                                            </Button>
+                                        )}
+
+                                    {bast.is_legacy_mode &&
+                                        summary.final_signed_ready &&
                                         bast.signed_file_path && (
                                             <Button
                                                 variant="outline"
@@ -689,9 +729,8 @@ export default function Show({
 
                                 {!summary.final_signed_ready && (
                                     <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/50 dark:text-neutral-400">
-                                        Download Gabungan Bertanda Tangan baru
-                                        muncul setelah BAST bertanda tangan dan
-                                        semua lampiran bertanda tangan selesai
+                                        Download BAST + Lampiran Bertanda Tangan baru
+                                        muncul setelah semua berkas bertanda tangan selesai
                                         diunggah.
                                     </div>
                                 )}
@@ -709,7 +748,7 @@ export default function Show({
                                             Unggah PDF BAST yang sudah
                                             ditandatangani. File final bertanda
                                             tangan akan disusun otomatis setelah
-                                            semua lampiran signed tersedia.
+                                            semua lampiran bertanda tangan tersedia.
                                         </p>
                                     </div>
 
@@ -849,6 +888,9 @@ export default function Show({
                                                     <div className="mt-4 flex flex-wrap gap-3">
                                                         <Button
                                                             variant="outline"
+                                                            disabled={
+                                                                !item.can_preview
+                                                            }
                                                             onClick={() =>
                                                                 void handlePreviewLampiran(
                                                                     item,

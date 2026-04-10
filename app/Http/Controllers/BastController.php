@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\BastKegiatan;
+use App\Models\BastNumberAllocation;
 use App\Models\BastPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
@@ -168,6 +169,80 @@ class BastController extends Controller
         );
     }
 
+    private function extractBastSequence(?string $nomorBast): int
+    {
+        if (! $nomorBast) {
+            return 0;
+        }
+
+        if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $nomorBast, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    private function allocateNomorBastForSpk(Spk $spk, Carbon $tanggalBast): string
+    {
+        $existing = BastNumberAllocation::query()->where('spk_id', $spk->id)->first();
+
+        if ($existing?->nomor_bast) {
+            return (string) $existing->nomor_bast;
+        }
+
+        $tahun = $tanggalBast->year;
+        $bulan = $tanggalBast->month;
+
+        $maxFromBast = Bast::query()
+            ->whereYear('tanggal_bast', $tahun)
+            ->pluck('nomor_bast')
+            ->map(fn (?string $nomorBast) => $this->extractBastSequence($nomorBast))
+            ->max() ?? 0;
+
+        $maxFromAllocation = BastNumberAllocation::query()
+            ->where('tahun', $tahun)
+            ->pluck('nomor_bast')
+            ->map(fn (?string $nomorBast) => $this->extractBastSequence($nomorBast))
+            ->max() ?? 0;
+
+        $nextSequence = max($maxFromBast, $maxFromAllocation) + 1;
+        $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nextSequence, $tahun);
+
+        BastNumberAllocation::query()->updateOrCreate(
+            ['spk_id' => $spk->id],
+            [
+                'nomor_bast' => $nomorBast,
+                'tahun' => $tahun,
+                'bulan' => $bulan,
+                'status' => 'allocated',
+                'allocated_at' => now(),
+            ]
+        );
+
+        return $nomorBast;
+    }
+
+    private function markNomorBastAllocationUsed(Spk $spk, string $nomorBast): void
+    {
+        $existing = BastNumberAllocation::query()->where('spk_id', $spk->id)->first();
+
+        $year = (int) now()->year;
+        if (preg_match('/\/BAST\/(\d{4})$/', $nomorBast, $matches)) {
+            $year = (int) $matches[1];
+        }
+
+        BastNumberAllocation::query()->updateOrCreate(
+            ['spk_id' => $spk->id],
+            [
+                'nomor_bast' => $nomorBast,
+                'tahun' => $existing?->tahun ?? $year,
+                'bulan' => $existing?->bulan ?? (int) now()->month,
+                'status' => 'used',
+                'used_at' => now(),
+            ]
+        );
+    }
+
     /**
      * @return array{file_path:?string,signed_file_path:?string,generated_at:?string,signed_uploaded_at:?string,status:string,can_upload_signed:bool}
      */
@@ -188,20 +263,29 @@ class BastController extends Controller
             ];
         }
 
-        $draftPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan);
-        $signedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan, true);
+        $record = BastKegiatan::query()
+            ->whereNull('bast_id')
+            ->where('spk_id', $spk->id)
+            ->where('kegiatan_id', $kegiatanId)
+            ->where('periode_alokasi_id', $periodeAlokasiId)
+            ->first();
 
-        $draftAbsolutePath = $this->resolveDocumentAbsolutePath($draftPath);
-        $signedAbsolutePath = $this->resolveDocumentAbsolutePath($signedPath);
+        $draftAbsolutePath = $this->resolveDocumentAbsolutePath($record?->file_path);
+        $signedAbsolutePath = $this->resolveDocumentAbsolutePath($record?->signed_file_path);
 
-        $hasDraft = $draftAbsolutePath && file_exists($draftAbsolutePath);
-        $hasSigned = $signedAbsolutePath && file_exists($signedAbsolutePath);
+        $hasDraft = filled($record?->file_path) && $draftAbsolutePath && file_exists($draftAbsolutePath);
+        $hasSigned = filled($record?->signed_file_path) && $signedAbsolutePath && file_exists($signedAbsolutePath);
+        $timezone = config('app.timezone', 'Asia/Jakarta');
 
         return [
-            'file_path' => $hasDraft ? $draftPath : null,
-            'signed_file_path' => $hasSigned ? $signedPath : null,
-            'generated_at' => $hasDraft ? Carbon::createFromTimestamp(filemtime($draftAbsolutePath))->format('d M Y H:i') : null,
-            'signed_uploaded_at' => $hasSigned ? Carbon::createFromTimestamp(filemtime($signedAbsolutePath))->format('d M Y H:i') : null,
+            'file_path' => $hasDraft ? $record?->file_path : null,
+            'signed_file_path' => $hasSigned ? $record?->signed_file_path : null,
+            'generated_at' => $hasDraft && $record?->generated_at
+                ? $record->generated_at->copy()->timezone($timezone)->format('d M Y H:i')
+                : null,
+            'signed_uploaded_at' => $hasSigned && $record?->signed_uploaded_at
+                ? $record->signed_uploaded_at->copy()->timezone($timezone)->format('d M Y H:i')
+                : null,
             'status' => $hasSigned ? 'signed' : ($hasDraft ? 'generated' : 'pending'),
             'can_upload_signed' => $hasDraft,
         ];
@@ -217,26 +301,26 @@ class BastController extends Controller
             return;
         }
 
+        $previewByKey = BastKegiatan::query()
+            ->whereNull('bast_id')
+            ->where('spk_id', $spk->id)
+            ->get()
+            ->keyBy(fn (BastKegiatan $row) => $this->makeBastKegiatanKey((int) $row->kegiatan_id, (int) $row->periode_alokasi_id));
+
         foreach ($bast->bastKegiatan as $bastKegiatan) {
-            $previewDraftPath = $this->buildPreviewLampiranRelativePath(
-                $spk,
-                (int) $bastKegiatan->kegiatan_id,
-                (int) $bastKegiatan->periode_alokasi_id,
-                (string) $bastKegiatan->kode_kegiatan,
-            );
-            $previewSignedPath = $this->buildPreviewLampiranRelativePath(
-                $spk,
-                (int) $bastKegiatan->kegiatan_id,
-                (int) $bastKegiatan->periode_alokasi_id,
-                (string) $bastKegiatan->kode_kegiatan,
-                true,
+            $record = $previewByKey->get(
+                $this->makeBastKegiatanKey((int) $bastKegiatan->kegiatan_id, (int) $bastKegiatan->periode_alokasi_id)
             );
 
-            $draftAbsolutePath = $this->resolveDocumentAbsolutePath($previewDraftPath);
-            $signedAbsolutePath = $this->resolveDocumentAbsolutePath($previewSignedPath);
+            if (! $record) {
+                continue;
+            }
 
-            $hasDraft = $draftAbsolutePath && file_exists($draftAbsolutePath);
-            $hasSigned = $signedAbsolutePath && file_exists($signedAbsolutePath);
+            $draftAbsolutePath = $this->resolveDocumentAbsolutePath($record->file_path);
+            $signedAbsolutePath = $this->resolveDocumentAbsolutePath($record->signed_file_path);
+
+            $hasDraft = filled($record->file_path) && $draftAbsolutePath && file_exists($draftAbsolutePath);
+            $hasSigned = filled($record->signed_file_path) && $signedAbsolutePath && file_exists($signedAbsolutePath);
 
             if (! $hasDraft && ! $hasSigned) {
                 continue;
@@ -252,7 +336,7 @@ class BastController extends Controller
                     file_get_contents($draftAbsolutePath),
                     'lampiran'
                 );
-                $updates['generated_at'] = Carbon::createFromTimestamp(filemtime($draftAbsolutePath));
+                $updates['generated_at'] = $record->generated_at ?? now();
             }
 
             if ($hasSigned) {
@@ -263,15 +347,16 @@ class BastController extends Controller
                     file_get_contents($signedAbsolutePath),
                     'lampiran-signed'
                 );
-                $updates['signed_uploaded_at'] = Carbon::createFromTimestamp(filemtime($signedAbsolutePath));
+                $updates['signed_uploaded_at'] = $record->signed_uploaded_at ?? now();
             }
 
             if (! empty($updates)) {
                 $bastKegiatan->update($updates);
             }
 
-            $this->deleteStoredDocument($previewDraftPath);
-            $this->deleteStoredDocument($previewSignedPath);
+            $this->deleteStoredDocument($record->file_path);
+            $this->deleteStoredDocument($record->signed_file_path);
+            $record->delete();
         }
 
         $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
@@ -521,7 +606,7 @@ class BastController extends Controller
             $targetDate->subDay();
         }
 
-        $nomorBast = $this->nextBastNomorForDate($targetDate);
+        $nomorBast = $this->allocateNomorBastForSpk($spk, $targetDate);
         $ppk = Penandatangan::where('jenis_penandatangan', 'ppk')
             ->where('is_active', true)
             ->first();
@@ -998,7 +1083,6 @@ class BastController extends Controller
             $tahun = $activeYear;
         }
 
-        $isApril2026OrLater = (int) $tahun > 2026 || ((int) $tahun === 2026 && (int) $bulan >= 4);
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         // Get first BAST for this month
@@ -1013,7 +1097,7 @@ class BastController extends Controller
 
         // For April 2026+, when selecting a petugas without BAST (or no BAST exists yet),
         // show same detail layout without generating BAST document.
-        if ($isApril2026OrLater && ($selectedPetugasId > 0 || ! $firstBast)) {
+        if ($selectedPetugasId > 0 || ! $firstBast) {
             $user = $this->getRequestUser($request);
             $isKetuaTim = $user?->active_role === 'ketua_tim';
             $canManageMain = $this->userCanManageBastMain($request);
@@ -1179,6 +1263,7 @@ class BastController extends Controller
                             'can_download' => $readyToGenerate || filled($previewDocumentState['file_path']),
                             'can_generate' => $readyToGenerate,
                             'can_upload_signed' => $previewDocumentState['can_upload_signed'],
+                            'can_preview' => $readyToGenerate,
                             'ready_to_generate' => $readyToGenerate,
                             'preview_spk_id' => $selectedSpk?->id,
                         ];
@@ -1802,26 +1887,40 @@ class BastController extends Controller
                     }
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
-                    // Ambil nomor urut terakhir dari database untuk bulan & tahun ini
-                    $allBast = Bast::whereYear('tanggal_bast', $carbonTarget->year)
-                        ->pluck('nomor_bast');
-                    $maxUrut = 0;
-                    foreach ($allBast as $existingNomor) {
-                        if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
-                            $urut = (int) $matches[1];
-                            if ($urut > $maxUrut) {
-                                $maxUrut = $urut;
+                    $nomorBastTemp = null;
+                    // Cek apakah SPK ini sudah punya alokasi nomor BAST dari lampiran preview
+                    $existingAllocation = BastNumberAllocation::query()->where('spk_id', $spk->id)->first();
+                    if ($existingAllocation?->nomor_bast) {
+                        $nomorBast = $existingAllocation->nomor_bast;
+                    } else {
+                        // Ambil nomor urut terakhir dari database untuk tahun ini
+                        $allBast = Bast::whereYear('tanggal_bast', $carbonTarget->year)
+                            ->pluck('nomor_bast');
+                        $maxUrut = 0;
+                        foreach ($allBast as $existingNomor) {
+                            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
+                                $urut = (int) $matches[1];
+                                if ($urut > $maxUrut) {
+                                    $maxUrut = $urut;
+                                }
                             }
                         }
+                        // Cek nomor yang sudah dialokasikan via bast_number_allocations
+                        $maxUrutAllocation = BastNumberAllocation::query()
+                            ->where('tahun', $carbonTarget->year)
+                            ->pluck('nomor_bast')
+                            ->map(fn (?string $n) => $this->extractBastSequence($n))
+                            ->max() ?? 0;
+                        $maxUrut = max($maxUrut, $maxUrutAllocation);
+                        // Cek juga nomor urut yang sudah dipakai di batch ini
+                        if (! empty($usedUruts[$carbonTarget->year][$carbonTarget->month])) {
+                            $maxUrutBatch = max($maxUrut, max($usedUruts[$carbonTarget->year][$carbonTarget->month]));
+                        } else {
+                            $maxUrutBatch = $maxUrut;
+                        }
+                        $nomorBastTemp = $maxUrutBatch + 1;
+                        $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
                     }
-                    // Cek juga nomor urut yang sudah dipakai di batch ini
-                    if (! empty($usedUruts[$carbonTarget->year][$carbonTarget->month])) {
-                        $maxUrutBatch = max($maxUrut, max($usedUruts[$carbonTarget->year][$carbonTarget->month]));
-                    } else {
-                        $maxUrutBatch = $maxUrut;
-                    }
-                    $nomorBastTemp = $maxUrutBatch + 1;
-                    $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
 
                     // Ambil PPK aktif
                     $ppk = Penandatangan::where('jenis_penandatangan', 'ppk')
@@ -1934,8 +2033,10 @@ class BastController extends Controller
                     $this->adoptPreviewLampiranFiles($bast->fresh('bastKegiatan'));
 
                     $successCount++;
-                    // Simpan nomor urut yang baru saja dipakai ke array batch
-                    $usedUruts[$carbonTarget->year][$carbonTarget->month][] = $nomorBastTemp;
+                    // Simpan nomor urut yang baru saja dipakai ke array batch (hanya jika tidak dari allocation)
+                    if (isset($nomorBastTemp)) {
+                        $usedUruts[$carbonTarget->year][$carbonTarget->month][] = $nomorBastTemp;
+                    }
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
@@ -2926,7 +3027,7 @@ class BastController extends Controller
         $tanggalAkhir = $spk->tanggal_selesai_kerja
             ? Carbon::parse($spk->tanggal_selesai_kerja)->format('Y-m-d')
             : now()->format('Y-m-d');
-        $nomorBastPreview = $this->generateNomorBastForSpk(Carbon::parse($tanggalAkhir));
+        $nomorBastPreview = $this->allocateNomorBastForSpk($spk, Carbon::parse($tanggalAkhir));
 
         $viewData = $this->prepareBastDataForExport(
             $spk,
@@ -3034,7 +3135,7 @@ class BastController extends Controller
         $tanggalAkhir = $spk->tanggal_selesai_kerja
             ? Carbon::parse($spk->tanggal_selesai_kerja)->format('Y-m-d')
             : now()->format('Y-m-d');
-        $nomorBast = $this->generateNomorBastForSpk(Carbon::parse($tanggalAkhir));
+        $nomorBast = $this->allocateNomorBastForSpk($spk, Carbon::parse($tanggalAkhir));
 
         $viewData = $this->prepareBastDataForExport(
             $spk,
@@ -3057,9 +3158,9 @@ class BastController extends Controller
         $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
             ->setPaper('a4', 'landscape');
 
-        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment((string) ($kegiatanPayload['kode_kegiatan'] ?? 'KEGIATAN')).'.pdf';
         $periodeAlokasiId = (int) ($kegiatanPayload['periode_alokasi_id'] ?? 0);
         $kodeKegiatan = (string) ($kegiatanPayload['kode_kegiatan'] ?? 'KEGIATAN');
+        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment($kodeKegiatan).'.pdf';
         $storedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan);
         $signedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan, true);
 
@@ -3072,6 +3173,22 @@ class BastController extends Controller
         $absolutePath = $this->resolveDocumentAbsolutePath($storedPath);
 
         abort_unless($absolutePath && file_exists($absolutePath), 500, 'Gagal menyimpan file lampiran.');
+
+        BastKegiatan::query()->updateOrCreate(
+            [
+                'bast_id' => null,
+                'spk_id' => $spk->id,
+                'kegiatan_id' => $kegiatanId,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ],
+            [
+                'kode_kegiatan' => $kodeKegiatan,
+                'file_path' => $storedPath,
+                'signed_file_path' => null,
+                'generated_at' => now(),
+                'signed_uploaded_at' => null,
+            ]
+        );
 
         return response()->download($absolutePath, $filename, [
             'Content-Type' => 'application/pdf',
@@ -3133,6 +3250,20 @@ class BastController extends Controller
 
         $targetDirectory = $this->ensureBastExportDirectory('lampiran-preview-signed');
         $request->file('file')->move($targetDirectory, basename($signedPath));
+
+        BastKegiatan::query()->updateOrCreate(
+            [
+                'bast_id' => null,
+                'spk_id' => $spk->id,
+                'kegiatan_id' => $kegiatanId,
+                'periode_alokasi_id' => (int) $request->integer('periode_alokasi_id'),
+            ],
+            [
+                'kode_kegiatan' => (string) $request->string('kode_kegiatan'),
+                'signed_file_path' => $signedPath,
+                'signed_uploaded_at' => now(),
+            ]
+        );
 
         return redirect()->back()->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
     }
@@ -4234,6 +4365,7 @@ class BastController extends Controller
                     'can_download' => $canManageLampiran && ($readyToGenerate || filled($item->file_path)),
                     'can_generate' => $canManageLampiran && $readyToGenerate,
                     'can_upload_signed' => $canManageLampiran && filled($item->file_path),
+                    'can_preview' => $readyToGenerate,
                     'ready_to_generate' => $readyToGenerate,
                 ];
             });
@@ -4462,19 +4594,6 @@ class BastController extends Controller
 
         // Format: PPIS/13730/{NO_URUT_AUTO_INCREMENT}/BAST/{YEAR}
         return sprintf('PPIS/13730/%d/BAST/%d', $nextNumber, $year);
-    }
-
-    private function extractBastSequence(string $nomorBast): ?int
-    {
-        if (preg_match('/PPIS\/13730\/(\d+)/', $nomorBast, $matches)) {
-            return (int) $matches[1];
-        }
-
-        if (preg_match('/BAST\/[^\/]+\/(\d+)/', $nomorBast, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
     }
 
     /**
