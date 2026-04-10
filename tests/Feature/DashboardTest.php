@@ -12,13 +12,13 @@ use App\Models\SkKpa;
 use App\Models\Spk;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     public function test_guests_are_redirected_to_the_login_page()
     {
@@ -67,9 +67,6 @@ class DashboardTest extends TestCase
         ]);
 
         $alokasi = AlokasiPetugas::query()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => $month,
-            'tahun' => $year,
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
@@ -148,9 +145,6 @@ class DashboardTest extends TestCase
         ]);
 
         $alokasiA = AlokasiPetugas::query()->create([
-            'kegiatan_id' => $kegiatanA->id,
-            'bulan' => $month,
-            'tahun' => $year,
             'periode_alokasi_id' => $periodeA->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
@@ -161,9 +155,6 @@ class DashboardTest extends TestCase
         ]);
 
         AlokasiPetugas::query()->create([
-            'kegiatan_id' => $kegiatanB->id,
-            'bulan' => $month,
-            'tahun' => $year,
             'periode_alokasi_id' => $periodeB->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
@@ -250,15 +241,12 @@ class DashboardTest extends TestCase
         ]);
 
         AlokasiPetugas::query()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => $month,
-            'tahun' => $year,
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 0,
             'total_honor_listing' => 0,
-            'peran' => 'ketua_tim',
+            'peran' => 'pml',
             'status_kepegawaian' => 'organik',
         ]);
 

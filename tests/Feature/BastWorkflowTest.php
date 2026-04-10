@@ -191,11 +191,8 @@ class BastWorkflowTest extends TestCase
         ]);
 
         $pendingAlokasi = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $pendingKegiatan->id,
             'periode_alokasi_id' => $pendingPeriode->id,
             'petugas_id' => $pendingPetugas->id,
-            'bulan' => 4,
-            'tahun' => 2026,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'jumlah_satuan' => 4,
@@ -385,11 +382,8 @@ class BastWorkflowTest extends TestCase
         ]);
 
         $alokasiOwnCompleted = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanOwnCompleted->id,
             'periode_alokasi_id' => $periodeOwnCompleted->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'jumlah_satuan' => 6,
@@ -399,11 +393,8 @@ class BastWorkflowTest extends TestCase
         ]);
 
         AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanOther->id,
             'periode_alokasi_id' => $periodeOther->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'jumlah_satuan' => 4,
@@ -414,11 +405,8 @@ class BastWorkflowTest extends TestCase
 
         if ($periodeOwnFuture && $kegiatanOwnFuture) {
             AlokasiPetugas::factory()->create([
-                'kegiatan_id' => $kegiatanOwnFuture->id,
                 'periode_alokasi_id' => $periodeOwnFuture->id,
                 'petugas_id' => $petugas->id,
-                'bulan' => 4,
-                'tahun' => $tahun,
                 'peran' => 'pcl_ppl',
                 'status_kepegawaian' => 'non_organik',
                 'jumlah_satuan' => 3,

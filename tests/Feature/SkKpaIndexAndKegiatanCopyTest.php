@@ -81,28 +81,16 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanTanpaSk->id,
-            'periode_alokasi_id' => $periodeKegiatanTanpaSk->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeKegiatanTanpaSk->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => (int) $activeYear,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanSkGenerate->id,
-            'periode_alokasi_id' => $periodeKegiatanSkGenerate->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeKegiatanSkGenerate->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => (int) $activeYear,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanSkDisahkan->id,
-            'periode_alokasi_id' => $periodeKegiatanSkDisahkan->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeKegiatanSkDisahkan->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => (int) $activeYear,
         ]);
 
         SkKpa::create([
@@ -197,12 +185,8 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
         ]);
 
         $petugasAwal = Petugas::factory()->create();
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeAwal->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeAwal->id,
             'petugas_id' => $petugasAwal->id,
-            'bulan' => 3,
-            'tahun' => $activeYear,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
         ]);
@@ -232,12 +216,8 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
         ]);
 
         $petugasBaru = Petugas::factory()->create();
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeRevisi->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeRevisi->id,
             'petugas_id' => $petugasBaru->id,
-            'bulan' => 3,
-            'tahun' => $activeYear,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
         ]);

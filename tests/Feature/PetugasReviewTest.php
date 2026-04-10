@@ -67,11 +67,7 @@ class PetugasReviewTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -79,11 +75,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -149,11 +141,7 @@ class PetugasReviewTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'organik',
@@ -161,11 +149,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -233,11 +217,7 @@ class PetugasReviewTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periodeA->bulan,
-            'tahun' => $periodeA->tahun,
-            'periode_alokasi_id' => $periodeA->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeA->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -245,11 +225,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periodeA->bulan,
-            'tahun' => $periodeA->tahun,
-            'periode_alokasi_id' => $periodeA->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeA->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -257,11 +233,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 90000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periodeB->bulan,
-            'tahun' => $periodeB->tahun,
-            'periode_alokasi_id' => $periodeB->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeB->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -269,11 +241,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periodeB->bulan,
-            'tahun' => $periodeB->tahun,
-            'periode_alokasi_id' => $periodeB->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeB->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -382,11 +350,7 @@ class PetugasReviewTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => 1,
-            'tahun' => $periodeJan->tahun,
-            'periode_alokasi_id' => $periodeJan->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeJan->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -394,11 +358,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => 2,
-            'tahun' => $periodeFeb->tahun,
-            'periode_alokasi_id' => $periodeFeb->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeFeb->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -406,11 +366,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => 1,
-            'tahun' => $periodeJan->tahun,
-            'periode_alokasi_id' => $periodeJan->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeJan->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -418,11 +374,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 90000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => 2,
-            'tahun' => $periodeFeb->tahun,
-            'periode_alokasi_id' => $periodeFeb->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeFeb->id,
             'petugas_id' => $targetPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -502,11 +454,7 @@ class PetugasReviewTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $reviewerPetugas->id,
             'peran' => 'pml',
             'status_kepegawaian' => 'organik',
@@ -514,11 +462,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 100000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $targetPetugasA->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -526,11 +470,7 @@ class PetugasReviewTest extends TestCase
             'total_honor' => 90000,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $targetPetugasB->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',

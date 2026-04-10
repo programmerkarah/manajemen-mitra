@@ -58,11 +58,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        $alokasiDikirim = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodeDikirim->id,
+        $alokasiDikirim = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeDikirim->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -72,11 +68,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'total_honor_listing' => 0,
         ]);
 
-        $alokasiPerubahan = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanPerubahan->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodePerubahan->id,
+        $alokasiPerubahan = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodePerubahan->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -168,11 +160,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        $alokasiAwal = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanAwal->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodeAwal->id,
+        $alokasiAwal = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeAwal->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -220,11 +208,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanBaru->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodeBaru->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeBaru->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -281,11 +265,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        $alokasiAwal = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanAwal->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodeAwal->id,
+        $alokasiAwal = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeAwal->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
@@ -354,11 +334,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanBaru->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
-            'periode_alokasi_id' => $periodeBaru->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeBaru->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',

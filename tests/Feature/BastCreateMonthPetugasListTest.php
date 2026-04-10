@@ -9,12 +9,12 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use App\Models\User;
 use App\Services\ActiveYearService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class BastCreateMonthPetugasListTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     public function test_create_bast_month_includes_petugas_from_latest_monthly_spk_addendum(): void
     {
@@ -60,9 +60,6 @@ class BastCreateMonthPetugasListTest extends TestCase
             ]);
 
             $alokasiJanuari = AlokasiPetugas::factory()->create([
-                'kegiatan_id' => $kegiatan->id,
-                'bulan' => 1,
-                'tahun' => $tahun,
                 'periode_alokasi_id' => $periodeJanuari->id,
                 'petugas_id' => $petugas->id,
                 'peran' => 'pcl_ppl',
@@ -74,9 +71,6 @@ class BastCreateMonthPetugasListTest extends TestCase
             ]);
 
             $alokasiMaret = AlokasiPetugas::factory()->create([
-                'kegiatan_id' => $kegiatan->id,
-                'bulan' => 3,
-                'tahun' => $tahun,
                 'periode_alokasi_id' => $periodeMaret->id,
                 'petugas_id' => $petugas->id,
                 'peran' => 'pcl_ppl',

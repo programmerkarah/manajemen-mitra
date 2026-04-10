@@ -157,12 +157,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'draft',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanExisting->id,
-            'periode_alokasi_id' => $periodeExisting->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeExisting->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1376000,
             'is_partial_payment' => false,
@@ -232,12 +228,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'draft',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatanExisting->id,
-            'periode_alokasi_id' => $periodeExisting->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeExisting->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1500000,
             'is_partial_payment' => false,
@@ -254,12 +246,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $existingCurrentAlokasi = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        $existingCurrentAlokasi = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1000000,
             'is_partial_payment' => false,
@@ -332,12 +320,8 @@ class AlokasiPartialValidationTest extends TestCase
             'tahapan' => 'both',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 2,
             'total_honor' => 2166000,
             'is_partial_payment' => true,
@@ -383,12 +367,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $alokasi = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        $alokasi = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -435,12 +415,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -478,12 +454,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        $alokasiJanuari = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeJanuari->id,
+        $alokasiJanuari = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeJanuari->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 1,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -500,12 +472,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $alokasiApril = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeApril->id,
+        $alokasiApril = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeApril->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 4,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -548,12 +516,8 @@ class AlokasiPartialValidationTest extends TestCase
             'submitted_by' => $admin->id,
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -601,12 +565,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        $alokasi = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        $alokasi = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -652,12 +612,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        $alokasiJanuari = AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeJanuari->id,
+        $alokasiJanuari = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeJanuari->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 1,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -674,12 +630,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periodeFebruari->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeFebruari->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 2,
-            'tahun' => $tahun,
             'jumlah_satuan' => 1,
             'total_honor' => 1083000,
             'peran' => 'pcl_ppl',
@@ -717,12 +669,8 @@ class AlokasiPartialValidationTest extends TestCase
             'status' => 'dikirim',
         ]);
 
-        AlokasiPetugas::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'periode_alokasi_id' => $periode->id,
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
-            'bulan' => 3,
-            'tahun' => $tahun,
             'jumlah_satuan' => 5,
             'total_honor' => 5415000,
             'is_partial_payment' => true,

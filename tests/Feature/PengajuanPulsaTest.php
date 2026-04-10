@@ -582,9 +582,6 @@ class PengajuanPulsaTest extends TestCase
 
         AlokasiPetugas::factory()->create([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => '06',
-            'tahun' => (int) $tahun,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
         ]);

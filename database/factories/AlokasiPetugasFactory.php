@@ -19,8 +19,6 @@ class AlokasiPetugasFactory extends Factory
         return [
             'periode_alokasi_id' => \App\Models\PeriodeAlokasi::factory(),
             'petugas_id' => \App\Models\Petugas::factory(),
-            'bulan' => fake()->numberBetween(1, 12),
-            'tahun' => now()->year,
             'jumlah_satuan' => fake()->numberBetween(1, 100),
             'total_honor' => fake()->randomFloat(2, 100000, 10000000),
             'peran' => fake()->randomElement(['pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan']),
