@@ -49,11 +49,6 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
 
         DB::table('alokasi_petugas')->insert([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatanId, // required in SQLite (column not dropped in test migrations)
-            'bulan' => $bulan,
-            'tahun' => $tahun,
-            'status' => 'disetujui',
-            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugasId,
             'jumlah_satuan' => 10,
             'non_response' => 0,

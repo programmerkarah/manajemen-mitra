@@ -63,11 +63,6 @@ class SbmlHonorTerendahTest extends TestCase
         ]);
         DB::table('alokasi_petugas')->insert([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $bulan,
-            'tahun' => $tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 2000000,
@@ -87,11 +82,6 @@ class SbmlHonorTerendahTest extends TestCase
 
         DB::table('alokasi_petugas')->insert([
             'periode_alokasi_id' => $periodeKedua->id,
-            'kegiatan_id' => $kegiatanKedua->id,
-            'bulan' => (int) $bulan,
-            'tahun' => $tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 1000000,
@@ -152,11 +142,6 @@ class SbmlHonorTerendahTest extends TestCase
 
         DB::table('alokasi_petugas')->insert([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $bulan,
-            'tahun' => $tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => 'survei',
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 5,
             'partial_jumlah_satuan' => 2,

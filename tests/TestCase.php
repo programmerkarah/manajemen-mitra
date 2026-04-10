@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
@@ -13,6 +14,10 @@ abstract class TestCase extends BaseTestCase
 
         // Disable foreign key checks for SQLite in tests
         if (DB::getDriverName() === 'sqlite') {
+            if (! DB::getSchemaBuilder()->hasTable('users')) {
+                Artisan::call('migrate', ['--force' => true]);
+            }
+
             DB::statement('PRAGMA foreign_keys=OFF');
         }
     }

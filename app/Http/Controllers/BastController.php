@@ -1125,9 +1125,27 @@ class BastController extends Controller
                         ->where('tahun', $tahun)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
-                ->when($isKetuaTim, function ($query) use ($user) {
-                    $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) use ($user) {
-                        $q->where('ketua_tim_user_id', $user?->id);
+                ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $tahun) {
+                    $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun) {
+                        $q->where('bulan', $bulanFormatted)
+                            ->where('tahun', $tahun)
+                            ->whereHas('kegiatan', function ($qk) use ($user) {
+                                $qk->where('ketua_tim_user_id', $user?->id);
+                            });
+                    })
+                        ->pluck('id')
+                        ->toArray();
+
+                    if (empty($alokasiIds)) {
+                        $query->whereRaw('0 = 1');
+
+                        return;
+                    }
+
+                    $query->where(function ($inner) use ($alokasiIds) {
+                        foreach ($alokasiIds as $id) {
+                            $inner->orWhereJsonContains('alokasi_petugas_ids', $id);
+                        }
                     });
                 })
                 ->get()
@@ -1325,10 +1343,18 @@ class BastController extends Controller
                 ],
                 'lampiran' => $lampiranPreview->values()->toArray(),
                 'bast_list' => $bastList->values()->toArray(),
-                'eligible_without_bast' => $eligibleWithoutBast->toArray(),
+                'eligible_without_bast' => $eligibleWithoutBast
+                    ->filter(function ($item) use ($bastList) {
+                        $idsWithBast = $bastList->pluck('petugas_id')->filter()->unique()->toArray();
+
+                        return ! in_array($item['petugas_id'] ?? null, $idsWithBast, true);
+                    })
+                    ->values()
+                    ->toArray(),
                 'permissions' => [
                     'can_manage_main' => $canManageMain,
                     'is_ketua_tim' => $isKetuaTim,
+                    'can_upload_main' => in_array($user?->active_role, ['admin', 'operator'], true),
                 ],
                 'summary' => [
                     'total_lampiran' => $lampiranPreview->count(),
@@ -3541,7 +3567,10 @@ class BastController extends Controller
      */
     public function downloadAll(Request $request)
     {
-        abort_unless($this->userCanManageBastMain($request), 403);
+        $user = $this->getRequestUser($request);
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        abort_unless($this->userCanManageBastMain($request) || $isKetuaTim, 403);
 
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
@@ -3552,17 +3581,54 @@ class BastController extends Controller
 
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $isLegacyMode = (int) $tahun < 2026 || ((int) $tahun === 2026 && (int) $bulan < 4);
 
-        $allBast = Bast::with('bastKegiatan')
+        $allBast = Bast::query()
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanFormatted) {
                 $query->where('tahun', $tahun)
                     ->where('bulan', $bulanFormatted);
             })
+            ->when($isKetuaTim, function ($query) use ($user, $tahun, $bulanFormatted) {
+                $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $tahun, $bulanFormatted) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereHas('kegiatan', function ($qk) use ($user) {
+                            $qk->where('ketua_tim_user_id', $user?->id);
+                        });
+                })->pluck('id')->toArray();
+
+                if (empty($alokasiIds)) {
+                    $query->whereRaw('0 = 1');
+
+                    return;
+                }
+
+                $query->whereHas('spk', function ($q) use ($alokasiIds) {
+                    $q->where(function ($inner) use ($alokasiIds) {
+                        foreach ($alokasiIds as $id) {
+                            $inner->orWhereJsonContains('alokasi_petugas_ids', $id);
+                        }
+                    });
+                });
+            })
             ->orderBy('nomor_bast')
             ->get();
 
-        $documents = $allBast->map(function (Bast $bast) {
-            $path = $bast->signed_file_path ?: $bast->compiled_file_path ?: $bast->file_path;
+        // Abort 403 if not all files ready for download
+        if ($isLegacyMode) {
+            abort_unless(
+                $allBast->isNotEmpty() && $allBast->every(fn (Bast $b) => filled($b->signed_file_path)),
+                403
+            );
+        } else {
+            abort_unless(
+                $allBast->isNotEmpty() && $allBast->every(fn (Bast $b) => filled($b->compiled_file_path)),
+                403
+            );
+        }
+
+        $documents = $allBast->map(function (Bast $bast) use ($isLegacyMode) {
+            $path = $isLegacyMode ? $bast->signed_file_path : $bast->compiled_file_path;
 
             return [
                 'bast' => $bast,
@@ -3577,7 +3643,10 @@ class BastController extends Controller
         // Create ZIP file with deterministic name (no timestamp for CDN caching)
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
-        $zipFileName = "BAST_{$bulanLabel}_{$tahun}.zip";
+        $userSuffix = $isKetuaTim ? "_{$user->id}" : '';
+        $zipFileName = $isLegacyMode
+            ? "BAST_Signed_{$bulanLabel}_{$tahun}{$userSuffix}.zip"
+            : "BAST_{$bulanLabel}_{$tahun}{$userSuffix}.zip";
 
         // Ensure downloads directory exists
         $downloadsDir = public_path('downloads');
@@ -4292,7 +4361,8 @@ class BastController extends Controller
         $bast->load('bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id');
         $kegiatanPayloadMap = collect($viewData['bast']->kegiatan_list)
             ->keyBy(fn (array $item) => $this->makeBastKegiatanKey($item['kegiatan_id'], $item['periode_alokasi_id']));
-        $isLegacyMode = $bast->bastKegiatan->isEmpty();
+        $isLegacyMode = (int) $periode->tahun < 2026
+            || ((int) $periode->tahun === 2026 && (int) $periode->bulan < 4);
 
         $bastList = $this->buildBastListForPeriod($periode, $canManageMain, $isKetuaTim, $request, $bast);
 
@@ -4308,9 +4378,27 @@ class BastController extends Controller
                     ->where('tahun', $periode->tahun)
                     ->whereIn('status', ['dikirim', 'perubahan']);
             })
-            ->when($isKetuaTim, function ($query) use ($user) {
-                $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) use ($user) {
-                    $q->where('ketua_tim_user_id', $user?->id);
+            ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $periode) {
+                $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $periode) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $periode->tahun)
+                        ->whereHas('kegiatan', function ($qk) use ($user) {
+                            $qk->where('ketua_tim_user_id', $user?->id);
+                        });
+                })
+                    ->pluck('id')
+                    ->toArray();
+
+                if (empty($alokasiIds)) {
+                    $query->whereRaw('0 = 1');
+
+                    return;
+                }
+
+                $query->where(function ($inner) use ($alokasiIds) {
+                    foreach ($alokasiIds as $id) {
+                        $inner->orWhereJsonContains('alokasi_petugas_ids', $id);
+                    }
                 });
             })
             ->get()
@@ -4442,10 +4530,18 @@ class BastController extends Controller
             ],
             'lampiran' => $lampiranList->toArray(),
             'bast_list' => $bastList->values()->toArray(),
-            'eligible_without_bast' => $eligibleWithoutBast,
+            'eligible_without_bast' => array_values(array_filter(
+                $eligibleWithoutBast,
+                function ($item) use ($bastList) {
+                    $idsWithBast = $bastList->pluck('petugas_id')->filter()->unique()->toArray();
+
+                    return ! in_array($item['petugas_id'] ?? null, $idsWithBast, true);
+                }
+            )),
             'permissions' => [
                 'can_manage_main' => $canManageMain,
                 'is_ketua_tim' => $isKetuaTim,
+                'can_upload_main' => in_array($user?->active_role, ['admin', 'operator'], true),
             ],
             'summary' => [
                 'total_lampiran' => $lampiranList->count(),
@@ -4469,6 +4565,8 @@ class BastController extends Controller
         Request $request,
         ?Bast $currentBast = null,
     ): \Illuminate\Support\Collection {
+        $user = $this->getRequestUser($request);
+
         return Bast::with([
             'spk.alokasiPetugas.petugas',
             'createdBy:id,name',
@@ -4477,6 +4575,31 @@ class BastController extends Controller
             ->whereHas('periodeAlokasi', function ($query) use ($periode) {
                 $query->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun);
+            })
+            ->when($isKetuaTim, function ($query) use ($user, $periode) {
+                $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $periode) {
+                    $q->where('bulan', $periode->bulan)
+                        ->where('tahun', $periode->tahun)
+                        ->whereHas('kegiatan', function ($qk) use ($user) {
+                            $qk->where('ketua_tim_user_id', $user?->id);
+                        });
+                })
+                    ->pluck('id')
+                    ->toArray();
+
+                if (empty($alokasiIds)) {
+                    $query->whereRaw('0 = 1');
+
+                    return;
+                }
+
+                $query->whereHas('spk', function ($q) use ($alokasiIds) {
+                    $q->where(function ($inner) use ($alokasiIds) {
+                        foreach ($alokasiIds as $id) {
+                            $inner->orWhereJsonContains('alokasi_petugas_ids', $id);
+                        }
+                    });
+                });
             })
             ->orderBy('nomor_bast')
             ->get()
@@ -4495,6 +4618,7 @@ class BastController extends Controller
                     'hashed_id' => $bast->hashed_id,
                     'nomor_bast' => $bast->nomor_bast,
                     'petugas_nama' => $petugasNama,
+                    'petugas_id' => $bast->spk?->alokasiPetugas?->petugas?->id,
                     'file_path' => $bast->file_path,
                     'compiled_file_path' => $bast->compiled_file_path,
                     'main_signed_file_path' => $bast->main_signed_file_path,

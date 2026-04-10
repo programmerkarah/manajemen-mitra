@@ -175,6 +175,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $status = $response->getStatusCode();
 
+            if ($status === 419) {
+                return back()->with([
+                    'error' => 'Halaman telah kedaluwarsa, silakan coba lagi.',
+                ]);
+            }
+
             // Only handle specific error codes with Inertia
             if (in_array($status, [404, 403, 500, 503]) && request()->wantsJson() === false) {
                 return Inertia::render('Error', ['status' => $status])
