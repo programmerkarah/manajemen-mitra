@@ -2766,8 +2766,15 @@ class BastController extends Controller
 
         $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
-        // Generate nomor BAST dengan urutan - gunakan yang dari request atau generate baru
-        $noUrutBAST = $request->input('nomor_bast') ?? $this->generateNomorBastForSpk($tanggalBerakhirPalingAkhir);
+        // Gunakan alokasi nomor yang sama seperti proses generate final agar preview konsisten.
+        $noUrutBAST = $request->input('nomor_bast');
+        if (! $noUrutBAST) {
+            $tanggalBastCarbon = $tanggalBerakhirPalingAkhir instanceof Carbon
+                ? $tanggalBerakhirPalingAkhir
+                : Carbon::parse($tanggalBerakhirPalingAkhir);
+
+            $noUrutBAST = $this->allocateNomorBastForSpk($spk, $tanggalBastCarbon);
+        }
 
         // Format data untuk preview
         $bastData = [
