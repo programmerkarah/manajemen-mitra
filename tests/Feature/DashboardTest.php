@@ -197,19 +197,29 @@ class DashboardTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $this->get(route('dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Dashboard')
-                ->has('kegiatanBulanIni', 2)
-                ->where('kegiatanBulanIni.0.spk.count', 1)
-                ->where('kegiatanBulanIni.0.spk.is_complete', true)
-                ->where('kegiatanBulanIni.0.bast.count', 1)
-                ->where('kegiatanBulanIni.0.bast.is_complete', true)
-                ->where('kegiatanBulanIni.1.spk.count', 1)
-                ->where('kegiatanBulanIni.1.spk.is_complete', true)
-                ->where('kegiatanBulanIni.1.bast.count', 1)
-                ->where('kegiatanBulanIni.1.bast.is_complete', true));
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+
+        $kegiatanBulanIni = collect($response->viewData('page')['props']['kegiatanBulanIni'] ?? [])
+            ->keyBy('hashed_id');
+
+        $kegiatanAProps = $kegiatanBulanIni->get($kegiatanA->hashed_id);
+        $kegiatanBProps = $kegiatanBulanIni->get($kegiatanB->hashed_id);
+
+        $this->assertNotNull($kegiatanAProps);
+        $this->assertNotNull($kegiatanBProps);
+
+        $this->assertSame(1, data_get($kegiatanAProps, 'spk.count'));
+        $this->assertTrue((bool) data_get($kegiatanAProps, 'spk.is_complete'));
+        $this->assertSame(1, data_get($kegiatanAProps, 'bast.count'));
+        $this->assertTrue((bool) data_get($kegiatanAProps, 'bast.is_complete'));
+
+        $this->assertSame(1, data_get($kegiatanBProps, 'spk.count'));
+        $this->assertTrue((bool) data_get($kegiatanBProps, 'spk.is_complete'));
+        $this->assertSame(1, data_get($kegiatanBProps, 'bast.count'));
+        $this->assertTrue((bool) data_get($kegiatanBProps, 'bast.is_complete'));
     }
 
     public function test_dashboard_marks_spk_and_bast_as_not_required_when_no_mitra_statistik_is_allocated(): void
@@ -250,14 +260,19 @@ class DashboardTest extends TestCase
             'status_kepegawaian' => 'organik',
         ]);
 
-        $this->get(route('dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Dashboard')
-                ->where('kegiatanBulanIni.0.spk.requires_document', false)
-                ->where('kegiatanBulanIni.0.spk.is_complete', false)
-                ->where('kegiatanBulanIni.0.bast.requires_document', false)
-                ->where('kegiatanBulanIni.0.bast.is_complete', false));
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+
+        $kegiatanProps = collect($response->viewData('page')['props']['kegiatanBulanIni'] ?? [])
+            ->firstWhere('hashed_id', $kegiatan->hashed_id);
+
+        $this->assertNotNull($kegiatanProps);
+        $this->assertFalse((bool) data_get($kegiatanProps, 'spk.requires_document'));
+        $this->assertFalse((bool) data_get($kegiatanProps, 'spk.is_complete'));
+        $this->assertFalse((bool) data_get($kegiatanProps, 'bast.requires_document'));
+        $this->assertFalse((bool) data_get($kegiatanProps, 'bast.is_complete'));
     }
 
     public function test_attention_items_for_ketua_tim_only_include_own_draft_kegiatan(): void
