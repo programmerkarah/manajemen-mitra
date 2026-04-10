@@ -12,7 +12,7 @@ use App\Models\Role;
 use App\Models\Spk;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -26,7 +26,7 @@ class BastWorkflowTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
     protected function tearDown(): void
@@ -48,7 +48,11 @@ class BastWorkflowTest extends TestCase
         $response->assertRedirect(route('bast.index'));
         $response->assertSessionHas('success');
 
-        $bast = Bast::query()->with('bastKegiatan')->firstOrFail();
+        $bast = Bast::query()
+            ->with('bastKegiatan')
+            ->where('spk_id', $context['spk']->id)
+            ->latest('id')
+            ->firstOrFail();
 
         $this->assertNotNull($bast->file_path);
         $this->assertNull($bast->compiled_file_path);
@@ -462,7 +466,11 @@ class BastWorkflowTest extends TestCase
             ])
             ->assertRedirect(route('bast.index'));
 
-        return Bast::query()->with('bastKegiatan')->firstOrFail();
+        return Bast::query()
+            ->with('bastKegiatan')
+            ->where('spk_id', $context['spk']->id)
+            ->latest('id')
+            ->firstOrFail();
     }
 
     private function seedPenandatangan(): void
