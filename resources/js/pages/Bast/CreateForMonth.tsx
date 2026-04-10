@@ -12,10 +12,10 @@ import {
 } from '@/components/ui/dialog';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Eye, FileText, User } from 'lucide-react';
 import { useState } from 'react';
 
@@ -65,6 +65,12 @@ interface SpkItem {
     ketua_tim: KetuaTim;
     kegiatan_list: KegiatanDetail[];
     jumlah_kegiatan: number;
+    has_bast?: boolean;
+    existing_bast_hashed_id?: string | null;
+    existing_bast_nomor?: string | null;
+    lampiran_total?: number;
+    lampiran_generated?: number;
+    lampiran_signed?: number;
 }
 
 interface CreateForMonthProps {
@@ -74,6 +80,7 @@ interface CreateForMonthProps {
     spk_list: {
         encrypted: string;
     };
+    mode?: 'create' | 'detail';
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -96,8 +103,14 @@ export default function CreateForMonth({
     tahun,
     bulan_label,
     spk_list,
+    mode = 'create',
 }: CreateForMonthProps) {
+    const { auth } = usePage<SharedData>().props;
     const decryptedSpkList = useDecryptedData<SpkItem>(spk_list.encrypted);
+    const isAdminOrOperator =
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'operator';
+    const isDetailMode = mode === 'detail';
 
     // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir (ASC) kemudian nama petugas (A-Z)
     const sortedSpkList = [...decryptedSpkList].sort((a, b) => {
@@ -122,6 +135,10 @@ export default function CreateForMonth({
         title: '',
         message: '',
     });
+    const [lampiranSelectDialog, setLampiranSelectDialog] = useState<{
+        open: boolean;
+        spk: SpkItem | null;
+    }>({ open: false, spk: null });
 
     const showModalAlert = (title: string, message: string) => {
         setModalAlert({
@@ -151,7 +168,7 @@ export default function CreateForMonth({
         if (selectedSpks.length === 0) {
             showModalAlert(
                 'Data Belum Lengkap',
-                'Pilih minimal 1 Perjanjian Kerja untuk generate BAST.',
+                'Pilih minimal 1 Perjanjian Kerja untuk generate BAST main.',
             );
             return;
         }
@@ -204,6 +221,39 @@ export default function CreateForMonth({
         }
     };
 
+    const handlePreviewLampiran = async (
+        spkId: number,
+        kegiatanId?: number,
+    ) => {
+        const payload: Record<string, number> = { spk_id: spkId };
+        if (kegiatanId) {
+            payload.kegiatan_id = kegiatanId;
+        }
+
+        const encryptedPayload = encryptFilters(payload);
+
+        try {
+            await previewFileFromPost(
+                '/bast/preview-lampiran',
+                { encrypted_filters: encryptedPayload },
+                'Preview_Lampiran.pdf',
+            );
+        } catch {
+            showModalAlert(
+                'Preview Gagal',
+                'Gagal membuka preview lampiran. Silakan coba lagi.',
+            );
+        }
+    };
+
+    const handlePreviewLampiranClick = (spk: SpkItem) => {
+        if (isAdminOrOperator) {
+            handlePreviewLampiran(spk.spk_id);
+        } else {
+            setLampiranSelectDialog({ open: true, spk });
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Generate BAST - ${bulan_label} ${tahun}`} />
@@ -237,9 +287,63 @@ export default function CreateForMonth({
                 </DialogContent>
             </Dialog>
 
+            <Dialog
+                open={lampiranSelectDialog.open}
+                onOpenChange={(open) =>
+                    setLampiranSelectDialog((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Pilih Kegiatan</DialogTitle>
+                        <DialogDescription>
+                            Pilih kegiatan yang akan dipreview lampirannya.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        {lampiranSelectDialog.spk?.kegiatan_list.map((keg) => (
+                            <Button
+                                key={keg.kegiatan_id}
+                                variant="outline"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                    setLampiranSelectDialog((prev) => ({
+                                        ...prev,
+                                        open: false,
+                                    }));
+                                    handlePreviewLampiran(
+                                        lampiranSelectDialog.spk!.spk_id,
+                                        keg.kegiatan_id,
+                                    );
+                                }}
+                            >
+                                {keg.nama_kegiatan}
+                            </Button>
+                        ))}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="ghost"
+                            onClick={() =>
+                                setLampiranSelectDialog((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Batal
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <PageHeader
-                title={`Generate BAST - ${bulan_label} ${tahun}`}
-                description="Pilih Perjanjian Kerja yang akan dibuatkan BAST"
+                title={`${isDetailMode ? 'Detail BAST' : 'Generate BAST'} - ${bulan_label} ${tahun}`}
+                description={
+                    isDetailMode
+                        ? 'Daftar petugas, status BAST, dan lampiran periode ini (termasuk yang belum digenerate).'
+                        : 'Pilih perjanjian kerja yang akan dibuatkan dokumen BAST'
+                }
             >
                 <div className="flex items-center gap-2">
                     <Button variant="outline" asChild>
@@ -248,17 +352,29 @@ export default function CreateForMonth({
                             Kembali
                         </Link>
                     </Button>
-                    {selectedSpks.length > 0 && (
-                        <Button
-                            onClick={handleGenerateBast}
-                            disabled={isGenerating}
-                        >
-                            <FileText className="mr-2 h-4 w-4" />
-                            Generate {selectedSpks.length} BAST
-                        </Button>
-                    )}
+                    {!isDetailMode &&
+                        isAdminOrOperator &&
+                        selectedSpks.length > 0 && (
+                            <Button
+                                onClick={handleGenerateBast}
+                                disabled={isGenerating}
+                            >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Generate {selectedSpks.length} BAST
+                            </Button>
+                        )}
                 </div>
             </PageHeader>
+
+            {!isDetailMode && !isAdminOrOperator && (
+                <ContentCard>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                        Halaman ini dipakai admin atau operator untuk membuat
+                        BAST main. Lampiran per kegiatan dilanjutkan dari
+                        halaman detail BAST oleh ketua tim terkait.
+                    </p>
+                </ContentCard>
+            )}
 
             <ContentCard>
                 <div className="space-y-4">
@@ -268,38 +384,53 @@ export default function CreateForMonth({
                                 Daftar Perjanjian Kerja
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                {sortedSpkList.length} Perjanjian Kerja belum
-                                memiliki BAST di periode ini
+                                {isDetailMode
+                                    ? `${sortedSpkList.length} Perjanjian Kerja pada periode ini`
+                                    : `${sortedSpkList.length} Perjanjian Kerja belum memiliki BAST di periode ini`}
                             </p>
                         </div>
-                        <Button variant="outline" onClick={handleSelectAll}>
-                            {selectedSpks.length === sortedSpkList.length
-                                ? 'Batal Pilih Semua'
-                                : 'Pilih Semua'}
-                        </Button>
+                        {!isDetailMode && isAdminOrOperator && (
+                            <Button variant="outline" onClick={handleSelectAll}>
+                                {selectedSpks.length === sortedSpkList.length
+                                    ? 'Batal Pilih Semua'
+                                    : 'Pilih Semua'}
+                            </Button>
+                        )}
                     </div>
 
                     <div className="space-y-4">
                         {sortedSpkList.map((spk) => (
                             <div
                                 key={spk.spk_id}
-                                onClick={() => handleSelectSpk(spk.spk_id)}
-                                className={`cursor-pointer rounded-lg border p-4 transition-colors ${
+                                onClick={() =>
+                                    !isDetailMode &&
+                                    isAdminOrOperator &&
+                                    handleSelectSpk(spk.spk_id)
+                                }
+                                className={`rounded-lg border p-4 transition-colors ${
+                                    !isDetailMode && isAdminOrOperator
+                                        ? 'cursor-pointer'
+                                        : 'cursor-default'
+                                } ${
+                                    !isDetailMode &&
+                                    isAdminOrOperator &&
                                     selectedSpks.includes(spk.spk_id)
                                         ? 'border-primary bg-primary/5'
                                         : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700'
                                 }`}
                             >
                                 <div className="flex items-start gap-4">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedSpks.includes(
-                                            spk.spk_id,
-                                        )}
-                                        onChange={() => {}}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="pointer-events-none mt-1 h-4 w-4 rounded border-neutral-300"
-                                    />
+                                    {!isDetailMode && isAdminOrOperator && (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedSpks.includes(
+                                                spk.spk_id,
+                                            )}
+                                            onChange={() => {}}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="pointer-events-none mt-1 h-4 w-4 rounded border-neutral-300"
+                                        />
+                                    )}
                                     <div className="flex-1 space-y-3">
                                         <div className="flex items-start justify-between">
                                             <div>
@@ -316,6 +447,13 @@ export default function CreateForMonth({
                                                     Perjanjian Kerja:{' '}
                                                     {spk.nomor_spk}
                                                 </p>
+                                                {isDetailMode && (
+                                                    <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                                                        BAST:{' '}
+                                                        {spk.existing_bast_nomor ??
+                                                            'Belum digenerate'}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="text-right">
                                                 <Badge variant="outline">
@@ -327,6 +465,21 @@ export default function CreateForMonth({
                                                         'id-ID',
                                                     )}
                                                 </Badge>
+                                                {isDetailMode && (
+                                                    <div className="mt-2">
+                                                        <Badge
+                                                            variant={
+                                                                spk.has_bast
+                                                                    ? 'default'
+                                                                    : 'secondary'
+                                                            }
+                                                        >
+                                                            {spk.has_bast
+                                                                ? `Lampiran ${spk.lampiran_generated ?? 0}/${spk.lampiran_total ?? 0}`
+                                                                : 'BAST belum digenerate'}
+                                                        </Badge>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -379,20 +532,53 @@ export default function CreateForMonth({
                                             )}
                                         </div>
 
-                                        <div className="mt-3 flex justify-end">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handlePreviewSpk(
-                                                        spk.spk_id,
-                                                    );
-                                                }}
-                                            >
-                                                <Eye className="mr-1 h-3 w-3" />
-                                                Preview BAST
-                                            </Button>
+                                        <div className="mt-3 flex justify-end gap-2">
+                                            {!isDetailMode &&
+                                                isAdminOrOperator && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePreviewSpk(
+                                                                spk.spk_id,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Eye className="mr-1 h-3 w-3" />
+                                                        Preview BAST
+                                                    </Button>
+                                                )}
+                                            {!isDetailMode && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePreviewLampiranClick(
+                                                            spk,
+                                                        );
+                                                    }}
+                                                >
+                                                    <FileText className="mr-1 h-3 w-3" />
+                                                    Preview Lampiran
+                                                </Button>
+                                            )}
+                                            {isDetailMode &&
+                                                spk.existing_bast_hashed_id && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/bast/${spk.existing_bast_hashed_id}`}
+                                                        >
+                                                            <FileText className="mr-1 h-3 w-3" />
+                                                            Buka Detail BAST
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                         </div>
                                     </div>
                                 </div>

@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { FileCheck, FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -47,6 +47,7 @@ type SummaryModalType =
     | 'without_spk';
 
 export default function Index({ data, active_year }: IndexProps) {
+    const { auth } = usePage<SharedData>().props;
     const decryptedData = useDecryptedData<PeriodeData>(data.encrypted);
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
     const [summaryModalType, setSummaryModalType] =
@@ -99,6 +100,10 @@ export default function Index({ data, active_year }: IndexProps) {
         setSummaryModalType(type);
         setSummaryModalOpen(true);
     };
+
+    const canManageMain =
+        auth.activeRole?.name === 'admin' ||
+        auth.activeRole?.name === 'operator';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -266,7 +271,8 @@ export default function Index({ data, active_year }: IndexProps) {
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
                                             <div className="flex items-center justify-center gap-2">
-                                                {item.has_spk &&
+                                                {canManageMain &&
+                                                    item.has_spk &&
                                                     !item.all_completed && (
                                                         <Button
                                                             size="sm"
@@ -280,21 +286,60 @@ export default function Index({ data, active_year }: IndexProps) {
                                                             </Link>
                                                         </Button>
                                                     )}
-                                                {item.spk_with_bast > 0 &&
-                                                    item.first_bast_hashed_id && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={`/bast/${item.first_bast_hashed_id}`}
+
+                                                {item.has_spk &&
+                                                    (() => {
+                                                        const isApril2026OrLater =
+                                                            item.tahun > 2026 ||
+                                                            (item.tahun ===
+                                                                2026 &&
+                                                                item.bulan >=
+                                                                    4);
+                                                        const shouldShowDetail =
+                                                            isApril2026OrLater ||
+                                                            item.spk_with_bast >
+                                                                0;
+
+                                                        if (!shouldShowDetail) {
+                                                            return null;
+                                                        }
+
+                                                        if (
+                                                            item.first_bast_hashed_id
+                                                        ) {
+                                                            return (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={`/bast/${item.first_bast_hashed_id}`}
+                                                                    >
+                                                                        <FileText className="mr-1 h-4 w-4" />
+                                                                        Detail
+                                                                        BAST
+                                                                    </Link>
+                                                                </Button>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                asChild
                                                             >
-                                                                <FileText className="mr-1 h-4 w-4" />
-                                                                Detail BAST
-                                                            </Link>
-                                                        </Button>
-                                                    )}
+                                                                <Link
+                                                                    href={`/bast/list?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                                >
+                                                                    <FileText className="mr-1 h-4 w-4" />
+                                                                    Detail BAST
+                                                                </Link>
+                                                            </Button>
+                                                        );
+                                                    })()}
+
                                                 {item.has_spk &&
                                                     item.all_completed &&
                                                     item.spk_with_bast ===
@@ -360,20 +405,52 @@ export default function Index({ data, active_year }: IndexProps) {
                                                     </Button>
                                                 )}
 
-                                            {item.spk_with_bast > 0 &&
-                                                item.first_bast_hashed_id && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={`/bast/${item.first_bast_hashed_id}`}
+                                            {item.has_spk &&
+                                                (() => {
+                                                    const isApril2026OrLater =
+                                                        item.tahun > 2026 ||
+                                                        (item.tahun === 2026 &&
+                                                            item.bulan >= 4);
+                                                    const shouldShowDetail =
+                                                        isApril2026OrLater ||
+                                                        item.spk_with_bast > 0;
+
+                                                    if (!shouldShowDetail) {
+                                                        return null;
+                                                    }
+
+                                                    if (
+                                                        item.first_bast_hashed_id
+                                                    ) {
+                                                        return (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={`/bast/${item.first_bast_hashed_id}`}
+                                                                >
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                </Link>
+                                                            </Button>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
                                                         >
-                                                            <FileText className="h-3.5 w-3.5" />
-                                                        </Link>
-                                                    </Button>
-                                                )}
+                                                            <Link
+                                                                href={`/bast/list?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                            >
+                                                                <FileText className="h-3.5 w-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    );
+                                                })()}
                                         </div>
                                     </div>
                                 ))

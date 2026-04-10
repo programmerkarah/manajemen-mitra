@@ -3,6 +3,7 @@ import * as React from 'react';
 
 interface AppContentProps extends React.ComponentProps<'main'> {
     variant?: 'header' | 'sidebar';
+    'scroll-region'?: string;
 }
 
 export function AppContent({

@@ -296,23 +296,85 @@ export const downloadFileFromPost = async (
     payload: DownloadPayload,
     defaultFilename: string,
 ): Promise<void> => {
-    const { blob, filename } = await requestFileFromPost(
-        url,
-        payload,
-        defaultFilename,
-    );
+    const hideOverlay = showPdfLoadingOverlay();
 
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    try {
+        const { blob, filename } = await requestFileFromPost(
+            url,
+            payload,
+            defaultFilename,
+        );
 
-    setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-    }, 0);
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+        }, 0);
+    } finally {
+        hideOverlay();
+    }
+};
+
+export const downloadFileFromGet = async (
+    url: string,
+    defaultFilename: string,
+): Promise<void> => {
+    const hideOverlay = showPdfLoadingOverlay();
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/pdf,application/octet-stream,*/*',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Download failed with status ${response.status}`);
+        }
+
+        const contentDisposition = response.headers.get('content-disposition');
+        const filenameFromHeader =
+            extractFilenameFromContentDisposition(contentDisposition);
+        const resolvedFilename = sanitizeDownloadFilename(
+            filenameFromHeader || defaultFilename,
+        );
+
+        const rawBlob = await response.blob();
+        const resolvedType = resolveContentType(
+            response.headers.get('content-type') || rawBlob.type,
+            resolvedFilename,
+        );
+
+        const blob =
+            rawBlob.type === resolvedType
+                ? rawBlob
+                : new Blob([await rawBlob.arrayBuffer()], {
+                      type: resolvedType,
+                  });
+
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = resolvedFilename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+        }, 0);
+    } finally {
+        hideOverlay();
+    }
 };
 
 export const previewFileFromPost = async (

@@ -470,9 +470,13 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
 
-        // BAST Routes - View and Create
+        // BAST Routes - View (all authenticated)
         Route::get('bast', [BastController::class, 'index'])->name('bast.index');
         Route::get('bast/list', [BastController::class, 'listByMonth'])->name('bast.list');
+    });
+
+    Route::middleware(['active.role:admin,operator'])->group(function () {
+        // BAST static routes must come before {bast} wildcard
         Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
         Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
         Route::post('bast/preview-bast', [BastController::class, 'previewForSpk'])->name('bast.preview-bast');
@@ -481,12 +485,37 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
         Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
         Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
-        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
         Route::post('bast/{bast}/upload-signed', [BastController::class, 'uploadSigned'])->name('bast.upload-signed');
-        Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
         Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
         Route::patch('bast/{bast}', [BastController::class, 'update']);
         Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
+    });
+
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('bast/open-detail', [BastController::class, 'openDetailByPetugas'])
+            ->name('bast.open-detail-by-petugas');
+        Route::post('bast/preview-lampiran', [BastController::class, 'previewLampiran'])->name('bast.preview-lampiran');
+        Route::post('bast/generate-download-lampiran-preview', [BastController::class, 'generateDownloadLampiranPreview'])
+            ->name('bast.generate-download-lampiran-preview');
+        Route::post('bast/preview-lampiran/upload-signed', [BastController::class, 'uploadPreviewLampiranSigned'])
+            ->name('bast.preview-lampiran.upload-signed');
+        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
+        Route::get('bast/{bast}/download-signed', [BastController::class, 'downloadSignedPdf'])->name('bast.download-signed');
+        Route::get('bast/{bast}/download-compiled', [BastController::class, 'downloadCompiledBast'])->name('bast.download-compiled');
+        Route::get('bast/{bast}/lampiran/{bastKegiatan}/preview', [BastController::class, 'previewStoredLampiran'])
+            ->name('bast.lampiran.preview');
+        Route::post('bast/{bast}/lampiran/{bastKegiatan}/generate', [BastController::class, 'generateLampiran'])
+            ->name('bast.lampiran.generate');
+        Route::get('bast/{bast}/lampiran/{bastKegiatan}/download', [BastController::class, 'downloadLampiran'])
+            ->name('bast.lampiran.download');
+        Route::get('bast/{bast}/lampiran/{bastKegiatan}/generate-download', [BastController::class, 'generateDownloadLampiran'])
+            ->name('bast.lampiran.generate-download');
+        Route::post('bast/{bast}/lampiran/{bastKegiatan}/upload-signed', [BastController::class, 'uploadLampiranSigned'])
+            ->name('bast.lampiran.upload-signed');
+    });
+
+    // bast.show must come AFTER all static /bast/* routes to avoid {bast} wildcard matching 'create', 'download-all', etc.
+    Route::middleware([])->group(function () {
         Route::get('bast/{bast}', [BastController::class, 'show'])->name('bast.show');
     });
 

@@ -32,6 +32,7 @@ export default function AppSidebarLayout({
                     {/* Content - Single Scroll Area */}
                     <AppContent
                         variant="sidebar"
+                        scroll-region=""
                         className="min-h-0 flex-1 overflow-x-auto overflow-y-auto"
                     >
                         <div className="flex w-full min-w-0 flex-col gap-4 p-4 pb-8 md:gap-6 md:p-6 md:pb-12">

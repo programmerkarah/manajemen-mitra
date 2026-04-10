@@ -24,7 +24,6 @@ class Kegiatan extends Model
             'tanggal_mulai' => 'date:Y-m-d',
             'tanggal_selesai' => 'date:Y-m-d',
             'tanggal_validasi' => 'date:Y-m-d',
-            'rate_honor_approved_at' => 'datetime',
             'tahun_anggaran' => 'integer',
             'pagu_pencacahan' => 'decimal:2',
             'has_listing_updating' => 'boolean',
@@ -48,11 +47,6 @@ class Kegiatan extends Model
         'pagu_pencacahan',
         'kode_coa',
         'ketua_tim_user_id',
-        'rate_honor_id',
-        'rate_honor_status',
-        'rate_honor_approved_by',
-        'rate_honor_approved_at',
-        'rate_honor_notes',
         'status',
         'tanggal_validasi',
         'catatan',
@@ -73,11 +67,6 @@ class Kegiatan extends Model
     public function ketuaTim(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ketua_tim_user_id');
-    }
-
-    public function rateHonor(): BelongsTo
-    {
-        return $this->belongsTo(RateHonor::class);
     }
 
     public function rateHonors(): HasMany
@@ -113,11 +102,6 @@ class Kegiatan extends Model
     public function periodeAlokasi(): HasMany
     {
         return $this->hasMany(PeriodeAlokasi::class);
-    }
-
-    public function rateHonorApprovedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'rate_honor_approved_by');
     }
 
     public function skKpa(): HasMany

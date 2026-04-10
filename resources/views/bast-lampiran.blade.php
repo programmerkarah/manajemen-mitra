@@ -49,9 +49,6 @@
 			font-size: 8pt;
 			margin-bottom: 10px;
 		}
-		.lampiran-title {
-			font-weight: bold;
-		}
 		.lampiran-subtitle {
 			text-align: center;
 			font-weight: bold;

@@ -18,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -29,6 +28,560 @@ class BastController extends Controller
     private const PENDATAAN_ROLES = ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'];
 
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
+
+    private function getRequestUser(Request $request)
+    {
+        return effectiveUser($request) ?? $request->user();
+    }
+
+    private function userCanManageBastMain(Request $request): bool
+    {
+        $user = $this->getRequestUser($request);
+
+        return $user && $user->hasAnyRole(['admin', 'operator']);
+    }
+
+    private function userCanManageLampiran(Request $request, BastKegiatan $bastKegiatan): bool
+    {
+        $user = $this->getRequestUser($request);
+
+        if (! $user) {
+            return false;
+        }
+
+        if (in_array($user->active_role, ['admin', 'operator'], true)) {
+            return true;
+        }
+
+        if ($user->active_role !== 'ketua_tim') {
+            return false;
+        }
+
+        return (int) $bastKegiatan->kegiatan?->ketua_tim_user_id === (int) $user->id;
+    }
+
+    private function userCanAccessBast(Request $request, Bast $bast): bool
+    {
+        $user = $this->getRequestUser($request);
+
+        if (! $user) {
+            return false;
+        }
+
+        if (in_array($user->active_role, ['admin', 'operator'], true)) {
+            return true;
+        }
+
+        // Ketua tim can open BAST detail across the period.
+        // Lampiran actions are still restricted by userCanManageLampiran().
+        return $user->active_role === 'ketua_tim';
+    }
+
+    private function sanitizeDocumentSegment(string $value): string
+    {
+        $sanitized = preg_replace('/[^A-Za-z0-9._-]+/', '_', $value) ?? 'document';
+
+        return trim($sanitized, '_') ?: 'document';
+    }
+
+    private function makeBastKegiatanKey(int $kegiatanId, int $periodeAlokasiId): string
+    {
+        return $kegiatanId.':'.$periodeAlokasiId;
+    }
+
+    private function ensureBastKegiatanBelongsToBast(Bast $bast, BastKegiatan $bastKegiatan): void
+    {
+        abort_if($bastKegiatan->bast_id !== $bast->id, 404);
+    }
+
+    private function ensureBastExportDirectory(string $subdirectory = ''): string
+    {
+        $relativeDirectory = trim('bast-export/'.trim($subdirectory, '/'), '/');
+        $absoluteDirectory = public_path($relativeDirectory);
+
+        if (! file_exists($absoluteDirectory)) {
+            mkdir($absoluteDirectory, 0755, true);
+        }
+
+        return $absoluteDirectory;
+    }
+
+    private function resolveDocumentAbsolutePath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        return public_path(ltrim(str_replace('\\', '/', $path), '/'));
+    }
+
+    private function deleteStoredDocument(?string $path): void
+    {
+        $absolutePath = $this->resolveDocumentAbsolutePath($path);
+
+        if ($absolutePath && file_exists($absolutePath)) {
+            @unlink($absolutePath);
+        }
+    }
+
+    private function writePdfToPublicDirectory(string $filename, string $contents, string $subdirectory = ''): string
+    {
+        $absoluteDirectory = $this->ensureBastExportDirectory($subdirectory);
+        $absolutePath = $absoluteDirectory.DIRECTORY_SEPARATOR.$filename;
+
+        file_put_contents($absolutePath, $contents);
+
+        return trim('bast-export/'.trim($subdirectory, '/').'/'.$filename, '/');
+    }
+
+    private function buildPreviewLampiranStorageFilename(
+        Spk $spk,
+        int $kegiatanId,
+        int $periodeAlokasiId,
+        string $kodeKegiatan,
+        bool $signed = false,
+    ): string {
+        $prefix = $signed ? 'LAMPIRAN_SIGNED_PREBAST' : 'LAMPIRAN_PREBAST';
+
+        return $prefix
+            .'_SPK_'.$spk->id
+            .'_KGT_'.$kegiatanId
+            .'_PER_'.$periodeAlokasiId
+            .'_'.$this->sanitizeDocumentSegment($kodeKegiatan)
+            .'.pdf';
+    }
+
+    private function buildPreviewLampiranRelativePath(
+        Spk $spk,
+        int $kegiatanId,
+        int $periodeAlokasiId,
+        string $kodeKegiatan,
+        bool $signed = false,
+    ): string {
+        $subdirectory = $signed ? 'lampiran-preview-signed' : 'lampiran-preview-draft';
+
+        return trim(
+            'bast-export/'
+            .$subdirectory
+            .'/'.$this->buildPreviewLampiranStorageFilename($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan, $signed),
+            '/'
+        );
+    }
+
+    /**
+     * @return array{file_path:?string,signed_file_path:?string,generated_at:?string,signed_uploaded_at:?string,status:string,can_upload_signed:bool}
+     */
+    private function getPreviewLampiranDocumentState(
+        ?Spk $spk,
+        int $kegiatanId,
+        int $periodeAlokasiId,
+        string $kodeKegiatan,
+    ): array {
+        if (! $spk || $kegiatanId <= 0 || $periodeAlokasiId <= 0) {
+            return [
+                'file_path' => null,
+                'signed_file_path' => null,
+                'generated_at' => null,
+                'signed_uploaded_at' => null,
+                'status' => 'pending',
+                'can_upload_signed' => false,
+            ];
+        }
+
+        $draftPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan);
+        $signedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan, true);
+
+        $draftAbsolutePath = $this->resolveDocumentAbsolutePath($draftPath);
+        $signedAbsolutePath = $this->resolveDocumentAbsolutePath($signedPath);
+
+        $hasDraft = $draftAbsolutePath && file_exists($draftAbsolutePath);
+        $hasSigned = $signedAbsolutePath && file_exists($signedAbsolutePath);
+
+        return [
+            'file_path' => $hasDraft ? $draftPath : null,
+            'signed_file_path' => $hasSigned ? $signedPath : null,
+            'generated_at' => $hasDraft ? Carbon::createFromTimestamp(filemtime($draftAbsolutePath))->format('d M Y H:i') : null,
+            'signed_uploaded_at' => $hasSigned ? Carbon::createFromTimestamp(filemtime($signedAbsolutePath))->format('d M Y H:i') : null,
+            'status' => $hasSigned ? 'signed' : ($hasDraft ? 'generated' : 'pending'),
+            'can_upload_signed' => $hasDraft,
+        ];
+    }
+
+    private function adoptPreviewLampiranFiles(Bast $bast): void
+    {
+        $bast->loadMissing(['bastKegiatan', 'spk']);
+
+        $spk = $bast->spk;
+
+        if (! $spk) {
+            return;
+        }
+
+        foreach ($bast->bastKegiatan as $bastKegiatan) {
+            $previewDraftPath = $this->buildPreviewLampiranRelativePath(
+                $spk,
+                (int) $bastKegiatan->kegiatan_id,
+                (int) $bastKegiatan->periode_alokasi_id,
+                (string) $bastKegiatan->kode_kegiatan,
+            );
+            $previewSignedPath = $this->buildPreviewLampiranRelativePath(
+                $spk,
+                (int) $bastKegiatan->kegiatan_id,
+                (int) $bastKegiatan->periode_alokasi_id,
+                (string) $bastKegiatan->kode_kegiatan,
+                true,
+            );
+
+            $draftAbsolutePath = $this->resolveDocumentAbsolutePath($previewDraftPath);
+            $signedAbsolutePath = $this->resolveDocumentAbsolutePath($previewSignedPath);
+
+            $hasDraft = $draftAbsolutePath && file_exists($draftAbsolutePath);
+            $hasSigned = $signedAbsolutePath && file_exists($signedAbsolutePath);
+
+            if (! $hasDraft && ! $hasSigned) {
+                continue;
+            }
+
+            $updates = [];
+
+            if ($hasDraft) {
+                $draftFilename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment((string) $bastKegiatan->kode_kegiatan).'.pdf';
+                $this->deleteStoredDocument($bastKegiatan->file_path);
+                $updates['file_path'] = $this->writePdfToPublicDirectory(
+                    $draftFilename,
+                    file_get_contents($draftAbsolutePath),
+                    'lampiran'
+                );
+                $updates['generated_at'] = Carbon::createFromTimestamp(filemtime($draftAbsolutePath));
+            }
+
+            if ($hasSigned) {
+                $signedFilename = 'LAMPIRAN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment((string) $bastKegiatan->kode_kegiatan).'.pdf';
+                $this->deleteStoredDocument($bastKegiatan->signed_file_path);
+                $updates['signed_file_path'] = $this->writePdfToPublicDirectory(
+                    $signedFilename,
+                    file_get_contents($signedAbsolutePath),
+                    'lampiran-signed'
+                );
+                $updates['signed_uploaded_at'] = Carbon::createFromTimestamp(filemtime($signedAbsolutePath));
+            }
+
+            if (! empty($updates)) {
+                $bastKegiatan->update($updates);
+            }
+
+            $this->deleteStoredDocument($previewDraftPath);
+            $this->deleteStoredDocument($previewSignedPath);
+        }
+
+        $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+    }
+
+    private function mergePdfFilesToPublic(array $paths, string $filename, string $subdirectory): ?string
+    {
+        $absolutePaths = collect($paths)
+            ->map(fn ($path) => $this->resolveDocumentAbsolutePath($path))
+            ->filter(fn (?string $path) => $path && file_exists($path))
+            ->values()
+            ->all();
+
+        if (count($absolutePaths) !== count($paths)) {
+            return null;
+        }
+
+        $absoluteDirectory = $this->ensureBastExportDirectory($subdirectory);
+        $absoluteOutputPath = $absoluteDirectory.DIRECTORY_SEPARATOR.$filename;
+
+        $merged = \App\Services\PdfMergerService::mergePdfFiles(
+            $absolutePaths,
+            $absoluteOutputPath,
+            $filename
+        );
+
+        if (! $merged || ! file_exists($absoluteOutputPath)) {
+            return null;
+        }
+
+        return trim('bast-export/'.trim($subdirectory, '/').'/'.$filename, '/');
+    }
+
+    private function prepareStoredBastViewData(Bast $bast): array
+    {
+        $bast->loadMissing([
+            'spk.alokasiPetugas.petugas',
+            'spk.alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ]);
+
+        $spk = $bast->spk;
+
+        if (! $spk || ! $spk->alokasiPetugas?->petugas) {
+            abort(404, 'Data SPK untuk BAST tidak ditemukan.');
+        }
+
+        $ppk = (object) [
+            'nama' => $bast->nama_ppk,
+            'nip' => $bast->nip_ppk,
+        ];
+
+        return $this->prepareBastDataForExport(
+            $spk,
+            collect(),
+            $bast->nomor_bast,
+            $bast->tanggal_bast->format('Y-m-d'),
+            $ppk
+        );
+    }
+
+    private function isLampiranGenerationAllowed(array $kegiatanPayload): bool
+    {
+        $tanggalSelesai = $this->normalizeDateForCompare($kegiatanPayload['tanggal_selesai'] ?? null);
+
+        if (! $tanggalSelesai) {
+            return false;
+        }
+
+        return $tanggalSelesai <= now()->format('Y-m-d');
+    }
+
+    private function syncCompiledBastFiles(Bast $bast): void
+    {
+        $bast->loadMissing('bastKegiatan');
+
+        if ($bast->bastKegiatan->isEmpty()) {
+            return;
+        }
+
+        $updates = [];
+        $baseFilename = $this->sanitizeDocumentSegment($bast->nomor_bast);
+
+        if ($bast->file_path && $bast->bastKegiatan->every(fn (BastKegiatan $item) => filled($item->file_path))) {
+            $compiledPath = $this->mergePdfFilesToPublic(
+                array_merge([$bast->file_path], $bast->bastKegiatan->pluck('file_path')->all()),
+                'BAST_COMPILED_'.$baseFilename.'.pdf',
+                'compiled'
+            );
+
+            if ($compiledPath) {
+                $updates['compiled_file_path'] = $compiledPath;
+            }
+        } else {
+            $this->deleteStoredDocument($bast->compiled_file_path);
+            $updates['compiled_file_path'] = null;
+        }
+
+        if ($bast->main_signed_file_path && $bast->bastKegiatan->every(fn (BastKegiatan $item) => filled($item->signed_file_path))) {
+            $compiledSignedPath = $this->mergePdfFilesToPublic(
+                array_merge([$bast->main_signed_file_path], $bast->bastKegiatan->pluck('signed_file_path')->all()),
+                'BAST_SIGNED_'.$baseFilename.'.pdf',
+                'compiled-signed'
+            );
+
+            if ($compiledSignedPath) {
+                $updates['signed_file_path'] = $compiledSignedPath;
+            }
+        } else {
+            $this->deleteStoredDocument($bast->signed_file_path);
+            $updates['signed_file_path'] = null;
+        }
+
+        if (! empty($updates)) {
+            $bast->forceFill($updates)->save();
+        }
+    }
+
+    /**
+     * Ensure bast_kegiatan records exist for all kegiatan payload rows.
+     * This lets Detail BAST show per-kegiatan lampiran actions even before generation.
+     *
+     * @param  array<int, array<string, mixed>>  $kegiatanList
+     */
+    private function syncBastKegiatanFromPayload(Bast $bast, array $kegiatanList): void
+    {
+        if (empty($kegiatanList)) {
+            return;
+        }
+
+        collect($kegiatanList)
+            ->filter(fn (array $item) => filled($item['kegiatan_id'] ?? null) && filled($item['periode_alokasi_id'] ?? null))
+            ->unique(fn (array $item) => $this->makeBastKegiatanKey((int) $item['kegiatan_id'], (int) $item['periode_alokasi_id']))
+            ->each(function (array $item) use ($bast) {
+                BastKegiatan::updateOrCreate(
+                    [
+                        'bast_id' => $bast->id,
+                        'kegiatan_id' => (int) $item['kegiatan_id'],
+                        'periode_alokasi_id' => (int) $item['periode_alokasi_id'],
+                    ],
+                    [
+                        'kode_kegiatan' => (string) ($item['kode_kegiatan'] ?? '-'),
+                        'nama_kegiatan' => (string) ($item['nama_kegiatan'] ?? '-'),
+                        'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
+                        'tahun' => $bast->tanggal_bast->year,
+                        'jenis_kegiatan' => (string) ($item['jenis_kegiatan'] ?? 'survei'),
+                    ]
+                );
+            });
+    }
+
+    private function nextBastNomorForDate(Carbon $targetDate): string
+    {
+        $allBast = Bast::whereYear('tanggal_bast', $targetDate->year)
+            ->pluck('nomor_bast');
+
+        $maxUrut = 0;
+        foreach ($allBast as $existingNomor) {
+            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
+                $urut = (int) $matches[1];
+                if ($urut > $maxUrut) {
+                    $maxUrut = $urut;
+                }
+            }
+        }
+
+        return sprintf('PPIS/13730/%d/BAST/%d', $maxUrut + 1, $targetDate->year);
+    }
+
+    private function buildOrGetBastForPetugasPeriod(Request $request, int $petugasId, string $bulanFormatted, int $tahun): ?Bast
+    {
+        $existingBast = Bast::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+            $q->where('bulan', $bulanFormatted)->where('tahun', $tahun);
+        })->whereHas('bastPetugas', function ($q) use ($petugasId) {
+            $q->where('petugas_id', $petugasId);
+        })->latest('created_at')->first();
+
+        if ($existingBast) {
+            return $existingBast;
+        }
+
+        $spk = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ])->where('petugas_id', $petugasId)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                $q->where('bulan', $bulanFormatted)->where('tahun', $tahun);
+            })
+            ->orderByDesc('addendum_number')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $spk || ! $spk->alokasiPetugas?->petugas) {
+            return null;
+        }
+
+        $user = $this->getRequestUser($request);
+        if ($user?->active_role === 'ketua_tim') {
+            $hasManagedKegiatan = AlokasiPetugas::where('petugas_id', $petugasId)
+                ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
+                    $q->where('ketua_tim_user_id', $user->id);
+                })
+                ->exists();
+
+            abort_unless($hasManagedKegiatan, 403);
+        }
+
+        $allAlokasi = AlokasiPetugas::where('petugas_id', $petugasId)
+            ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                $q->where('bulan', $bulanFormatted)
+                    ->where('tahun', $tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']);
+            })
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->with([
+                'periodeAlokasi.kegiatan.rateHonors.satuan',
+                'periodeAlokasi.kegiatan.rateHonors.satuanListing',
+                'periodeAlokasi.kegiatan.ketuaTim',
+                'spk',
+            ])
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            return null;
+        }
+
+        $tanggalBerakhirPalingAkhir = $allAlokasi->map(function ($alokasi) {
+            return $this->getAlokasiLatestTanggalSelesai($alokasi);
+        })->filter()->max();
+
+        if (! $tanggalBerakhirPalingAkhir) {
+            $tanggalBerakhirPalingAkhir = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
+        }
+
+        $targetDate = Carbon::parse($tanggalBerakhirPalingAkhir ?: now()->format('Y-m-d'));
+        while (in_array($targetDate->dayOfWeekIso, [6, 7])) {
+            $targetDate->subDay();
+        }
+
+        $nomorBast = $this->nextBastNomorForDate($targetDate);
+        $ppk = Penandatangan::where('jenis_penandatangan', 'ppk')
+            ->where('is_active', true)
+            ->first();
+        $ppkObject = $ppk ? (object) ['nama' => $ppk->nama, 'nip' => $ppk->nip] : (object) ['nama' => ($spk->nama_ppk ?? '-'), 'nip' => ($spk->nip_ppk ?? '-')];
+
+        $viewData = $this->prepareBastDataForExport(
+            $spk,
+            $allAlokasi,
+            $nomorBast,
+            $targetDate->format('Y-m-d'),
+            $ppkObject
+        );
+
+        $kegiatanPertama = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
+        $ketuaTim = $kegiatanPertama?->ketuaTim;
+
+        $bast = Bast::create([
+            'spk_id' => $spk->id,
+            'kegiatan_id' => $kegiatanPertama?->id,
+            'periode_alokasi_id' => $spk->alokasiPetugas?->periodeAlokasi?->id,
+            'nomor_bast' => $nomorBast,
+            'tanggal_bast' => $targetDate->format('Y-m-d'),
+            'tanggal_serah_terima' => $targetDate->format('Y-m-d'),
+            'uraian_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
+            'nama_ketua_tim' => $ketuaTim?->name ?? '-',
+            'nip_ketua_tim' => $ketuaTim?->nip ?? '-',
+            'nama_ppk' => $ppkObject->nama,
+            'nip_ppk' => $ppkObject->nip,
+            'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
+            'hasil_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
+            'file_path' => null,
+            'compiled_file_path' => null,
+            'main_signed_file_path' => null,
+            'signed_file_path' => null,
+            'lokasi_kegiatan' => 'Kota Sawahlunto',
+            'status' => 'draft',
+            'created_by' => Auth::id(),
+        ]);
+
+        BastPetugas::updateOrCreate(
+            [
+                'bast_id' => $bast->id,
+                'petugas_id' => $spk->alokasiPetugas->petugas->id,
+            ],
+            [
+                'spk_id' => $spk->id,
+                'nomor_spk' => $spk->nomor_spk,
+                'nama_petugas' => $spk->alokasiPetugas->petugas->nama,
+                'hasil_listing' => null,
+                'hasil_pendataan_lapangan' => null,
+                'hasil_pengolahan' => null,
+                'hasil_pengolahan_listing' => null,
+                'catatan' => $spk->alokasiPetugas?->catatan,
+            ]
+        );
+
+        $this->syncBastKegiatanFromPayload($bast, $viewData['bast']->kegiatan_list ?? []);
+
+        return $bast;
+    }
 
     /**
      * Check if any petugas has pendataan allocation with hasil_pendataan_lapangan > 0
@@ -433,16 +986,20 @@ class BastController extends Controller
     /**
      * List all BAST for a specific month with filter
      */
-    public function listByMonth(Request $request): RedirectResponse
+    public function listByMonth(Request $request): Response|RedirectResponse
     {
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
+        $selectedPetugasId = (int) $request->input('petugas_id', 0);
         $activeYear = \App\Services\ActiveYearService::get();
 
         // Default to current year if no filter
         if (! $tahun) {
             $tahun = $activeYear;
         }
+
+        $isApril2026OrLater = (int) $tahun > 2026 || ((int) $tahun === 2026 && (int) $bulan >= 4);
+        $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         // Get first BAST for this month
         $firstBast = Bast::whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
@@ -453,6 +1010,255 @@ class BastController extends Controller
         })
             ->orderBy('created_at', 'desc')
             ->first();
+
+        // For April 2026+, when selecting a petugas without BAST (or no BAST exists yet),
+        // show same detail layout without generating BAST document.
+        if ($isApril2026OrLater && ($selectedPetugasId > 0 || ! $firstBast)) {
+            $user = $this->getRequestUser($request);
+            $isKetuaTim = $user?->active_role === 'ketua_tim';
+            $canManageMain = $this->userCanManageBastMain($request);
+
+            $periodeReference = PeriodeAlokasi::query()
+                ->where('tahun', $tahun)
+                ->when($bulan, function ($query) use ($bulanFormatted) {
+                    $query->where('bulan', $bulanFormatted);
+                })
+                ->latest('id')
+                ->first();
+
+            $bastList = $periodeReference
+                ? $this->buildBastListForPeriod($periodeReference, $canManageMain, $isKetuaTim, $request)
+                : collect();
+
+            $existingBastSpkIds = Bast::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                $q->where('bulan', $bulanFormatted)->where('tahun', $tahun);
+            })->pluck('spk_id')->filter()->unique();
+
+            $eligibleWithoutBast = Spk::with('alokasiPetugas.petugas')
+                ->whereNotIn('id', $existingBastSpkIds)
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                    $q->where('bulan', $bulanFormatted)
+                        ->where('tahun', $tahun)
+                        ->whereIn('status', ['dikirim', 'perubahan']);
+                })
+                ->when($isKetuaTim, function ($query) use ($user) {
+                    $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) use ($user) {
+                        $q->where('ketua_tim_user_id', $user?->id);
+                    });
+                })
+                ->get()
+                ->map(function ($spk) use ($bulan, $tahun) {
+                    $petugas = $spk->alokasiPetugas?->petugas;
+
+                    return [
+                        'petugas_nama' => $petugas?->nama ?? 'Petugas tidak diketahui',
+                        'petugas_id' => $petugas?->id,
+                        'open_detail_url' => $petugas?->id
+                            ? route('bast.list', [
+                                'bulan' => (int) $bulan,
+                                'tahun' => (int) $tahun,
+                                'petugas_id' => (int) $petugas->id,
+                            ], false)
+                            : null,
+                    ];
+                })
+                ->sortBy('petugas_nama')
+                ->values();
+
+            if ($selectedPetugasId === 0 && $eligibleWithoutBast->isNotEmpty()) {
+                $selectedPetugasId = (int) ($eligibleWithoutBast->first()['petugas_id'] ?? 0);
+            }
+
+            $selectedPetugas = null;
+            $lampiranPreview = collect();
+            $selectedSpk = null;
+
+            if ($selectedPetugasId > 0) {
+                $selectedSpk = Spk::where('petugas_id', $selectedPetugasId)
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                        $q->where('bulan', $bulanFormatted)
+                            ->where('tahun', $tahun);
+                    })
+                    ->orderByDesc('addendum_number')
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                $alokasiIdsFromLatestSpk = collect($selectedSpk?->alokasi_petugas_ids ?? [])
+                    ->filter()
+                    ->values();
+
+                if ($selectedSpk?->alokasi_petugas_id) {
+                    $alokasiIdsFromLatestSpk->push($selectedSpk->alokasi_petugas_id);
+                }
+
+                $alokasiIdsFromLatestSpk = $alokasiIdsFromLatestSpk->unique()->values();
+
+                $alokasiPreviewQuery = AlokasiPetugas::query();
+
+                if ($alokasiIdsFromLatestSpk->isNotEmpty()) {
+                    $alokasiPreviewQuery->whereIn('id', $alokasiIdsFromLatestSpk->all());
+                } else {
+                    $alokasiPreviewQuery->where('petugas_id', $selectedPetugasId)
+                        ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                            $q->where('bulan', $bulanFormatted)
+                                ->where('tahun', $tahun)
+                                ->whereIn('status', ['dikirim', 'perubahan']);
+                        });
+                }
+
+                $alokasiPreview = $alokasiPreviewQuery
+                    ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                        $q->where('bulan', $bulanFormatted)
+                            ->where('tahun', $tahun)
+                            ->whereIn('status', ['dikirim', 'perubahan']);
+                    })
+                    ->whereHas('petugas', function ($q) {
+                        $q->where('jenis_petugas', 'non-organik');
+                    })
+                    ->where(function ($query) {
+                        $query->where('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    })
+                    ->when($isKetuaTim, function ($query) use ($user) {
+                        $query->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
+                            $q->where('ketua_tim_user_id', $user?->id);
+                        });
+                    })
+                    ->with([
+                        'petugas',
+                        'periodeAlokasi.kegiatan.ketuaTim',
+                    ])
+                    ->get();
+
+                $selectedPetugas = $alokasiPreview->first()?->petugas;
+
+                $lampiranPreview = $this->getEffectiveAlokasiByKegiatan($alokasiPreview)
+                    ->values()
+                    ->map(function (AlokasiPetugas $alokasi, int $index) use ($selectedSpk) {
+                        $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+                        $tanggalSelesai = $this->getAlokasiLatestTanggalSelesai($alokasi);
+                        $formatted = '-';
+
+                        if ($tanggalSelesai) {
+                            try {
+                                $formatted = Carbon::parse($tanggalSelesai)->locale('id')->isoFormat('D MMMM YYYY');
+                            } catch (\Exception $e) {
+                                $formatted = '-';
+                            }
+                        }
+
+                        $readyToGenerate = false;
+                        $normalizedTanggalSelesai = $this->normalizeDateForCompare($tanggalSelesai);
+                        if ($normalizedTanggalSelesai) {
+                            $readyToGenerate = $normalizedTanggalSelesai <= now()->format('Y-m-d');
+                        }
+
+                        $previewDocumentState = $this->getPreviewLampiranDocumentState(
+                            $selectedSpk,
+                            (int) ($kegiatan?->id ?? 0),
+                            (int) ($alokasi->periode_alokasi_id ?? 0),
+                            (string) ($kegiatan?->kode_kegiatan ?? '-'),
+                        );
+
+                        return [
+                            'id' => $index + 1,
+                            'kegiatan_id' => (int) ($kegiatan?->id ?? 0),
+                            'periode_alokasi_id' => (int) ($alokasi->periode_alokasi_id ?? 0),
+                            'kode_kegiatan' => $kegiatan?->kode_kegiatan ?? '-',
+                            'nama_kegiatan' => $kegiatan?->nama_kegiatan ?? '-',
+                            'jenis_kegiatan' => $kegiatan?->jenis_kegiatan ?? 'survei',
+                            'peran' => $alokasi->peran,
+                            'tanggal_selesai' => $tanggalSelesai,
+                            'tanggal_selesai_formatted' => $formatted,
+                            'ketua_tim_nama' => $kegiatan?->ketuaTim?->name,
+                            'file_path' => $previewDocumentState['file_path'],
+                            'signed_file_path' => $previewDocumentState['signed_file_path'],
+                            'generated_at' => $previewDocumentState['generated_at'],
+                            'signed_uploaded_at' => $previewDocumentState['signed_uploaded_at'],
+                            'status' => $previewDocumentState['status'],
+                            'can_download' => $readyToGenerate || filled($previewDocumentState['file_path']),
+                            'can_generate' => $readyToGenerate,
+                            'can_upload_signed' => $previewDocumentState['can_upload_signed'],
+                            'ready_to_generate' => $readyToGenerate,
+                            'preview_spk_id' => $selectedSpk?->id,
+                        ];
+                    });
+            }
+
+            $generatedLampiranPreviewCount = $lampiranPreview->filter(fn (array $item) => filled($item['file_path']))->count();
+            $signedLampiranPreviewCount = $lampiranPreview->filter(fn (array $item) => filled($item['signed_file_path']))->count();
+            $allLampiranPreviewGenerated = $lampiranPreview->isNotEmpty() && $generatedLampiranPreviewCount === $lampiranPreview->count();
+            $allLampiranPreviewSigned = $lampiranPreview->isNotEmpty() && $signedLampiranPreviewCount === $lampiranPreview->count();
+
+            return Inertia::render('Bast/Show', [
+                'bast' => [
+                    'id' => 0,
+                    'hashed_id' => '',
+                    'nomor_bast' => '-',
+                    'tanggal_bast' => '-',
+                    'tanggal_serah_terima' => '-',
+                    'menggunakan_fasih' => false,
+                    'uraian_pekerjaan' => '-',
+                    'nama_ketua_tim' => '-',
+                    'nip_ketua_tim' => null,
+                    'nama_ppk' => '-',
+                    'nip_ppk' => null,
+                    'hasil_pekerjaan' => null,
+                    'file_path' => null,
+                    'compiled_file_path' => null,
+                    'main_signed_file_path' => null,
+                    'signed_file_path' => null,
+                    'lokasi_kegiatan' => null,
+                    'status' => 'draft',
+                    'catatan' => null,
+                    'created_by' => '-',
+                    'created_at' => '-',
+                    'is_legacy_mode' => false,
+                ],
+                'spk' => $selectedSpk ? [
+                    'id' => $selectedSpk->id,
+                    'hashed_id' => $selectedSpk->hashed_id,
+                    'nomor_spk' => $selectedSpk->nomor_spk,
+                    'tanggal_spk' => $selectedSpk->tanggal_spk?->format('Y-m-d') ?? '-',
+                    'nilai_kontrak' => (float) ($selectedSpk->nilai_kontrak ?? 0),
+                ] : null,
+                'petugas' => $selectedPetugas ? [
+                    'id' => $selectedPetugas->id,
+                    'hashed_id' => $selectedPetugas->hashed_id ?? '',
+                    'nama' => $selectedPetugas->nama,
+                    'nik' => $selectedPetugas->nik,
+                    'alamat' => $selectedPetugas->alamat,
+                    'no_hp' => $selectedPetugas->no_hp,
+                ] : null,
+                'kegiatan' => [
+                    'id' => 0,
+                    'hashed_id' => '',
+                    'kode_kegiatan' => '-',
+                    'nama_kegiatan' => 'Belum ada BAST',
+                    'jenis_kegiatan' => 'survei',
+                    'tahun_anggaran' => (int) $tahun,
+                ],
+                'lampiran' => $lampiranPreview->values()->toArray(),
+                'bast_list' => $bastList->values()->toArray(),
+                'eligible_without_bast' => $eligibleWithoutBast->toArray(),
+                'permissions' => [
+                    'can_manage_main' => $canManageMain,
+                    'is_ketua_tim' => $isKetuaTim,
+                ],
+                'summary' => [
+                    'total_lampiran' => $lampiranPreview->count(),
+                    'generated_lampiran' => $generatedLampiranPreviewCount,
+                    'signed_lampiran' => $signedLampiranPreviewCount,
+                    'all_lampiran_generated' => $allLampiranPreviewGenerated,
+                    'all_lampiran_signed' => $allLampiranPreviewSigned,
+                    'main_signed_uploaded' => false,
+                    'final_signed_ready' => false,
+                ],
+                'bulan' => (int) $bulan,
+                'tahun' => (int) $tahun,
+                'bulan_label' => $this->getBulanLabel((int) $bulan),
+            ]);
+        }
 
         if (! $firstBast) {
             return redirect()->route('bast.index')
@@ -1022,7 +1828,7 @@ class BastController extends Controller
                         ->where('is_active', true)
                         ->first();
 
-                    // Siapkan data menggunakan logic yang sama dengan previewForSpk (hari kerja terdekat)
+                    // Siapkan data BAST main menggunakan logic export yang sama.
                     $viewData = $this->prepareBastDataForExport(
                         $spk,
                         $allAlokasi,
@@ -1031,56 +1837,17 @@ class BastController extends Controller
                         $ppk
                     );
 
-                    // Generate PDF terlebih dahulu sebelum simpan ke database
+                    // Generate file BAST utama tanpa lampiran.
                     try {
                         $pdfMain = Pdf::loadView('bast', $viewData)
                             ->setPaper('a4', 'portrait');
-
-                        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
-                            ->setPaper('a4', 'landscape');
-
-                        $tempPath = storage_path('app/temp');
-                        if (! file_exists($tempPath)) {
-                            mkdir($tempPath, 0777, true);
-                        }
-
-                        $timestamp = time().'_'.uniqid();
-                        $mainPath = $tempPath.'/bast_main_'.$timestamp.'.pdf';
-                        $lampiranPath = $tempPath.'/bast_lampiran_'.$timestamp.'.pdf';
-                        $mergedPath = $tempPath.'/bast_merged_'.$timestamp.'.pdf';
-
-                        file_put_contents($mainPath, $pdfMain->output());
-                        file_put_contents($lampiranPath, $pdfLampiran->output());
-                        $merged = \App\Services\PdfMergerService::mergePdfFiles(
-                            [$mainPath, $lampiranPath],
-                            $mergedPath
-                        );
-
-                        if ($merged && file_exists($mergedPath)) {
-                            // Create directory for export if not exists (public/bast-export)
-                            $directory = public_path('bast-export');
-                            if (! file_exists($directory)) {
-                                mkdir($directory, 0755, true);
-                            }
-                            // Generate filename
-                            $cleanNomorBast = str_replace(['/', '\\', ' '], '_', $nomorBast);
-                            $filename = $cleanNomorBast.'_'.$spk->alokasiPetugas->petugas->nama.'.pdf';
-                            $filePath = 'bast-export/'.$filename;
-                            $fullPath = public_path($filePath);
-                            // Copy merged PDF to final destination
-                            copy($mergedPath, $fullPath);
-                            // Cleanup temporary files
-                            @unlink($mainPath);
-                            @unlink($lampiranPath);
-                            @unlink($mergedPath);
-                        } else {
-                            throw new \Exception('Gagal merge PDF');
-                        }
+                        $filename = 'BAST_MAIN_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment($spk->alokasiPetugas->petugas->nama).'.pdf';
+                        $filePath = $this->writePdfToPublicDirectory($filename, $pdfMain->output(), 'main');
                     } catch (\Exception $pdfException) {
                         throw new \Exception('Gagal generate PDF: '.$pdfException->getMessage());
                     }
 
-                    // Jika PDF berhasil, baru simpan ke database
+                    // Jika PDF berhasil, baru simpan ke database.
                     $bast = Bast::create([
                         'spk_id' => $spk->id,
                         'kegiatan_id' => $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->id,
@@ -1096,6 +1863,9 @@ class BastController extends Controller
                         'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
                         'hasil_pekerjaan' => $spk->alokasiPetugas?->catatan ?? '-',
                         'file_path' => $filePath,
+                        'compiled_file_path' => null,
+                        'main_signed_file_path' => null,
+                        'signed_file_path' => null,
                         'lokasi_kegiatan' => 'Kota Sawahlunto',
                         'status' => 'draft',
                         'created_by' => Auth::id(),
@@ -1145,14 +1915,32 @@ class BastController extends Controller
                             'catatan' => ! empty($catatan) ? implode('; ', $catatan) : null,
                         ]);
                     }
+
+                    collect($viewData['bast']->kegiatan_list)
+                        ->unique(fn (array $item) => $this->makeBastKegiatanKey($item['kegiatan_id'], $item['periode_alokasi_id']))
+                        ->each(function (array $item) use ($bast) {
+                            BastKegiatan::create([
+                                'bast_id' => $bast->id,
+                                'kegiatan_id' => $item['kegiatan_id'],
+                                'periode_alokasi_id' => $item['periode_alokasi_id'],
+                                'kode_kegiatan' => $item['kode_kegiatan'],
+                                'nama_kegiatan' => $item['nama_kegiatan'],
+                                'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
+                                'tahun' => $bast->tanggal_bast->year,
+                                'jenis_kegiatan' => $item['jenis_kegiatan'],
+                            ]);
+                        });
+
+                    $this->adoptPreviewLampiranFiles($bast->fresh('bastKegiatan'));
+
                     $successCount++;
                     // Simpan nomor urut yang baru saja dipakai ke array batch
                     $usedUruts[$carbonTarget->year][$carbonTarget->month][] = $nomorBastTemp;
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
-                    if (isset($fullPath) && file_exists($fullPath)) {
-                        @unlink($fullPath);
+                    if (isset($filePath)) {
+                        $this->deleteStoredDocument($filePath);
                     }
                     $failedSpk[] = [
                         'nomor_spk' => $spk->nomor_spk ?? 'Unknown',
@@ -1421,6 +2209,8 @@ class BastController extends Controller
             );
 
             $bastData['kegiatan_list'][] = [
+                'kegiatan_id' => $kegiatan->id,
+                'periode_alokasi_id' => $periode->id,
                 'kode_kegiatan' => $kegiatan->kode_kegiatan,
                 'nama_kegiatan' => $kegiatan->nama_kegiatan,
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
@@ -1435,14 +2225,14 @@ class BastController extends Controller
                 'uraian_pengolahan_listing' => $uraianPengolahanListing,
                 'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
-                'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_listing' => ($hasListing && $isPendataanRole) ? $effectiveListingVolume : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
                 'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
-                'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pendataan_lapangan' => $isPendataanRole ? $effectivePencacahanVolume : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'non_response' => $isPendataanRole ? $alokasi->non_response : null,
-                'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
-                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_pengolahan' => $isPengolahanRole ? $effectivePencacahanVolume : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $effectiveListingVolume : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,
@@ -2052,15 +2842,12 @@ class BastController extends Controller
             ];
         }
 
-        // Generate BAST utama dan lampiran gabungan
         $bastObject = (object) $bastData;
 
-        // Get Kepala BPS
         $kepala = Penandatangan::where('jenis_penandatangan', 'kepala')
             ->where('is_active', true)
             ->first();
 
-        // Kirim variabel tambahan yang dibutuhkan template
         $viewData = [
             'bast' => $bastObject,
             'nomor_bast' => $bastData['nomor_bast'],
@@ -2073,13 +2860,111 @@ class BastController extends Controller
         ];
 
         $cleanNomorBast = str_replace(['/', '\\'], '-', $bastData['nomor_bast']);
-
-        $htmlContent = view('bast', $viewData)->render();
-        $htmlContent .= '<div style="page-break-after: always;"></div>';
-        $htmlContent .= view('bast-lampiran-spk', $viewData)->render();
-
         $pdfMain = Pdf::loadView('bast', $viewData)
             ->setPaper('a4', 'portrait');
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $previewPath = $tempPath.'/bast_main_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($previewPath, $pdfMain->output());
+
+        return response()->file($previewPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview_BAST_MAIN_'.$cleanNomorBast.'-'.$bastData['petugas']['nama'].'.pdf"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Preview lampiran BAST dari bast-lampiran-spk.blade.php.
+     * Admin/operator: semua kegiatan dari SPK.
+     * Ketua tim: harus menentukan kegiatan_id dan hanya untuk kegiatan yang dikelola.
+     */
+    public function previewLampiran(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
+        $user = $request->user();
+        $isAdminOrOperator = in_array($user?->active_role, ['admin', 'operator'], true);
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        $rules = ['spk_id' => 'required|integer|exists:spk,id'];
+        if ($isKetuaTim) {
+            $rules['kegiatan_id'] = 'required|integer|exists:kegiatan,id';
+        } else {
+            $rules['kegiatan_id'] = 'nullable|integer|exists:kegiatan,id';
+        }
+
+        $request->validate($rules);
+
+        $spk = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ])->findOrFail($request->spk_id);
+
+        $petugas = $spk->alokasiPetugas?->petugas;
+        abort_unless($petugas, 404, 'Petugas pada SPK tidak ditemukan.');
+
+        $ppkPenandatangan = Penandatangan::where('jenis_penandatangan', 'ppk')
+            ->where('is_active', true)
+            ->first();
+
+        $ppk = (object) [
+            'nama' => $ppkPenandatangan?->nama ?? 'PPK',
+            'nip' => $ppkPenandatangan?->nip,
+        ];
+
+        $tanggalAkhir = $spk->tanggal_selesai_kerja
+            ? Carbon::parse($spk->tanggal_selesai_kerja)->format('Y-m-d')
+            : now()->format('Y-m-d');
+        $nomorBastPreview = $this->generateNomorBastForSpk(Carbon::parse($tanggalAkhir));
+
+        $viewData = $this->prepareBastDataForExport(
+            $spk,
+            collect([$spk]),
+            $nomorBastPreview,
+            $tanggalAkhir,
+            $ppk
+        );
+
+        // Filter by kegiatan_id if provided
+        $kegiatanId = $request->input('kegiatan_id');
+        if ($kegiatanId) {
+            if ($isKetuaTim) {
+                $managed = Kegiatan::query()
+                    ->whereKey((int) $kegiatanId)
+                    ->where('ketua_tim_user_id', $user?->id)
+                    ->exists();
+
+                abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+            }
+
+            $filteredKegiatan = collect($viewData['bast']->kegiatan_list)
+                ->filter(function (array $item) use ($kegiatanId) {
+                    return (int) ($item['kegiatan_id'] ?? 0) === (int) $kegiatanId;
+                })
+                ->values()
+                ->all();
+
+            if (empty($filteredKegiatan)) {
+                abort(403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+            }
+
+            $viewData['bast']->kegiatan_list = $filteredKegiatan;
+        }
+
+        if (empty($viewData['bast']->kegiatan_list)) {
+            abort(404, 'Tidak ada data lampiran untuk SPK ini.');
+        }
 
         $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
             ->setPaper('a4', 'landscape');
@@ -2089,157 +2974,435 @@ class BastController extends Controller
             mkdir($tempPath, 0777, true);
         }
 
-        $timestamp = time().'_'.uniqid();
-        $mainPath = $tempPath.'/bast_main_'.$timestamp.'.pdf';
-        $lampiranPath = $tempPath.'/bast_lampiran_'.$timestamp.'.pdf';
-        $mergedPath = $tempPath.'/bast_merged_'.$timestamp.'.pdf';
+        $previewPath = $tempPath.'/bast_lampiran_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($previewPath, $pdfLampiran->output());
 
-        file_put_contents($mainPath, $pdfMain->output());
-        file_put_contents($lampiranPath, $pdfLampiran->output());
-        $merged = \App\Services\PdfMergerService::mergePdfFiles(
-            [$mainPath, $lampiranPath],
-            $mergedPath
+        return response()->file($previewPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview_Lampiran_BAST_'.$petugas->nama.'.pdf"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function generateDownloadLampiranPreview(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
+        $user = $request->user();
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        $rules = [
+            'spk_id' => 'required|integer|exists:spk,id',
+            'kegiatan_id' => 'required|integer|exists:kegiatan,id',
+        ];
+
+        $request->validate($rules);
+
+        $spk = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+        ])->findOrFail((int) $request->input('spk_id'));
+
+        $petugas = $spk->alokasiPetugas?->petugas;
+        abort_unless($petugas, 404, 'Petugas pada SPK tidak ditemukan.');
+
+        $kegiatanId = (int) $request->input('kegiatan_id');
+        if ($isKetuaTim) {
+            $managed = Kegiatan::query()
+                ->whereKey($kegiatanId)
+                ->where('ketua_tim_user_id', $user?->id)
+                ->exists();
+
+            abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+        }
+
+        $ppkPenandatangan = Penandatangan::where('jenis_penandatangan', 'ppk')
+            ->where('is_active', true)
+            ->first();
+
+        $ppk = (object) [
+            'nama' => $ppkPenandatangan?->nama ?? 'PPK',
+            'nip' => $ppkPenandatangan?->nip,
+        ];
+
+        $tanggalAkhir = $spk->tanggal_selesai_kerja
+            ? Carbon::parse($spk->tanggal_selesai_kerja)->format('Y-m-d')
+            : now()->format('Y-m-d');
+        $nomorBast = $this->generateNomorBastForSpk(Carbon::parse($tanggalAkhir));
+
+        $viewData = $this->prepareBastDataForExport(
+            $spk,
+            collect([$spk]),
+            $nomorBast,
+            $tanggalAkhir,
+            $ppk
         );
 
-        if ($merged && file_exists($mergedPath)) {
-            // Cleanup temp input files; mergedPath streams and deletes after send
-            @unlink($mainPath);
-            @unlink($lampiranPath);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)
+            ->first(function (array $item) use ($kegiatanId) {
+                return (int) ($item['kegiatan_id'] ?? 0) === $kegiatanId;
+            });
 
-            return response()->file($mergedPath, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="preview_BAST_'.$cleanNomorBast.'-'.$bastData['petugas']['nama'].'.pdf"',
-                'Cache-Control' => 'no-cache, must-revalidate',
-                'Expires' => '0',
-            ])->deleteFileAfterSend(true);
+        abort_if(! $kegiatanPayload, 404, 'Kegiatan lampiran tidak ditemukan.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah kegiatan berakhir.');
+
+        $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+
+        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+            ->setPaper('a4', 'landscape');
+
+        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment((string) ($kegiatanPayload['kode_kegiatan'] ?? 'KEGIATAN')).'.pdf';
+        $periodeAlokasiId = (int) ($kegiatanPayload['periode_alokasi_id'] ?? 0);
+        $kodeKegiatan = (string) ($kegiatanPayload['kode_kegiatan'] ?? 'KEGIATAN');
+        $storedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan);
+        $signedPath = $this->buildPreviewLampiranRelativePath($spk, $kegiatanId, $periodeAlokasiId, $kodeKegiatan, true);
+
+        $this->deleteStoredDocument($storedPath);
+        $this->deleteStoredDocument($signedPath);
+
+        $absoluteDirectory = $this->ensureBastExportDirectory('lampiran-preview-draft');
+        file_put_contents($absoluteDirectory.DIRECTORY_SEPARATOR.basename($storedPath), $pdfLampiran->output());
+
+        $absolutePath = $this->resolveDocumentAbsolutePath($storedPath);
+
+        abort_unless($absolutePath && file_exists($absolutePath), 500, 'Gagal menyimpan file lampiran.');
+
+        return response()->download($absolutePath, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
+    }
+
+    public function uploadPreviewLampiranSigned(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        $request->validate([
+            'spk_id' => 'required|integer|exists:spk,id',
+            'kegiatan_id' => 'required|integer|exists:kegiatan,id',
+            'periode_alokasi_id' => 'required|integer|exists:periode_alokasi,id',
+            'kode_kegiatan' => 'required|string',
+            'file' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        $spk = Spk::with([
+            'alokasiPetugas.petugas',
+            'alokasiPetugas.periodeAlokasi.kegiatan',
+        ])->findOrFail((int) $request->input('spk_id'));
+
+        $kegiatanId = (int) $request->input('kegiatan_id');
+
+        if ($isKetuaTim) {
+            $managed = Kegiatan::query()
+                ->whereKey($kegiatanId)
+                ->where('ketua_tim_user_id', $user?->id)
+                ->exists();
+
+            abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
         }
-        // Cleanup temporary files
-        @unlink($mainPath);
-        @unlink($lampiranPath);
 
-        // Always return a response if PDF merging fails
-        return back()->with('error', 'Gagal membuat preview PDF BAST.');
+        $draftPath = $this->buildPreviewLampiranRelativePath(
+            $spk,
+            $kegiatanId,
+            (int) $request->integer('periode_alokasi_id'),
+            (string) $request->string('kode_kegiatan')
+        );
+
+        $draftAbsolutePath = $this->resolveDocumentAbsolutePath($draftPath);
+
+        if (! $draftAbsolutePath || ! file_exists($draftAbsolutePath)) {
+            return redirect()->back()->with('error', 'Lampiran belum digenerate.');
+        }
+
+        $signedPath = $this->buildPreviewLampiranRelativePath(
+            $spk,
+            $kegiatanId,
+            (int) $request->integer('periode_alokasi_id'),
+            (string) $request->string('kode_kegiatan'),
+            true,
+        );
+
+        $this->deleteStoredDocument($signedPath);
+
+        $targetDirectory = $this->ensureBastExportDirectory('lampiran-preview-signed');
+        $request->file('file')->move($targetDirectory, basename($signedPath));
+
+        return redirect()->back()->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
+    }
+
+    public function previewStoredLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+        $bastKegiatan->loadMissing('kegiatan');
+
+        $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
+        abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
+            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
+                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
+        });
+
+        abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak ditemukan.');
+
+        $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+
+        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+            ->setPaper('a4', 'landscape');
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $previewPath = $tempPath.'/bast_lampiran_detail_preview_'.time().'_'.uniqid().'.pdf';
+        file_put_contents($previewPath, $pdfLampiran->output());
+
+        return response()->file($previewPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview_Lampiran_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
      * Download PDF BAST yang sudah tersimpan
      */
-    public function downloadPdf(Bast $bast): \Symfony\Component\HttpFoundation\Response
+    public function downloadPdf(Request $request, Bast $bast): \Symfony\Component\HttpFoundation\Response
     {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+
+        abort_unless($this->userCanAccessBast($request, $bast), 403);
+
         $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
-        $filename = 'BAST-'.$cleanNomorBast.'.pdf';
+        $filename = 'BAST_MAIN-'.$cleanNomorBast.'.pdf';
+        $generatedPath = $this->resolveDocumentAbsolutePath($bast->file_path);
 
-        // Serve signed file if available (fastest path — no regeneration)
-        if ($bast->signed_file_path) {
-            $signedPath = public_path($bast->signed_file_path);
-            if (file_exists($signedPath)) {
-                return response()->file($signedPath, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                    'Cache-Control' => 'no-cache, must-revalidate',
-                ]);
-            }
+        if ($generatedPath && file_exists($generatedPath)) {
+            return response()->download($generatedPath, $filename, [
+                'Content-Type' => 'application/pdf',
+                'Cache-Control' => 'no-cache, must-revalidate',
+            ]);
         }
 
-        // Serve pre-generated file if available
-        if ($bast->file_path) {
-            $generatedPath = public_path($bast->file_path);
-            if (file_exists($generatedPath)) {
-                return response()->file($generatedPath, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                    'Cache-Control' => 'no-cache, must-revalidate',
-                ]);
-            }
-        }
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $pdfMain = Pdf::loadView('bast', $viewData)
+            ->setPaper('a4', 'portrait');
 
-        // Fallback: regenerate on-the-fly when no stored file exists
-        $bast->load([
-            'spk.alokasiPetugas.petugas',
-            'spk.alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
-            'bastPetugas.kegiatan',
-            'bastPetugas.petugas',
+        return $pdfMain->download($filename);
+    }
+
+    public function downloadSignedPdf(Request $request, Bast $bast): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->loadMissing('bastKegiatan');
+
+        abort_unless($this->userCanAccessBast($request, $bast), 403);
+
+        $path = $bast->bastKegiatan->isEmpty()
+            ? ($bast->signed_file_path ?: $bast->main_signed_file_path)
+            : $bast->signed_file_path;
+
+        $absolutePath = $this->resolveDocumentAbsolutePath($path);
+        abort_unless($absolutePath && file_exists($absolutePath), 404, 'BAST bertanda tangan belum tersedia.');
+
+        $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
+
+        return response()->download($absolutePath, 'BAST_SIGNED-'.$cleanNomorBast.'.pdf', [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
         ]);
+    }
 
-        $spk = $bast->spk;
-        $petugas = $spk->alokasiPetugas?->petugas;
-        $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
+    /**
+     * Download the compiled BAST (main + all lampiran) from storage.
+     */
+    public function downloadCompiledBast(Request $request, Bast $bast): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
 
-        // Build kegiatan list dari BastPetugas
-        $kegiatanList = $bast->bastPetugas->map(function ($bp) {
-            $alokasi = AlokasiPetugas::where('petugas_id', $bp->petugas_id)
-                ->whereHas('periodeAlokasi', fn ($q) => $q->where('kegiatan_id', $bp->kegiatan_id))
-                ->first();
+        abort_unless($this->userCanAccessBast($request, $bast), 403);
 
-            $kegiatan = $bp->kegiatan;
-            $rateHonor = $kegiatan->rateHonors->first(function ($rate) use ($alokasi) {
-                return $alokasi && $rate->status_kepegawaian === $alokasi->status_kepegawaian
-                    && $rate->jenis_penugasan === $alokasi->peran;
-            });
+        $absolutePath = $this->resolveDocumentAbsolutePath($bast->compiled_file_path);
+        abort_unless($absolutePath && file_exists($absolutePath), 404, 'File gabungan belum tersedia. Pastikan BAST dan semua lampiran sudah digenerate.');
 
-            $isPendataanRole = in_array($alokasi?->peran, self::PENDATAAN_ROLES, true);
-            $isPengolahanRole = in_array($alokasi?->peran, self::PENGOLAHAN_ROLES, true);
+        $cleanNomorBast = str_replace(['/', '\\'], '-', $bast->nomor_bast);
 
-            return [
-                'kode_kegiatan' => $kegiatan->kode_kegiatan,
-                'nama_kegiatan' => $kegiatan->nama_kegiatan,
-                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
-                'nomor_spk' => $bp->nomor_spk,
-                'tanggal_selesai' => $bp->tanggal_selesai,
-                'peran' => $alokasi?->peran,
-                'hasil_listing' => $bp->hasil_listing,
-                'satuan_listing' => $isPendataanRole ? $rateHonor?->satuanListing?->nama : null,
-                'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
-                'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
-                'hasil_pengolahan' => $bp->hasil_pengolahan,
-                'hasil_pengolahan_listing' => $bp->hasil_pengolahan_listing,
-                'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
-                'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
-                'keterangan' => $bp->keterangan,
-            ];
+        return response()->download($absolutePath, 'BAST_GABUNGAN-'.$cleanNomorBast.'.pdf', [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
+    }
+
+    /**
+     * Generate lampiran (if not yet generated) and immediately download it.
+     * Combines the generate + download flow into one request.
+     */
+    public function generateDownloadLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+        $bastKegiatan->loadMissing('kegiatan');
+
+        $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
+        abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
+
+        // If already generated, serve existing file
+        if ($bastKegiatan->file_path) {
+            $absolutePath = $this->resolveDocumentAbsolutePath($bastKegiatan->file_path);
+            if ($absolutePath && file_exists($absolutePath)) {
+                return response()->download($absolutePath, $filename, [
+                    'Content-Type' => 'application/pdf',
+                    'Cache-Control' => 'no-cache, must-revalidate',
+                ]);
+            }
+        }
+
+        // Generate, save, then download
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
+            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
+                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
         });
 
-        $bastData = [
-            'nomor_bast' => $bast->nomor_bast,
-            'tanggal_bast' => $bast->tanggal_bast,
-            'tanggal_pelaksanaan' => $bast->tanggal_pelaksanaan,
-            'tanggal_selesai' => $bast->tanggal_selesai,
-            'lokasi_kegiatan' => $bast->lokasi_kegiatan,
-            'nama_ppk' => $spk->nama_ppk,
-            'nip_ppk' => $spk->nip_ppk,
-            'petugas' => [
-                'nama' => $petugas?->nama,
-                'nik' => $petugas?->nik,
-                'alamat' => $petugas?->alamat,
-            ],
-            'ketua_tim' => [
-                'nama' => $ketuaTim?->name,
-                'nip' => $ketuaTim?->nip,
-            ],
-            'kegiatan_list' => $kegiatanList->toArray(),
-        ];
+        abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak dapat disiapkan dari data alokasi saat ini.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah kegiatan berakhir.');
 
-        $bastObject = (object) $bastData;
+        $viewData['bast']->kegiatan_list = [$kegiatanPayload];
 
-        // Kirim variabel tambahan yang dibutuhkan template
-        $viewData = [
-            'bast' => $bastObject,
-            'nomor_bast' => $bastData['nomor_bast'],
-            'hari' => Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('dddd'),
-            'menggunakan_fasih' => $bast->menggunakan_fasih,
-            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
-            'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
-        ];
+        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+            ->setPaper('a4', 'landscape');
 
-        // Generate BAST + Lampiran
-        $htmlContent = view('bast', $viewData)->render();
-        $htmlContent .= '<div style="page-break-after: always;"></div>';
-        $htmlContent .= view('bast-lampiran-spk', ['bast' => $bastObject])->render();
+        $this->deleteStoredDocument($bastKegiatan->file_path);
+        $this->deleteStoredDocument($bastKegiatan->signed_file_path);
 
-        $pdf = Pdf::loadHTML($htmlContent);
-        $pdf->setPaper('a4', 'portrait');
+        $filePath = $this->writePdfToPublicDirectory($filename, $pdfLampiran->output(), 'lampiran');
 
-        return $pdf->download($filename);
+        $bastKegiatan->update([
+            'file_path' => $filePath,
+            'signed_file_path' => null,
+            'generated_at' => now(),
+            'signed_uploaded_at' => null,
+        ]);
+
+        $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+
+        $absolutePath = $this->resolveDocumentAbsolutePath($filePath);
+        abort_unless($absolutePath && file_exists($absolutePath), 500, 'Gagal menyimpan file lampiran.');
+
+        return response()->download($absolutePath, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
+    }
+
+    public function generateLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): RedirectResponse
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+        $bastKegiatan->loadMissing('kegiatan');
+
+        $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
+        abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
+            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
+                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
+        });
+
+        if (! $kegiatanPayload) {
+            return redirect()->back()->with('error', 'Lampiran kegiatan tidak dapat disiapkan dari data alokasi saat ini.');
+        }
+
+        if (! $this->isLampiranGenerationAllowed($kegiatanPayload)) {
+            return redirect()->back()->with('error', 'Lampiran hanya bisa digenerate setelah kegiatan berakhir.');
+        }
+
+        $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+
+        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+            ->setPaper('a4', 'landscape');
+
+        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
+
+        $this->deleteStoredDocument($bastKegiatan->file_path);
+        $this->deleteStoredDocument($bastKegiatan->signed_file_path);
+
+        $filePath = $this->writePdfToPublicDirectory($filename, $pdfLampiran->output(), 'lampiran');
+
+        $bastKegiatan->update([
+            'file_path' => $filePath,
+            'signed_file_path' => null,
+            'generated_at' => now(),
+            'signed_uploaded_at' => null,
+        ]);
+
+        $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+
+        return redirect()->back()->with('success', 'Lampiran berhasil digenerate.');
+    }
+
+    public function downloadLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+        $bastKegiatan->loadMissing('kegiatan');
+
+        $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
+        abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $path = $bastKegiatan->signed_file_path ?: $bastKegiatan->file_path;
+        $absolutePath = $this->resolveDocumentAbsolutePath($path);
+        abort_unless($absolutePath && file_exists($absolutePath), 404, 'Lampiran belum tersedia untuk diunduh.');
+
+        $filenamePrefix = $bastKegiatan->signed_file_path ? 'LAMPIRAN_SIGNED_' : 'LAMPIRAN_';
+        $filename = $filenamePrefix.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
+
+        return response()->download($absolutePath, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
+        ]);
+    }
+
+    public function uploadLampiranSigned(Request $request, Bast $bast, BastKegiatan $bastKegiatan): RedirectResponse
+    {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+        $bastKegiatan->loadMissing('kegiatan');
+
+        $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
+        abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        if (! $bastKegiatan->file_path) {
+            return redirect()->back()->with('error', 'Lampiran belum digenerate.');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        $this->deleteStoredDocument($bastKegiatan->signed_file_path);
+
+        $uploadedFile = $request->file('file');
+        $filename = 'LAMPIRAN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'_'.time().'.pdf';
+        $targetDirectory = $this->ensureBastExportDirectory('lampiran-signed');
+        $uploadedFile->move($targetDirectory, $filename);
+
+        $bastKegiatan->update([
+            'signed_file_path' => trim('bast-export/lampiran-signed/'.$filename, '/'),
+            'signed_uploaded_at' => now(),
+        ]);
+
+        $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+
+        return redirect()->back()->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
     }
 
     /**
@@ -2247,6 +3410,8 @@ class BastController extends Controller
      */
     public function downloadAll(Request $request)
     {
+        abort_unless($this->userCanManageBastMain($request), 403);
+
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
@@ -2257,11 +3422,7 @@ class BastController extends Controller
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all BAST in this month that have files (either file_path or signed_file_path)
-        $allBast = Bast::where(function ($query) {
-            $query->whereNotNull('file_path')
-                ->orWhereNotNull('signed_file_path');
-        })
+        $allBast = Bast::with('bastKegiatan')
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanFormatted) {
                 $query->where('tahun', $tahun)
                     ->where('bulan', $bulanFormatted);
@@ -2269,7 +3430,16 @@ class BastController extends Controller
             ->orderBy('nomor_bast')
             ->get();
 
-        if ($allBast->isEmpty()) {
+        $documents = $allBast->map(function (Bast $bast) {
+            $path = $bast->signed_file_path ?: $bast->compiled_file_path ?: $bast->file_path;
+
+            return [
+                'bast' => $bast,
+                'path' => $path,
+            ];
+        })->filter(fn (array $item) => filled($item['path']))->values();
+
+        if ($documents->isEmpty()) {
             return redirect()->back()->with('error', 'Tidak ada BAST dengan file untuk diunduh');
         }
 
@@ -2292,7 +3462,7 @@ class BastController extends Controller
             $zipModTime = filemtime($zipPath);
 
             // Check if any BAST was updated after ZIP creation
-            $latestBastUpdate = $allBast->max('updated_at')?->timestamp ?? 0;
+            $latestBastUpdate = $documents->max(fn (array $item) => $item['bast']->updated_at?->timestamp ?? 0) ?? 0;
 
             // Reuse if ZIP is newer than latest BAST update
             if ($zipModTime > $latestBastUpdate) {
@@ -2323,17 +3493,11 @@ class BastController extends Controller
 
         $filesAdded = 0;
         // Add each BAST file to ZIP - prioritize signed_file_path if available
-        foreach ($allBast as $bast) {
-            // Prioritize signed file if exists, otherwise use regular file
-            $fileToDownload = $bast->signed_file_path ?: $bast->file_path;
-
-            if ($fileToDownload) {
-                $filePath = public_path($fileToDownload);
-                if (file_exists($filePath)) {
-                    $fileName = basename($fileToDownload);
-                    $zip->addFile($filePath, $fileName);
-                    $filesAdded++;
-                }
+        foreach ($documents as $document) {
+            $filePath = $this->resolveDocumentAbsolutePath($document['path']);
+            if ($filePath && file_exists($filePath)) {
+                $zip->addFile($filePath, basename($document['path']));
+                $filesAdded++;
             }
         }
 
@@ -2936,6 +4100,8 @@ class BastController extends Controller
             // Update BAST with file path
             $bast->update(['file_path' => $filePath]);
 
+            $this->adoptPreviewLampiranFiles($bast->fresh('bastKegiatan'));
+
             DB::commit();
 
             ActivityLog::log(
@@ -2968,90 +4134,124 @@ class BastController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Bast $bast): Response
+    public function show(Request $request, Bast $bast): Response
     {
-        // Load relationships
         $bast->load([
             'kegiatan',
             'periodeAlokasi',
             'bastPetugas.petugas',
             'bastPetugas.spk',
+            'bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id',
             'createdBy:id,name',
+            'spk.alokasiPetugas.petugas',
         ]);
 
-        // Get periode info
+        $user = $this->getRequestUser($request);
+        $canManageMain = $this->userCanManageBastMain($request);
         $periode = $bast->periodeAlokasi;
+        $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
+
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        abort_unless($canManageMain || $isKetuaTim, 403);
+
         $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $this->syncBastKegiatanFromPayload($bast, $viewData['bast']->kegiatan_list ?? []);
+        $bast->load('bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id');
+        $kegiatanPayloadMap = collect($viewData['bast']->kegiatan_list)
+            ->keyBy(fn (array $item) => $this->makeBastKegiatanKey($item['kegiatan_id'], $item['periode_alokasi_id']));
+        $isLegacyMode = $bast->bastKegiatan->isEmpty();
 
-        // Get all BAST in same month/year (untuk daftar di sidebar)
-        $bastList = Bast::with(['spk.alokasiPetugas.petugas', 'createdBy:id,name'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun);
+        $bastList = $this->buildBastListForPeriod($periode, $canManageMain, $isKetuaTim, $request, $bast);
+
+        // Include eligible petugas without BAST in the period so unavailable data is still visible.
+        $existingBastSpkIds = Bast::whereHas('periodeAlokasi', function ($q) use ($periode) {
+            $q->where('bulan', $periode->bulan)->where('tahun', $periode->tahun);
+        })->pluck('spk_id')->filter()->unique();
+
+        $eligibleWithoutBast = Spk::with('alokasiPetugas.petugas')
+            ->whereNotIn('id', $existingBastSpkIds)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $periode) {
+                $q->where('bulan', $bulanFormatted)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
-            ->orderBy('nomor_bast')
+            ->when($isKetuaTim, function ($query) use ($user) {
+                $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) use ($user) {
+                    $q->where('ketua_tim_user_id', $user?->id);
+                });
+            })
             ->get()
-            ->map(function ($b) use ($bast) {
-                $petugasNama = $b->spk?->alokasiPetugas?->petugas?->nama ?? 'Unknown';
+            ->map(function ($spk) use ($periode) {
+                $petugas = $spk->alokasiPetugas?->petugas;
 
                 return [
-                    'id' => $b->id,
-                    'hashed_id' => $b->hashed_id,
-                    'nomor_bast' => $b->nomor_bast,
-                    'petugas_nama' => $petugasNama,
-                    'file_path' => $b->file_path,
-                    'signed_file_path' => $b->signed_file_path,
-                    'is_current' => $b->id === $bast->id,
+                    'petugas_nama' => $petugas?->nama ?? 'Petugas tidak diketahui',
+                    'petugas_id' => $petugas?->id,
+                    'open_detail_url' => $petugas?->id
+                        ? route('bast.list', [
+                            'bulan' => (int) $periode->bulan,
+                            'tahun' => (int) $periode->tahun,
+                            'petugas_id' => (int) $petugas->id,
+                        ], false)
+                        : null,
                 ];
-            });
+            })
+            ->sortBy('petugas_nama')
+            ->values()
+            ->toArray();
 
-        // Get all BAST for this kegiatan (history)
-        $bastHistory = Bast::where('kegiatan_id', $bast->kegiatan_id)
-            ->with(['periodeAlokasi', 'createdBy:id,name'])
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(function ($b) use ($bast) {
-                $periodeBast = $b->periodeAlokasi;
-                $bulanName = $this->getBulanLabel((int) $periodeBast->bulan);
-
-                return [
-                    'id' => $b->id,
-                    'hashed_id' => $b->hashed_id,
-                    'nomor_bast' => $b->nomor_bast,
-                    'tanggal_bast' => $b->tanggal_bast,
-                    'tanggal_serah_terima' => $b->tanggal_serah_terima,
-                    'periode' => "{$bulanName} {$periodeBast->tahun}",
-                    'status' => $b->status,
-                    'file_path' => $b->file_path,
-                    'signed_file_path' => $b->signed_file_path,
-                    'created_by' => $b->createdBy?->name ?? 'System',
-                    'created_at' => $b->created_at->format('d M Y H:i'),
-                    'is_current' => $b->id === $bast->id,
-                ];
-            });
-
-        // Get petugas info from SPK
         $spk = $bast->spk;
         $petugas = $spk?->alokasiPetugas?->petugas;
+        $lampiranList = $bast->bastKegiatan
+            ->sortBy('nama_kegiatan')
+            ->values()
+            ->map(function (BastKegiatan $item) use ($kegiatanPayloadMap, $request) {
+                $payload = $kegiatanPayloadMap->get(
+                    $this->makeBastKegiatanKey($item->kegiatan_id, $item->periode_alokasi_id),
+                    []
+                );
+                $canManageLampiran = $this->userCanManageLampiran($request, $item);
+                $readyToGenerate = ! empty($payload) && $this->isLampiranGenerationAllowed($payload);
 
-        // Format bast petugas data
-        $bastPetugasList = $bast->bastPetugas->map(function ($bp) {
-            return [
-                'id' => $bp->id,
-                'petugas_id' => $bp->petugas_id,
-                'petugas_nama' => $bp->nama_petugas,
-                'nomor_spk' => $bp->nomor_spk,
-                'hasil_listing' => $bp->hasil_listing,
-                'satuan_listing' => $bp->satuan_listing,
-                'hasil_pendataan_lapangan' => $bp->hasil_pendataan_lapangan,
-                'satuan_pendataan_lapangan' => $bp->satuan_pendataan_lapangan,
-                'hasil_pengolahan' => $bp->hasil_pengolahan,
-                'hasil_pengolahan_listing' => $bp->hasil_pengolahan_listing,
-                'satuan_pengolahan' => $bp->satuan_pengolahan,
-                'satuan_pengolahan_listing' => $bp->satuan_pengolahan_listing,
-                'catatan' => $bp->catatan,
-            ];
-        })->values();
+                return [
+                    'id' => $item->id,
+                    'kegiatan_id' => $item->kegiatan_id,
+                    'periode_alokasi_id' => $item->periode_alokasi_id,
+                    'kode_kegiatan' => $item->kode_kegiatan,
+                    'nama_kegiatan' => $item->nama_kegiatan,
+                    'jenis_kegiatan' => $item->jenis_kegiatan,
+                    'peran' => $payload['peran'] ?? null,
+                    'tanggal_selesai' => $payload['tanggal_selesai'] ?? null,
+                    'tanggal_selesai_formatted' => $payload['tanggal_selesai_formatted'] ?? '-',
+                    'ketua_tim_nama' => $payload['ketua_tim']['nama'] ?? null,
+                    'file_path' => $item->file_path,
+                    'signed_file_path' => $item->signed_file_path,
+                    'generated_at' => $item->generated_at?->format('d M Y H:i'),
+                    'signed_uploaded_at' => $item->signed_uploaded_at?->format('d M Y H:i'),
+                    'status' => $item->signed_file_path ? 'signed' : ($item->file_path ? 'generated' : 'pending'),
+                    'can_download' => $canManageLampiran && ($readyToGenerate || filled($item->file_path)),
+                    'can_generate' => $canManageLampiran && $readyToGenerate,
+                    'can_upload_signed' => $canManageLampiran && filled($item->file_path),
+                    'ready_to_generate' => $readyToGenerate,
+                ];
+            });
+
+        // Ketua tim only sees lampiran for kegiatan they manage.
+        if ($isKetuaTim) {
+            $lampiranList = $lampiranList
+                ->filter(fn (array $item) => $item['can_download'])
+                ->values();
+        }
+
+        $generatedLampiranCount = $lampiranList->whereNotNull('file_path')->count();
+        $signedLampiranCount = $lampiranList->whereNotNull('signed_file_path')->count();
+        $allLampiranGenerated = $lampiranList->isNotEmpty() && $generatedLampiranCount === $lampiranList->count();
+        $allLampiranSigned = $lampiranList->isNotEmpty() && $signedLampiranCount === $lampiranList->count();
+        $finalSignedReady = $isLegacyMode
+            ? filled($bast->signed_file_path)
+            : filled($bast->main_signed_file_path) && $allLampiranSigned && filled($bast->signed_file_path);
 
         return Inertia::render('Bast/Show', [
             'bast' => [
@@ -3068,12 +4268,15 @@ class BastController extends Controller
                 'nip_ppk' => $bast->nip_ppk,
                 'hasil_pekerjaan' => $bast->hasil_pekerjaan,
                 'file_path' => $bast->file_path,
+                'compiled_file_path' => $bast->compiled_file_path,
+                'main_signed_file_path' => $bast->main_signed_file_path,
                 'signed_file_path' => $bast->signed_file_path,
                 'lokasi_kegiatan' => $bast->lokasi_kegiatan,
                 'status' => $bast->status,
                 'catatan' => $bast->catatan,
                 'created_by' => $bast->createdBy?->name ?? 'System',
                 'created_at' => $bast->created_at->format('d M Y H:i'),
+                'is_legacy_mode' => $isLegacyMode,
             ],
             'spk' => $spk ? [
                 'id' => $spk->id,
@@ -3105,39 +4308,108 @@ class BastController extends Controller
                 'tahun' => $periode->tahun,
                 'bulan_label' => $bulanLabel,
             ],
-            'bast_petugas' => $bastPetugasList,
-            'bast_history' => $bastHistory->values()->toArray(),
+            'lampiran' => $lampiranList->toArray(),
             'bast_list' => $bastList->values()->toArray(),
+            'eligible_without_bast' => $eligibleWithoutBast,
+            'permissions' => [
+                'can_manage_main' => $canManageMain,
+                'is_ketua_tim' => $isKetuaTim,
+            ],
+            'summary' => [
+                'total_lampiran' => $lampiranList->count(),
+                'generated_lampiran' => $generatedLampiranCount,
+                'signed_lampiran' => $signedLampiranCount,
+                'all_lampiran_generated' => $allLampiranGenerated,
+                'all_lampiran_signed' => $allLampiranSigned,
+                'main_signed_uploaded' => filled($bast->main_signed_file_path),
+                'final_signed_ready' => $finalSignedReady,
+            ],
             'bulan' => (int) $periode->bulan,
             'tahun' => $periode->tahun,
             'bulan_label' => $bulanLabel,
         ]);
     }
 
+    private function buildBastListForPeriod(
+        PeriodeAlokasi $periode,
+        bool $canManageMain,
+        bool $isKetuaTim,
+        Request $request,
+        ?Bast $currentBast = null,
+    ): \Illuminate\Support\Collection {
+        return Bast::with([
+            'spk.alokasiPetugas.petugas',
+            'createdBy:id,name',
+            'bastKegiatan.kegiatan:id,ketua_tim_user_id',
+        ])
+            ->whereHas('periodeAlokasi', function ($query) use ($periode) {
+                $query->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun);
+            })
+            ->orderBy('nomor_bast')
+            ->get()
+            ->filter(function (Bast $item) use ($canManageMain, $isKetuaTim, $request) {
+                if ($canManageMain || $isKetuaTim) {
+                    return true;
+                }
+
+                return $this->userCanAccessBast($request, $item);
+            })
+            ->map(function (Bast $bast) use ($currentBast) {
+                $petugasNama = $bast->spk?->alokasiPetugas?->petugas?->nama ?? 'Unknown';
+
+                return [
+                    'id' => $bast->id,
+                    'hashed_id' => $bast->hashed_id,
+                    'nomor_bast' => $bast->nomor_bast,
+                    'petugas_nama' => $petugasNama,
+                    'file_path' => $bast->file_path,
+                    'compiled_file_path' => $bast->compiled_file_path,
+                    'main_signed_file_path' => $bast->main_signed_file_path,
+                    'signed_file_path' => $bast->signed_file_path,
+                    'is_current' => $currentBast?->id === $bast->id,
+                ];
+            });
+    }
+
     /**
      * Upload signed BAST file
      */
-    public function uploadSigned(Request $request, Bast $bast)
+    public function uploadSigned(Request $request, Bast $bast): RedirectResponse
     {
+        $bast->loadMissing('bastKegiatan.kegiatan');
+
+        abort_unless($this->userCanManageBastMain($request) && $this->userCanAccessBast($request, $bast), 403);
+
         $request->validate([
             'file' => 'required|file|mimes:pdf|max:10240', // max 10MB
         ]);
 
         try {
             $file = $request->file('file');
-            $filename = 'BAST-SIGNED-'.str_replace(['/', '\\'], '-', $bast->nomor_bast).'-'.time().'.pdf';
-            $path = $file->storeAs('bast-export', $filename, 'public');
+            $filename = 'BAST_MAIN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'-'.time().'.pdf';
+            $directory = $this->ensureBastExportDirectory('main-signed');
+            $file->move($directory, $filename);
 
-            // Delete old signed file if exists
-            if ($bast->signed_file_path && Storage::disk('public')->exists(str_replace('storage/', '', $bast->signed_file_path))) {
-                Storage::disk('public')->delete(str_replace('storage/', '', $bast->signed_file_path));
+            if ($bast->bastKegiatan->isEmpty()) {
+                $this->deleteStoredDocument($bast->signed_file_path);
+                $bast->update([
+                    'main_signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
+                    'signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
+                ]);
+
+                return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
             }
 
+            $this->deleteStoredDocument($bast->main_signed_file_path);
+
             $bast->update([
-                'signed_file_path' => 'storage/'.$path,
+                'main_signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
             ]);
 
-            return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
+            $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+
+            return redirect()->back()->with('success', 'BAST main bertanda tangan berhasil diunggah');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal mengunggah file: '.$e->getMessage());
         }

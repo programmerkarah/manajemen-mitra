@@ -912,25 +912,29 @@ export default function Create({
             );
 
             const existingHonor = existingAllocation?.total_honor_combined || 0;
-            const currentFormHonor = alokasiItems.reduce((sum, row, rowIndex) => {
-                if (String(row.petugas_id) !== String(item.petugas_id)) {
-                    return sum;
-                }
+            const currentFormHonor = alokasiItems.reduce(
+                (sum, row, rowIndex) => {
+                    if (String(row.petugas_id) !== String(item.petugas_id)) {
+                        return sum;
+                    }
 
-                const activeRow =
-                    typeof currentIndex === 'number' && rowIndex === currentIndex
-                        ? item
-                        : row;
+                    const activeRow =
+                        typeof currentIndex === 'number' &&
+                        rowIndex === currentIndex
+                            ? item
+                            : row;
 
-                const pencacahanHonor = activeRow.is_partial_payment
-                    ? Number(activeRow.estimasi_honor_partial || 0)
-                    : Number(activeRow.estimasi_honor || 0);
-                const listingHonor = activeRow.is_partial_payment_listing
-                    ? Number(activeRow.estimasi_honor_partial_listing || 0)
-                    : Number(activeRow.estimasi_honor_listing || 0);
+                    const pencacahanHonor = activeRow.is_partial_payment
+                        ? Number(activeRow.estimasi_honor_partial || 0)
+                        : Number(activeRow.estimasi_honor || 0);
+                    const listingHonor = activeRow.is_partial_payment_listing
+                        ? Number(activeRow.estimasi_honor_partial_listing || 0)
+                        : Number(activeRow.estimasi_honor_listing || 0);
 
-                return sum + pencacahanHonor + listingHonor;
-            }, 0);
+                    return sum + pencacahanHonor + listingHonor;
+                },
+                0,
+            );
             const totalHonor = existingHonor + currentFormHonor;
 
             return totalHonor > matchingRateHonor.sbml_limit;

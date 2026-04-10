@@ -21,7 +21,19 @@ class BastKegiatan extends Model
         'bulan',
         'tahun',
         'jenis_kegiatan',
+        'file_path',
+        'signed_file_path',
+        'generated_at',
+        'signed_uploaded_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'generated_at' => 'datetime',
+            'signed_uploaded_at' => 'datetime',
+        ];
+    }
 
     public function bast(): BelongsTo
     {
