@@ -44,11 +44,6 @@ class UpdateNonResponseTest extends TestCase
 
         $alokasi1Id = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => $periode->jenis_kegiatan,
             'petugas_id' => $petugas1->id,
             'jumlah_satuan' => 30,
             'total_honor' => 1000000,
@@ -63,11 +58,6 @@ class UpdateNonResponseTest extends TestCase
 
         $alokasi2Id = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => $periode->jenis_kegiatan,
             'petugas_id' => $petugas2->id,
             'jumlah_satuan' => 20,
             'total_honor' => 900000,
@@ -141,11 +131,6 @@ class UpdateNonResponseTest extends TestCase
         $petugas = \App\Models\Petugas::factory()->create();
         $alokasiId = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => $periode->jenis_kegiatan,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 30,
             'total_honor' => 1000000,
@@ -200,11 +185,6 @@ class UpdateNonResponseTest extends TestCase
         $petugas = \App\Models\Petugas::factory()->create();
         $alokasiId = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'status' => 'draft',
-            'jenis_kegiatan' => $periode->jenis_kegiatan,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 30,
             'total_honor' => 1000000,

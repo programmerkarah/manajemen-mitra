@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
+use App\Models\BastNumberAllocation;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
@@ -292,6 +293,74 @@ class BastWorkflowTest extends TestCase
         $this->assertTrue($lampiranItem['can_upload_signed']);
         $this->assertNotNull($lampiranItem['generated_at']);
         $this->assertFileExists(public_path($lampiranItem['file_path']));
+    }
+
+    public function test_preview_bast_uses_allocated_number_sequence_like_generate_flow(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $otherPetugas = Petugas::factory()->create([
+            'nama' => 'Petugas Alokasi Nomor',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $otherAlokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $context['spk']->alokasiPetugas->periode_alokasi_id,
+            'petugas_id' => $otherPetugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 200000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $otherSpk = Spk::query()->create([
+            'nomor_spk' => 'SPK/BAST/999',
+            'petugas_id' => $otherPetugas->id,
+            'alokasi_petugas_id' => $otherAlokasi->id,
+            'addendum_number' => 0,
+            'nomor_urut_base' => 999,
+            'tanggal_spk' => '2026-04-01',
+            'tanggal_mulai_kerja' => '2026-04-01',
+            'tanggal_selesai_kerja' => '2026-04-30',
+            'uraian_pekerjaan' => 'SPK nomor alokasi',
+            'nilai_kontrak' => 200000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $context['operator']->id,
+        ]);
+
+        BastNumberAllocation::query()->create([
+            'spk_id' => $otherSpk->id,
+            'nomor_bast' => 'PPIS/13730/15/BAST/2026',
+            'tahun' => 2026,
+            'bulan' => 4,
+            'status' => 'used',
+            'allocated_at' => now(),
+            'used_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.preview-bast'), [
+                'spk_id' => $context['spk']->id,
+            ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+
+        $currentSpkAllocation = BastNumberAllocation::query()
+            ->where('spk_id', $context['spk']->id)
+            ->first();
+
+        $this->assertNotNull($currentSpkAllocation);
+        $this->assertSame('PPIS/13730/16/BAST/2026', $currentSpkAllocation->nomor_bast);
+        $this->assertSame('allocated', $currentSpkAllocation->status);
     }
 
     private function actingAsWithRole(User $user, string $roleName): self

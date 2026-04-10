@@ -5,11 +5,14 @@ namespace App\Exports;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
@@ -17,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithHeadings, WithStyles, WithTitle
+class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     public function __construct(
         protected ?int $periodeAlokasiId,
@@ -273,5 +276,43 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             'koseka' => 'koseka',
             default => $peran,
         };
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $spreadsheet = $event->sheet->getDelegate()->getParent();
+                $sheet = new Worksheet($spreadsheet, 'Daftar Petugas Aktif');
+
+                $spreadsheet->addSheet($sheet);
+
+                $sheet->setCellValue('A1', 'nip_nik');
+                $sheet->setCellValue('B1', 'nama_petugas');
+
+                $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+                $sheet->getStyle('A1:B1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A1:B1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+
+                $sheet->getColumnDimension('A')->setWidth(24);
+                $sheet->getColumnDimension('B')->setWidth(42);
+
+                $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+
+                $row = 2;
+                $activePetugas = Petugas::query()
+                    ->where('status', 'aktif')
+                    ->orderBy('nama')
+                    ->get(['nik', 'nama']);
+
+                foreach ($activePetugas as $petugas) {
+                    $sheet->setCellValueExplicit('A'.$row, (string) ($petugas->nik ?? ''), DataType::TYPE_STRING);
+                    $sheet->setCellValue('B'.$row, (string) ($petugas->nama ?? ''));
+                    $row++;
+                }
+
+                $sheet->freezePane('A2');
+            },
+        ];
     }
 }
