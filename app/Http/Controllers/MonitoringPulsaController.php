@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PengajuanPulsa;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class MonitoringPulsaController extends Controller
 {
@@ -97,5 +99,52 @@ class MonitoringPulsaController extends Controller
                 'tahun' => (string) $tahun,
             ],
         ]);
+    }
+
+    public function exportPdf(Request $request): HttpResponse
+    {
+        $bulan = $this->normalizeBulanValue($request->input('bulan', now()->format('m')));
+        $tahun = \App\Services\ActiveYearService::get();
+
+        $approvedItems = PengajuanPulsa::query()
+            ->with('petugas:id,nama')
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->where('status', 'diterima')
+            ->orderBy('petugas_id')
+            ->orderBy('id')
+            ->get();
+
+        $rows = $approvedItems
+            ->groupBy('petugas_id')
+            ->map(function ($items) {
+                $first = $items->first();
+
+                return [
+                    'nama_petugas' => $first?->petugas?->nama ?? '-',
+                    'jumlah_pulsa' => (float) $items->sum(function (PengajuanPulsa $item) {
+                        return $item->nominal_disetujui ?? $item->nominal;
+                    }),
+                ];
+            })
+            ->sortBy('nama_petugas')
+            ->values();
+
+        $judul = 'Rekapitulasi Pengadaan Pulsa/Paket Data Pelatihan/Pendataan Survei/Sensus di Lingkungan Badan Pusat Statistik Kota Sawahlunto';
+        $timezone = config('app.timezone', 'Asia/Jakarta');
+        $tanggalCetak = now()->timezone($timezone)->locale('id')->translatedFormat('d F Y H:i');
+
+        $pdf = Pdf::loadView('monitoring-pulsa-rekap-pdf', [
+            'judul' => $judul,
+            'tanggal_cetak' => $tanggalCetak,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'rows' => $rows,
+            'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh sistem SIMANTIK sebagai acuan bahwa data yang ditampilkan sudah diverifikasi oleh PPK.',
+        ])->setPaper('a4', 'portrait');
+
+        $filename = sprintf('rekap_pengadaan_pulsa_%s_%s.pdf', $tahun, $bulan);
+
+        return $pdf->download($filename);
     }
 }

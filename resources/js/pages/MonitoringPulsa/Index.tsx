@@ -18,6 +18,7 @@ import {
     ChevronDown,
     ChevronRight,
     Clock,
+    Download,
     SendHorizontal,
     Users,
 } from 'lucide-react';
@@ -279,7 +280,7 @@ export default function MonitoringPulsaIndex({
 
                 {/* Filter */}
                 <ContentCard>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
                         <div className="space-y-1.5">
                             <Label>Bulan</Label>
                             <Select
@@ -298,6 +299,21 @@ export default function MonitoringPulsaIndex({
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                window.open(
+                                    `/monitoring-pulsa/export-pdf?bulan=${bulan}`,
+                                    '_blank',
+                                    'noopener,noreferrer',
+                                );
+                            }}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Unduh Rekap PDF
+                        </Button>
                     </div>
                 </ContentCard>
 
