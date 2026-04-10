@@ -4632,7 +4632,7 @@ class BastController extends Controller
 
         try {
             $file = $request->file('file');
-            $filename = 'BAST_MAIN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'-'.time().'.pdf';
+            $filename = 'BAgitST_MAIN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'-'.time().'.pdf';
             $directory = $this->ensureBastExportDirectory('main-signed');
             $file->move($directory, $filename);
 
