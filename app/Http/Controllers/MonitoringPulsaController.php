@@ -140,7 +140,7 @@ class MonitoringPulsaController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'rows' => $rows,
-            'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh sistem SIMANTIK sebagai acuan bahwa data yang ditampilkan sudah diverifikasi oleh PPK.',
+            'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh sistem SIMANTIK. Data yang ditampilkan sudah diverifikasi oleh PPK dan bisa digunakan sebagai dasar pengajuan pengadaan pulsa/paket data.',
         ])->setPaper('a4', 'portrait');
 
         $filename = sprintf('rekap_pengadaan_pulsa_%s_%s.pdf', $tahun, $bulan);
