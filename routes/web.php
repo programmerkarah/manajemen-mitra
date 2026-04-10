@@ -559,6 +559,9 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
     Route::get('monitoring-pulsa', [MonitoringPulsaController::class, 'index'])
         ->name('monitoring-pulsa.index')
         ->middleware('active.role:admin,operator,ketua_tim');
+    Route::get('monitoring-pulsa/export-pdf', [MonitoringPulsaController::class, 'exportPdf'])
+        ->name('monitoring-pulsa.export-pdf')
+        ->middleware('active.role:admin,operator,ketua_tim');
 
     Route::get('monitoring-penilaian-mitra', [MonitoringPenilaianMitraController::class, 'index'])
         ->name('monitoring-penilaian-mitra.index');

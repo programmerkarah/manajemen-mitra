@@ -7,6 +7,8 @@ use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -177,5 +179,83 @@ class MonitoringPulsaTest extends TestCase
             ->component('MonitoringPulsa/Index')
             ->where('pengajuanList.encrypted', fn ($encrypted) => count(decryptData($encrypted)) === 2)
         );
+    }
+
+    public function test_export_pdf_uses_only_approved_data_and_allocated_nominal(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+
+        $petugasApproved = Petugas::factory()->create([
+            'nama' => 'Petugas Disetujui',
+        ]);
+
+        $petugasPending = Petugas::factory()->create([
+            'nama' => 'Petugas Menunggu',
+        ]);
+
+        $bulan = now()->format('m');
+        $tahun = \App\Services\ActiveYearService::get();
+
+        PengajuanPulsa::create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasApproved->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 100000,
+            'nominal_disetujui' => 75000,
+            'status' => 'diterima',
+            'submitted_by' => $user->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+        ]);
+
+        PengajuanPulsa::create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasPending->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pelatihan',
+            'nominal' => 50000,
+            'status' => 'dikirim',
+            'submitted_by' => $user->id,
+            'submitted_at' => now(),
+        ]);
+
+        Pdf::shouldReceive('loadView')
+            ->once()
+            ->withArgs(function (string $view, array $data) use ($petugasApproved, $tahun, $bulan) {
+                $this->assertSame('monitoring-pulsa-rekap-pdf', $view);
+                $this->assertSame((string) $tahun, (string) $data['tahun']);
+                $this->assertSame($bulan, $data['bulan']);
+                $this->assertCount(1, $data['rows']);
+                $this->assertSame($petugasApproved->nama, $data['rows'][0]['nama_petugas']);
+                $this->assertSame(75000.0, (float) $data['rows'][0]['jumlah_pulsa']);
+
+                return true;
+            })
+            ->andReturn(
+                tap(\Mockery::mock(DomPdfWrapper::class), function ($pdfMock): void {
+                    $pdfMock->shouldReceive('setPaper')->once()->andReturnSelf();
+                    $pdfMock->shouldReceive('download')->once()->andReturnUsing(function (string $filename) {
+                        return response('mock-pdf', 200, [
+                            'content-type' => 'application/pdf',
+                            'content-disposition' => 'attachment; filename="'.$filename.'"',
+                        ]);
+                    });
+                })
+            );
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get("/monitoring-pulsa/export-pdf?bulan={$bulan}");
+
+        $response->assertStatus(200);
+        $response->assertHeader('content-type', 'application/pdf');
     }
 }
