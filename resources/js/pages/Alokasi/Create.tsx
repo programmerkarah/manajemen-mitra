@@ -638,14 +638,10 @@ export default function Create({
                 const partialJumlahSatuanListing = String(
                     alokasi.partial_jumlah_satuan_listing ?? '',
                 );
-                const hasPartialPayment =
-                    Boolean(alokasi.is_partial_payment) ||
-                    Number(partialJumlahSatuan || 0) > 0 ||
-                    estimasiHonorPartial > 0;
-                const hasPartialPaymentListing =
-                    Boolean(alokasi.is_partial_payment_listing) ||
-                    Number(partialJumlahSatuanListing || 0) > 0 ||
-                    estimasiHonorPartialListing > 0;
+                const hasPartialPayment = Boolean(alokasi.is_partial_payment);
+                const hasPartialPaymentListing = Boolean(
+                    alokasi.is_partial_payment_listing,
+                );
 
                 return {
                     petugas_id: String(alokasi.petugas_id || ''),
@@ -658,11 +654,19 @@ export default function Create({
                     estimasi_honor_listing: estimasiHonorListing,
                     catatan: alokasi.catatan || '',
                     is_partial_payment: hasPartialPayment,
-                    partial_jumlah_satuan: partialJumlahSatuan,
-                    estimasi_honor_partial: estimasiHonorPartial,
+                    partial_jumlah_satuan: hasPartialPayment
+                        ? partialJumlahSatuan
+                        : '',
+                    estimasi_honor_partial: hasPartialPayment
+                        ? estimasiHonorPartial
+                        : 0,
                     is_partial_payment_listing: hasPartialPaymentListing,
-                    partial_jumlah_satuan_listing: partialJumlahSatuanListing,
-                    estimasi_honor_partial_listing: estimasiHonorPartialListing,
+                    partial_jumlah_satuan_listing: hasPartialPaymentListing
+                        ? partialJumlahSatuanListing
+                        : '',
+                    estimasi_honor_partial_listing: hasPartialPaymentListing
+                        ? estimasiHonorPartialListing
+                        : 0,
                 };
             });
 
@@ -854,7 +858,7 @@ export default function Create({
     // Show partial payment toggle when full estimated honor exceeds SBML,
     // and keep it visible after the user enables partial payment.
     const shouldShowPartialPaymentToggle = useCallback(
-        (item: AlokasiItem): boolean => {
+        (item: AlokasiItem, currentIndex?: number): boolean => {
             if (!selectedKegiatan || !item.petugas_id || !item.peran) {
                 return false;
             }
@@ -908,17 +912,37 @@ export default function Create({
             );
 
             const existingHonor = existingAllocation?.total_honor_combined || 0;
-            const currentPencacahanHonor = Number(item.estimasi_honor || 0);
-            const currentListingHonor = Number(
-                item.estimasi_honor_listing || 0,
-            );
-            const currentInputHonor =
-                currentPencacahanHonor + currentListingHonor;
-            const totalHonor = existingHonor + currentInputHonor;
+            const currentFormHonor = alokasiItems.reduce((sum, row, rowIndex) => {
+                if (String(row.petugas_id) !== String(item.petugas_id)) {
+                    return sum;
+                }
+
+                const activeRow =
+                    typeof currentIndex === 'number' && rowIndex === currentIndex
+                        ? item
+                        : row;
+
+                const pencacahanHonor = activeRow.is_partial_payment
+                    ? Number(activeRow.estimasi_honor_partial || 0)
+                    : Number(activeRow.estimasi_honor || 0);
+                const listingHonor = activeRow.is_partial_payment_listing
+                    ? Number(activeRow.estimasi_honor_partial_listing || 0)
+                    : Number(activeRow.estimasi_honor_listing || 0);
+
+                return sum + pencacahanHonor + listingHonor;
+            }, 0);
+            const totalHonor = existingHonor + currentFormHonor;
 
             return totalHonor > matchingRateHonor.sbml_limit;
         },
-        [selectedKegiatan, petugas, existing_allocations, active_year, bulan],
+        [
+            selectedKegiatan,
+            petugas,
+            existing_allocations,
+            active_year,
+            bulan,
+            alokasiItems,
+        ],
     );
 
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
@@ -3078,6 +3102,7 @@ export default function Create({
                                                         {/* Pembayaran Parsial Listing */}
                                                         {shouldShowPartialPaymentToggle(
                                                             item,
+                                                            index,
                                                         ) && (
                                                             <>
                                                                 <div className="space-y-2 md:col-span-4">
@@ -3297,6 +3322,7 @@ export default function Create({
                                                     {/* Pembayaran Parsial Pencacahan */}
                                                     {shouldShowPartialPaymentToggle(
                                                         item,
+                                                        index,
                                                     ) && (
                                                         <>
                                                             <div className="space-y-2 md:col-span-4">

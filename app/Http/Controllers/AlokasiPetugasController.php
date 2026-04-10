@@ -535,23 +535,6 @@ class AlokasiPetugasController extends Controller
                 }
             }
 
-            // Check SBML constraint per assignment (skip if honor is 0)
-            if ($totalHonor > 0) {
-                $constraintError = $this->checkSbmlConstraint(
-                    $alokasiData['tahun'],
-                    $alokasiData['jenis_kegiatan'],
-                    $rateHonor->status_kepegawaian,
-                    $rateHonor->jenis_penugasan,
-                    $totalHonor
-                );
-
-                if ($constraintError) {
-                    $errors[] = $petugas->nama.': '.$constraintError;
-
-                    continue;
-                }
-            }
-
             $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
             $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : null;
             $estimasiHonorPartial = null;
@@ -574,6 +557,23 @@ class AlokasiPetugasController extends Controller
             $effectiveListingHonor = $isPartialPaymentListing
                 ? ($estimasiHonorPartialListing ?? 0)
                 : $totalHonorListing;
+
+            // Check SBML constraint per assignment (skip if honor is 0)
+            if ($effectivePencacahanHonor > 0) {
+                $constraintError = $this->checkSbmlConstraint(
+                    $alokasiData['tahun'],
+                    $alokasiData['jenis_kegiatan'],
+                    $rateHonor->status_kepegawaian,
+                    $rateHonor->jenis_penugasan,
+                    $effectivePencacahanHonor
+                );
+
+                if ($constraintError) {
+                    $errors[] = $petugas->nama.': '.$constraintError;
+
+                    continue;
+                }
+            }
 
             // Check petugas total honor in month across all assignments (skip if honor is 0)
             $combinedNewHonor = $effectivePencacahanHonor + $effectiveListingHonor;
