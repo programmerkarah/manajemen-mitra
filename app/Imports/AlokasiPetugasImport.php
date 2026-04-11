@@ -11,8 +11,9 @@ use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
+class AlokasiPetugasImport implements WithMultipleSheets
 {
     use Importable;
 
@@ -25,7 +26,14 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
         protected bool $isCreate = true,
     ) {}
 
-    public function collection(Collection $rows)
+    public function sheets(): array
+    {
+        return [
+            0 => new AlokasiPetugasImportMainSheet($this),
+        ];
+    }
+
+    public function processRows(Collection $rows): void
     {
         $rowNumber = 1;
 
@@ -38,7 +46,7 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
             $rowNumber++;
 
             // Find petugas by NIK
-            $nik = trim((string) ($row['nik_petugas'] ?? ''));
+            $nik = $this->normalizeNikValue($this->extractNikCellValue($row));
             if (! $nik) {
                 $this->errors[$rowNumber] = ['NIK Petugas tidak boleh kosong'];
 
@@ -54,7 +62,7 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
 
             // Map display labels to database values
             $status_kepegawaian = $this->mapStatusKepegawaian($row['status_kepegawaian'] ?? '');
-            $peran = $this->mapPeran($row['jenis_penugasan'] ?? '');
+            $peran = $this->mapPeran((string) $this->extractPeranCellValue($row));
 
             $data = [
                 'periode_alokasi_id' => $this->periodeAlokasiId,
@@ -122,8 +130,21 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
         }
 
         if (! empty($this->errors)) {
-            \Log::warning('AlokasiPetugasImport errors:', ['errors' => $this->errors]);
-            throw new \Maatwebsite\Excel\Validators\ValidationException([], $this->errors);
+            $validator = Validator::make([], []);
+            $failures = [];
+
+            foreach ($this->errors as $rowNumber => $messages) {
+                $failures[] = new \Maatwebsite\Excel\Validators\Failure(
+                    (int) $rowNumber,
+                    'file',
+                    array_values($messages),
+                );
+            }
+
+            throw new \Maatwebsite\Excel\Validators\ValidationException(
+                new \Illuminate\Validation\ValidationException($validator),
+                $failures,
+            );
         }
     }
 
@@ -155,6 +176,17 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
     {
         $value = strtolower(trim($value));
 
+        return match ($value) {
+            'pcl/ppl' => 'pcl_ppl',
+            'pml' => 'pml',
+            'petugas pengolahan' => 'pengolahan',
+            'pengawas pengolahan' => 'pengawas_pengolahan',
+            default => $this->mapPeranFallback($value),
+        };
+    }
+
+    private function mapPeranFallback(string $value): string
+    {
         // Match against various possible input formats
         if (str_contains($value, 'pcl') || str_contains($value, 'ppl') || str_contains($value, 'pencacahan')) {
             return 'pcl_ppl';
@@ -173,5 +205,90 @@ class AlokasiPetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingR
         }
 
         return $value;
+    }
+
+    private function normalizeNikValue(mixed $value): string
+    {
+        if (is_int($value)) {
+            return (string) $value;
+        }
+
+        if (is_float($value)) {
+            return sprintf('%.0f', $value);
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (is_numeric($value) && stripos($value, 'E') !== false) {
+            $value = sprintf('%.0f', (float) $value);
+        }
+
+        if (preg_match_all('/\d{8,}/', $value, $matches) === 1) {
+            return $matches[0][0];
+        }
+
+        if (preg_match_all('/\d{8,}/', $value, $matches) > 1) {
+            usort($matches[0], static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+            return $matches[0][0];
+        }
+
+        return $value;
+    }
+
+    private function extractNikCellValue(Collection $row): mixed
+    {
+        $rowArray = $row->all();
+
+        foreach (['nik', 'nik_petugas', 'nama_nik', 'nama_nik_nip', 'nama_niknip'] as $key) {
+            if (array_key_exists($key, $rowArray)) {
+                return $rowArray[$key];
+            }
+        }
+
+        foreach ($rowArray as $key => $value) {
+            $normalizedKey = strtolower(trim((string) $key));
+
+            if (str_contains($normalizedKey, 'nik') || str_contains($normalizedKey, 'nip')) {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private function extractPeranCellValue(Collection $row): mixed
+    {
+        $rowArray = $row->all();
+
+        foreach (['kode_penugasan', 'jenis_penugasan', 'jenis_penugasan_kode', 'peran'] as $key) {
+            if (array_key_exists($key, $rowArray)) {
+                return $rowArray[$key];
+            }
+        }
+
+        foreach ($rowArray as $key => $value) {
+            $normalizedKey = strtolower(trim((string) $key));
+
+            if (str_contains($normalizedKey, 'penugasan') || $normalizedKey === 'peran') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+}
+
+class AlokasiPetugasImportMainSheet implements SkipsEmptyRows, ToCollection, WithHeadingRow
+{
+    public function __construct(private readonly AlokasiPetugasImport $parent) {}
+
+    public function collection(Collection $rows): void
+    {
+        $this->parent->processRows($rows);
     }
 }

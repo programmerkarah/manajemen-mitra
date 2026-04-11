@@ -312,7 +312,7 @@ export default function MonitoringPulsaIndex({
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" />
-                            Unduh Rekap PDF
+                            Unduh Rekapitulasi
                         </Button>
                     </div>
                 </ContentCard>

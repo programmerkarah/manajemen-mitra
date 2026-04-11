@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -73,7 +74,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
             foreach ($entries as $entry) {
                 $row = [
-                    $entry->petugas?->nik ?? '',
+                    $this->formatNikDropdownValue($entry->petugas?->nama, $entry->petugas?->nik),
                     $this->mapPeranCodeForTemplate($entry->peran),
                 ];
 
@@ -98,7 +99,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                 $data[] = $row;
             }
         } else {
-            $sampleRow = ['1234567890123456', 'pcl_ppl'];
+            $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
 
             if ($hasListing) {
                 $sampleRow[] = '5';
@@ -128,8 +129,8 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
         $data[] = [''];
         $data[] = ['Petunjuk Pengisian:'];
-        $data[] = ['1. Isi NIK sesuai data petugas yang sudah terdaftar di sistem'];
-        $data[] = ['2. Kode Penugasan wajib salah satu: pcl_ppl, pml, pengolahan, pengawasan_pengolahan, koseka'];
+        $data[] = ['1. Pilih petugas dari dropdown di kolom NIK (format: Nama - NIK/NIP)'];
+        $data[] = ['2. Pilih Kode Penugasan dari dropdown: PCL/PPL, PML, Petugas Pengolahan, Pengawas Pengolahan'];
 
         $num = 3;
 
@@ -160,7 +161,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
 
-        $columns = ['NIK', 'Kode Penugasan'];
+        $columns = ['Nama - NIK', 'Kode Penugasan'];
 
         if ($hasListing) {
             $columns[] = 'Jumlah Satuan Listing';
@@ -188,7 +189,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
 
-        $widths = [22, 30];
+        $widths = [59, 30];
 
         if ($hasListing) {
             $widths[] = 22;
@@ -269,33 +270,57 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
     private function mapPeranCodeForTemplate(string $peran): string
     {
         return match ($peran) {
-            'pcl_ppl' => 'pcl_ppl',
-            'pml' => 'pml',
-            'pengolahan' => 'pengolahan',
-            'pengawas_pengolahan' => 'pengawasan_pengolahan',
-            'koseka' => 'koseka',
-            default => $peran,
+            'pcl_ppl' => 'PCL/PPL',
+            'pml' => 'PML',
+            'pengolahan' => 'Petugas Pengolahan',
+            'pengawas_pengolahan' => 'Pengawas Pengolahan',
+            default => 'PCL/PPL',
         };
+    }
+
+    private function formatNikDropdownValue(?string $nama, ?string $nik): string
+    {
+        $nama = trim((string) ($nama ?? ''));
+        $nik = trim((string) ($nik ?? ''));
+
+        if ($nama === '' && $nik === '') {
+            return '';
+        }
+
+        if ($nama === '') {
+            return $nik;
+        }
+
+        if ($nik === '') {
+            return $nama;
+        }
+
+        return $nama.' - '.$nik;
     }
 
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function (AfterSheet $event): void {
-                $spreadsheet = $event->sheet->getDelegate()->getParent();
+                $mainSheet = $event->sheet->getDelegate();
+                $spreadsheet = $mainSheet->getParent();
                 $sheet = new Worksheet($spreadsheet, 'Daftar Petugas Aktif');
 
                 $spreadsheet->addSheet($sheet);
 
                 $sheet->setCellValue('A1', 'nip_nik');
                 $sheet->setCellValue('B1', 'nama_petugas');
+                $sheet->setCellValue('C1', 'pilihan_dropdown');
+                $sheet->setCellValue('D1', 'kode_penugasan_dropdown');
 
-                $sheet->getStyle('A1:B1')->getFont()->setBold(true);
-                $sheet->getStyle('A1:B1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle('A1:B1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+                $sheet->getStyle('A1:D1')->getFont()->setBold(true);
+                $sheet->getStyle('A1:D1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A1:D1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
                 $sheet->getColumnDimension('A')->setWidth(24);
                 $sheet->getColumnDimension('B')->setWidth(42);
+                $sheet->getColumnDimension('C')->setWidth(64);
+                $sheet->getColumnDimension('D')->setWidth(32);
 
                 $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
@@ -306,12 +331,57 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     ->get(['nik', 'nama']);
 
                 foreach ($activePetugas as $petugas) {
-                    $sheet->setCellValueExplicit('A'.$row, (string) ($petugas->nik ?? ''), DataType::TYPE_STRING);
-                    $sheet->setCellValue('B'.$row, (string) ($petugas->nama ?? ''));
+                    $nik = (string) ($petugas->nik ?? '');
+                    $nama = (string) ($petugas->nama ?? '');
+
+                    $sheet->setCellValueExplicit('A'.$row, $nik, DataType::TYPE_STRING);
+                    $sheet->setCellValue('B'.$row, $nama);
+                    $sheet->setCellValue('C'.$row, $this->formatNikDropdownValue($nama, $nik));
                     $row++;
                 }
 
+                $sheet->setCellValue('D2', 'PCL/PPL');
+                $sheet->setCellValue('D3', 'PML');
+                $sheet->setCellValue('D4', 'Petugas Pengolahan');
+                $sheet->setCellValue('D5', 'Pengawas Pengolahan');
+
                 $sheet->freezePane('A2');
+
+                $lastPetugasRow = max(2, $row - 1);
+                if ($lastPetugasRow >= 2) {
+                    $listFormula = "'Daftar Petugas Aktif'!\$C\$2:\$C\$".$lastPetugasRow;
+
+                    $validation = $mainSheet->getCell('A2')->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setErrorTitle('NIK tidak valid');
+                    $validation->setError('Silakan pilih petugas dari dropdown yang tersedia.');
+                    $validation->setPromptTitle('Pilih Petugas');
+                    $validation->setPrompt('Pilih petugas (Nama - NIK/NIP) pada dropdown.');
+                    $validation->setFormula1($listFormula);
+
+                    $kodeValidation = $mainSheet->getCell('B2')->getDataValidation();
+                    $kodeValidation->setType(DataValidation::TYPE_LIST);
+                    $kodeValidation->setErrorStyle(DataValidation::STYLE_STOP);
+                    $kodeValidation->setAllowBlank(true);
+                    $kodeValidation->setShowInputMessage(true);
+                    $kodeValidation->setShowErrorMessage(true);
+                    $kodeValidation->setShowDropDown(true);
+                    $kodeValidation->setErrorTitle('Kode penugasan tidak valid');
+                    $kodeValidation->setError('Silakan pilih kode penugasan dari dropdown yang tersedia.');
+                    $kodeValidation->setPromptTitle('Pilih Kode Penugasan');
+                    $kodeValidation->setPrompt('Gunakan dropdown untuk memilih jenis penugasan.');
+                    $kodeValidation->setFormula1("'Daftar Petugas Aktif'!\$D\$2:\$D\$5");
+
+                    for ($rowNumber = 3; $rowNumber <= 100; $rowNumber++) {
+                        $mainSheet->getCell('A'.$rowNumber)->setDataValidation(clone $validation);
+                        $mainSheet->getCell('B'.$rowNumber)->setDataValidation(clone $kodeValidation);
+                    }
+                }
             },
         ];
     }

@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -3192,8 +3193,12 @@ class AlokasiPetugasController extends Controller
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 2;
 
-            $nik = $this->parseImportNik($row['nik'] ?? $row['nik_petugas'] ?? '');
-            $kodePenugasan = trim((string) ($row['kode_penugasan'] ?? $row['jenis_penugasan'] ?? $row['jenis_penugasan_kode'] ?? ''));
+            if ($this->isReferencePetugasSheetRow($row)) {
+                continue;
+            }
+
+            $nik = $this->parseImportNik($this->extractImportNikCellValue($row));
+            $kodePenugasan = trim((string) $this->extractImportPeranCellValue($row));
 
             // Skip empty rows and instruction/note rows (NIK must be all digits).
             if ($nik === '' || ! ctype_digit($nik)) {
@@ -3277,6 +3282,10 @@ class AlokasiPetugasController extends Controller
                 'partial_jumlah_satuan_listing' => $isPartialPayment ? (string) $partialJumlahSatuanListing : '',
                 'estimasi_honor_partial_listing' => $estimasiHonorPartialListing,
             ];
+        }
+
+        if (count($previewRows) === 0 && count($errors) === 0 && $rows->count() > 0) {
+            $errors[] = 'Tidak ada baris data yang bisa dipreview. Pastikan kolom [Nama - NIK] dan [Kode Penugasan] sudah dipilih dari dropdown template.';
         }
 
         return response()->json([
@@ -3389,10 +3398,75 @@ class AlokasiPetugasController extends Controller
 
         // Handle scientific notation strings like "1.373012410970002E+15"
         if ($value !== '' && is_numeric($value) && stripos($value, 'E') !== false) {
-            return sprintf('%.0f', (float) $value);
+            $value = sprintf('%.0f', (float) $value);
+        }
+
+        if (preg_match_all('/\d{8,}/', $value, $matches) === 1) {
+            return $matches[0][0];
+        }
+
+        if (preg_match_all('/\d{8,}/', $value, $matches) > 1) {
+            usort($matches[0], static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+            return $matches[0][0];
         }
 
         return $value;
+    }
+
+    private function extractImportNikCellValue(Collection|array $row): mixed
+    {
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
+
+        foreach (['nik', 'nik_petugas', 'nama_nik', 'nama_nik_nip', 'nama_niknip'] as $key) {
+            if (array_key_exists($key, $rowArray)) {
+                return $rowArray[$key];
+            }
+        }
+
+        foreach ($rowArray as $key => $value) {
+            $normalizedKey = strtolower(trim((string) $key));
+
+            if (str_contains($normalizedKey, 'nik') || str_contains($normalizedKey, 'nip')) {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private function extractImportPeranCellValue(Collection|array $row): mixed
+    {
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
+
+        foreach (['kode_penugasan', 'jenis_penugasan', 'jenis_penugasan_kode', 'peran'] as $key) {
+            if (array_key_exists($key, $rowArray)) {
+                return $rowArray[$key];
+            }
+        }
+
+        foreach ($rowArray as $key => $value) {
+            $normalizedKey = strtolower(trim((string) $key));
+
+            if (str_contains($normalizedKey, 'penugasan') || $normalizedKey === 'peran') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private function isReferencePetugasSheetRow(Collection|array $row): bool
+    {
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
+
+        foreach (['nip_nik', 'nama_petugas', 'pilihan_dropdown', 'kode_penugasan_dropdown'] as $key) {
+            if (array_key_exists($key, $rowArray)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function parseImportInteger(mixed $value): int
@@ -3421,9 +3495,12 @@ class AlokasiPetugasController extends Controller
 
         return match ($normalized) {
             'pcl_ppl' => 'pcl_ppl',
+            'pcl/ppl' => 'pcl_ppl',
             'pml' => 'pml',
             'pengolahan' => 'pengolahan',
+            'petugas pengolahan' => 'pengolahan',
             'pengawas_pengolahan', 'pengawasan_pengolahan' => 'pengawas_pengolahan',
+            'pengawas pengolahan' => 'pengawas_pengolahan',
             'koseka' => 'koseka',
             default => null,
         };
@@ -3432,7 +3509,7 @@ class AlokasiPetugasController extends Controller
     private function mapPeranCodeToDisplayLabel(string $peranCode): string
     {
         return match ($peranCode) {
-            'pcl_ppl' => 'PCL',
+            'pcl_ppl' => 'PCL/PPL',
             'pml' => 'PML',
             'pengolahan' => 'Petugas Pengolahan',
             'pengawas_pengolahan' => 'Pengawas Pengolahan',
