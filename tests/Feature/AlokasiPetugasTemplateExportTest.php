@@ -56,14 +56,42 @@ class AlokasiPetugasTemplateExportTest extends TestCase
         $this->assertNotNull($activeSheet);
         $this->assertSame('nip_nik', $activeSheet->getCell('A1')->getValue());
         $this->assertSame('nama_petugas', $activeSheet->getCell('B1')->getValue());
+        $this->assertSame('pilihan_dropdown', $activeSheet->getCell('C1')->getValue());
+        $this->assertSame('kode_penugasan_dropdown', $activeSheet->getCell('D1')->getValue());
 
         $this->assertSame('1111222233334444', (string) $activeSheet->getCell('A2')->getValue());
         $this->assertSame('Andi Aktif', (string) $activeSheet->getCell('B2')->getValue());
+        $this->assertSame('Andi Aktif - 1111222233334444', (string) $activeSheet->getCell('C2')->getValue());
 
         $this->assertSame('1234567890123456', (string) $activeSheet->getCell('A3')->getValue());
         $this->assertSame('Budi Aktif', (string) $activeSheet->getCell('B3')->getValue());
+        $this->assertSame('Budi Aktif - 1234567890123456', (string) $activeSheet->getCell('C3')->getValue());
 
         $this->assertSame('', (string) $activeSheet->getCell('A4')->getValue());
         $this->assertSame('', (string) $activeSheet->getCell('B4')->getValue());
+
+        $this->assertSame('PCL/PPL', (string) $activeSheet->getCell('D2')->getValue());
+        $this->assertSame('PML', (string) $activeSheet->getCell('D3')->getValue());
+        $this->assertSame('Petugas Pengolahan', (string) $activeSheet->getCell('D4')->getValue());
+        $this->assertSame('Pengawas Pengolahan', (string) $activeSheet->getCell('D5')->getValue());
+
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+        $this->assertNotSame('Nama Petugas (Otomatis)', (string) $mainSheet->getCell('H1')->getValue());
+
+        $nikValidation = $mainSheet->getCell('A2')->getDataValidation();
+
+        $this->assertSame('list', $nikValidation->getType());
+        $this->assertSame("'Daftar Petugas Aktif'!\$C\$2:\$C\$3", $nikValidation->getFormula1());
+
+        $kodeValidation = $mainSheet->getCell('B2')->getDataValidation();
+
+        $this->assertSame('list', $kodeValidation->getType());
+        $this->assertSame("'Daftar Petugas Aktif'!\$D\$2:\$D\$5", $kodeValidation->getFormula1());
+        $this->assertSame(
+            '',
+            (string) $mainSheet->getCell('H2')->getValue(),
+        );
     }
 }

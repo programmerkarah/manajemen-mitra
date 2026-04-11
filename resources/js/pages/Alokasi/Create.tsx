@@ -1629,8 +1629,22 @@ export default function Create({
                     throw new Error(message);
                 }
 
-                setImportPreviewRows(payload.rows || []);
-                setImportPreviewErrors(payload.errors || []);
+                const rows = payload.rows || [];
+                const errors = payload.errors || [];
+
+                if (rows.length === 0 && errors.length === 0) {
+                    const totalRows = Number(payload?.summary?.total_rows ?? 0);
+                    setImportPreviewErrors([
+                        totalRows > 0
+                            ? 'Tidak ada baris data yang bisa dipreview. Pastikan kolom NIK dan Kode Penugasan sudah dipilih dari dropdown template.'
+                            : 'File tidak berisi data alokasi yang dapat dipreview.',
+                    ]);
+                    setImportPreviewRows([]);
+                    return;
+                }
+
+                setImportPreviewRows(rows);
+                setImportPreviewErrors(errors);
             })
             .catch((error: Error) => {
                 setErrors((prev) => ({

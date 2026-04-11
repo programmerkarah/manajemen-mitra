@@ -6,8 +6,9 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class AlokasiPetugasPreviewImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
+class AlokasiPetugasPreviewImport implements WithMultipleSheets
 {
     protected Collection $rows;
 
@@ -16,7 +17,7 @@ class AlokasiPetugasPreviewImport implements SkipsEmptyRows, ToCollection, WithH
         $this->rows = collect();
     }
 
-    public function collection(Collection $rows): void
+    public function setRows(Collection $rows): void
     {
         $this->rows = $rows;
     }
@@ -24,5 +25,22 @@ class AlokasiPetugasPreviewImport implements SkipsEmptyRows, ToCollection, WithH
     public function rows(): Collection
     {
         return $this->rows;
+    }
+
+    public function sheets(): array
+    {
+        return [
+            0 => new AlokasiPetugasPreviewMainSheetImport($this),
+        ];
+    }
+}
+
+class AlokasiPetugasPreviewMainSheetImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
+{
+    public function __construct(private readonly AlokasiPetugasPreviewImport $parent) {}
+
+    public function collection(Collection $rows): void
+    {
+        $this->parent->setRows($rows);
     }
 }
