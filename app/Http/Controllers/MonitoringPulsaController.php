@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PengajuanPulsa;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -140,10 +141,16 @@ class MonitoringPulsaController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'rows' => $rows,
-            'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh sistem SIMANTIK. Data yang ditampilkan sudah diverifikasi oleh PPK dan bisa digunakan sebagai dasar pengajuan pengadaan pulsa/paket data.',
+            'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh SIMANTIK. Data yang ditampilkan sudah diverifikasi oleh PPK dan bisa digunakan sebagai dasar pengajuan pengadaan pulsa/paket data.',
         ])->setPaper('a4', 'portrait');
 
-        $filename = sprintf('rekap_pengadaan_pulsa_%s_%s.pdf', $tahun, $bulan);
+        $filename = sprintf(
+            'rekap_pengadaan_pulsa_%s_%s_%s_%s.pdf',
+            $tahun,
+            $bulan,
+            now()->format('Ymd_His'),
+            Str::lower(Str::random(6)),
+        );
 
         return $pdf->download($filename);
     }
