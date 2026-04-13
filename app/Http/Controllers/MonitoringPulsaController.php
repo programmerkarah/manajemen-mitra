@@ -131,7 +131,7 @@ class MonitoringPulsaController extends Controller
             ->sortBy('nama_petugas')
             ->values();
 
-        $judul = 'Rekapitulasi Pengadaan Pulsa/Paket Data Pelatihan/Pendataan Survei/Sensus di Lingkungan Badan Pusat Statistik Kota Sawahlunto';
+        $judul = 'Rekapitulasi Usulan Pengisian Pulsa/Paket Data Pelatihan/Pendataan Survei/Sensus di Lingkungan Badan Pusat Statistik Kota Sawahlunto hingga Tanggal '.now()->locale('id')->translatedFormat('d F Y');
         $timezone = config('app.timezone', 'Asia/Jakarta');
         $tanggalCetak = now()->timezone($timezone)->locale('id')->translatedFormat('d F Y H:i');
 

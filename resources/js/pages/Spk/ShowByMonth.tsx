@@ -724,8 +724,11 @@ export default function ShowByMonth({
                                                                 : ''}
                                                         </Button>
                                                         {canEdit &&
-                                                            doc.status ===
-                                                                'draft' && (
+                                                            (doc.status ===
+                                                                'draft' ||
+                                                                Boolean(
+                                                                    doc.signed_file_path,
+                                                                )) && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
@@ -736,10 +739,9 @@ export default function ShowByMonth({
                                                                     }
                                                                 >
                                                                     <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                    Unggah
-                                                                    Dokumen
-                                                                    Bertanda
-                                                                    tangan
+                                                                    {doc.signed_file_path
+                                                                        ? 'Upload Ulang Dokumen Bertanda Tangan'
+                                                                        : 'Unggah Dokumen Bertanda Tangan'}
                                                                 </Button>
                                                             )}
                                                     </>

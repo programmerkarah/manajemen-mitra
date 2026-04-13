@@ -727,7 +727,9 @@ export default function Show({
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     {isUploading
                                                         ? 'Mengupload...'
-                                                        : 'Upload Perjanjian Kerja Bertanda Tangan'}
+                                                        : spk.signed_file_path
+                                                          ? 'Upload Ulang Perjanjian Kerja Bertanda Tangan'
+                                                          : 'Upload Perjanjian Kerja Bertanda Tangan'}
                                                 </span>
                                             </Button>
                                         </label>
