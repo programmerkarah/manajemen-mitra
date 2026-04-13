@@ -51,6 +51,18 @@ interface BatchItem {
     nominal_disetujui: number;
 }
 
+interface AllPulsaItem {
+    id: number;
+    kegiatan_id: number;
+    kegiatan_kode: string | null;
+    kegiatan_nama: string | null;
+    jenis_pulsa: 'pelatihan' | 'pendataan';
+    nominal: number;
+    nominal_disetujui: number | null;
+    status: 'draft' | 'dikirim' | 'diterima' | 'ditolak';
+    is_current_kegiatan: boolean;
+}
+
 interface KegiatanInfo {
     id: number;
     kode_kegiatan: string;
@@ -61,6 +73,7 @@ interface KegiatanInfo {
 interface Props {
     kegiatan: KegiatanInfo;
     pengajuanList: { encrypted: string };
+    allPulsaPerPetugas: Record<number, AllPulsaItem[]>;
     filters: { bulan: string; tahun: string };
     canReview: boolean;
 }
@@ -115,6 +128,7 @@ const parseFormattedNumber = (str: string): number => {
 export default function PengajuanPulsaDetail({
     kegiatan,
     pengajuanList,
+    allPulsaPerPetugas,
     filters,
     canReview,
 }: Props) {
@@ -497,74 +511,192 @@ export default function PengajuanPulsaDetail({
                     }
                 }}
             >
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             Review Pengajuan Pulsa
                         </DialogTitle>
+                        {reviewItem && (
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                {reviewItem.jenis_pulsa === 'pendataan'
+                                    ? 'Pulsa Pendataan'
+                                    : 'Pulsa Pelatihan'}{' '}
+                                —{' '}
+                                <span className="font-medium text-neutral-700 dark:text-neutral-300">
+                                    {formatCurrency(reviewItem.nominal)}
+                                </span>{' '}
+                                · {BULAN_LABELS[reviewItem.bulan]}{' '}
+                                {reviewItem.tahun}
+                            </p>
+                        )}
                     </DialogHeader>
 
                     {reviewItem && (
-                        <div className="space-y-4">
-                            {/* Item detail card */}
-                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                                <dl className="space-y-2 text-sm">
-                                    <div className="flex justify-between gap-4">
-                                        <dt className="text-neutral-500 dark:text-neutral-400">
-                                            Petugas
-                                        </dt>
-                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
-                                            {reviewItem.petugas?.nama ?? '-'}
-                                        </dd>
+                        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1">
+                            {/* All pulsa context table for this petugas */}
+                            {(() => {
+                                const petugasAllPulsa =
+                                    allPulsaPerPetugas[reviewItem.petugas_id] ??
+                                    [];
+                                const grandTotal = petugasAllPulsa.reduce(
+                                    (sum, p) => sum + p.nominal,
+                                    0,
+                                );
+                                const hasOtherKegiatan = petugasAllPulsa.some(
+                                    (p) => !p.is_current_kegiatan,
+                                );
+                                return (
+                                    <div className="rounded-lg border border-neutral-200 dark:border-neutral-700">
+                                        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5 dark:border-neutral-700">
+                                            <h4 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                                Rekap Pengajuan Pulsa —{' '}
+                                                {reviewItem.petugas?.nama}
+                                            </h4>
+                                            {hasOtherKegiatan && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                    Lintas kegiatan
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-neutral-50 dark:bg-neutral-900/50">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                            No
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                            Kegiatan
+                                                        </th>
+                                                        <th className="px-3 py-2 text-center text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                            Jenis
+                                                        </th>
+                                                        <th className="px-3 py-2 text-right text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                            Nominal
+                                                        </th>
+                                                        <th className="px-3 py-2 text-center text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                            Status
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                                                    {petugasAllPulsa.map(
+                                                        (p, idx) => {
+                                                            const isThisItem =
+                                                                p.id ===
+                                                                reviewItem.id;
+                                                            return (
+                                                                <tr
+                                                                    key={p.id}
+                                                                    className={
+                                                                        isThisItem
+                                                                            ? 'bg-blue-50 dark:bg-blue-950/30'
+                                                                            : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/40'
+                                                                    }
+                                                                >
+                                                                    <td className="px-3 py-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                                                        {idx +
+                                                                            1}
+                                                                    </td>
+                                                                    <td className="px-3 py-2">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                                                                                {p.kegiatan_kode ??
+                                                                                    '-'}
+                                                                            </span>
+                                                                            {isThisItem && (
+                                                                                <span className="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                                                                    sedang
+                                                                                    direview
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {p.kegiatan_nama && (
+                                                                            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                                                                {
+                                                                                    p.kegiatan_nama
+                                                                                }
+                                                                            </p>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        <span
+                                                                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                                p.jenis_pulsa ===
+                                                                                'pendataan'
+                                                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                                                            }`}
+                                                                        >
+                                                                            {p.jenis_pulsa ===
+                                                                            'pendataan'
+                                                                                ? 'Pendataan'
+                                                                                : 'Pelatihan'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-right text-xs font-medium whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                                                        {formatCurrency(
+                                                                            p.nominal,
+                                                                        )}
+                                                                        {p.status ===
+                                                                            'diterima' &&
+                                                                            p.nominal_disetujui !==
+                                                                                null &&
+                                                                            p.nominal_disetujui !==
+                                                                                p.nominal && (
+                                                                                <div className="text-xs text-green-600 dark:text-green-400">
+                                                                                    disetujui:{' '}
+                                                                                    {formatCurrency(
+                                                                                        p.nominal_disetujui,
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        {isThisItem ? (
+                                                                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                                                                Direview
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span
+                                                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[p.status]}`}
+                                                                            >
+                                                                                {
+                                                                                    STATUS_LABELS[
+                                                                                        p
+                                                                                            .status
+                                                                                    ]
+                                                                                }
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        },
+                                                    )}
+                                                </tbody>
+                                                <tfoot className="border-t-2 border-neutral-300 bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-900/50">
+                                                    <tr>
+                                                        <td
+                                                            colSpan={3}
+                                                            className="px-3 py-2 text-right text-xs font-semibold text-neutral-700 dark:text-neutral-300"
+                                                        >
+                                                            Total pengajuan:
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right text-sm font-bold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                                            {formatCurrency(
+                                                                grandTotal,
+                                                            )}
+                                                        </td>
+                                                        <td />
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between gap-4">
-                                        <dt className="text-neutral-500 dark:text-neutral-400">
-                                            Kegiatan
-                                        </dt>
-                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
-                                            {kegiatan.nama_kegiatan}
-                                        </dd>
-                                    </div>
-                                    <div className="flex justify-between gap-4">
-                                        <dt className="text-neutral-500 dark:text-neutral-400">
-                                            Periode
-                                        </dt>
-                                        <dd className="text-right font-medium text-neutral-900 dark:text-neutral-100">
-                                            {BULAN_LABELS[reviewItem.bulan]}{' '}
-                                            {reviewItem.tahun}
-                                        </dd>
-                                    </div>
-                                    <div className="flex justify-between gap-4">
-                                        <dt className="text-neutral-500 dark:text-neutral-400">
-                                            Jenis
-                                        </dt>
-                                        <dd>
-                                            <span
-                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                    reviewItem.jenis_pulsa ===
-                                                    'pendataan'
-                                                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                                                }`}
-                                            >
-                                                {reviewItem.jenis_pulsa ===
-                                                'pendataan'
-                                                    ? 'Pulsa Pendataan'
-                                                    : 'Pulsa Pelatihan'}
-                                            </span>
-                                        </dd>
-                                    </div>
-                                    <div className="flex justify-between gap-4 border-t border-neutral-200 pt-2 dark:border-neutral-700">
-                                        <dt className="font-medium text-neutral-700 dark:text-neutral-300">
-                                            Nominal
-                                        </dt>
-                                        <dd className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                                            {formatCurrency(reviewItem.nominal)}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            </div>
+                                );
+                            })()}
 
                             {/* Accept / Reject toggle */}
                             <div>

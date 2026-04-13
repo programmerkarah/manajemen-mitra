@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, Send } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Info, Send } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,7 +50,10 @@ interface Props {
     petugasPerKegiatan: Record<number, PetugasItem[]>;
     /** Petugas eligible for pelatihan pulsa: sourced from bulan_pelatihan+1 allocations (or bulan_pelatihan if kegiatan starts that month) */
     petugasPerKegiatanPelatihan: Record<number, PetugasItem[]>;
+    /** Total existing submissions from kegiatan managed by this ketua tim */
     existingTotals: Record<number, number>;
+    /** Total existing submissions across ALL kegiatan (global) */
+    allExistingTotals: Record<number, number>;
     /** key = "${kegiatan_id}_${petugas_id}_${jenis_pulsa}" → nominal already submitted */
     existingPerKegiatan: Record<string, number>;
     filters: { bulan: string; tahun: string };
@@ -111,6 +114,7 @@ export default function PengajuanPulsaCreate({
     petugasPerKegiatan,
     petugasPerKegiatanPelatihan,
     existingTotals,
+    allExistingTotals,
     existingPerKegiatan,
     filters,
 }: Props) {
@@ -388,7 +392,7 @@ export default function PengajuanPulsaCreate({
                                                     existingTotals[petugas.id] >
                                                         0 && (
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            Sudah diajukan:{' '}
+                                                            Sudah diajukan (kegiatan ini):{' '}
                                                             {formatCurrency(
                                                                 existingTotals[
                                                                     petugas.id
@@ -396,6 +400,33 @@ export default function PengajuanPulsaCreate({
                                                             )}
                                                         </div>
                                                     )}
+                                                {(() => {
+                                                    const allTotal =
+                                                        allExistingTotals[
+                                                            petugas.id
+                                                        ] ?? 0;
+                                                    const ownTotal =
+                                                        existingTotals[
+                                                            petugas.id
+                                                        ] ?? 0;
+                                                    const externalTotal =
+                                                        allTotal - ownTotal;
+                                                    if (externalTotal <= 0) {
+                                                        return null;
+                                                    }
+                                                    return (
+                                                        <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600 dark:text-amber-400">
+                                                            <Info className="h-3 w-3 shrink-0" />
+                                                            +{formatCurrency(externalTotal)}{' '}
+                                                            dari kegiatan lain
+                                                            (total:{' '}
+                                                            {formatCurrency(
+                                                                allTotal,
+                                                            )}
+                                                            )
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
 

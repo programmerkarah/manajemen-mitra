@@ -285,6 +285,25 @@ class PengajuanPulsaController extends Controller
             ->groupBy('petugas_id')
             ->map(fn ($rows) => $rows->sum('nominal'));
 
+        // Collect all petugas IDs visible in the form (pendataan + pelatihan)
+        $allKnownPetugasIds = $pendataanAllocations->pluck('petugas_id')->unique();
+        foreach ($petugasPerKegiatanPelatihan as $petugasList) {
+            $allKnownPetugasIds = $allKnownPetugasIds->merge(collect($petugasList)->pluck('id'));
+        }
+        $allKnownPetugasIds = $allKnownPetugasIds->unique()->values();
+
+        // Global total per petugas across ALL kegiatan (not limited to this ketua tim's kegiatan).
+        // Used on the form to alert the user when a petugas already has submissions elsewhere.
+        $allExistingTotals = PengajuanPulsa::query()
+            ->whereIn('petugas_id', $allKnownPetugasIds)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->whereNotIn('status', ['ditolak'])
+            ->groupBy('petugas_id')
+            ->select('petugas_id', DB::raw('SUM(nominal) as total'))
+            ->pluck('total', 'petugas_id')
+            ->map(fn ($t) => (float) $t);
+
         /**
          * Key format: "${kegiatan_id}_${petugas_id}_${jenis_pulsa}" → nominal
          * Used on frontend to lock cells that already have a non-rejected submission.
@@ -301,6 +320,7 @@ class PengajuanPulsaController extends Controller
             'petugasPerKegiatan' => $petugasPerKegiatan,
             'petugasPerKegiatanPelatihan' => $petugasPerKegiatanPelatihan,
             'existingTotals' => $existingTotals,
+            'allExistingTotals' => $allExistingTotals,
             'existingPerKegiatan' => $existingPerKegiatan,
             'filters' => [
                 'bulan' => $bulan,
@@ -496,11 +516,43 @@ class PengajuanPulsaController extends Controller
             ->orderBy('jenis_pulsa')
             ->get();
 
+        // For the review modal: load ALL pengajuan pulsa for these petugas in this period
+        // across ALL kegiatan so reviewer has full context (e.g. total across all kegiatan).
+        $petugasIds = $pengajuanList->pluck('petugas_id')->unique()->values();
+
+        $allPulsaForPetugas = PengajuanPulsa::query()
+            ->with(['kegiatan:id,kode_kegiatan,nama_kegiatan'])
+            ->whereIn('petugas_id', $petugasIds)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->whereNotIn('status', ['ditolak'])
+            ->get(['id', 'petugas_id', 'kegiatan_id', 'jenis_pulsa', 'nominal', 'nominal_disetujui', 'status']);
+
+        /** @var \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, array{id: int, kegiatan_id: int, kegiatan_kode: string|null, kegiatan_nama: string|null, jenis_pulsa: string, nominal: float, nominal_disetujui: float|null, status: string, is_current_kegiatan: bool}>> $allPulsaPerPetugas */
+        $allPulsaPerPetugas = $allPulsaForPetugas
+            ->groupBy('petugas_id')
+            ->map(function ($group) use ($kegiatanId) {
+                return $group->map(function ($p) use ($kegiatanId) {
+                    return [
+                        'id' => $p->id,
+                        'kegiatan_id' => $p->kegiatan_id,
+                        'kegiatan_kode' => $p->kegiatan?->kode_kegiatan,
+                        'kegiatan_nama' => $p->kegiatan?->nama_kegiatan,
+                        'jenis_pulsa' => $p->jenis_pulsa,
+                        'nominal' => (float) $p->nominal,
+                        'nominal_disetujui' => $p->nominal_disetujui !== null ? (float) $p->nominal_disetujui : null,
+                        'status' => $p->status,
+                        'is_current_kegiatan' => (int) $p->kegiatan_id === $kegiatanId,
+                    ];
+                })->values();
+            });
+
         return Inertia::render('PengajuanPulsa/Detail', [
             'kegiatan' => $kegiatan->only(['id', 'kode_kegiatan', 'nama_kegiatan', 'metode_pendataan_pencacahan']),
             'pengajuanList' => [
                 'encrypted' => encryptData($pengajuanList),
             ],
+            'allPulsaPerPetugas' => $allPulsaPerPetugas,
             'filters' => [
                 'bulan' => $bulan,
                 'tahun' => (string) $tahun,

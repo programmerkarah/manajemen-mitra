@@ -11,7 +11,9 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { resolveUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -20,6 +22,15 @@ import { useState } from 'react';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
+    const { isMobile, setOpenMobile } = useSidebar();
+    const cleanup = useMobileNavigation();
+
+    const handleNavClick = () => {
+        if (isMobile) {
+            cleanup();
+            setOpenMobile(false);
+        }
+    };
 
     const getInitialOpenItem = () => {
         for (const item of items) {
@@ -80,6 +91,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                         <Link
                                                             href={subItem.href}
                                                             prefetch
+                                                            onClick={handleNavClick}
                                                         >
                                                             <span>
                                                                 {subItem.title}
@@ -111,7 +123,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 }
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch>
+                                <Link href={item.href} prefetch onClick={handleNavClick}>
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>
