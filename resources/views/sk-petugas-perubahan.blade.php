@@ -576,7 +576,9 @@
 
     @php
         $minimumRowsForApproval = 1;
+        $minimumTotalRowsToSplit = 8;
         $alokasiArray = $alokasiList->values()->all();
+        $totalRoleRows = collect($alokasiArray)->sum(fn ($alokasi) => count($alokasi->roles));
         $approvalGroupIndexes = [];
         $approvalRowCount = 0;
 
@@ -589,7 +591,8 @@
             $approvalRowCount += count($alokasiArray[$index]->roles);
         }
 
-        $shouldSplitApprovalBlock = count($approvalGroupIndexes) > 0
+        $shouldSplitApprovalBlock = $totalRoleRows > $minimumTotalRowsToSplit
+            && count($approvalGroupIndexes) > 0
             && count($approvalGroupIndexes) < count($alokasiArray)
             && $approvalRowCount >= $minimumRowsForApproval;
 

@@ -150,8 +150,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
             result = result.filter(
                 (item: Kegiatan) =>
                     item.nama_kegiatan?.toLowerCase().includes(query) ||
-                    item.kode_kegiatan?.toLowerCase().includes(query) ||
-                    item.ketua_tim?.name?.toLowerCase().includes(query),
+                    item.deskripsi?.toLowerCase().includes(query),
             );
         }
 
@@ -601,7 +600,7 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                         onChange={(e) =>
                                             setSearch(e.target.value)
                                         }
-                                        placeholder="Cari nama atau kode kegiatan..."
+                                        placeholder="Cari nama atau deskripsi kegiatan..."
                                         className="pl-10"
                                     />
                                 </div>

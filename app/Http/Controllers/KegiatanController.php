@@ -51,7 +51,7 @@ class KegiatanController extends Controller
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
-                    ->orWhere('kode_kegiatan', 'like', "%{$search}%");
+                    ->orWhere('deskripsi', 'like', "%{$search}%");
             });
         }
 

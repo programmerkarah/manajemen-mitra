@@ -1805,6 +1805,50 @@ export default function Create({
         used_months_info,
     ]);
 
+    const selectedPeriodeMinDate = useMemo(() => {
+        if (!bulan) {
+            return undefined;
+        }
+
+        return `${active_year}-${String(bulan).padStart(2, '0')}-01`;
+    }, [active_year, bulan]);
+
+    const selectedPeriodeMaxDate = useMemo(() => {
+        if (!bulan) {
+            return undefined;
+        }
+
+        const lastDay = new Date(active_year, bulan, 0).getDate();
+
+        return `${active_year}-${String(bulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }, [active_year, bulan]);
+
+    const mergeDateMin = useCallback(
+        (dynamicMin?: string) => {
+            if (selectedPeriodeMinDate && dynamicMin) {
+                return dynamicMin > selectedPeriodeMinDate
+                    ? dynamicMin
+                    : selectedPeriodeMinDate;
+            }
+
+            return dynamicMin || selectedPeriodeMinDate;
+        },
+        [selectedPeriodeMinDate],
+    );
+
+    const mergeDateMax = useCallback(
+        (dynamicMax?: string) => {
+            if (selectedPeriodeMaxDate && dynamicMax) {
+                return dynamicMax < selectedPeriodeMaxDate
+                    ? dynamicMax
+                    : selectedPeriodeMaxDate;
+            }
+
+            return dynamicMax || selectedPeriodeMaxDate;
+        },
+        [selectedPeriodeMaxDate],
+    );
+
     // Set default bulan to first available month in availableMonthsForTahapan
     useEffect(() => {
         // Skip if in edit mode or if there's a source periode
@@ -2345,6 +2389,8 @@ export default function Create({
                                                                 v,
                                                             )
                                                         }
+                                                        min={mergeDateMin()}
+                                                        max={mergeDateMax()}
                                                         disabled={isViewMode}
                                                     />
                                                     {allErrors.tanggal_mulai_listing && (
@@ -2372,9 +2418,10 @@ export default function Create({
                                                                 v,
                                                             )
                                                         }
-                                                        min={
-                                                            tanggalMulaiListing
-                                                        }
+                                                        min={mergeDateMin(
+                                                            tanggalMulaiListing,
+                                                        )}
+                                                        max={mergeDateMax()}
                                                         disabled={isViewMode}
                                                     />
                                                     {allErrors.tanggal_selesai_listing && (
@@ -2429,6 +2476,8 @@ export default function Create({
                                                           )
                                                         : setTanggalMulai(v)
                                                 }
+                                                min={mergeDateMin()}
+                                                max={mergeDateMax()}
                                                 disabled={isViewMode}
                                             />
                                             {tahapan === 'listing_only'
@@ -2478,11 +2527,12 @@ export default function Create({
                                                           )
                                                         : setTanggalSelesai(v)
                                                 }
-                                                min={
+                                                min={mergeDateMin(
                                                     tahapan === 'listing_only'
                                                         ? tanggalMulaiListing
-                                                        : tanggalMulai
-                                                }
+                                                        : tanggalMulai,
+                                                )}
+                                                max={mergeDateMax()}
                                                 disabled={isViewMode}
                                             />
                                             {tahapan === 'listing_only'
@@ -2538,6 +2588,8 @@ export default function Create({
                                                                         v,
                                                                     )
                                                                 }
+                                                                min={mergeDateMin()}
+                                                                max={mergeDateMax()}
                                                                 disabled={
                                                                     isViewMode
                                                                 }
@@ -2566,9 +2618,10 @@ export default function Create({
                                                                         v,
                                                                     )
                                                                 }
-                                                                min={
-                                                                    jadwalPengolahanListingMulai
-                                                                }
+                                                                min={mergeDateMin(
+                                                                    jadwalPengolahanListingMulai,
+                                                                )}
+                                                                max={mergeDateMax()}
                                                                 disabled={
                                                                     isViewMode
                                                                 }
@@ -2609,6 +2662,8 @@ export default function Create({
                                                                     v,
                                                                 )
                                                             }
+                                                            min={mergeDateMin()}
+                                                            max={mergeDateMax()}
                                                             disabled={
                                                                 isViewMode
                                                             }
@@ -2636,9 +2691,10 @@ export default function Create({
                                                                     v,
                                                                 )
                                                             }
-                                                            min={
-                                                                jadwalPengolahanPencacahanMulai
-                                                            }
+                                                            min={mergeDateMin(
+                                                                jadwalPengolahanPencacahanMulai,
+                                                            )}
+                                                            max={mergeDateMax()}
                                                             disabled={
                                                                 isViewMode
                                                             }

@@ -50,6 +50,31 @@ const formatDisplay = (dateStr: string): string => {
     return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+const parseYearMonth = (dateStr?: string): { year: number; month: number } | null => {
+    if (!dateStr) {
+        return null;
+    }
+
+    const parsed = new Date(dateStr + 'T00:00:00');
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    return { year: parsed.getFullYear(), month: parsed.getMonth() };
+};
+
+const compareYearMonth = (
+    leftYear: number,
+    leftMonth: number,
+    rightYear: number,
+    rightMonth: number,
+): number => {
+    const left = leftYear * 12 + leftMonth;
+    const right = rightYear * 12 + rightMonth;
+
+    return left - right;
+};
+
 type CalendarView = 'days' | 'months' | 'years';
 
 export function DatePicker({
@@ -88,6 +113,38 @@ export function DatePicker({
         Math.floor(initial.year / 12) * 12,
     );
 
+    const minYearMonth = parseYearMonth(min);
+    const maxYearMonth = parseYearMonth(max);
+
+    const isSingleMonthRange =
+        !!minYearMonth &&
+        !!maxYearMonth &&
+        minYearMonth.year === maxYearMonth.year &&
+        minYearMonth.month === maxYearMonth.month;
+
+    const prevViewMonth = viewMonth === 0 ? 11 : viewMonth - 1;
+    const prevViewYear = viewMonth === 0 ? viewYear - 1 : viewYear;
+    const nextViewMonth = viewMonth === 11 ? 0 : viewMonth + 1;
+    const nextViewYear = viewMonth === 11 ? viewYear + 1 : viewYear;
+
+    const canNavigatePrevMonth =
+        !minYearMonth ||
+        compareYearMonth(
+            prevViewYear,
+            prevViewMonth,
+            minYearMonth.year,
+            minYearMonth.month,
+        ) >= 0;
+
+    const canNavigateNextMonth =
+        !maxYearMonth ||
+        compareYearMonth(
+            nextViewYear,
+            nextViewMonth,
+            maxYearMonth.year,
+            maxYearMonth.month,
+        ) <= 0;
+
     const syncCalendarFromValue = (dateStr: string | undefined) => {
         if (!dateStr) {
             return;
@@ -111,6 +168,10 @@ export function DatePicker({
     };
 
     const prevMonth = () => {
+        if (!canNavigatePrevMonth) {
+            return;
+        }
+
         if (viewMonth === 0) {
             setViewMonth(11);
             setViewYear((y) => y - 1);
@@ -120,6 +181,10 @@ export function DatePicker({
     };
 
     const nextMonth = () => {
+        if (!canNavigateNextMonth) {
+            return;
+        }
+
         if (viewMonth === 11) {
             setViewMonth(0);
             setViewYear((y) => y + 1);
@@ -263,7 +328,8 @@ export function DatePicker({
                                 <button
                                     type="button"
                                     onClick={prevMonth}
-                                    className="rounded-lg p-1.5 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    disabled={!canNavigatePrevMonth}
+                                    className="rounded-lg p-1.5 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-neutral-800"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </button>
@@ -271,7 +337,8 @@ export function DatePicker({
                                     <button
                                         type="button"
                                         onClick={() => setCalView('months')}
-                                        className="rounded-md px-2 py-0.5 text-sm font-semibold transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        disabled={isSingleMonthRange}
+                                        className="rounded-md px-2 py-0.5 text-sm font-semibold transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-neutral-800"
                                     >
                                         {NAMA_BULAN[viewMonth]}
                                     </button>
@@ -281,7 +348,8 @@ export function DatePicker({
                                             setYearRangeStart(Math.floor(viewYear / 12) * 12);
                                             setCalView('years');
                                         }}
-                                        className="rounded-md px-2 py-0.5 text-sm font-semibold transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        disabled={isSingleMonthRange}
+                                        className="rounded-md px-2 py-0.5 text-sm font-semibold transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-neutral-800"
                                     >
                                         {viewYear}
                                     </button>
@@ -289,7 +357,8 @@ export function DatePicker({
                                 <button
                                     type="button"
                                     onClick={nextMonth}
-                                    className="rounded-lg p-1.5 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    disabled={!canNavigateNextMonth}
+                                    className="rounded-lg p-1.5 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-neutral-800"
                                 >
                                     <ChevronRight className="h-4 w-4" />
                                 </button>

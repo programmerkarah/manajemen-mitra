@@ -123,7 +123,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const filteredAlokasi = useMemo(() => {
         let result = [...decryptedAlokasi];
 
-        // Filter by search (kegiatan name or code)
+        // Filter by search (kegiatan name or description)
         if (search) {
             const query = search.toLowerCase();
             result = result.filter(
@@ -131,7 +131,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                     periode.kegiatan.nama_kegiatan
                         .toLowerCase()
                         .includes(query) ||
-                    periode.kegiatan.kode_kegiatan
+                    (periode.kegiatan.deskripsi || '')
                         .toLowerCase()
                         .includes(query),
             );
@@ -598,7 +598,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Nama atau kode kegiatan..."
+                                placeholder="Nama atau deskripsi kegiatan..."
                                 className="pl-10"
                             />
                         </div>

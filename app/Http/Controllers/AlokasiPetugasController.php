@@ -45,7 +45,7 @@ class AlokasiPetugasController extends Controller
         $baseQuery = PeriodeAlokasi::query()
             ->select('periode_alokasi.*')
             ->with([
-                'kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating',
+                'kegiatan:id,kode_kegiatan,nama_kegiatan,deskripsi,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating',
                 'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing',
             ])
             ->withCount('alokasiPetugas as jumlah_petugas')
@@ -58,7 +58,7 @@ class AlokasiPetugasController extends Controller
             $search = $filters['search'];
             $baseQuery->whereHas('kegiatan', function ($q) use ($search) {
                 $q->where('nama_kegiatan', 'like', "%{$search}%")
-                    ->orWhere('kode_kegiatan', 'like', "%{$search}%");
+                    ->orWhere('deskripsi', 'like', "%{$search}%");
             });
         }
 
@@ -274,6 +274,7 @@ class AlokasiPetugasController extends Controller
                     'id' => $periode->kegiatan->id,
                     'hashed_id' => $periode->kegiatan->hashed_id,
                     'nama_kegiatan' => $periode->kegiatan->nama_kegiatan,
+                    'deskripsi' => $periode->kegiatan->deskripsi,
                     'kode_kegiatan' => $periode->kegiatan->kode_kegiatan,
                 ],
             ];
