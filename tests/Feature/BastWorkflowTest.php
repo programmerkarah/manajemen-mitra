@@ -295,7 +295,7 @@ class BastWorkflowTest extends TestCase
         $this->assertFileExists(public_path($lampiranItem['file_path']));
     }
 
-    public function test_preview_lampiran_signed_upload_redirects_to_detail_page_instead_of_post_endpoint(): void
+    public function test_preview_lampiran_signed_upload_via_preview_endpoint_redirects_to_detail_page(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));
 
@@ -317,8 +317,8 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->withHeader('referer', '/bast/preview-lampiran/upload-signed')
-            ->post(route('bast.preview-lampiran.upload-signed'), [
+            ->withHeader('referer', '/bast/preview-lampiran')
+            ->post(route('bast.preview-lampiran'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $context['spk']->alokasiPetugas->periode_alokasi_id,

@@ -23,6 +23,10 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    public const TRUSTED_DEVICE_DAYS = 14;
+
+    public const TRUSTED_DEVICE_MINUTES = 60 * 24 * self::TRUSTED_DEVICE_DAYS;
+
     /**
      * Register any application services.
      */
@@ -120,7 +124,6 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureTwoFactorChallenge(): void
     {
         Fortify::twoFactorChallengeView(function (Request $request) {
-            // Check if this device is trusted (based on IP only)
             $deviceToken = $request->cookie('trusted_device');
             $user = $request->session()->get('login.id')
                 ? User::find($request->session()->get('login.id'))
@@ -129,7 +132,6 @@ class FortifyServiceProvider extends ServiceProvider
             if ($user && $deviceToken) {
                 $trustedDevice = $user->trustedDevices()
                     ->where('device_token', $deviceToken)
-                    ->where('ip_address', $request->ip())
                     ->where(function ($query) {
                         $query->whereNull('expires_at')
                             ->orWhere('expires_at', '>', now());
@@ -137,10 +139,11 @@ class FortifyServiceProvider extends ServiceProvider
                     ->first();
 
                 if ($trustedDevice) {
-                    // Update last used and current user agent
                     $trustedDevice->update([
                         'last_used_at' => now(),
                         'user_agent' => $request->userAgent(),
+                        'ip_address' => $request->ip(),
+                        'expires_at' => now()->addDays(self::TRUSTED_DEVICE_DAYS),
                     ]);
 
                     return Inertia::render('auth/two-factor-challenge', [
@@ -181,30 +184,33 @@ class FortifyServiceProvider extends ServiceProvider
                         // Broadcast session invalidation to all devices
                         broadcast(new SessionInvalidated($user->id))->toOthers();
 
-                        // ALWAYS save trusted device (no checkbox required)
-                        // Expire all other trusted devices (based on IP, not user agent)
+                        $deviceToken = $request->cookie('trusted_device');
+                        $existingDevice = $deviceToken
+                            ? TrustedDevice::where('user_id', $user->id)
+                                ->where('device_token', $deviceToken)
+                                ->first()
+                            : null;
+
                         TrustedDevice::where('user_id', $user->id)
-                            ->where('ip_address', '!=', $request->ip())
+                            ->when($existingDevice, function ($query) use ($existingDevice) {
+                                $query->where('device_token', '!=', $existingDevice->device_token);
+                            })
                             ->update([
-                                'expires_at' => now()->subDay(), // Expire old devices
+                                'expires_at' => now()->subDay(),
                             ]);
 
-                        // Check if current device already exists (based on IP only)
-                        $existingDevice = TrustedDevice::where('user_id', $user->id)
-                            ->where('ip_address', $request->ip())
-                            ->first();
-
                         if ($existingDevice) {
-                            // Update existing device
                             $existingDevice->update([
                                 'last_used_at' => now(),
-                                'expires_at' => now()->addDays(30),
+                                'expires_at' => now()->addDays(FortifyServiceProvider::TRUSTED_DEVICE_DAYS),
+                                'user_agent' => $request->userAgent(),
+                                'ip_address' => $request->ip(),
                             ]);
 
                             cookie()->queue(
                                 'trusted_device',
                                 $existingDevice->device_token,
-                                60 * 24 * 30,
+                                FortifyServiceProvider::TRUSTED_DEVICE_MINUTES,
                                 null,
                                 null,
                                 true,
@@ -213,10 +219,8 @@ class FortifyServiceProvider extends ServiceProvider
                                 'strict'
                             );
                         } else {
-                            // Generate unique device token
                             $deviceToken = Str::random(64);
 
-                            // Save trusted device
                             TrustedDevice::create([
                                 'user_id' => $user->id,
                                 'device_token' => $deviceToken,
@@ -224,14 +228,13 @@ class FortifyServiceProvider extends ServiceProvider
                                 'user_agent' => $request->userAgent(),
                                 'ip_address' => $request->ip(),
                                 'last_used_at' => now(),
-                                'expires_at' => now()->addDays(30),
+                                'expires_at' => now()->addDays(FortifyServiceProvider::TRUSTED_DEVICE_DAYS),
                             ]);
 
-                            // Set cookie
                             cookie()->queue(
                                 'trusted_device',
                                 $deviceToken,
-                                60 * 24 * 30, // 30 days
+                                FortifyServiceProvider::TRUSTED_DEVICE_MINUTES,
                                 null,
                                 null,
                                 true, // secure
@@ -300,31 +303,33 @@ class FortifyServiceProvider extends ServiceProvider
                     // Broadcast session invalidation to all devices
                     broadcast(new SessionInvalidated($user->id))->toOthers();
 
-                    // Expire all other trusted devices (based on IP, not user agent)
-                    // Keep current device trusted so 2FA won't be required on every login
+                    $deviceToken = $request->cookie('trusted_device');
+                    $existingDevice = $deviceToken
+                        ? TrustedDevice::where('user_id', $user->id)
+                            ->where('device_token', $deviceToken)
+                            ->first()
+                        : null;
+
                     TrustedDevice::where('user_id', $user->id)
-                        ->where('ip_address', '!=', $request->ip())
+                        ->when($existingDevice, function ($query) use ($existingDevice) {
+                            $query->where('device_token', '!=', $existingDevice->device_token);
+                        })
                         ->update([
-                            'expires_at' => now()->subDay(), // Expire old devices
+                            'expires_at' => now()->subDay(),
                         ]);
 
-                    // Check if current device already exists and is trusted (based on IP only)
-                    $existingDevice = TrustedDevice::where('user_id', $user->id)
-                        ->where('ip_address', $request->ip())
-                        ->first();
-
                     if ($existingDevice) {
-                        // Update existing device (update user agent to current browser)
                         $existingDevice->update([
                             'last_used_at' => now(),
-                            'expires_at' => now()->addDays(30),
-                            'user_agent' => $request->userAgent(), // Update to current browser
+                            'expires_at' => now()->addDays(self::TRUSTED_DEVICE_DAYS),
+                            'user_agent' => $request->userAgent(),
+                            'ip_address' => $request->ip(),
                         ]);
 
                         cookie()->queue(
                             'trusted_device',
                             $existingDevice->device_token,
-                            60 * 24 * 30,
+                            self::TRUSTED_DEVICE_MINUTES,
                             null,
                             null,
                             true,
@@ -333,10 +338,8 @@ class FortifyServiceProvider extends ServiceProvider
                             'strict'
                         );
                     } else {
-                        // Generate unique device token
                         $deviceToken = Str::random(64);
 
-                        // Save trusted device
                         TrustedDevice::create([
                             'user_id' => $user->id,
                             'device_token' => $deviceToken,
@@ -344,14 +347,13 @@ class FortifyServiceProvider extends ServiceProvider
                             'user_agent' => $request->userAgent(),
                             'ip_address' => $request->ip(),
                             'last_used_at' => now(),
-                            'expires_at' => now()->addDays(30),
+                            'expires_at' => now()->addDays(self::TRUSTED_DEVICE_DAYS),
                         ]);
 
-                        // Set cookie
                         cookie()->queue(
                             'trusted_device',
                             $deviceToken,
-                            60 * 24 * 30, // 30 days
+                            self::TRUSTED_DEVICE_MINUTES,
                             null,
                             null,
                             true, // secure

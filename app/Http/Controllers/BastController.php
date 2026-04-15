@@ -3029,8 +3029,12 @@ class BastController extends Controller
      * Admin/operator: semua kegiatan dari SPK.
      * Ketua tim: harus menentukan kegiatan_id dan hanya untuk kegiatan yang dikelola.
      */
-    public function previewLampiran(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function previewLampiran(Request $request): \Symfony\Component\HttpFoundation\Response|RedirectResponse
     {
+        if ($request->hasFile('file')) {
+            return $this->uploadPreviewLampiranSigned($request);
+        }
+
         $decrypted = [];
         if ($request->has('encrypted_filters')) {
             $decrypted = decryptFilters($request->input('encrypted_filters'));

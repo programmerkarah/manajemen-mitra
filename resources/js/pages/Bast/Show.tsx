@@ -379,7 +379,7 @@ export default function Show({
             }
 
             router.post(
-                '/bast/preview-lampiran/upload-signed',
+                '/bast/preview-lampiran',
                 {
                     spk_id: item.preview_spk_id,
                     kegiatan_id: item.kegiatan_id,

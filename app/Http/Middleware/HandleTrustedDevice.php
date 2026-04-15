@@ -10,6 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HandleTrustedDevice
 {
+    private const TRUSTED_DEVICE_DAYS = 14;
+
+    private const TRUSTED_DEVICE_MINUTES = 60 * 24 * self::TRUSTED_DEVICE_DAYS;
+
     /**
      * Handle an incoming request.
      */
@@ -27,24 +31,26 @@ class HandleTrustedDevice
             if ($rememberDevice) {
                 $user = $request->user();
 
-                // Check if device already exists
-                $existingDevice = TrustedDevice::where('user_id', $user->id)
-                    ->where('user_agent', $request->userAgent())
-                    ->where('ip_address', $request->ip())
-                    ->first();
+                $deviceToken = $request->cookie('trusted_device');
+                $existingDevice = $deviceToken
+                    ? TrustedDevice::where('user_id', $user->id)
+                        ->where('device_token', $deviceToken)
+                        ->first()
+                    : null;
 
                 if ($existingDevice) {
-                    // Update existing device
                     $existingDevice->update([
                         'last_used_at' => now(),
-                        'expires_at' => now()->addDays(30),
+                        'expires_at' => now()->addDays(self::TRUSTED_DEVICE_DAYS),
+                        'user_agent' => $request->userAgent(),
+                        'ip_address' => $request->ip(),
                     ]);
 
                     return $response->withCookie(
                         cookie(
                             'trusted_device',
                             $existingDevice->device_token,
-                            60 * 24 * 30,
+                            self::TRUSTED_DEVICE_MINUTES,
                             null,
                             null,
                             true,
@@ -55,10 +61,8 @@ class HandleTrustedDevice
                     );
                 }
 
-                // Generate unique device token
                 $deviceToken = Str::random(64);
 
-                // Save trusted device
                 TrustedDevice::create([
                     'user_id' => $user->id,
                     'device_token' => $deviceToken,
@@ -66,15 +70,14 @@ class HandleTrustedDevice
                     'user_agent' => $request->userAgent(),
                     'ip_address' => $request->ip(),
                     'last_used_at' => now(),
-                    'expires_at' => now()->addDays(30),
+                    'expires_at' => now()->addDays(self::TRUSTED_DEVICE_DAYS),
                 ]);
 
-                // Add cookie to response
                 return $response->withCookie(
                     cookie(
                         'trusted_device',
                         $deviceToken,
-                        60 * 24 * 30, // 30 days
+                        self::TRUSTED_DEVICE_MINUTES,
                         null,
                         null,
                         true, // secure
