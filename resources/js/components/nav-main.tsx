@@ -13,7 +13,6 @@ import {
     SidebarMenuSubItem,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { resolveUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -23,11 +22,9 @@ import { useState } from 'react';
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const page = usePage();
     const { isMobile, setOpenMobile } = useSidebar();
-    const cleanup = useMobileNavigation();
 
     const handleNavClick = () => {
         if (isMobile) {
-            cleanup();
             setOpenMobile(false);
         }
     };

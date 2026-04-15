@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 
 export function useMobileNavigation() {
     return useCallback(() => {
-        // Remove pointer-events style from body...
-        document.body.style.removeProperty('pointer-events');
+        // Keep as no-op to preserve existing call sites without mutating body styles.
     }, []);
 }

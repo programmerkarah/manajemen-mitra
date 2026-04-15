@@ -180,12 +180,7 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={(isOpen) => {
-        setOpenMobile(isOpen)
-        if (!isOpen) {
-          document.body.style.removeProperty('pointer-events')
-        }
-      }} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetHeader className="sr-only">
           <SheetTitle>Sidebar</SheetTitle>
           <SheetDescription>Displays the mobile sidebar.</SheetDescription>
