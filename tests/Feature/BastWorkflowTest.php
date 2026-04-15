@@ -97,8 +97,7 @@ class BastWorkflowTest extends TestCase
                 'bast_kegiatan_id' => $ownFutureLampiran->id,
             ]);
 
-        $generateOwnFuture->assertRedirect();
-        $generateOwnFuture->assertSessionHas('error');
+        $generateOwnFuture->assertStatus(422);
         $this->assertNull($ownFutureLampiran->fresh()->file_path);
 
         $generateOther = $this
