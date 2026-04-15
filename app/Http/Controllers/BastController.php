@@ -15,13 +15,13 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class BastController extends Controller
 {
@@ -114,6 +114,17 @@ class BastController extends Controller
         }
 
         return public_path(ltrim(str_replace('\\', '/', $path), '/'));
+    }
+
+    private function redirectToLocalPath(Request $request, string $fallbackPath): RedirectResponse
+    {
+        $redirectPath = trim((string) $request->input('redirect_url'));
+
+        if ($redirectPath !== '' && str_starts_with($redirectPath, '/') && ! str_starts_with($redirectPath, '//')) {
+            return redirect()->to($redirectPath);
+        }
+
+        return redirect()->to($fallbackPath);
     }
 
     private function deleteStoredDocument(?string $path): void
@@ -3268,7 +3279,8 @@ class BastController extends Controller
         $draftAbsolutePath = $this->resolveDocumentAbsolutePath($draftPath);
 
         if (! $draftAbsolutePath || ! file_exists($draftAbsolutePath)) {
-            return redirect()->back()->with('error', 'Lampiran belum digenerate.');
+            return $this->redirectToLocalPath($request, route('bast.index', absolute: false))
+                ->with('error', 'Lampiran belum digenerate.');
         }
 
         $signedPath = $this->buildPreviewLampiranRelativePath(
@@ -3298,7 +3310,14 @@ class BastController extends Controller
             ]
         );
 
-        return redirect()->back()->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
+        $fallbackPath = route('bast.list', [
+            'bulan' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->bulan ?? 0),
+            'tahun' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->tahun ?? now()->year),
+            'petugas_id' => (int) $spk->petugas_id,
+        ], false);
+
+        return $this->redirectToLocalPath($request, $fallbackPath)
+            ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
     }
 
     public function previewStoredLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
@@ -3545,7 +3564,8 @@ class BastController extends Controller
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
 
         if (! $bastKegiatan->file_path) {
-            return redirect()->back()->with('error', 'Lampiran belum digenerate.');
+            return $this->redirectToLocalPath($request, route('bast.show', $bast->hashed_id, false))
+                ->with('error', 'Lampiran belum digenerate.');
         }
 
         $request->validate([
@@ -3566,7 +3586,8 @@ class BastController extends Controller
 
         $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
 
-        return redirect()->back()->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
+        return $this->redirectToLocalPath($request, route('bast.show', $bast->hashed_id, false))
+            ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
     }
 
     /**

@@ -295,6 +295,91 @@ class BastWorkflowTest extends TestCase
         $this->assertFileExists(public_path($lampiranItem['file_path']));
     }
 
+    public function test_preview_lampiran_signed_upload_redirects_to_detail_page_instead_of_post_endpoint(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.generate-download-lampiran-preview'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+            ])
+            ->assertOk();
+
+        $redirectUrl = route('bast.list', [
+            'bulan' => 4,
+            'tahun' => 2026,
+            'petugas_id' => $context['petugas']->id,
+        ], false);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->withHeader('referer', '/bast/preview-lampiran/upload-signed')
+            ->post(route('bast.preview-lampiran.upload-signed'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $context['spk']->alokasiPetugas->periode_alokasi_id,
+                'kode_kegiatan' => $context['kegiatanOwnCompleted']->kode_kegiatan,
+                'redirect_url' => $redirectUrl,
+                'file' => $this->makePdfUpload('preview-lampiran-signed.pdf'),
+            ]);
+
+        $response->assertRedirect($redirectUrl);
+        $response->assertSessionHas('success');
+
+        $previewRecord = \App\Models\BastKegiatan::query()
+            ->whereNull('bast_id')
+            ->where('spk_id', $context['spk']->id)
+            ->where('kegiatan_id', $context['kegiatanOwnCompleted']->id)
+            ->where('periode_alokasi_id', $context['spk']->alokasiPetugas->periode_alokasi_id)
+            ->first();
+
+        $this->assertNotNull($previewRecord);
+        $this->assertNotNull($previewRecord->signed_file_path);
+    }
+
+    public function test_bast_lampiran_signed_upload_redirects_to_bast_show_page_instead_of_post_endpoint(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+
+        $lampiran = $bast->bastKegiatan()->orderBy('id')->firstOrFail();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.lampiran.generate', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]))
+            ->assertRedirect();
+
+        $redirectUrl = route('bast.show', $bast->hashed_id, false);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->withHeader('referer', route('bast.lampiran.upload-signed', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ], false))
+            ->post(route('bast.lampiran.upload-signed', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]), [
+                'redirect_url' => $redirectUrl,
+                'file' => $this->makePdfUpload('stored-lampiran-signed.pdf'),
+            ]);
+
+        $response->assertRedirect($redirectUrl);
+        $response->assertSessionHas('success');
+
+        $this->assertNotNull($lampiran->fresh()->signed_file_path);
+    }
+
     public function test_preview_bast_uses_allocated_number_sequence_like_generate_flow(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));

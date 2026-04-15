@@ -201,6 +201,10 @@ export default function Show({
     const isPreviewOnlyMode = !bast.hashed_id;
     const listScrollRef = useRef<HTMLDivElement>(null);
     const SCROLL_KEY = `bast-list-scroll-${bulan}-${tahun}`;
+    const currentDetailUrl =
+        window.location.pathname +
+        window.location.search +
+        window.location.hash;
 
     useEffect(() => {
         const saved = sessionStorage.getItem(SCROLL_KEY);
@@ -381,6 +385,7 @@ export default function Show({
                     kegiatan_id: item.kegiatan_id,
                     periode_alokasi_id: item.periode_alokasi_id,
                     kode_kegiatan: item.kode_kegiatan,
+                    redirect_url: currentDetailUrl,
                     file,
                 },
                 {
@@ -395,7 +400,10 @@ export default function Show({
 
         router.post(
             `/bast/${bast.hashed_id}/lampiran/${item.id}/upload-signed`,
-            { file },
+            {
+                file,
+                redirect_url: currentDetailUrl,
+            },
             {
                 preserveScroll: true,
                 onSuccess: reloadDetailData,

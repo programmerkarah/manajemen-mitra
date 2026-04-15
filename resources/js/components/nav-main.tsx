@@ -88,7 +88,9 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                         <Link
                                                             href={subItem.href}
                                                             prefetch
-                                                            onClick={handleNavClick}
+                                                            onClick={
+                                                                handleNavClick
+                                                            }
                                                         >
                                                             <span>
                                                                 {subItem.title}
@@ -120,7 +122,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 }
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch onClick={handleNavClick}>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    onClick={handleNavClick}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>

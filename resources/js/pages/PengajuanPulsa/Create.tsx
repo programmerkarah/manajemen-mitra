@@ -392,7 +392,8 @@ export default function PengajuanPulsaCreate({
                                                     existingTotals[petugas.id] >
                                                         0 && (
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            Sudah diajukan (kegiatan ini):{' '}
+                                                            Sudah diajukan
+                                                            (kegiatan ini):{' '}
                                                             {formatCurrency(
                                                                 existingTotals[
                                                                     petugas.id
@@ -417,7 +418,10 @@ export default function PengajuanPulsaCreate({
                                                     return (
                                                         <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600 dark:text-amber-400">
                                                             <Info className="h-3 w-3 shrink-0" />
-                                                            +{formatCurrency(externalTotal)}{' '}
+                                                            +
+                                                            {formatCurrency(
+                                                                externalTotal,
+                                                            )}{' '}
                                                             dari kegiatan lain
                                                             (total:{' '}
                                                             {formatCurrency(
