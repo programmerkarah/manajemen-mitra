@@ -323,10 +323,15 @@ export default function Show({
         const encryptedPayload = encryptFilters({
             spk_id: item.preview_spk_id,
             kegiatan_id: item.kegiatan_id,
+            periode_alokasi_id: item.periode_alokasi_id,
         });
 
+        const downloadEndpoint = item.signed_file_path || item.file_path
+            ? '/bast/download-lampiran-preview'
+            : '/bast/generate-download-lampiran-preview';
+
         await downloadFileFromPost(
-            '/bast/generate-download-lampiran-preview',
+            downloadEndpoint,
             { encrypted_filters: encryptedPayload },
             `LAMPIRAN_${item.kode_kegiatan}.pdf`,
         );
@@ -352,6 +357,7 @@ export default function Show({
         const encryptedPayload = encryptFilters({
             spk_id: item.preview_spk_id,
             kegiatan_id: item.kegiatan_id,
+            periode_alokasi_id: item.periode_alokasi_id,
         });
 
         await previewFileFromPost(

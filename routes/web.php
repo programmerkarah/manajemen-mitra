@@ -496,6 +496,8 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
             ->name('bast.open-detail-by-petugas');
         Route::get('bast/preview-lampiran', [BastController::class, 'previewLampiran'])->name('bast.preview-lampiran.get');
         Route::post('bast/preview-lampiran', [BastController::class, 'previewLampiran'])->name('bast.preview-lampiran');
+        Route::post('bast/download-lampiran-preview', [BastController::class, 'downloadLampiranPreview'])
+            ->name('bast.download-lampiran-preview');
         Route::post('bast/generate-download-lampiran-preview', [BastController::class, 'generateDownloadLampiranPreview'])
             ->name('bast.generate-download-lampiran-preview');
         Route::post('bast/preview-lampiran/upload-signed', [BastController::class, 'uploadPreviewLampiranSigned'])

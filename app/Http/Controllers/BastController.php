@@ -1289,10 +1289,10 @@ class BastController extends Controller
                             'generated_at' => $previewDocumentState['generated_at'],
                             'signed_uploaded_at' => $previewDocumentState['signed_uploaded_at'],
                             'status' => $previewDocumentState['status'],
-                            'can_download' => $readyToGenerate || filled($previewDocumentState['file_path']),
+                            'can_download' => $readyToGenerate || filled($previewDocumentState['file_path']) || filled($previewDocumentState['signed_file_path']),
                             'can_generate' => $readyToGenerate,
                             'can_upload_signed' => $previewDocumentState['can_upload_signed'],
-                            'can_preview' => $readyToGenerate,
+                            'can_preview' => $readyToGenerate || filled($previewDocumentState['file_path']) || filled($previewDocumentState['signed_file_path']),
                             'ready_to_generate' => $readyToGenerate,
                             'preview_spk_id' => $selectedSpk?->id,
                         ];
@@ -3048,7 +3048,6 @@ class BastController extends Controller
         $request->merge($decrypted);
 
         $user = $request->user();
-        $isAdminOrOperator = in_array($user?->active_role, ['admin', 'operator'], true);
         $isKetuaTim = $user?->active_role === 'ketua_tim';
 
         $rules = ['spk_id' => 'required|integer|exists:spk,id'];
@@ -3057,6 +3056,7 @@ class BastController extends Controller
         } else {
             $rules['kegiatan_id'] = 'nullable|integer|exists:kegiatan,id';
         }
+        $rules['periode_alokasi_id'] = 'nullable|integer|exists:periode_alokasi,id';
 
         $request->validate($rules);
 
@@ -3090,21 +3090,86 @@ class BastController extends Controller
             $ppk
         );
 
-        // Filter by kegiatan_id if provided
         $kegiatanId = $request->input('kegiatan_id');
+        $periodeAlokasiId = (int) $request->input('periode_alokasi_id', 0);
+
+        if ($kegiatanId) {
+            $previewRecordQuery = BastKegiatan::query()
+                ->whereNull('bast_id')
+                ->where('spk_id', $spk->id)
+                ->where('kegiatan_id', (int) $kegiatanId);
+
+            if ($periodeAlokasiId > 0) {
+                $previewRecordQuery->where('periode_alokasi_id', $periodeAlokasiId);
+            }
+
+            $previewRecord = $previewRecordQuery
+                ->orderByDesc('signed_uploaded_at')
+                ->orderByDesc('generated_at')
+                ->first();
+
+            if ($previewRecord) {
+                if ($isKetuaTim) {
+                    $managedPreview = Kegiatan::query()
+                        ->whereKey((int) $kegiatanId)
+                        ->where('ketua_tim_user_id', $user?->id)
+                        ->exists();
+
+                    abort_unless($managedPreview, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+                }
+
+                $signedPath = $this->resolveDocumentAbsolutePath($previewRecord->signed_file_path);
+                if ($signedPath && file_exists($signedPath)) {
+                    return response()->file($signedPath, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="preview_Lampiran_Signed_'.$this->sanitizeDocumentSegment($nomorBastPreview).'_'.$this->sanitizeDocumentSegment((string) $previewRecord->kode_kegiatan).'.pdf"',
+                        'Cache-Control' => 'no-cache, must-revalidate',
+                        'Expires' => '0',
+                    ]);
+                }
+
+                $draftPath = $this->resolveDocumentAbsolutePath($previewRecord->file_path);
+                if ($draftPath && file_exists($draftPath)) {
+                    return response()->file($draftPath, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="preview_Lampiran_'.$this->sanitizeDocumentSegment($nomorBastPreview).'_'.$this->sanitizeDocumentSegment((string) $previewRecord->kode_kegiatan).'.pdf"',
+                        'Cache-Control' => 'no-cache, must-revalidate',
+                        'Expires' => '0',
+                    ]);
+                }
+            }
+        }
+
         if ($kegiatanId) {
             if ($isKetuaTim) {
-                $managed = Kegiatan::query()
+                $managedQuery = Kegiatan::query()
                     ->whereKey((int) $kegiatanId)
-                    ->where('ketua_tim_user_id', $user?->id)
-                    ->exists();
+                    ->where('ketua_tim_user_id', $user?->id);
+
+                if ($periodeAlokasiId > 0) {
+                    $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiId) {
+                        $query->whereKey($periodeAlokasiId);
+                    });
+                }
+
+                $managed = $managedQuery->exists();
 
                 abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
             }
 
             $filteredKegiatan = collect($viewData['bast']->kegiatan_list)
-                ->filter(function (array $item) use ($kegiatanId) {
-                    return (int) ($item['kegiatan_id'] ?? 0) === (int) $kegiatanId;
+                ->filter(function (array $item) use ($kegiatanId, $periodeAlokasiId) {
+                    $sameKegiatan = (int) ($item['kegiatan_id'] ?? 0) === (int) $kegiatanId;
+
+                    if (! $sameKegiatan) {
+                        return false;
+                    }
+
+                    if ($periodeAlokasiId <= 0) {
+                        return true;
+                    }
+
+                    return (int) ($item['periode_alokasi_id'] ?? 0) === $periodeAlokasiId;
                 })
                 ->values()
                 ->all();
@@ -3154,6 +3219,7 @@ class BastController extends Controller
         $rules = [
             'spk_id' => 'required|integer|exists:spk,id',
             'kegiatan_id' => 'required|integer|exists:kegiatan,id',
+            'periode_alokasi_id' => 'nullable|integer|exists:periode_alokasi,id',
         ];
 
         $request->validate($rules);
@@ -3167,11 +3233,19 @@ class BastController extends Controller
         abort_unless($petugas, 404, 'Petugas pada SPK tidak ditemukan.');
 
         $kegiatanId = (int) $request->input('kegiatan_id');
+        $periodeAlokasiIdFromRequest = (int) $request->input('periode_alokasi_id', 0);
         if ($isKetuaTim) {
-            $managed = Kegiatan::query()
+            $managedQuery = Kegiatan::query()
                 ->whereKey($kegiatanId)
-                ->where('ketua_tim_user_id', $user?->id)
-                ->exists();
+                ->where('ketua_tim_user_id', $user?->id);
+
+            if ($periodeAlokasiIdFromRequest > 0) {
+                $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiIdFromRequest) {
+                    $query->whereKey($periodeAlokasiIdFromRequest);
+                });
+            }
+
+            $managed = $managedQuery->exists();
 
             abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
         }
@@ -3199,8 +3273,18 @@ class BastController extends Controller
         );
 
         $kegiatanPayload = collect($viewData['bast']->kegiatan_list)
-            ->first(function (array $item) use ($kegiatanId) {
-                return (int) ($item['kegiatan_id'] ?? 0) === $kegiatanId;
+            ->first(function (array $item) use ($kegiatanId, $periodeAlokasiIdFromRequest) {
+                $sameKegiatan = (int) ($item['kegiatan_id'] ?? 0) === $kegiatanId;
+
+                if (! $sameKegiatan) {
+                    return false;
+                }
+
+                if ($periodeAlokasiIdFromRequest <= 0) {
+                    return true;
+                }
+
+                return (int) ($item['periode_alokasi_id'] ?? 0) === $periodeAlokasiIdFromRequest;
             });
 
         abort_if(! $kegiatanPayload, 404, 'Kegiatan lampiran tidak ditemukan.');
@@ -3247,6 +3331,87 @@ class BastController extends Controller
             'Content-Type' => 'application/pdf',
             'Cache-Control' => 'no-cache, must-revalidate',
         ]);
+    }
+
+    public function downloadLampiranPreview(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
+        $user = $request->user();
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        $request->validate([
+            'spk_id' => 'required|integer|exists:spk,id',
+            'kegiatan_id' => 'required|integer|exists:kegiatan,id',
+            'periode_alokasi_id' => 'nullable|integer|exists:periode_alokasi,id',
+        ]);
+
+        $spk = Spk::query()->findOrFail((int) $request->input('spk_id'));
+        $kegiatanId = (int) $request->input('kegiatan_id');
+        $periodeAlokasiId = (int) $request->input('periode_alokasi_id', 0);
+
+        if ($isKetuaTim) {
+            $managedQuery = Kegiatan::query()
+                ->whereKey($kegiatanId)
+                ->where('ketua_tim_user_id', $user?->id);
+
+            if ($periodeAlokasiId > 0) {
+                $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiId) {
+                    $query->whereKey($periodeAlokasiId);
+                });
+            }
+
+            abort_unless($managedQuery->exists(), 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+        }
+
+        $recordQuery = BastKegiatan::query()
+            ->whereNull('bast_id')
+            ->where('spk_id', $spk->id)
+            ->where('kegiatan_id', $kegiatanId);
+
+        if ($periodeAlokasiId > 0) {
+            $recordQuery->where('periode_alokasi_id', $periodeAlokasiId);
+        }
+
+        $record = $recordQuery
+            ->orderByDesc('signed_uploaded_at')
+            ->orderByDesc('generated_at')
+            ->first();
+
+        if ($record) {
+            $nomorBast = $this->allocateNomorBastForSpk($spk, Carbon::parse($spk->tanggal_selesai_kerja ?? now()));
+
+            $signedPath = $this->resolveDocumentAbsolutePath($record->signed_file_path);
+            if ($signedPath && file_exists($signedPath)) {
+                return response()->download(
+                    $signedPath,
+                    'LAMPIRAN_SIGNED_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment((string) $record->kode_kegiatan).'.pdf',
+                    [
+                        'Content-Type' => 'application/pdf',
+                        'Cache-Control' => 'no-cache, must-revalidate',
+                    ]
+                );
+            }
+
+            $draftPath = $this->resolveDocumentAbsolutePath($record->file_path);
+            if ($draftPath && file_exists($draftPath)) {
+                return response()->download(
+                    $draftPath,
+                    'LAMPIRAN_'.$this->sanitizeDocumentSegment($nomorBast).'_'.$this->sanitizeDocumentSegment((string) $record->kode_kegiatan).'.pdf',
+                    [
+                        'Content-Type' => 'application/pdf',
+                        'Cache-Control' => 'no-cache, must-revalidate',
+                    ]
+                );
+            }
+        }
+
+        return $this->generateDownloadLampiranPreview($request);
     }
 
     public function uploadPreviewLampiranSigned(Request $request): RedirectResponse
@@ -4525,10 +4690,10 @@ class BastController extends Controller
                     'generated_at' => $item->generated_at?->format('d M Y H:i'),
                     'signed_uploaded_at' => $item->signed_uploaded_at?->format('d M Y H:i'),
                     'status' => $item->signed_file_path ? 'signed' : ($item->file_path ? 'generated' : 'pending'),
-                    'can_download' => $canManageLampiran && ($readyToGenerate || filled($item->file_path)),
+                    'can_download' => $canManageLampiran && ($readyToGenerate || filled($item->file_path) || filled($item->signed_file_path)),
                     'can_generate' => $canManageLampiran && $readyToGenerate,
                     'can_upload_signed' => $canManageLampiran && filled($item->file_path),
-                    'can_preview' => $readyToGenerate,
+                    'can_preview' => $readyToGenerate || filled($item->file_path) || filled($item->signed_file_path),
                     'ready_to_generate' => $readyToGenerate,
                 ];
             });

@@ -413,6 +413,92 @@ class BastWorkflowTest extends TestCase
         $this->assertNotNull($previewRecord->signed_file_path);
     }
 
+    public function test_preview_mode_preview_lampiran_uses_signed_file_when_available(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $periodeAlokasiId = (int) $context['spk']->alokasiPetugas->periode_alokasi_id;
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.generate-download-lampiran-preview'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ])
+            ->assertOk();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.preview-lampiran'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+                'kode_kegiatan' => $context['kegiatanOwnCompleted']->kode_kegiatan,
+                'file' => $this->makePdfUpload('preview-lampiran-signed-priority.pdf'),
+            ])
+            ->assertRedirect();
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.preview-lampiran'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'preview_Lampiran_Signed_',
+            (string) $response->headers->get('content-disposition')
+        );
+    }
+
+    public function test_ketua_tim_can_download_signed_lampiran_in_preview_mode(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $periodeAlokasiId = (int) $context['spk']->alokasiPetugas->periode_alokasi_id;
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.generate-download-lampiran-preview'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ])
+            ->assertOk();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.preview-lampiran'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+                'kode_kegiatan' => $context['kegiatanOwnCompleted']->kode_kegiatan,
+                'file' => $this->makePdfUpload('preview-lampiran-signed-ketua-tim.pdf'),
+            ])
+            ->assertRedirect();
+
+        $response = $this
+            ->actingAsWithRole($context['ketuaTimOwn'], 'ketua_tim')
+            ->post(route('bast.download-lampiran-preview'), [
+                'spk_id' => $context['spk']->id,
+                'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'LAMPIRAN_SIGNED_',
+            (string) $response->headers->get('content-disposition')
+        );
+    }
+
     public function test_bast_lampiran_signed_upload_redirects_to_bast_show_page_instead_of_post_endpoint(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));
