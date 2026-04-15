@@ -81,22 +81,21 @@ class BastWorkflowTest extends TestCase
 
         $generateOwnCompleted = $this
             ->actingAsWithRole($context['ketuaTimOwn'], 'ketua_tim')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $ownCompletedLampiran->id,
-            ]));
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $ownCompletedLampiran->id,
+            ]);
 
-        $generateOwnCompleted->assertRedirect();
-        $generateOwnCompleted->assertSessionHas('success');
+        $generateOwnCompleted->assertOk();
 
         $this->assertNotNull($ownCompletedLampiran->fresh()->file_path);
 
         $generateOwnFuture = $this
             ->actingAsWithRole($context['ketuaTimOwn'], 'ketua_tim')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $ownFutureLampiran->id,
-            ]));
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $ownFutureLampiran->id,
+            ]);
 
         $generateOwnFuture->assertRedirect();
         $generateOwnFuture->assertSessionHas('error');
@@ -104,10 +103,10 @@ class BastWorkflowTest extends TestCase
 
         $generateOther = $this
             ->actingAsWithRole($context['ketuaTimOwn'], 'ketua_tim')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $otherLampiran->id,
-            ]));
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $otherLampiran->id,
+            ]);
 
         $generateOther->assertForbidden();
         $this->assertNull($otherLampiran->fresh()->file_path);
@@ -123,11 +122,11 @@ class BastWorkflowTest extends TestCase
         foreach ($bast->bastKegiatan as $lampiran) {
             $this
                 ->actingAsWithRole($context['operator'], 'operator')
-                ->post(route('bast.lampiran.generate', [
-                    'bast' => $bast->hashed_id,
-                    'bastKegiatan' => $lampiran->id,
-                ]))
-                ->assertRedirect();
+                ->post(route('bast.lampiran.download'), [
+                    'bast_hashed_id' => $bast->hashed_id,
+                    'bast_kegiatan_id' => $lampiran->id,
+                ])
+                ->assertOk();
         }
 
         $this
