@@ -494,6 +494,7 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('bast/open-detail', [BastController::class, 'openDetailByPetugas'])
             ->name('bast.open-detail-by-petugas');
+        Route::get('bast/preview-lampiran', [BastController::class, 'previewLampiran'])->name('bast.preview-lampiran.get');
         Route::post('bast/preview-lampiran', [BastController::class, 'previewLampiran'])->name('bast.preview-lampiran');
         Route::post('bast/generate-download-lampiran-preview', [BastController::class, 'generateDownloadLampiranPreview'])
             ->name('bast.generate-download-lampiran-preview');

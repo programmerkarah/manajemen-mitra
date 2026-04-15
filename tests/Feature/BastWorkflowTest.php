@@ -295,6 +295,78 @@ class BastWorkflowTest extends TestCase
         $this->assertFileExists(public_path($lampiranItem['file_path']));
     }
 
+    public function test_generate_download_lampiran_uses_existing_generated_file_when_signed_file_not_available(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+        $lampiran = $bast->bastKegiatan()->orderBy('id')->firstOrFail();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.lampiran.generate', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]))
+            ->assertRedirect();
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get(route('bast.lampiran.generate-download', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'LAMPIRAN_',
+            (string) $response->headers->get('content-disposition')
+        );
+    }
+
+    public function test_generate_download_lampiran_prefers_signed_file_when_available(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+        $lampiran = $bast->bastKegiatan()->orderBy('id')->firstOrFail();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.lampiran.generate', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]))
+            ->assertRedirect();
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.lampiran.upload-signed', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]), [
+                'file' => $this->makePdfUpload('lampiran-signed-for-download.pdf'),
+            ])
+            ->assertRedirect();
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get(route('bast.lampiran.generate-download', [
+                'bast' => $bast->hashed_id,
+                'bastKegiatan' => $lampiran->id,
+            ]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'LAMPIRAN_SIGNED_',
+            (string) $response->headers->get('content-disposition')
+        );
+    }
+
     public function test_preview_lampiran_signed_upload_via_preview_endpoint_redirects_to_detail_page(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));

@@ -3031,6 +3031,11 @@ class BastController extends Controller
      */
     public function previewLampiran(Request $request): \Symfony\Component\HttpFoundation\Response|RedirectResponse
     {
+        if ($request->isMethod('get')) {
+            return redirect()->route('bast.index')
+                ->with('error', 'Silakan buka preview lampiran dari halaman detail BAST.');
+        }
+
         if ($request->hasFile('file')) {
             return $this->uploadPreviewLampiranSigned($request);
         }
@@ -3246,7 +3251,7 @@ class BastController extends Controller
 
     public function uploadPreviewLampiranSigned(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        $user = $this->getRequestUser($request);
         $isKetuaTim = $user?->active_role === 'ketua_tim';
 
         $request->validate([
@@ -3263,20 +3268,33 @@ class BastController extends Controller
         ])->findOrFail((int) $request->input('spk_id'));
 
         $kegiatanId = (int) $request->input('kegiatan_id');
+        $periodeAlokasiId = (int) $request->integer('periode_alokasi_id');
+
+        $fallbackPath = route('bast.list', [
+            'bulan' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->bulan ?? 0),
+            'tahun' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->tahun ?? now()->year),
+            'petugas_id' => (int) $spk->petugas_id,
+        ], false);
 
         if ($isKetuaTim) {
-            $managed = Kegiatan::query()
-                ->whereKey($kegiatanId)
-                ->where('ketua_tim_user_id', $user?->id)
+            $managed = PeriodeAlokasi::query()
+                ->whereKey($periodeAlokasiId)
+                ->where('kegiatan_id', $kegiatanId)
+                ->whereHas('kegiatan', function ($query) use ($user) {
+                    $query->where('ketua_tim_user_id', $user?->id);
+                })
                 ->exists();
 
-            abort_unless($managed, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
+            if (! $managed) {
+                return $this->redirectToLocalPath($request, $fallbackPath)
+                    ->with('error', 'Kegiatan lampiran tidak ditemukan atau tidak dapat diakses.');
+            }
         }
 
         $draftPath = $this->buildPreviewLampiranRelativePath(
             $spk,
             $kegiatanId,
-            (int) $request->integer('periode_alokasi_id'),
+            $periodeAlokasiId,
             (string) $request->string('kode_kegiatan')
         );
 
@@ -3290,7 +3308,7 @@ class BastController extends Controller
         $signedPath = $this->buildPreviewLampiranRelativePath(
             $spk,
             $kegiatanId,
-            (int) $request->integer('periode_alokasi_id'),
+            $periodeAlokasiId,
             (string) $request->string('kode_kegiatan'),
             true,
         );
@@ -3305,7 +3323,7 @@ class BastController extends Controller
                 'bast_id' => null,
                 'spk_id' => $spk->id,
                 'kegiatan_id' => $kegiatanId,
-                'periode_alokasi_id' => (int) $request->integer('periode_alokasi_id'),
+                'periode_alokasi_id' => $periodeAlokasiId,
             ],
             [
                 'kode_kegiatan' => (string) $request->string('kode_kegiatan'),
@@ -3313,12 +3331,6 @@ class BastController extends Controller
                 'signed_uploaded_at' => now(),
             ]
         );
-
-        $fallbackPath = route('bast.list', [
-            'bulan' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->bulan ?? 0),
-            'tahun' => (int) ($spk->alokasiPetugas?->periodeAlokasi?->tahun ?? now()->year),
-            'petugas_id' => (int) $spk->petugas_id,
-        ], false);
 
         return $this->redirectToLocalPath($request, $fallbackPath)
             ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
@@ -3331,6 +3343,26 @@ class BastController extends Controller
 
         $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $signedPath = $this->resolveDocumentAbsolutePath($bastKegiatan->signed_file_path);
+        if ($signedPath && file_exists($signedPath)) {
+            return response()->file($signedPath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="preview_Lampiran_Signed_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf"',
+                'Cache-Control' => 'no-cache, must-revalidate',
+                'Expires' => '0',
+            ]);
+        }
+
+        $generatedPath = $this->resolveDocumentAbsolutePath($bastKegiatan->file_path);
+        if ($generatedPath && file_exists($generatedPath)) {
+            return response()->file($generatedPath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="preview_Lampiran_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf"',
+                'Cache-Control' => 'no-cache, must-revalidate',
+                'Expires' => '0',
+            ]);
+        }
 
         $viewData = $this->prepareStoredBastViewData($bast);
         $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
@@ -3441,13 +3473,24 @@ class BastController extends Controller
         $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
 
-        $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
+        $draftFilename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
+        $signedFilename = 'LAMPIRAN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
 
-        // If already generated, serve existing file
+        // Priority: signed file if exists, then generated draft file.
+        if ($bastKegiatan->signed_file_path) {
+            $absoluteSignedPath = $this->resolveDocumentAbsolutePath($bastKegiatan->signed_file_path);
+            if ($absoluteSignedPath && file_exists($absoluteSignedPath)) {
+                return response()->download($absoluteSignedPath, $signedFilename, [
+                    'Content-Type' => 'application/pdf',
+                    'Cache-Control' => 'no-cache, must-revalidate',
+                ]);
+            }
+        }
+
         if ($bastKegiatan->file_path) {
-            $absolutePath = $this->resolveDocumentAbsolutePath($bastKegiatan->file_path);
-            if ($absolutePath && file_exists($absolutePath)) {
-                return response()->download($absolutePath, $filename, [
+            $absoluteDraftPath = $this->resolveDocumentAbsolutePath($bastKegiatan->file_path);
+            if ($absoluteDraftPath && file_exists($absoluteDraftPath)) {
+                return response()->download($absoluteDraftPath, $draftFilename, [
                     'Content-Type' => 'application/pdf',
                     'Cache-Control' => 'no-cache, must-revalidate',
                 ]);
@@ -3472,7 +3515,7 @@ class BastController extends Controller
         $this->deleteStoredDocument($bastKegiatan->file_path);
         $this->deleteStoredDocument($bastKegiatan->signed_file_path);
 
-        $filePath = $this->writePdfToPublicDirectory($filename, $pdfLampiran->output(), 'lampiran');
+        $filePath = $this->writePdfToPublicDirectory($draftFilename, $pdfLampiran->output(), 'lampiran');
 
         $bastKegiatan->update([
             'file_path' => $filePath,
@@ -3486,7 +3529,7 @@ class BastController extends Controller
         $absolutePath = $this->resolveDocumentAbsolutePath($filePath);
         abort_unless($absolutePath && file_exists($absolutePath), 500, 'Gagal menyimpan file lampiran.');
 
-        return response()->download($absolutePath, $filename, [
+        return response()->download($absolutePath, $draftFilename, [
             'Content-Type' => 'application/pdf',
             'Cache-Control' => 'no-cache, must-revalidate',
         ]);
