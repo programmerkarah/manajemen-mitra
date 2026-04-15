@@ -35,6 +35,11 @@ class BastController extends Controller
         return effectiveUser($request) ?? $request->user();
     }
 
+    private function resolveBastFromHashedId(string $hashedId): ?Bast
+    {
+        return (new Bast)->resolveRouteBinding($hashedId);
+    }
+
     private function userCanManageBastMain(Request $request): bool
     {
         $user = $this->getRequestUser($request);
@@ -125,6 +130,34 @@ class BastController extends Controller
         }
 
         return redirect()->to($fallbackPath);
+    }
+
+    private function rememberOpenDetailFiltersFromBast(Request $request, Bast $bast): void
+    {
+        $bast->loadMissing([
+            'periodeAlokasi:id,bulan,tahun',
+            'spk.alokasiPetugas:id,petugas_id',
+            'bastPetugas:id,bast_id,petugas_id',
+        ]);
+
+        $periode = $bast->periodeAlokasi;
+        if (! $periode) {
+            return;
+        }
+
+        $filters = [
+            'bulan' => (int) $periode->bulan,
+            'tahun' => (int) $periode->tahun,
+        ];
+
+        $petugasId = $bast->spk?->alokasiPetugas?->petugas_id
+            ?? $bast->bastPetugas->pluck('petugas_id')->filter()->map(fn ($id) => (int) $id)->first();
+
+        if (filled($petugasId)) {
+            $filters['petugas_id'] = (int) $petugasId;
+        }
+
+        $request->session()->put('bast_open_detail_filters', $filters);
     }
 
     private function deleteStoredDocument(?string $path): void
@@ -439,6 +472,45 @@ class BastController extends Controller
         return $tanggalSelesai <= now()->format('Y-m-d');
     }
 
+    /**
+     * Sort lampiran by earliest tanggal_selesai and assign sequential lampiran number.
+     * When tanggal_selesai is the same, use kode_kegiatan then nama_kegiatan for stable order.
+     *
+     * @param  array<int, array<string, mixed>>  $kegiatanList
+     * @return array<int, array<string, mixed>>
+     */
+    private function sortAndNumberKegiatanLampiran(array $kegiatanList): array
+    {
+        return collect($kegiatanList)
+            ->sort(function (array $left, array $right) {
+                $leftDate = $this->normalizeDateForCompare($left['tanggal_selesai'] ?? null) ?? '9999-12-31';
+                $rightDate = $this->normalizeDateForCompare($right['tanggal_selesai'] ?? null) ?? '9999-12-31';
+
+                if ($leftDate !== $rightDate) {
+                    return $leftDate <=> $rightDate;
+                }
+
+                $leftCode = mb_strtolower(trim((string) ($left['kode_kegiatan'] ?? '')));
+                $rightCode = mb_strtolower(trim((string) ($right['kode_kegiatan'] ?? '')));
+
+                if ($leftCode !== $rightCode) {
+                    return $leftCode <=> $rightCode;
+                }
+
+                $leftName = mb_strtolower(trim((string) ($left['nama_kegiatan'] ?? '')));
+                $rightName = mb_strtolower(trim((string) ($right['nama_kegiatan'] ?? '')));
+
+                return $leftName <=> $rightName;
+            })
+            ->values()
+            ->map(function (array $item, int $index) {
+                $item['lampiran_nomor'] = $index + 1;
+
+                return $item;
+            })
+            ->all();
+    }
+
     private function syncCompiledBastFiles(Bast $bast): void
     {
         $bast->loadMissing('bastKegiatan');
@@ -677,6 +749,47 @@ class BastController extends Controller
         $this->syncBastKegiatanFromPayload($bast, $viewData['bast']->kegiatan_list ?? []);
 
         return $bast;
+    }
+
+    public function openDetailByPetugas(Request $request): Response|RedirectResponse
+    {
+        if ($request->isMethod('post')) {
+            $decrypted = [];
+            if ($request->has('encrypted_filters')) {
+                $decrypted = decryptFilters($request->input('encrypted_filters'));
+            }
+
+            $request->merge($decrypted);
+
+            $validated = $request->validate([
+                'bulan' => 'required|integer|min:1|max:12',
+                'tahun' => 'required|integer|min:2000',
+                'petugas_id' => 'nullable|integer|exists:petugas,id',
+            ]);
+
+            $filters = [
+                'bulan' => (int) $validated['bulan'],
+                'tahun' => (int) $validated['tahun'],
+            ];
+
+            if (filled($validated['petugas_id'] ?? null)) {
+                $filters['petugas_id'] = (int) $validated['petugas_id'];
+            }
+
+            $request->session()->put('bast_open_detail_filters', $filters);
+
+            return redirect()->route('bast.open-detail-by-petugas');
+        }
+
+        $filters = $request->session()->get('bast_open_detail_filters');
+        if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
+            return redirect()->route('bast.index')
+                ->with('error', 'Pilih periode terlebih dahulu untuk membuka detail BAST.');
+        }
+
+        $request->merge($filters);
+
+        return $this->listByMonth($request);
     }
 
     /**
@@ -1046,12 +1159,6 @@ class BastController extends Controller
             $totalPetugas = max($eligiblePetugasCount, $petugasWithBast);
             $petugasWithoutBast = max(0, $totalPetugas - $petugasWithBast);
 
-            // Get first BAST for this month
-            $firstBast = Bast::whereYear('tanggal_bast', $activeYear)
-                ->whereMonth('tanggal_bast', $bulan)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
             $data[] = [
                 'bulan' => $bulan,
                 'bulan_label' => $this->getBulanLabel($bulan),
@@ -1061,7 +1168,6 @@ class BastController extends Controller
                 'spk_without_bast' => $petugasWithoutBast,
                 'has_spk' => $totalPetugas > 0,
                 'all_completed' => $totalPetugas > 0 && $petugasWithoutBast === 0,
-                'first_bast_hashed_id' => $firstBast?->hashed_id,
             ];
         }
 
@@ -1084,6 +1190,13 @@ class BastController extends Controller
      */
     public function listByMonth(Request $request): Response|RedirectResponse
     {
+        $decrypted = [];
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        }
+
+        $request->merge($decrypted);
+
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $selectedPetugasId = (int) $request->input('petugas_id', 0);
@@ -1105,6 +1218,27 @@ class BastController extends Controller
         })
             ->orderBy('created_at', 'desc')
             ->first();
+
+        if ($selectedPetugasId > 0) {
+            $selectedPetugasBast = Bast::query()
+                ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanFormatted) {
+                    $query->where('tahun', $tahun)
+                        ->where('bulan', $bulanFormatted);
+                })
+                ->where(function ($query) use ($selectedPetugasId) {
+                    $query->whereHas('spk.alokasiPetugas', function ($relationQuery) use ($selectedPetugasId) {
+                        $relationQuery->where('petugas_id', $selectedPetugasId);
+                    })->orWhereHas('bastPetugas', function ($relationQuery) use ($selectedPetugasId) {
+                        $relationQuery->where('petugas_id', $selectedPetugasId);
+                    });
+                })
+                ->latest('created_at')
+                ->first();
+
+            if ($selectedPetugasBast) {
+                return $this->show($request, $selectedPetugasBast);
+            }
+        }
 
         // For April 2026+, when selecting a petugas without BAST (or no BAST exists yet),
         // show same detail layout without generating BAST document.
@@ -1160,19 +1294,12 @@ class BastController extends Controller
                     });
                 })
                 ->get()
-                ->map(function ($spk) use ($bulan, $tahun) {
+                ->map(function ($spk) {
                     $petugas = $spk->alokasiPetugas?->petugas;
 
                     return [
                         'petugas_nama' => $petugas?->nama ?? 'Petugas tidak diketahui',
                         'petugas_id' => $petugas?->id,
-                        'open_detail_url' => $petugas?->id
-                            ? route('bast.list', [
-                                'bulan' => (int) $bulan,
-                                'tahun' => (int) $tahun,
-                                'petugas_id' => (int) $petugas->id,
-                            ], false)
-                            : null,
                     ];
                 })
                 ->sortBy('petugas_nama')
@@ -1387,8 +1514,10 @@ class BastController extends Controller
                 ->with('error', 'Tidak ada BAST untuk periode '.$this->getBulanLabel((int) $bulan).' '.$tahun);
         }
 
-        // Redirect to show page of first BAST
-        return redirect()->route('bast.show', ['bast' => $firstBast->hashed_id]);
+        // Redirect to canonical open-detail page (no hash URL)
+        $this->rememberOpenDetailFiltersFromBast($request, $firstBast);
+
+        return redirect()->route('bast.open-detail-by-petugas');
     }
 
     /**
@@ -2381,6 +2510,8 @@ class BastController extends Controller
             ];
         }
 
+        $bastData['kegiatan_list'] = $this->sortAndNumberKegiatanLampiran($bastData['kegiatan_list']);
+
         $bastObject = (object) $bastData;
 
         // Get Kepala BPS
@@ -2577,6 +2708,8 @@ class BastController extends Controller
                 ],
             ];
         }
+
+        $kegiatanList = $this->sortAndNumberKegiatanLampiran($kegiatanList);
 
         // Get Kepala BPS
         $kepala = Penandatangan::where('jenis_penandatangan', 'kepala')
@@ -3204,6 +3337,27 @@ class BastController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    /**
+     * Generic lampiran preview route for both stored BAST and preview-only mode.
+     */
+    public function previewLampiranByReference(Request $request): \Symfony\Component\HttpFoundation\Response|RedirectResponse
+    {
+        if ($request->filled('bast_hashed_id') || $request->filled('bast_kegiatan_id')) {
+            $request->validate([
+                'bast_hashed_id' => 'required|string',
+                'bast_kegiatan_id' => 'required|integer|exists:bast_kegiatan,id',
+            ]);
+
+            $bast = $this->resolveBastFromHashedId((string) $request->input('bast_hashed_id'));
+            abort_unless($bast, 404);
+            $bastKegiatan = BastKegiatan::query()->findOrFail((int) $request->input('bast_kegiatan_id'));
+
+            return $this->previewStoredLampiran($request, $bast, $bastKegiatan);
+        }
+
+        return $this->previewLampiran($request);
+    }
+
     public function generateDownloadLampiranPreview(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $decrypted = [];
@@ -3414,6 +3568,27 @@ class BastController extends Controller
         return $this->generateDownloadLampiranPreview($request);
     }
 
+    /**
+     * Generic lampiran download route for both stored BAST and preview-only mode.
+     */
+    public function downloadLampiranByReference(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        if ($request->filled('bast_hashed_id') || $request->filled('bast_kegiatan_id')) {
+            $request->validate([
+                'bast_hashed_id' => 'required|string',
+                'bast_kegiatan_id' => 'required|integer|exists:bast_kegiatan,id',
+            ]);
+
+            $bast = $this->resolveBastFromHashedId((string) $request->input('bast_hashed_id'));
+            abort_unless($bast, 404);
+            $bastKegiatan = BastKegiatan::query()->findOrFail((int) $request->input('bast_kegiatan_id'));
+
+            return $this->generateDownloadLampiran($request, $bast, $bastKegiatan);
+        }
+
+        return $this->downloadLampiranPreview($request);
+    }
+
     public function uploadPreviewLampiranSigned(Request $request): RedirectResponse
     {
         $user = $this->getRequestUser($request);
@@ -3499,6 +3674,39 @@ class BastController extends Controller
 
         return $this->redirectToLocalPath($request, $fallbackPath)
             ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
+    }
+
+    /**
+     * Generic lampiran signed upload route for both stored BAST and preview-only mode.
+     */
+    public function uploadLampiranSignedByReference(Request $request): RedirectResponse
+    {
+        if ($request->filled('bast_hashed_id') || $request->filled('bast_kegiatan_id')) {
+            $request->validate([
+                'bast_hashed_id' => 'required|string',
+                'bast_kegiatan_id' => 'required|integer|exists:bast_kegiatan,id',
+                'file' => 'required|file|mimes:pdf|max:10240',
+            ]);
+
+            $bast = $this->resolveBastFromHashedId((string) $request->input('bast_hashed_id'));
+            if (! $bast) {
+                return $this->redirectToLocalPath($request, route('bast.index', absolute: false))
+                    ->with('error', 'Data BAST tidak ditemukan atau sudah tidak tersedia.');
+            }
+
+            $bastKegiatan = BastKegiatan::query()->find((int) $request->input('bast_kegiatan_id'));
+
+            if (! $bastKegiatan) {
+                $this->rememberOpenDetailFiltersFromBast($request, $bast);
+
+                return $this->redirectToLocalPath($request, route('bast.open-detail-by-petugas', absolute: false))
+                    ->with('error', 'Data lampiran tidak ditemukan.');
+            }
+
+            return $this->uploadLampiranSigned($request, $bast, $bastKegiatan);
+        }
+
+        return $this->uploadPreviewLampiranSigned($request);
     }
 
     public function previewStoredLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
@@ -3776,7 +3984,9 @@ class BastController extends Controller
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
 
         if (! $bastKegiatan->file_path) {
-            return $this->redirectToLocalPath($request, route('bast.show', $bast->hashed_id, false))
+            $this->rememberOpenDetailFiltersFromBast($request, $bast);
+
+            return $this->redirectToLocalPath($request, route('bast.open-detail-by-petugas', absolute: false))
                 ->with('error', 'Lampiran belum digenerate.');
         }
 
@@ -3798,7 +4008,9 @@ class BastController extends Controller
 
         $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
 
-        return $this->redirectToLocalPath($request, route('bast.show', $bast->hashed_id, false))
+        $this->rememberOpenDetailFiltersFromBast($request, $bast);
+
+        return $this->redirectToLocalPath($request, route('bast.open-detail-by-petugas', absolute: false))
             ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
     }
 
@@ -4642,19 +4854,12 @@ class BastController extends Controller
                 });
             })
             ->get()
-            ->map(function ($spk) use ($periode) {
+            ->map(function ($spk) {
                 $petugas = $spk->alokasiPetugas?->petugas;
 
                 return [
                     'petugas_nama' => $petugas?->nama ?? 'Petugas tidak diketahui',
                     'petugas_id' => $petugas?->id,
-                    'open_detail_url' => $petugas?->id
-                        ? route('bast.list', [
-                            'bulan' => (int) $periode->bulan,
-                            'tahun' => (int) $periode->tahun,
-                            'petugas_id' => (int) $petugas->id,
-                        ], false)
-                        : null,
                 ];
             })
             ->sortBy('petugas_nama')
@@ -4834,13 +5039,14 @@ class BastController extends Controller
             })
             ->map(function (Bast $bast) use ($currentBast) {
                 $petugasNama = $bast->spk?->alokasiPetugas?->petugas?->nama ?? 'Unknown';
+                $petugasId = $bast->spk?->alokasiPetugas?->petugas?->id;
 
                 return [
                     'id' => $bast->id,
                     'hashed_id' => $bast->hashed_id,
                     'nomor_bast' => $bast->nomor_bast,
                     'petugas_nama' => $petugasNama,
-                    'petugas_id' => $bast->spk?->alokasiPetugas?->petugas?->id,
+                    'petugas_id' => $petugasId,
                     'file_path' => $bast->file_path,
                     'compiled_file_path' => $bast->compiled_file_path,
                     'main_signed_file_path' => $bast->main_signed_file_path,

@@ -146,10 +146,9 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.upload-signed', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $firstLampiran->id,
-            ]), [
+            ->post(route('bast.lampiran.upload-signed'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $firstLampiran->id,
                 'file' => $this->makePdfUpload('lampiran-1-signed.pdf'),
             ])
             ->assertRedirect();
@@ -158,10 +157,9 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.upload-signed', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $secondLampiran->id,
-            ]), [
+            ->post(route('bast.lampiran.upload-signed'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $secondLampiran->id,
                 'file' => $this->makePdfUpload('lampiran-2-signed.pdf'),
             ])
             ->assertRedirect();
@@ -263,7 +261,7 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.generate-download-lampiran-preview'), [
+            ->post(route('bast.lampiran.download'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
             ]);
@@ -303,20 +301,12 @@ class BastWorkflowTest extends TestCase
         $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
         $lampiran = $bast->bastKegiatan()->orderBy('id')->firstOrFail();
 
-        $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]))
-            ->assertRedirect();
-
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->get(route('bast.lampiran.generate-download', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]));
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
+            ]);
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
@@ -336,28 +326,27 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]))
-            ->assertRedirect();
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
+            ])
+            ->assertOk();
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.upload-signed', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]), [
+            ->post(route('bast.lampiran.upload-signed'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
                 'file' => $this->makePdfUpload('lampiran-signed-for-download.pdf'),
             ])
             ->assertRedirect();
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->get(route('bast.lampiran.generate-download', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]));
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
+            ]);
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
@@ -375,7 +364,7 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.generate-download-lampiran-preview'), [
+            ->post(route('bast.lampiran.download'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
             ])
@@ -389,8 +378,8 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->withHeader('referer', '/bast/preview-lampiran')
-            ->post(route('bast.preview-lampiran'), [
+            ->withHeader('referer', '/bast/lampiran-action/upload-signed')
+            ->post(route('bast.lampiran.upload-signed'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $context['spk']->alokasiPetugas->periode_alokasi_id,
@@ -422,7 +411,7 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.generate-download-lampiran-preview'), [
+            ->post(route('bast.lampiran.download'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -431,7 +420,7 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.preview-lampiran'), [
+            ->post(route('bast.lampiran.upload-signed'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -442,7 +431,7 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.preview-lampiran'), [
+            ->post(route('bast.lampiran.preview'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -465,7 +454,7 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.generate-download-lampiran-preview'), [
+            ->post(route('bast.lampiran.download'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -474,7 +463,7 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.preview-lampiran'), [
+            ->post(route('bast.lampiran.upload-signed'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -485,7 +474,7 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['ketuaTimOwn'], 'ketua_tim')
-            ->post(route('bast.download-lampiran-preview'), [
+            ->post(route('bast.lampiran.download'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
                 'periode_alokasi_id' => $periodeAlokasiId,
@@ -499,7 +488,7 @@ class BastWorkflowTest extends TestCase
         );
     }
 
-    public function test_bast_lampiran_signed_upload_redirects_to_bast_show_page_instead_of_post_endpoint(): void
+    public function test_bast_lampiran_signed_upload_redirects_to_open_detail_page_instead_of_post_endpoint(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));
 
@@ -510,24 +499,20 @@ class BastWorkflowTest extends TestCase
 
         $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.lampiran.generate', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]))
-            ->assertRedirect();
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
+            ])
+            ->assertOk();
 
-        $redirectUrl = route('bast.show', $bast->hashed_id, false);
+        $redirectUrl = route('bast.open-detail-by-petugas', absolute: false);
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->withHeader('referer', route('bast.lampiran.upload-signed', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ], false))
-            ->post(route('bast.lampiran.upload-signed', [
-                'bast' => $bast->hashed_id,
-                'bastKegiatan' => $lampiran->id,
-            ]), [
+            ->withHeader('referer', route('bast.lampiran.upload-signed', absolute: false))
+            ->post(route('bast.lampiran.upload-signed'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $lampiran->id,
                 'redirect_url' => $redirectUrl,
                 'file' => $this->makePdfUpload('stored-lampiran-signed.pdf'),
             ]);

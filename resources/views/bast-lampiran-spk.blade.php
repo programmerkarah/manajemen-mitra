@@ -143,7 +143,10 @@
 	$peran = strtolower($kegiatan['peran'] ?? '');
 	$jenisPetugas = '';
 	$totalLampiran = count($bast->kegiatan_list);
-	$nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
+	$lampiranNomor = isset($kegiatan['lampiran_nomor'])
+		? (int) $kegiatan['lampiran_nomor']
+		: ($totalLampiran > 1 ? ($index + 1) : null);
+	$nomorLampiran = $lampiranNomor ? ' ' . $lampiranNomor : '';
 
 	if ($jenisKegiatan === 'sensus') {
 	if ($peran === 'pcl' || $peran === 'ppl' || $peran === 'pcl_ppl') {
@@ -168,8 +171,6 @@
 	}
 	}
 
-	$totalLampiran = count($bast->kegiatan_list);
-	$nomorLampiran = $totalLampiran > 1 ? ' ' . ($index + 1) : '';
 	@endphp
 
 	<div class="lampiran-page">

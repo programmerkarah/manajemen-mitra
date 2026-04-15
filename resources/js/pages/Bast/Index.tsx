@@ -12,7 +12,8 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FileCheck, FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -25,7 +26,6 @@ interface PeriodeData {
     spk_without_bast: number;
     has_spk: boolean;
     all_completed: boolean;
-    first_bast_hashed_id: string | null;
 }
 
 interface IndexProps {
@@ -99,6 +99,12 @@ export default function Index({ data, active_year }: IndexProps) {
     const openSummaryModal = (type: SummaryModalType) => {
         setSummaryModalType(type);
         setSummaryModalOpen(true);
+    };
+
+    const openDetailByPeriod = (bulan: number, tahun: number) => {
+        router.post('/bast/open-detail', {
+            encrypted_filters: encryptFilters({ bulan, tahun }),
+        });
     };
 
     const canManageMain =
@@ -304,38 +310,20 @@ export default function Index({ data, active_year }: IndexProps) {
                                                             return null;
                                                         }
 
-                                                        if (
-                                                            item.first_bast_hashed_id
-                                                        ) {
-                                                            return (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    asChild
-                                                                >
-                                                                    <Link
-                                                                        href={`/bast/${item.first_bast_hashed_id}`}
-                                                                    >
-                                                                        <FileText className="mr-1 h-4 w-4" />
-                                                                        Detail
-                                                                        BAST
-                                                                    </Link>
-                                                                </Button>
-                                                            );
-                                                        }
-
                                                         return (
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                asChild
+                                                                className="cursor-pointer"
+                                                                onClick={() =>
+                                                                    openDetailByPeriod(
+                                                                        item.bulan,
+                                                                        item.tahun,
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/bast/list?bulan=${item.bulan}&tahun=${item.tahun}`}
-                                                                >
-                                                                    <FileText className="mr-1 h-4 w-4" />
-                                                                    Detail BAST
-                                                                </Link>
+                                                                <FileText className="mr-1 h-4 w-4" />
+                                                                Detail BAST
                                                             </Button>
                                                         );
                                                     })()}
@@ -419,35 +407,18 @@ export default function Index({ data, active_year }: IndexProps) {
                                                         return null;
                                                     }
 
-                                                    if (
-                                                        item.first_bast_hashed_id
-                                                    ) {
-                                                        return (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                asChild
-                                                            >
-                                                                <Link
-                                                                    href={`/bast/${item.first_bast_hashed_id}`}
-                                                                >
-                                                                    <FileText className="h-3.5 w-3.5" />
-                                                                </Link>
-                                                            </Button>
-                                                        );
-                                                    }
-
                                                     return (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            asChild
+                                                            onClick={() =>
+                                                                openDetailByPeriod(
+                                                                    item.bulan,
+                                                                    item.tahun,
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/bast/list?bulan=${item.bulan}&tahun=${item.tahun}`}
-                                                            >
-                                                                <FileText className="h-3.5 w-3.5" />
-                                                            </Link>
+                                                            <FileText className="h-3.5 w-3.5" />
                                                         </Button>
                                                     );
                                                 })()}

@@ -234,7 +234,7 @@ export default function CreateForMonth({
 
         try {
             await previewFileFromPost(
-                '/bast/preview-lampiran',
+                '/bast/lampiran-action/preview',
                 { encrypted_filters: encryptedPayload },
                 'Preview_Lampiran.pdf',
             );

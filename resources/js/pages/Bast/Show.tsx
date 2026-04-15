@@ -8,7 +8,6 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import {
     constructBastDownloadFilename,
-    downloadFileFromGet,
     downloadFileFromPost,
     openFastDownload,
     previewFileFromPost,
@@ -111,6 +110,7 @@ interface BastListItem {
     hashed_id: string;
     nomor_bast: string;
     petugas_nama: string;
+    petugas_id?: number | null;
     file_path: string | null;
     compiled_file_path: string | null;
     main_signed_file_path: string | null;
@@ -137,7 +137,6 @@ interface Summary {
 interface EligibleWithoutBast {
     petugas_nama: string;
     petugas_id?: number | null;
-    open_detail_url?: string | null;
 }
 
 interface ShowProps {
@@ -222,6 +221,29 @@ export default function Show({
         }
     };
 
+    const openDetailByPetugas = (petugasId?: number | null) => {
+        handleListLinkClick();
+
+        if (!petugasId) {
+            return;
+        }
+
+        router.post(
+            '/bast/open-detail',
+            {
+                encrypted_filters: encryptFilters({
+                    bulan,
+                    tahun,
+                    petugas_id: petugasId,
+                }),
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
+    };
+
     const reloadDetailData = () => {
         router.get(
             window.location.pathname + window.location.search,
@@ -258,6 +280,7 @@ export default function Show({
     const allCompiledInList =
         sortedBastList.length > 0 &&
         sortedBastList.every((item) => item.compiled_file_path);
+    const activePetugasId = petugas?.id ?? null;
     const canDownloadAll = bast.is_legacy_mode
         ? allSignedInList
         : allCompiledInList;
@@ -305,34 +328,24 @@ export default function Show({
             return;
         }
 
-        if (bast.hashed_id) {
-            await downloadFileFromGet(
-                `/bast/${bast.hashed_id}/lampiran/${item.id}/generate-download`,
-                `LAMPIRAN_${item.kode_kegiatan}.pdf`,
-            );
-
-            reloadDetailData();
-
+        if (!bast.hashed_id && !item.preview_spk_id) {
             return;
         }
-
-        if (!item.preview_spk_id) {
-            return;
-        }
-
-        const encryptedPayload = encryptFilters({
-            spk_id: item.preview_spk_id,
-            kegiatan_id: item.kegiatan_id,
-            periode_alokasi_id: item.periode_alokasi_id,
-        });
-
-        const downloadEndpoint = item.signed_file_path || item.file_path
-            ? '/bast/download-lampiran-preview'
-            : '/bast/generate-download-lampiran-preview';
 
         await downloadFileFromPost(
-            downloadEndpoint,
-            { encrypted_filters: encryptedPayload },
+            '/bast/lampiran-action/download',
+            bast.hashed_id
+                ? {
+                      bast_hashed_id: bast.hashed_id,
+                      bast_kegiatan_id: item.id,
+                  }
+                : {
+                      encrypted_filters: encryptFilters({
+                          spk_id: item.preview_spk_id,
+                          kegiatan_id: item.kegiatan_id,
+                          periode_alokasi_id: item.periode_alokasi_id,
+                      }),
+                  },
             `LAMPIRAN_${item.kode_kegiatan}.pdf`,
         );
 
@@ -340,29 +353,24 @@ export default function Show({
     };
 
     const handlePreviewLampiran = async (item: LampiranItem) => {
-        if (bast.hashed_id) {
-            window.open(
-                `/bast/${bast.hashed_id}/lampiran/${item.id}/preview`,
-                '_blank',
-                'noopener,noreferrer',
-            );
-
+        if (!bast.hashed_id && !item.preview_spk_id) {
             return;
         }
-
-        if (!item.preview_spk_id) {
-            return;
-        }
-
-        const encryptedPayload = encryptFilters({
-            spk_id: item.preview_spk_id,
-            kegiatan_id: item.kegiatan_id,
-            periode_alokasi_id: item.periode_alokasi_id,
-        });
 
         await previewFileFromPost(
-            '/bast/preview-lampiran',
-            { encrypted_filters: encryptedPayload },
+            '/bast/lampiran-action/preview',
+            bast.hashed_id
+                ? {
+                      bast_hashed_id: bast.hashed_id,
+                      bast_kegiatan_id: item.id,
+                  }
+                : {
+                      encrypted_filters: encryptFilters({
+                          spk_id: item.preview_spk_id,
+                          kegiatan_id: item.kegiatan_id,
+                          periode_alokasi_id: item.periode_alokasi_id,
+                      }),
+                  },
             `Preview_Lampiran_${item.kode_kegiatan}.pdf`,
         );
     };
@@ -378,44 +386,33 @@ export default function Show({
 
         setUploadingTarget(`lampiran-${item.id}`);
 
-        if (!bast.hashed_id) {
-            if (!item.preview_spk_id) {
-                setUploadingTarget(null);
-                return;
-            }
-
-            router.post(
-                '/bast/preview-lampiran',
-                {
-                    spk_id: item.preview_spk_id,
-                    kegiatan_id: item.kegiatan_id,
-                    periode_alokasi_id: item.periode_alokasi_id,
-                    kode_kegiatan: item.kode_kegiatan,
-                    redirect_url: currentDetailUrl,
-                    file,
-                },
-                {
-                    preserveScroll: true,
-                    onSuccess: reloadDetailData,
-                    onFinish: () => setUploadingTarget(null),
-                },
-            );
+        if (!bast.hashed_id && !item.preview_spk_id) {
+            setUploadingTarget(null);
 
             return;
         }
 
-        router.post(
-            `/bast/${bast.hashed_id}/lampiran/${item.id}/upload-signed`,
-            {
-                file,
-                redirect_url: currentDetailUrl,
-            },
-            {
-                preserveScroll: true,
-                onSuccess: reloadDetailData,
-                onFinish: () => setUploadingTarget(null),
-            },
-        );
+        const uploadPayload = bast.hashed_id
+            ? {
+                  bast_hashed_id: bast.hashed_id,
+                  bast_kegiatan_id: item.id,
+                  redirect_url: currentDetailUrl,
+                  file,
+              }
+            : {
+                  spk_id: item.preview_spk_id,
+                  kegiatan_id: item.kegiatan_id,
+                  periode_alokasi_id: item.periode_alokasi_id,
+                  kode_kegiatan: item.kode_kegiatan,
+                  redirect_url: currentDetailUrl,
+                  file,
+              };
+
+        router.post('/bast/lampiran-action/upload-signed', uploadPayload, {
+            preserveScroll: true,
+            onSuccess: reloadDetailData,
+            onFinish: () => setUploadingTarget(null),
+        });
     };
 
     return (
@@ -574,13 +571,19 @@ export default function Show({
                                     className="max-h-[calc(100vh-16rem)] space-y-2 overflow-y-auto pr-1"
                                 >
                                     {sortedBastList.map((item) => (
-                                        <Link
+                                        <button
+                                            type="button"
                                             key={item.id}
-                                            href={`/bast/${item.hashed_id}`}
-                                            preserveScroll
-                                            onClick={handleListLinkClick}
-                                            className={`block h-auto w-full rounded-xl border p-4 text-left transition-colors ${
-                                                item.is_current
+                                            onClick={() =>
+                                                openDetailByPetugas(
+                                                    item.petugas_id,
+                                                )
+                                            }
+                                            className={`block h-auto w-full cursor-pointer rounded-xl border p-4 text-left transition-colors ${
+                                                item.is_current ||
+                                                (activePetugasId !== null &&
+                                                    item.petugas_id ===
+                                                        activePetugasId)
                                                     ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
                                                     : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
                                             }`}
@@ -608,14 +611,21 @@ export default function Show({
                                                     )}
                                                 </div>
                                             </div>
-                                        </Link>
+                                        </button>
                                     ))}
 
                                     {eligible_without_bast.map((item, idx) => {
+                                        const isPendingCurrent =
+                                            activePetugasId !== null &&
+                                            item.petugas_id === activePetugasId;
+
                                         const content = (
                                             <div className="space-y-1">
                                                 <div className="font-medium text-neutral-900 dark:text-white">
                                                     {item.petugas_nama}
+                                                </div>
+                                                <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                    -
                                                 </div>
                                                 <div className="flex pt-1">
                                                     <Badge variant="outline">
@@ -625,26 +635,31 @@ export default function Show({
                                             </div>
                                         );
 
-                                        if (item.open_detail_url) {
+                                        if (item.petugas_id) {
                                             return (
-                                                <Link
+                                                <button
+                                                    type="button"
                                                     key={`pending-${idx}`}
-                                                    href={item.open_detail_url}
-                                                    preserveScroll
-                                                    onClick={
-                                                        handleListLinkClick
+                                                    onClick={() =>
+                                                        openDetailByPetugas(
+                                                            item.petugas_id,
+                                                        )
                                                     }
-                                                    className="block h-auto w-full rounded-xl border border-dashed border-neutral-200 p-4 transition-colors hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600"
+                                                    className={`block h-auto w-full cursor-pointer rounded-xl border p-4 text-left transition-colors ${
+                                                        isPendingCurrent
+                                                            ? 'border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-800'
+                                                            : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                    }`}
                                                 >
                                                     {content}
-                                                </Link>
+                                                </button>
                                             );
                                         }
 
                                         return (
                                             <div
                                                 key={`pending-${idx}`}
-                                                className="h-auto w-full rounded-xl border border-dashed border-neutral-200 p-4 dark:border-neutral-700"
+                                                className="h-auto w-full rounded-xl border border-neutral-200 p-4 text-left dark:border-neutral-700"
                                             >
                                                 {content}
                                             </div>
