@@ -151,7 +151,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('two-factor.prompt');
 });
 
-Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
+Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->group(function () {
     // Logout
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 

@@ -50,6 +50,7 @@ class SsoOAuthTest extends TestCase
         config()->set('services.sso.client_secret', 'secret-123');
         config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
         config()->set('services.sso.user_endpoint', '/api/user');
+        config()->set('services.sso.allowed_organization_types', ['internal']);
 
         $user = User::factory()->withoutTwoFactor()->create([
             'name' => 'User Lokal',
@@ -67,6 +68,7 @@ class SsoOAuthTest extends TestCase
                 'name' => 'User Dari SSO',
                 'username' => 'userlokal',
                 'email' => 'userlokal@example.com',
+                'organization_type' => 'internal',
                 'email_verified_at' => now()->toDateTimeString(),
             ], 200),
         ]);

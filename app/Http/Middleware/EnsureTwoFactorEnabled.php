@@ -11,14 +11,15 @@ class EnsureTwoFactorEnabled
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        // Skip if user is not authenticated or already has 2FA enabled
-        if (! $user || $user->hasEnabledTwoFactorAuthentication()) {
+        // Skip if user is not authenticated, already has 2FA enabled, or is an SSO-managed user
+        // SSO-managed users have 2FA handled by the SSO provider
+        if (! $user || $user->hasEnabledTwoFactorAuthentication() || ! is_null($user->sso_user_id)) {
             return $next($request);
         }
 

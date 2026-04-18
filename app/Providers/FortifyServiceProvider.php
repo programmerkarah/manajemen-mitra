@@ -84,6 +84,7 @@ class FortifyServiceProvider extends ServiceProvider
             'ssoLoginUrl' => route('sso.redirect'),
             'ssoRegisterUrl' => config('services.sso.register_url'),
             'status' => $request->session()->get('status'),
+            'error' => $request->session()->get('error'),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/reset-password', [

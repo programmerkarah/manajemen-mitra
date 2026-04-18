@@ -1,5 +1,6 @@
 import { store } from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import AppLogo from '@/components/app-logo';
+import { FlashMessage } from '@/components/flash-message';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { LogIn } from 'lucide-react';
 
 interface LoginProps {
     status?: string;
+    error?: string;
     canResetPassword: boolean;
     ssoActive?: boolean;
     ssoLoginUrl?: string;
@@ -20,6 +22,7 @@ interface LoginProps {
 
 export default function Login({
     status,
+    error,
     canResetPassword,
     ssoActive = false,
     ssoLoginUrl = '/auth/sso/redirect',
@@ -28,6 +31,7 @@ export default function Login({
     return (
         <>
             <Head title="Masuk" />
+            <FlashMessage />
             <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">
                 {/* Header */}
                 <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
@@ -75,6 +79,12 @@ export default function Login({
                             {status && (
                                 <div className="mb-6 rounded-lg bg-green-50 p-4 text-center text-sm font-medium text-green-700 dark:bg-green-900/20 dark:text-green-400">
                                     {status}
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="mb-6 rounded-lg bg-red-50 p-4 text-center text-sm font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                                    {error}
                                 </div>
                             )}
 

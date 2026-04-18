@@ -3,7 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -206,6 +208,7 @@ class AuthenticationTest extends TestCase
                 'name' => 'SSO First Login',
                 'username' => 'sso-first-login',
                 'email' => 'sso-first@example.com',
+                'organization_type' => 'internal',
             ]),
         ]);
 
@@ -251,6 +254,7 @@ class AuthenticationTest extends TestCase
                 'username' => 'sso-existing-user',
                 'email' => 'existing@example.com',
                 'email_verified_at' => now()->toISOString(),
+                'organization_type' => 'internal',
             ]),
         ]);
 
@@ -270,5 +274,97 @@ class AuthenticationTest extends TestCase
         $this->assertSame('Existing From SSO', $existingUser->name);
         $this->assertSame('sso-existing-user', $existingUser->username);
         $this->assertAuthenticatedAs($existingUser);
+    }
+
+    public function test_sso_callback_rejects_user_with_non_allowed_organization_type()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+        config()->set('services.sso.client_secret', 'test-client-secret');
+        config()->set('services.sso.allowed_organization_types', ['internal']);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'access_token' => 'test-access-token',
+            ]),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 1234,
+                'name' => 'External User',
+                'username' => 'external-user',
+                'email' => 'external@example.com',
+                'organization_type' => 'vendor',
+            ]),
+        ]);
+
+        $response = $this->withSession(['sso_oauth_state' => 'valid-state'])
+            ->get(route('sso.callback', [
+                'code' => 'valid-code',
+                'state' => 'valid-state',
+            ]));
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('username');
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', [
+            'sso_user_id' => 1234,
+        ]);
+    }
+
+    public function test_sso_callback_syncs_two_factor_data_from_sso_profile()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+        config()->set('services.sso.client_secret', 'test-client-secret');
+
+        $confirmedAt = Carbon::parse('2026-04-19 08:30:00');
+        $passwordHash = Hash::make('SsoPassword#2026');
+        $existingUser = User::factory()->withoutTwoFactor()->create([
+            'username' => 'local-user',
+            'email' => 'existing@example.com',
+            'sso_user_id' => 991,
+        ]);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'access_token' => 'test-access-token',
+            ]),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 991,
+                'name' => 'Existing From SSO',
+                'username' => 'sso-existing-user',
+                'email' => 'existing@example.com',
+                'email_verified_at' => now()->toISOString(),
+                'organization_type' => 'internal',
+                'password_hash' => $passwordHash,
+                'two_factor' => [
+                    'secret' => 'shared-secret',
+                    'recovery_codes' => ['code-1', 'code-2'],
+                    'confirmed_at' => $confirmedAt->toISOString(),
+                ],
+            ]),
+        ]);
+
+        $response = $this->withSession(['sso_oauth_state' => 'valid-state'])
+            ->get(route('sso.callback', [
+                'code' => 'valid-code',
+                'state' => 'valid-state',
+            ]));
+
+        $response->assertRedirect(route('dashboard'));
+
+        $existingUser->refresh();
+
+        $this->assertNotNull($existingUser->two_factor_secret);
+        $this->assertNotNull($existingUser->two_factor_recovery_codes);
+        $this->assertNotNull($existingUser->two_factor_confirmed_at);
+        $this->assertSame('shared-secret', decrypt($existingUser->two_factor_secret));
+        $this->assertSame(['code-1', 'code-2'], json_decode(decrypt($existingUser->two_factor_recovery_codes), true));
+        $this->assertTrue(Hash::check('SsoPassword#2026', $existingUser->password));
+        $this->assertSame(
+            $confirmedAt->clone()->utc()->toDateTimeString(),
+            $existingUser->two_factor_confirmed_at->toDateTimeString(),
+        );
     }
 }

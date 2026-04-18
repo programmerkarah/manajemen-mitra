@@ -12,7 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Fortify;
 
 class SsoOAuthController extends Controller
 {
@@ -65,10 +67,13 @@ class SsoOAuthController extends Controller
 
         if ($request->filled('error')) {
             $errorDescription = $request->string('error_description')->toString();
+            $message = $errorDescription !== '' ? $errorDescription : 'Login SSO dibatalkan atau gagal.';
 
-            return redirect()->route('login')->withErrors([
-                'username' => $errorDescription !== '' ? $errorDescription : 'Login SSO dibatalkan atau gagal.',
-            ]);
+            return redirect()->route('login')
+                ->with('error', $message)
+                ->withErrors([
+                    'username' => $message,
+                ]);
         }
 
         $code = $request->string('code')->toString();
@@ -123,6 +128,14 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        $organizationType = $this->resolveOrganizationType($profile);
+
+        if (! $this->isAllowedOrganizationType($organizationType)) {
+            return redirect()->route('login')->withErrors([
+                'username' => 'Akun Anda tidak diizinkan mengakses aplikasi ini berdasarkan organisasi.',
+            ]);
+        }
+
         $ssoUserId = isset($profile['id']) && (is_int($profile['id']) || is_string($profile['id']))
             ? (int) $profile['id']
             : null;
@@ -157,15 +170,16 @@ class SsoOAuthController extends Controller
             ? trim($profile['name'])
             : $localUser->name;
 
-        $emailVerifiedAt = $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $email);
-
         // Sync data dari SSO ke local user
         $localUser->forceFill([
             'sso_user_id' => $ssoUserId,
-            'name' => $name,
-            'username' => $username !== '' ? $username : $localUser->username,
-            'email' => $email !== '' ? $email : $localUser->email,
-            'email_verified_at' => $emailVerifiedAt ?? $localUser->email_verified_at,
+            'sso_organization_type' => $organizationType,
+            ...$this->resolveSsoSynchronizationAttributes(
+                profile: $profile,
+                fallbackName: $name,
+                fallbackUsername: $localUser->username,
+                fallbackEmail: $localUser->email,
+            ),
         ])->save();
 
         $this->ensureDefaultRole($localUser);
@@ -194,6 +208,44 @@ class SsoOAuthController extends Controller
         $endpoint = (string) config('services.sso.user_endpoint', '/api/user');
 
         return str_starts_with($endpoint, '/') ? $endpoint : '/'.$endpoint;
+    }
+
+    /**
+     * @param  array<string, mixed>  $profile
+     */
+    private function resolveOrganizationType(array $profile): ?string
+    {
+        $topLevelType = $profile['organization_type'] ?? null;
+
+        if (is_string($topLevelType) && trim($topLevelType) !== '') {
+            return trim($topLevelType);
+        }
+
+        $organization = $profile['organization'] ?? null;
+        if (! is_array($organization)) {
+            return null;
+        }
+
+        $nestedType = $organization['type'] ?? null;
+
+        return is_string($nestedType) && trim($nestedType) !== ''
+            ? trim($nestedType)
+            : null;
+    }
+
+    private function isAllowedOrganizationType(?string $organizationType): bool
+    {
+        $allowedTypes = config('services.sso.allowed_organization_types', []);
+
+        if (! is_array($allowedTypes) || $allowedTypes === []) {
+            return true;
+        }
+
+        if (! is_string($organizationType) || $organizationType === '') {
+            return false;
+        }
+
+        return in_array($organizationType, $allowedTypes, true);
     }
 
     private function resolveLocalUser(?int $ssoUserId, string $email, string $username): ?User
@@ -295,6 +347,155 @@ class SsoOAuthController extends Controller
         }
 
         return $this->makeUniqueValue('email', $candidate, $ssoUserId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $profile
+     * @return array<string, mixed>
+     */
+    private function resolveSsoSynchronizationAttributes(
+        array $profile,
+        string $fallbackName,
+        string $fallbackUsername,
+        string $fallbackEmail,
+    ): array {
+        $attributes = [
+            'name' => $fallbackName,
+            'username' => $this->resolveStringValue($profile['username'] ?? null) ?? $fallbackUsername,
+            'email' => $this->resolveStringValue($profile['email'] ?? null) ?? $fallbackEmail,
+            'email_verified_at' => $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $fallbackEmail),
+        ];
+
+        if ($this->hasUserColumn('password')) {
+            $passwordHash = $this->resolveStringValue($profile['password_hash'] ?? null);
+
+            if ($passwordHash !== null) {
+                $attributes['password'] = $passwordHash;
+            }
+        }
+
+        if ($this->hasUserColumn('last_login_at')) {
+            $attributes['last_login_at'] = $this->resolveDateTimeValue($profile['last_login_at'] ?? null);
+        }
+
+        if ($this->hasUserColumn('password_change_required')) {
+            $attributes['password_change_required'] = (bool) ($profile['password_change_required'] ?? false);
+        }
+
+        return [
+            ...$attributes,
+            ...$this->resolveTwoFactorAttributes($profile),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $profile
+     * @return array<string, mixed>
+     */
+    private function resolveTwoFactorAttributes(array $profile): array
+    {
+        if (! $this->hasUserColumn('two_factor_secret')
+            || ! $this->hasUserColumn('two_factor_recovery_codes')
+            || ! $this->hasUserColumn('two_factor_confirmed_at')) {
+            return [];
+        }
+
+        $twoFactorPayload = $this->resolveTwoFactorPayload($profile);
+
+        if ($twoFactorPayload === null) {
+            return [];
+        }
+
+        if ($twoFactorPayload === false) {
+            return [
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+                'two_factor_confirmed_at' => null,
+            ];
+        }
+
+        [$secret, $recoveryCodes, $confirmedAt] = $twoFactorPayload;
+
+        $normalizedRecoveryCodes = collect($recoveryCodes)
+            ->filter(fn (mixed $code): bool => is_string($code) && trim($code) !== '')
+            ->map(fn (string $code): string => trim($code))
+            ->values()
+            ->all();
+
+        return [
+            'two_factor_secret' => Fortify::currentEncrypter()->encrypt(trim($secret)),
+            'two_factor_recovery_codes' => Fortify::currentEncrypter()->encrypt(json_encode($normalizedRecoveryCodes)),
+            'two_factor_confirmed_at' => $this->resolveDateTimeValue($confirmedAt),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $profile
+     * @return array{0:string,1:array<int,string>,2:mixed}|false|null
+     */
+    private function resolveTwoFactorPayload(array $profile): array|bool|null
+    {
+        if (! array_key_exists('two_factor', $profile)) {
+            $legacySecret = $this->resolveStringValue($profile['two_factor_secret_plain'] ?? null);
+
+            if ($legacySecret === null) {
+                return null;
+            }
+
+            return [
+                $legacySecret,
+                is_array($profile['two_factor_recovery_codes_plain'] ?? null)
+                    ? $profile['two_factor_recovery_codes_plain']
+                    : [],
+                $profile['two_factor_confirmed_at'] ?? null,
+            ];
+        }
+
+        $twoFactor = $profile['two_factor'];
+
+        if (! is_array($twoFactor)) {
+            return false;
+        }
+
+        $secret = $this->resolveStringValue($twoFactor['secret'] ?? null)
+            ?? $this->resolveStringValue($profile['two_factor_secret_plain'] ?? null);
+        $recoveryCodes = $twoFactor['recovery_codes'] ?? $profile['two_factor_recovery_codes_plain'] ?? [];
+        $confirmedAt = $twoFactor['confirmed_at'] ?? $profile['two_factor_confirmed_at'] ?? null;
+
+        if ($secret === null) {
+            return false;
+        }
+
+        return [
+            $secret,
+            is_array($recoveryCodes) ? $recoveryCodes : [],
+            $confirmedAt,
+        ];
+    }
+
+    private function resolveDateTimeValue(mixed $value): ?Carbon
+    {
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            return Carbon::parse($value);
+        }
+
+        return null;
+    }
+
+    private function resolveStringValue(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== ''
+            ? trim($value)
+            : null;
+    }
+
+    private function hasUserColumn(string $column): bool
+    {
+        return Schema::hasColumn('users', $column);
     }
 
     private function makeUniqueValue(string $column, string $candidate, ?int $ssoUserId): string

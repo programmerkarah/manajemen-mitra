@@ -87,9 +87,15 @@ class AuthenticatedSessionController extends Controller
             && ! is_null($user->two_factor_secret)
             && ! is_null($user->two_factor_confirmed_at)
         ) {
+            $userId = $user->getAuthIdentifier();
+
+            if (! is_int($userId) && ! ctype_digit((string) $userId)) {
+                abort(500, 'User identifier tidak valid untuk autentikasi dua faktor.');
+            }
+
             Auth::guard('web')->logout();
             $request->session()->put([
-                'login.id' => $user->getKey(),
+                'login.id' => (int) $userId,
                 'login.remember' => $request->boolean('remember'),
             ]);
 

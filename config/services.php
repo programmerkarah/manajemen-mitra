@@ -45,6 +45,10 @@ return [
         'user_endpoint' => env('SSO_USER_ENDPOINT', '/api/user'),
         'scope' => env('SSO_SCOPE', ''),
         'prompt' => env('SSO_PROMPT', ''),
+        'allowed_organization_types' => array_values(array_filter(array_map(
+            static fn (string $value): string => trim($value),
+            explode(',', (string) env('SSO_ALLOWED_ORGANIZATION_TYPES', 'internal')),
+        ))),
     ],
 
 ];

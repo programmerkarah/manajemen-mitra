@@ -3,6 +3,7 @@
 use App\Http\Middleware\BypassTwoFactorIfTrustedDevice;
 use App\Http\Middleware\CheckActiveRole;
 use App\Http\Middleware\EnsureSingleActiveSession;
+use App\Http\Middleware\EnsureSsoOrganizationAllowed;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -73,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'active.role' => CheckActiveRole::class,
             'bypass.2fa' => BypassTwoFactorIfTrustedDevice::class,
             'require.2fa' => EnsureTwoFactorEnabled::class,
+            'sso.organization' => EnsureSsoOrganizationAllowed::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -148,7 +150,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Log other critical exceptions
-        $exceptions->reportable(function (\Throwable $e) {
+        $exceptions->reportable(function (Throwable $e) {
             // Log 500 errors and other critical exceptions
             if ($e instanceof HttpException && $e->getStatusCode() >= 500) {
                 ActivityLog::log(
