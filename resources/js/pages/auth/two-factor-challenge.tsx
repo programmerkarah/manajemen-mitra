@@ -8,16 +8,67 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { Form, Head, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const { data, setData, processing } = useForm({
+    const twoFactorForm = useForm({
         code: '',
         recovery_code: '',
     });
     const { errors } = usePage().props as { errors: Record<string, string> };
+
+    const refreshCsrfToken = async (): Promise<string> => {
+        const response = await fetch('/csrf-token', {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (! response.ok) {
+            throw new Error('Gagal memperbarui CSRF token.');
+        }
+
+        const payload = (await response.json()) as { token?: string };
+        const token = payload.token;
+
+        if (! token) {
+            throw new Error('CSRF token tidak tersedia.');
+        }
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        csrfMeta?.setAttribute('content', token);
+
+        return token;
+    };
+
+    const submitTwoFactorForm = async (
+        event: FormEvent<HTMLFormElement>,
+    ): Promise<void> => {
+        event.preventDefault();
+
+        let csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
+
+        try {
+            csrfToken = await refreshCsrfToken();
+        } catch {
+            // Continue submission; backend will provide localized flash if token is still invalid.
+        }
+
+        twoFactorForm.transform((data) => ({
+            ...data,
+            _token: csrfToken,
+        }));
+
+        twoFactorForm.post('/two-factor-challenge', {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <>
@@ -50,7 +101,10 @@ export default function TwoFactorChallenge() {
                                 </p>
                             </div>
 
-                            <Form method="post" className="flex flex-col gap-6">
+                            <form
+                                onSubmit={submitTwoFactorForm}
+                                className="flex flex-col gap-6"
+                            >
                                 <div className="grid gap-5">
                                     {!showRecoveryInput ? (
                                         <div className="grid gap-2">
@@ -67,10 +121,13 @@ export default function TwoFactorChallenge() {
                                                 pattern="[0-9]*"
                                                 inputMode="numeric"
                                                 autoFocus
-                                                value={data.code}
+                                                value={twoFactorForm.data.code}
                                                 onChange={(val: string) => {
                                                     if (/^\d*$/.test(val)) {
-                                                        setData('code', val);
+                                                        twoFactorForm.setData(
+                                                            'code',
+                                                            val,
+                                                        );
                                                     }
                                                 }}
                                                 containerClassName="justify-center"
@@ -114,9 +171,12 @@ export default function TwoFactorChallenge() {
                                                 autoComplete="one-time-code"
                                                 placeholder="Recovery code"
                                                 className="h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                                value={data.recovery_code}
+                                                value={
+                                                    twoFactorForm.data
+                                                        .recovery_code
+                                                }
                                                 onChange={(e) =>
-                                                    setData(
+                                                    twoFactorForm.setData(
                                                         'recovery_code',
                                                         e.target.value,
                                                     )
@@ -140,13 +200,13 @@ export default function TwoFactorChallenge() {
                                     <Button
                                         type="submit"
                                         className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        disabled={processing}
+                                        disabled={twoFactorForm.processing}
                                         data-test="two-factor-challenge-button"
                                     >
                                         Autentikasi
                                     </Button>
                                 </div>
-                            </Form>
+                            </form>
                         </div>
                     </div>
                 </main>

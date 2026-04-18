@@ -51,8 +51,6 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/csrf-token', function () {
-    request()->session()->regenerateToken();
-
     return response()->json(['token' => csrf_token()]);
 })->name('csrf.token');
 
