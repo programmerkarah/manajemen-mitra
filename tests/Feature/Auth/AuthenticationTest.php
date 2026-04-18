@@ -190,4 +190,85 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHasErrors('username');
     }
+
+    public function test_sso_callback_creates_local_user_on_first_login()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+        config()->set('services.sso.client_secret', 'test-client-secret');
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'access_token' => 'test-access-token',
+            ]),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 777,
+                'name' => 'SSO First Login',
+                'username' => 'sso-first-login',
+                'email' => 'sso-first@example.com',
+            ]),
+        ]);
+
+        $response = $this->withSession(['sso_oauth_state' => 'valid-state'])
+            ->get(route('sso.callback', [
+                'code' => 'valid-code',
+                'state' => 'valid-state',
+            ]));
+
+        $response->assertRedirect(route('dashboard'));
+
+        $localUser = User::query()->where('sso_user_id', 777)->first();
+
+        $this->assertNotNull($localUser);
+        $this->assertSame('SSO First Login', $localUser->name);
+        $this->assertSame('sso-first-login', $localUser->username);
+        $this->assertSame('sso-first@example.com', $localUser->email);
+        $this->assertTrue($localUser->is_active);
+        $this->assertNotNull($localUser->email_verified_at);
+        $this->assertTrue($localUser->hasRole('guest'));
+        $this->assertAuthenticatedAs($localUser);
+    }
+
+    public function test_sso_callback_matches_existing_local_user_by_email_and_syncs_sso_user_id()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+        config()->set('services.sso.client_secret', 'test-client-secret');
+
+        $existingUser = User::factory()->withoutTwoFactor()->create([
+            'username' => 'local-user',
+            'email' => 'existing@example.com',
+            'sso_user_id' => null,
+        ]);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'access_token' => 'test-access-token',
+            ]),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 991,
+                'name' => 'Existing From SSO',
+                'username' => 'sso-existing-user',
+                'email' => 'existing@example.com',
+                'email_verified_at' => now()->toISOString(),
+            ]),
+        ]);
+
+        $response = $this->withSession(['sso_oauth_state' => 'valid-state'])
+            ->get(route('sso.callback', [
+                'code' => 'valid-code',
+                'state' => 'valid-state',
+            ]));
+
+        $response->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseCount('users', 1);
+
+        $existingUser->refresh();
+
+        $this->assertSame(991, $existingUser->sso_user_id);
+        $this->assertSame('Existing From SSO', $existingUser->name);
+        $this->assertSame('sso-existing-user', $existingUser->username);
+        $this->assertAuthenticatedAs($existingUser);
+    }
 }

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\SessionConcurrencyManager;
+use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -139,17 +141,10 @@ class SsoOAuthController extends Controller
             ]);
         }
 
-        // Match user dengan priority: sso_user_id → email → username
-        $localUser = User::query()
-            ->when($ssoUserId !== null, fn ($query) => $query->where('sso_user_id', $ssoUserId))
-            ->when($ssoUserId === null && $email !== '', fn ($query) => $query->orWhere('email', $email))
-            ->when($ssoUserId === null && $username !== '', fn ($query) => $query->orWhere('username', $username))
-            ->first();
+        $localUser = $this->resolveLocalUser($ssoUserId, $email, $username);
 
         if (! $localUser) {
-            return redirect()->route('login')->withErrors([
-                'username' => 'Akun Anda belum terdaftar di aplikasi ini. Hubungi admin.',
-            ]);
+            $localUser = $this->provisionLocalUser($ssoUserId, $profile, $email, $username);
         }
 
         if (! $localUser->is_active) {
@@ -162,18 +157,18 @@ class SsoOAuthController extends Controller
             ? trim($profile['name'])
             : $localUser->name;
 
-        $emailVerifiedAt = $profile['email_verified_at'] ?? null;
+        $emailVerifiedAt = $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $email);
 
         // Sync data dari SSO ke local user
         $localUser->forceFill([
-            'sso_user_id' => $ssoUserId, // Save SSO user ID untuk matching di masa depan
+            'sso_user_id' => $ssoUserId,
             'name' => $name,
-            'username' => $username !== '' ? $username : $localUser->username, // Auto-sync username dari SSO
+            'username' => $username !== '' ? $username : $localUser->username,
             'email' => $email !== '' ? $email : $localUser->email,
-            'email_verified_at' => is_string($emailVerifiedAt) && $emailVerifiedAt !== ''
-                ? $emailVerifiedAt
-                : $localUser->email_verified_at,
+            'email_verified_at' => $emailVerifiedAt ?? $localUser->email_verified_at,
         ])->save();
+
+        $this->ensureDefaultRole($localUser);
 
         Auth::login($localUser, true);
         $request->session()->regenerate();
@@ -199,5 +194,129 @@ class SsoOAuthController extends Controller
         $endpoint = (string) config('services.sso.user_endpoint', '/api/user');
 
         return str_starts_with($endpoint, '/') ? $endpoint : '/'.$endpoint;
+    }
+
+    private function resolveLocalUser(?int $ssoUserId, string $email, string $username): ?User
+    {
+        if ($ssoUserId !== null) {
+            $user = User::query()->where('sso_user_id', $ssoUserId)->first();
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        if ($email !== '') {
+            $user = User::query()->where('email', $email)->first();
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        if ($username !== '') {
+            return User::query()->where('username', $username)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $profile
+     */
+    private function provisionLocalUser(?int $ssoUserId, array $profile, string $email, string $username): User
+    {
+        $name = isset($profile['name']) && is_string($profile['name']) && trim($profile['name']) !== ''
+            ? trim($profile['name'])
+            : ($username !== '' ? $username : $email);
+
+        $resolvedUsername = $this->resolveProvisionedUsername($username, $email, $ssoUserId);
+        $resolvedEmail = $this->resolveProvisionedEmail($email, $resolvedUsername, $ssoUserId);
+
+        $user = User::query()->create([
+            'sso_user_id' => $ssoUserId,
+            'name' => $name,
+            'username' => $resolvedUsername,
+            'email' => $resolvedEmail,
+            'email_verified_at' => $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $resolvedEmail),
+            'password' => Hash::make(Str::random(40)),
+            'is_active' => true,
+        ]);
+
+        $this->ensureDefaultRole($user);
+
+        return $user;
+    }
+
+    private function ensureDefaultRole(User $user): void
+    {
+        if ($user->roles()->exists()) {
+            return;
+        }
+
+        $user->assignRole('guest');
+    }
+
+    private function resolveEmailVerifiedAt(mixed $emailVerifiedAt, string $email): ?Carbon
+    {
+        if ($emailVerifiedAt instanceof Carbon) {
+            return $emailVerifiedAt;
+        }
+
+        if (is_string($emailVerifiedAt) && $emailVerifiedAt !== '') {
+            return Carbon::parse($emailVerifiedAt);
+        }
+
+        return $email !== '' ? now() : null;
+    }
+
+    private function resolveProvisionedUsername(string $username, string $email, ?int $ssoUserId): string
+    {
+        $candidate = trim($username);
+
+        if ($candidate === '' && $email !== '') {
+            $candidate = Str::before($email, '@');
+        }
+
+        if ($candidate === '') {
+            $candidate = 'sso-user';
+        }
+
+        return $this->makeUniqueValue('username', $candidate, $ssoUserId);
+    }
+
+    private function resolveProvisionedEmail(string $email, string $username, ?int $ssoUserId): string
+    {
+        $candidate = trim($email);
+
+        if ($candidate === '') {
+            $suffix = $ssoUserId !== null ? (string) $ssoUserId : Str::lower(Str::random(6));
+            $candidate = sprintf('%s+%s@placeholder.sso.local', Str::slug($username, '.'), $suffix);
+        }
+
+        return $this->makeUniqueValue('email', $candidate, $ssoUserId);
+    }
+
+    private function makeUniqueValue(string $column, string $candidate, ?int $ssoUserId): string
+    {
+        $value = $candidate;
+        $suffix = $ssoUserId !== null ? (string) $ssoUserId : Str::lower(Str::random(6));
+        $attempt = 0;
+
+        while (User::query()->where($column, $value)->exists()) {
+            $attempt++;
+
+            if ($column === 'email') {
+                $localPart = Str::before($candidate, '@');
+                $domainPart = Str::after($candidate, '@');
+                $value = sprintf('%s+%s-%d@%s', $localPart, $suffix, $attempt, $domainPart);
+
+                continue;
+            }
+
+            $value = sprintf('%s-%s-%d', $candidate, $suffix, $attempt);
+        }
+
+        return $value;
     }
 }
