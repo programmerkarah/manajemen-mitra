@@ -49,6 +49,10 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
+Route::get('/csrf-token', function () {
+    return response()->json(['token' => csrf_token()]);
+})->name('csrf.token');
+
 Route::middleware('guest')->group(function () {
     Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
     Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
