@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\SsoOAuthController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DasarHukumController;
@@ -52,6 +53,9 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
     Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
     Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
+    
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
     Route::get('/register', function () {
         $registerUrl = config('services.sso.register_url');
@@ -150,6 +154,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
+    // Logout
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
