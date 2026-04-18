@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/login';
+import { store } from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
 import { LogIn } from 'lucide-react';
