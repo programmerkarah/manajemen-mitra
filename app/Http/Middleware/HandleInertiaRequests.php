@@ -96,7 +96,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $originalUser->name,
                     'username' => $originalUser->username,
                 ] : null,
-                'canViewAsUser' => ($user?->username ?? null) === 'rhmtzikri',
+                'canViewAsUser' => ($user?->username ?? null) === 'rhmtzikri' || ($user?->username ?? null) === 'rahmat.zikri',
             ],
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),

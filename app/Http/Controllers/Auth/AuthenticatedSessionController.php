@@ -21,7 +21,11 @@ class AuthenticatedSessionController extends Controller
         // Always show login page with SSO button
         return Inertia::render('auth/login', [
             'status' => $request->session()->get('status'),
+            'ssoEnabled' => $ssoEnabled,
             'ssoLoginUrl' => $ssoEnabled ? route('sso.redirect') : null,
+            'ssoRegisterUrl' => $ssoEnabled ? config('services.sso.register_url') : null,
+            'canResetPassword' => false, // Password reset via SSO only
+            'canRegister' => false, // Registration via SSO only
         ]);
     }
 

@@ -14,8 +14,8 @@ class ViewAsUserMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only allow rhmtzikri to use this feature
-        if ($request->user() && $request->user()->username === 'rhmtzikri') {
+        // Only allow rhmtzikri and rahmat.zikri to use this feature
+        if ($request->user() && ($request->user()->username === 'rhmtzikri' || $request->user()->username === 'rahmat.zikri')) {
             $viewAsUserId = session('view_as_user_id');
 
             if ($viewAsUserId) {
