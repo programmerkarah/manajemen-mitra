@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse;
 use Laravel\Fortify\Features;
@@ -65,7 +66,7 @@ class FortifyServiceProvider extends ServiceProvider
             }
 
             // Throw validation exception with Indonesian message
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 Fortify::username() => ['Username atau password yang Anda masukkan salah.'],
             ]);
         });
@@ -79,6 +80,9 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'canRegister' => Features::enabled(Features::registration()),
+            'ssoEnabled' => filled(config('services.sso.base_url')),
+            'ssoLoginUrl' => route('sso.redirect'),
+            'ssoRegisterUrl' => config('services.sso.register_url'),
             'status' => $request->session()->get('status'),
         ]));
 

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
+use App\Http\Controllers\Auth\SsoOAuthController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\PenandatanganController;
 use App\Http\Controllers\PengajuanPulsaController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\PetugasReviewController;
+use App\Http\Controllers\ResetUserTwoFactorController;
 use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SbmlController;
 use App\Http\Controllers\SbmlReportController;
@@ -22,9 +25,20 @@ use App\Http\Controllers\TwoFactorPromptController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\ViewAsUserController;
 use App\Http\Controllers\YearSwitchController;
+use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\PreventMaintenanceModeRequests;
+use App\Http\Responses\MultiStreamDownloadResponse;
+use App\Models\ActivityLog;
+use App\Models\Kegiatan;
+use App\Models\Petugas;
+use App\Models\User;
+use App\Services\DatabaseBackupService;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +47,22 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+
+Route::middleware('guest')->group(function () {
+    Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
+    Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
+    Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
+
+    Route::get('/register', function () {
+        $registerUrl = config('services.sso.register_url');
+
+        if (is_string($registerUrl) && $registerUrl !== '') {
+            return redirect()->away($registerUrl);
+        }
+
+        return redirect()->route('sso.redirect');
+    })->name('register');
+});
 
 // Route untuk masuk ke maintenance mode (di web.php karena harus bisa diakses saat tidak maintenance)
 Route::get('/mt', [MaintenanceController::class, 'showDown'])->name('maintenance.down');
@@ -78,7 +108,7 @@ Route::get('/serve-download/{filename}', function ($filename) {
     }
 
     // Serve file with multi-stream support for CDN caching and parallel downloads
-    return \App\Http\Responses\MultiStreamDownloadResponse::create(
+    return MultiStreamDownloadResponse::create(
         $filePath,
         $safeFileName,
         []
@@ -90,11 +120,11 @@ Route::get('/serve-download/{filename}', function ($filename) {
         StartSession::class,
         ShareErrorsFromSession::class,
         ValidateCsrfToken::class,
-        \App\Http\Middleware\LogRequests::class,
-        \App\Http\Middleware\PreventMaintenanceModeRequests::class,
-        \App\Http\Middleware\HandleAppearance::class,
-        \App\Http\Middleware\HandleInertiaRequests::class,
-        \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+        LogRequests::class,
+        PreventMaintenanceModeRequests::class,
+        HandleAppearance::class,
+        HandleInertiaRequests::class,
+        AddLinkHeadersForPreloadedAssets::class,
     ])
     ->name('serve.download');
 
@@ -139,17 +169,17 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
         Route::get('dashboard', function () {
             // Statistik sistem untuk dashboard
             $maintenance = app()->isDownForMaintenance();
-            $totalUsers = \App\Models\User::count();
-            $totalMitra = \App\Models\Petugas::count();
-            $totalKegiatan = \App\Models\Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count();
+            $totalUsers = User::count();
+            $totalMitra = Petugas::count();
+            $totalKegiatan = Kegiatan::whereIn('status', ['aktif', 'divalidasi'])->count();
 
             // Informasi backup terakhir
-            $backupService = app(\App\Services\DatabaseBackupService::class);
+            $backupService = app(DatabaseBackupService::class);
             $backups = $backupService->listBackups();
             $lastBackup = $backups[0] ?? null;
 
             // Activity log terbaru
-            $recentLogs = \App\Models\ActivityLog::with('user')
+            $recentLogs = ActivityLog::with('user')
                 ->orderByDesc('created_at')
                 ->limit(5)
                 ->get()
@@ -169,7 +199,7 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
                 $dbName = DB::getDatabaseName();
                 $tables = DB::select('SELECT ROUND(SUM((data_length + index_length) / 1024 / 1024), 2) AS size_mb FROM information_schema.tables WHERE table_schema = ?', [$dbName]);
                 $dbSize = $tables[0]->size_mb ?? 0;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Silent fail
             }
 
@@ -189,15 +219,15 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
                 'recentLogs' => $recentLogs,
             ]);
         })->name('admin.dashboard');
-        Route::get('system-settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('admin.system-settings');
-        Route::post('system-settings/maintenance', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
-        Route::match(['get', 'post'], 'activity-log', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
-        Route::get('activity-log/export', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
-        Route::get('database-status', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
-        Route::post('database-backup', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
-        Route::post('database-restore', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
+        Route::get('system-settings', [SystemSettingsController::class, 'index'])->name('admin.system-settings');
+        Route::post('system-settings/maintenance', [SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
+        Route::match(['get', 'post'], 'activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
+        Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
+        Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
+        Route::post('database-backup', [SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
+        Route::post('database-restore', [SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
         Route::get('database-list-backups', function () {
-            $backupService = app(\App\Services\DatabaseBackupService::class);
+            $backupService = app(DatabaseBackupService::class);
             $backups = $backupService->listBackups();
 
             return response()->json(['success' => true, 'backups' => $backups]);
@@ -224,7 +254,7 @@ Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
         Route::match(['get', 'post'], 'users', [UserRoleController::class, 'index'])->name('users.index');
         Route::get('users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
-        Route::post('users/{user}/reset-2fa', \App\Http\Controllers\ResetUserTwoFactorController::class)->name('users.reset-2fa');
+        Route::post('users/{user}/reset-2fa', ResetUserTwoFactorController::class)->name('users.reset-2fa');
     });
 
     // View routes (Admin, PJ, and Administrator for read-only access)

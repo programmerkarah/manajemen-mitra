@@ -9,16 +9,18 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered()
+    public function test_register_route_redirects_to_sso_registration_page()
     {
+        config()->set('services.sso.register_url', 'http://localhost:8000/register');
+
         $response = $this->get(route('register'));
 
-        $response->assertStatus(200);
+        $response->assertRedirect('http://localhost:8000/register');
     }
 
-    public function test_new_users_can_register()
+    public function test_local_registration_endpoint_is_not_available()
     {
-        $response = $this->post(route('register.store'), [
+        $response = $this->post('/register', [
             'name' => 'Test User',
             'username' => 'testuser',
             'email' => 'test@example.com',
@@ -26,7 +28,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertStatus(405);
+        $this->assertGuest();
     }
 }

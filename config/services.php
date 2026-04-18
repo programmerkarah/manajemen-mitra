@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'sso' => [
+        'base_url' => env('SSO_BASE_URL'),
+        'client_id' => env('SSO_CLIENT_ID'),
+        'client_secret' => env('SSO_CLIENT_SECRET'),
+        'redirect_uri' => env('SSO_REDIRECT_URI'),
+        'register_url' => env('SSO_REGISTER_URL'),
+        'user_endpoint' => env('SSO_USER_ENDPOINT', '/api/user'),
+        'scope' => env('SSO_SCOPE', ''),
+        'prompt' => env('SSO_PROMPT', ''),
+    ],
+
 ];
