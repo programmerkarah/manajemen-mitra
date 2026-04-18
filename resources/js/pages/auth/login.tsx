@@ -32,7 +32,6 @@ export default function Login({
         username: '',
         password: '',
         remember: false,
-        _token: '',
     });
 
     const refreshCsrfToken = async (): Promise<string> => {
@@ -76,7 +75,10 @@ export default function Login({
             // Continue submission; backend will return a localized flash if token remains invalid.
         }
 
-        loginForm.setData('_token', csrfToken);
+        loginForm.transform((data) => ({
+            ...data,
+            _token: csrfToken,
+        }));
 
         loginForm.post('/login', {
             preserveScroll: true,

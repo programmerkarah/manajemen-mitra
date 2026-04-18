@@ -23,7 +23,6 @@ export default function Register({
         email: '',
         password: '',
         password_confirmation: '',
-        _token: '',
     });
 
     const refreshCsrfToken = async (): Promise<string> => {
@@ -67,7 +66,10 @@ export default function Register({
             // Continue submission; backend will provide localized flash if token is still invalid.
         }
 
-        registerForm.setData('_token', csrfToken);
+        registerForm.transform((data) => ({
+            ...data,
+            _token: csrfToken,
+        }));
 
         registerForm.post('/register', {
             preserveScroll: true,
