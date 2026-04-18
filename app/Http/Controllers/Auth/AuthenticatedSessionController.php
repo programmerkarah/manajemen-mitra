@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\SessionConcurrencyManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,8 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(protected SessionConcurrencyManager $sessionConcurrencyManager) {}
+
     /**
      * Show the login page.
      */
@@ -42,7 +45,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $userId = Auth::id();
         Auth::guard('web')->logout();
+
+        if (is_int($userId)) {
+            $this->sessionConcurrencyManager->forgetIfCurrentSession($request, $userId);
+        }
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

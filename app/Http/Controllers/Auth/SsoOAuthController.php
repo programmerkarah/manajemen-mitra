@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\SessionConcurrencyManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,8 @@ use Illuminate\Support\Str;
 
 class SsoOAuthController extends Controller
 {
+    public function __construct(protected SessionConcurrencyManager $sessionConcurrencyManager) {}
+
     public function redirect(Request $request): RedirectResponse
     {
         $baseUrl = $this->baseUrl();
@@ -171,6 +174,7 @@ class SsoOAuthController extends Controller
 
         Auth::login($localUser, true);
         $request->session()->regenerate();
+        $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
 
         return redirect()->intended(route('dashboard'));
     }
