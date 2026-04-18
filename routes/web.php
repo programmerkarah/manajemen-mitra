@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SsoOAuthController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DasarHukumController;
@@ -57,19 +58,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
     Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
     Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
-    
+
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
-    Route::get('/register', function () {
-        $registerUrl = config('services.sso.register_url');
-
-        if (is_string($registerUrl) && $registerUrl !== '') {
-            return redirect()->away($registerUrl);
-        }
-
-        return redirect()->route('sso.redirect');
-    })->name('register');
+    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
 // Route untuk masuk ke maintenance mode (di web.php karena harus bisa diakses saat tidak maintenance)
@@ -160,7 +154,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', 'require.2fa'])->group(function () {
     // Logout
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
-    
+
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

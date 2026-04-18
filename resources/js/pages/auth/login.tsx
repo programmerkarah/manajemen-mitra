@@ -13,8 +13,7 @@ import { LogIn } from 'lucide-react';
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
-    canRegister: boolean;
-    ssoEnabled?: boolean;
+    ssoActive?: boolean;
     ssoLoginUrl?: string;
     ssoRegisterUrl?: string;
 }
@@ -22,8 +21,7 @@ interface LoginProps {
 export default function Login({
     status,
     canResetPassword,
-    canRegister: _canRegister,
-    ssoEnabled = false,
+    ssoActive = false,
     ssoLoginUrl = '/auth/sso/redirect',
     ssoRegisterUrl,
 }: LoginProps) {
@@ -37,12 +35,21 @@ export default function Login({
                         <Link href="/" className="flex items-center gap-3">
                             <AppLogo />
                         </Link>
-                        <a
-                            href={ssoRegisterUrl || '/register'}
-                            className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                        >
-                            Daftar
-                        </a>
+                        {ssoActive ? (
+                            <a
+                                href={ssoRegisterUrl}
+                                className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                            >
+                                Daftar
+                            </a>
+                        ) : (
+                            <Link
+                                href="/register"
+                                className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                            >
+                                Daftar
+                            </Link>
+                        )}
                     </div>
                 </header>
 
@@ -59,7 +66,9 @@ export default function Login({
                                     Masuk ke Akun Anda
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                    Gunakan akun SSO untuk mengakses aplikasi
+                                    {ssoActive
+                                        ? 'Gunakan akun SSO untuk mengakses aplikasi'
+                                        : 'Masukkan username dan password Anda'}
                                 </p>
                             </div>
 
@@ -69,121 +78,112 @@ export default function Login({
                                 </div>
                             )}
 
-                            <div className="mb-6 space-y-3">
-                                <a
-                                    href={ssoLoginUrl}
-                                    className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-base font-medium text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                    data-test="login-sso-button"
-                                >
-                                    Masuk
-                                </a>
-                                <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
-                                    Login menggunakan akun SSO terpusat.
-                                </p>
-                            </div>
-
-                            {!ssoEnabled && (
-                                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-                                    Konfigurasi SSO belum aktif. Login lokal
-                                    ditampilkan sebagai cadangan.
+                            {ssoActive ? (
+                                <div className="space-y-3">
+                                    <a
+                                        href={ssoLoginUrl}
+                                        className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-base font-medium text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        data-test="login-sso-button"
+                                    >
+                                        Masuk via SSO
+                                    </a>
+                                    <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
+                                        Login menggunakan akun SSO terpusat.
+                                    </p>
                                 </div>
-                            )}
-
-                            {!ssoEnabled && (
-                                <Form
-                                    {...store.form()}
-                                    resetOnSuccess={['password']}
-                                    className="flex flex-col gap-6"
-                                >
-                                    {({ processing, errors }) => (
-                                        <>
-                                            <div className="grid gap-5">
-                                                <div className="grid gap-2">
-                                                    <Label
-                                                        htmlFor="username"
-                                                        className="text-neutral-900 dark:text-neutral-100"
-                                                    >
-                                                        Username
-                                                    </Label>
-                                                    <Input
-                                                        id="username"
-                                                        type="text"
-                                                        name="username"
-                                                        required
-                                                        autoFocus
-                                                        tabIndex={1}
-                                                        autoComplete="username"
-                                                        placeholder="Masukkan username"
-                                                        className="h-11"
-                                                    />
-                                                    <InputError
-                                                        message={
-                                                            errors.username
-                                                        }
-                                                    />
-                                                </div>
-
-                                                <div className="grid gap-2">
-                                                    <div className="flex items-center justify-between">
+                            ) : (
+                                <>
+                                    <Form
+                                        {...store.form()}
+                                        resetOnSuccess={['password']}
+                                        className="flex flex-col gap-6"
+                                    >
+                                        {({ processing, errors }) => (
+                                            <>
+                                                <div className="grid gap-5">
+                                                    <div className="grid gap-2">
                                                         <Label
-                                                            htmlFor="password"
+                                                            htmlFor="username"
                                                             className="text-neutral-900 dark:text-neutral-100"
                                                         >
-                                                            Password
+                                                            Username
                                                         </Label>
-                                                        {canResetPassword && (
-                                                            <TextLink
-                                                                href={request()}
-                                                                className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                                tabIndex={5}
-                                                            >
-                                                                Lupa password?
-                                                            </TextLink>
-                                                        )}
+                                                        <Input
+                                                            id="username"
+                                                            type="text"
+                                                            name="username"
+                                                            required
+                                                            autoFocus
+                                                            tabIndex={1}
+                                                            autoComplete="username"
+                                                            placeholder="Masukkan username"
+                                                            className="h-11"
+                                                        />
+                                                        <InputError
+                                                            message={errors.username}
+                                                        />
                                                     </div>
-                                                    <Input
-                                                        id="password"
-                                                        type="password"
-                                                        name="password"
-                                                        required
-                                                        tabIndex={2}
-                                                        autoComplete="current-password"
-                                                        placeholder="Masukkan password"
-                                                        className="h-11"
-                                                    />
-                                                    <InputError
-                                                        message={
-                                                            errors.password
-                                                        }
-                                                    />
+
+                                                    <div className="grid gap-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label
+                                                                htmlFor="password"
+                                                                className="text-neutral-900 dark:text-neutral-100"
+                                                            >
+                                                                Password
+                                                            </Label>
+                                                            {canResetPassword && (
+                                                                <TextLink
+                                                                    href={request()}
+                                                                    className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                                    tabIndex={5}
+                                                                >
+                                                                    Lupa password?
+                                                                </TextLink>
+                                                            )}
+                                                        </div>
+                                                        <Input
+                                                            id="password"
+                                                            type="password"
+                                                            name="password"
+                                                            required
+                                                            tabIndex={2}
+                                                            autoComplete="current-password"
+                                                            placeholder="Masukkan password"
+                                                            className="h-11"
+                                                        />
+                                                        <InputError
+                                                            message={errors.password}
+                                                        />
+                                                    </div>
+
+                                                    <Button
+                                                        type="submit"
+                                                        className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                        tabIndex={4}
+                                                        disabled={processing}
+                                                        data-test="login-button"
+                                                    >
+                                                        {processing && <Spinner />}
+                                                        Masuk
+                                                    </Button>
                                                 </div>
+                                            </>
+                                        )}
+                                    </Form>
 
-                                                <Button
-                                                    type="submit"
-                                                    className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                                    tabIndex={4}
-                                                    disabled={processing}
-                                                    data-test="login-button"
-                                                >
-                                                    {processing && <Spinner />}
-                                                    Masuk
-                                                </Button>
-                                            </div>
-                                        </>
-                                    )}
-                                </Form>
+                                    <div className="mt-4 text-center text-sm text-neutral-600 dark:text-neutral-400">
+                                        Belum punya akun?{' '}
+                                        <Link
+                                            href="/register"
+                                            tabIndex={5}
+                                            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        >
+                                            Daftar
+                                        </Link>
+                                    </div>
+                                </>
                             )}
-
-                            <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-                                Belum punya akun?{' '}
-                                <a
-                                    href={ssoRegisterUrl || '/register'}
-                                    tabIndex={5}
-                                    className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                >
-                                    Daftar via SSO
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </main>
