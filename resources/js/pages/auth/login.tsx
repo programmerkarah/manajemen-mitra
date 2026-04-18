@@ -1,4 +1,3 @@
-import { store } from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import AppLogo from '@/components/app-logo';
 import { FlashMessage } from '@/components/flash-message';
 import InputError from '@/components/input-error';
@@ -8,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { request } from '@/routes/password';
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { LogIn } from 'lucide-react';
+import { FormEvent } from 'react';
 
 interface LoginProps {
     status?: string;
@@ -28,6 +28,54 @@ export default function Login({
     ssoLoginUrl = '/auth/sso/redirect',
     ssoRegisterUrl,
 }: LoginProps) {
+    const loginForm = useForm({
+        username: '',
+        password: '',
+        remember: false,
+    });
+
+    const refreshCsrfToken = async (): Promise<void> => {
+        const response = await fetch('/csrf-token', {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (! response.ok) {
+            throw new Error('Gagal memperbarui CSRF token.');
+        }
+
+        const payload = (await response.json()) as { token?: string };
+        const token = payload.token;
+
+        if (! token) {
+            throw new Error('CSRF token tidak tersedia.');
+        }
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        csrfMeta?.setAttribute('content', token);
+    };
+
+    const submitLoginForm = async (
+        event: FormEvent<HTMLFormElement>,
+    ): Promise<void> => {
+        event.preventDefault();
+
+        try {
+            await refreshCsrfToken();
+        } catch {
+            // Continue submission; backend will return a localized flash if token remains invalid.
+        }
+
+        loginForm.post('/login', {
+            preserveScroll: true,
+            onSuccess: () => {
+                loginForm.reset('password');
+            },
+        });
+    };
+
     return (
         <>
             <Head title="Masuk" />
@@ -103,91 +151,122 @@ export default function Login({
                                 </div>
                             ) : (
                                 <>
-                                    <Form
-                                        {...store.form()}
-                                        resetOnSuccess={['password']}
+                                    <form
+                                        onSubmit={submitLoginForm}
                                         className="flex flex-col gap-6"
                                     >
-                                        {({ processing, errors }) => (
-                                            <>
-                                                <div className="grid gap-5">
-                                                    <div className="grid gap-2">
-                                                        <Label
-                                                            htmlFor="username"
-                                                            className="text-neutral-900 dark:text-neutral-100"
-                                                        >
-                                                            Username
-                                                        </Label>
-                                                        <Input
-                                                            id="username"
-                                                            type="text"
-                                                            name="username"
-                                                            required
-                                                            autoFocus
-                                                            tabIndex={1}
-                                                            autoComplete="username"
-                                                            placeholder="Masukkan username"
-                                                            className="h-11"
-                                                        />
-                                                        <InputError
-                                                            message={
-                                                                errors.username
-                                                            }
-                                                        />
-                                                    </div>
+                                        <div className="grid gap-5">
+                                            <div className="grid gap-2">
+                                                <Label
+                                                    htmlFor="username"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
+                                                    Username
+                                                </Label>
+                                                <Input
+                                                    id="username"
+                                                    type="text"
+                                                    name="username"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="username"
+                                                    placeholder="Masukkan username"
+                                                    className="h-11"
+                                                    value={loginForm.data.username}
+                                                    onChange={(event) =>
+                                                        loginForm.setData(
+                                                            'username',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        loginForm.errors
+                                                            .username
+                                                    }
+                                                />
+                                            </div>
 
-                                                    <div className="grid gap-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <Label
-                                                                htmlFor="password"
-                                                                className="text-neutral-900 dark:text-neutral-100"
-                                                            >
-                                                                Password
-                                                            </Label>
-                                                            {canResetPassword && (
-                                                                <TextLink
-                                                                    href={request()}
-                                                                    className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                                    tabIndex={5}
-                                                                >
-                                                                    Lupa
-                                                                    password?
-                                                                </TextLink>
-                                                            )}
-                                                        </div>
-                                                        <Input
-                                                            id="password"
-                                                            type="password"
-                                                            name="password"
-                                                            required
-                                                            tabIndex={2}
-                                                            autoComplete="current-password"
-                                                            placeholder="Masukkan password"
-                                                            className="h-11"
-                                                        />
-                                                        <InputError
-                                                            message={
-                                                                errors.password
-                                                            }
-                                                        />
-                                                    </div>
-
-                                                    <Button
-                                                        type="submit"
-                                                        className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                                        tabIndex={4}
-                                                        disabled={processing}
-                                                        data-test="login-button"
+                                            <div className="grid gap-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label
+                                                        htmlFor="password"
+                                                        className="text-neutral-900 dark:text-neutral-100"
                                                     >
-                                                        {processing && (
-                                                            <Spinner />
-                                                        )}
-                                                        Masuk
-                                                    </Button>
+                                                        Password
+                                                    </Label>
+                                                    {canResetPassword && (
+                                                        <TextLink
+                                                            href={request()}
+                                                            className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                            tabIndex={5}
+                                                        >
+                                                            Lupa password?
+                                                        </TextLink>
+                                                    )}
                                                 </div>
-                                            </>
-                                        )}
-                                    </Form>
+                                                <Input
+                                                    id="password"
+                                                    type="password"
+                                                    name="password"
+                                                    required
+                                                    tabIndex={2}
+                                                    autoComplete="current-password"
+                                                    placeholder="Masukkan password"
+                                                    className="h-11"
+                                                    value={loginForm.data.password}
+                                                    onChange={(event) =>
+                                                        loginForm.setData(
+                                                            'password',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        loginForm.errors
+                                                            .password
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id="remember"
+                                                    type="checkbox"
+                                                    name="remember"
+                                                    checked={loginForm.data.remember}
+                                                    onChange={(event) =>
+                                                        loginForm.setData(
+                                                            'remember',
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+                                                <Label
+                                                    htmlFor="remember"
+                                                    className="text-sm text-neutral-700 dark:text-neutral-300"
+                                                >
+                                                    Ingat saya
+                                                </Label>
+                                            </div>
+
+                                            <Button
+                                                type="submit"
+                                                className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                tabIndex={4}
+                                                disabled={loginForm.processing}
+                                                data-test="login-button"
+                                            >
+                                                {loginForm.processing && (
+                                                    <Spinner />
+                                                )}
+                                                Masuk
+                                            </Button>
+                                        </div>
+                                    </form>
 
                                     <div className="mt-4 text-center text-sm text-neutral-600 dark:text-neutral-400">
                                         Belum punya akun?{' '}

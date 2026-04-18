@@ -1,12 +1,12 @@
-import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
 import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
+import { FormEvent } from 'react';
 
 interface RegisterProps {
     ssoActive?: boolean;
@@ -17,6 +17,56 @@ export default function Register({
     ssoActive = false,
     ssoRegisterUrl,
 }: RegisterProps) {
+    const registerForm = useForm({
+        name: '',
+        username: '',
+        email: '',
+        password: '',
+        password_confirmation: '',
+    });
+
+    const refreshCsrfToken = async (): Promise<void> => {
+        const response = await fetch('/csrf-token', {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (! response.ok) {
+            throw new Error('Gagal memperbarui CSRF token.');
+        }
+
+        const payload = (await response.json()) as { token?: string };
+        const token = payload.token;
+
+        if (! token) {
+            throw new Error('CSRF token tidak tersedia.');
+        }
+
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        csrfMeta?.setAttribute('content', token);
+    };
+
+    const submitRegisterForm = async (
+        event: FormEvent<HTMLFormElement>,
+    ): Promise<void> => {
+        event.preventDefault();
+
+        try {
+            await refreshCsrfToken();
+        } catch {
+            // Continue submission; backend will provide localized flash if token is still invalid.
+        }
+
+        registerForm.post('/register', {
+            preserveScroll: true,
+            onSuccess: () => {
+                registerForm.reset('password', 'password_confirmation');
+            },
+        });
+    };
+
     return (
         <>
             <Head title="Daftar" />
@@ -82,145 +132,176 @@ export default function Register({
                                     </div>
                                 </div>
                             ) : (
-                                <Form
-                                    {...store.form()}
-                                    resetOnSuccess={[
-                                        'password',
-                                        'password_confirmation',
-                                    ]}
+                                <form
+                                    onSubmit={submitRegisterForm}
                                     className="flex flex-col gap-5"
                                 >
-                                    {({ processing, errors }) => (
-                                        <>
-                                            <div className="grid gap-2">
-                                                <Label
-                                                    htmlFor="name"
-                                                    className="text-neutral-900 dark:text-neutral-100"
-                                                >
-                                                    Nama Lengkap
-                                                </Label>
-                                                <Input
-                                                    id="name"
-                                                    type="text"
-                                                    name="name"
-                                                    required
-                                                    autoFocus
-                                                    autoComplete="name"
-                                                    placeholder="Masukkan nama lengkap"
-                                                    className="h-11"
-                                                />
-                                                <InputError
-                                                    message={errors.name}
-                                                />
-                                            </div>
+                                    <div className="grid gap-2">
+                                        <Label
+                                            htmlFor="name"
+                                            className="text-neutral-900 dark:text-neutral-100"
+                                        >
+                                            Nama Lengkap
+                                        </Label>
+                                        <Input
+                                            id="name"
+                                            type="text"
+                                            name="name"
+                                            required
+                                            autoFocus
+                                            autoComplete="name"
+                                            placeholder="Masukkan nama lengkap"
+                                            className="h-11"
+                                            value={registerForm.data.name}
+                                            onChange={(event) =>
+                                                registerForm.setData(
+                                                    'name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={registerForm.errors.name}
+                                        />
+                                    </div>
 
-                                            <div className="grid gap-2">
-                                                <Label
-                                                    htmlFor="username"
-                                                    className="text-neutral-900 dark:text-neutral-100"
-                                                >
-                                                    Username
-                                                </Label>
-                                                <Input
-                                                    id="username"
-                                                    type="text"
-                                                    name="username"
-                                                    required
-                                                    autoComplete="username"
-                                                    placeholder="Masukkan username"
-                                                    className="h-11"
-                                                />
-                                                <InputError
-                                                    message={errors.username}
-                                                />
-                                            </div>
+                                    <div className="grid gap-2">
+                                        <Label
+                                            htmlFor="username"
+                                            className="text-neutral-900 dark:text-neutral-100"
+                                        >
+                                            Username
+                                        </Label>
+                                        <Input
+                                            id="username"
+                                            type="text"
+                                            name="username"
+                                            required
+                                            autoComplete="username"
+                                            placeholder="Masukkan username"
+                                            className="h-11"
+                                            value={registerForm.data.username}
+                                            onChange={(event) =>
+                                                registerForm.setData(
+                                                    'username',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={registerForm.errors.username}
+                                        />
+                                    </div>
 
-                                            <div className="grid gap-2">
-                                                <Label
-                                                    htmlFor="email"
-                                                    className="text-neutral-900 dark:text-neutral-100"
-                                                >
-                                                    Email
-                                                </Label>
-                                                <Input
-                                                    id="email"
-                                                    type="email"
-                                                    name="email"
-                                                    required
-                                                    autoComplete="email"
-                                                    placeholder="Masukkan email"
-                                                    className="h-11"
-                                                />
-                                                <InputError
-                                                    message={errors.email}
-                                                />
-                                            </div>
+                                    <div className="grid gap-2">
+                                        <Label
+                                            htmlFor="email"
+                                            className="text-neutral-900 dark:text-neutral-100"
+                                        >
+                                            Email
+                                        </Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            name="email"
+                                            required
+                                            autoComplete="email"
+                                            placeholder="Masukkan email"
+                                            className="h-11"
+                                            value={registerForm.data.email}
+                                            onChange={(event) =>
+                                                registerForm.setData(
+                                                    'email',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={registerForm.errors.email}
+                                        />
+                                    </div>
 
-                                            <div className="grid gap-2">
-                                                <Label
-                                                    htmlFor="password"
-                                                    className="text-neutral-900 dark:text-neutral-100"
-                                                >
-                                                    Password
-                                                </Label>
-                                                <Input
-                                                    id="password"
-                                                    type="password"
-                                                    name="password"
-                                                    required
-                                                    autoComplete="new-password"
-                                                    placeholder="Minimal 8 karakter"
-                                                    className="h-11"
-                                                />
-                                                <InputError
-                                                    message={errors.password}
-                                                />
-                                            </div>
+                                    <div className="grid gap-2">
+                                        <Label
+                                            htmlFor="password"
+                                            className="text-neutral-900 dark:text-neutral-100"
+                                        >
+                                            Password
+                                        </Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            name="password"
+                                            required
+                                            autoComplete="new-password"
+                                            placeholder="Minimal 8 karakter"
+                                            className="h-11"
+                                            value={registerForm.data.password}
+                                            onChange={(event) =>
+                                                registerForm.setData(
+                                                    'password',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={registerForm.errors.password}
+                                        />
+                                    </div>
 
-                                            <div className="grid gap-2">
-                                                <Label
-                                                    htmlFor="password_confirmation"
-                                                    className="text-neutral-900 dark:text-neutral-100"
-                                                >
-                                                    Konfirmasi Password
-                                                </Label>
-                                                <Input
-                                                    id="password_confirmation"
-                                                    type="password"
-                                                    name="password_confirmation"
-                                                    required
-                                                    autoComplete="new-password"
-                                                    placeholder="Ulangi password"
-                                                    className="h-11"
-                                                />
-                                                <InputError
-                                                    message={
-                                                        errors.password_confirmation
-                                                    }
-                                                />
-                                            </div>
+                                    <div className="grid gap-2">
+                                        <Label
+                                            htmlFor="password_confirmation"
+                                            className="text-neutral-900 dark:text-neutral-100"
+                                        >
+                                            Konfirmasi Password
+                                        </Label>
+                                        <Input
+                                            id="password_confirmation"
+                                            type="password"
+                                            name="password_confirmation"
+                                            required
+                                            autoComplete="new-password"
+                                            placeholder="Ulangi password"
+                                            className="h-11"
+                                            value={
+                                                registerForm.data
+                                                    .password_confirmation
+                                            }
+                                            onChange={(event) =>
+                                                registerForm.setData(
+                                                    'password_confirmation',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                registerForm.errors
+                                                    .password_confirmation
+                                            }
+                                        />
+                                    </div>
 
-                                            <Button
-                                                type="submit"
-                                                className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                                disabled={processing}
-                                            >
-                                                {processing && <Spinner />}
-                                                Daftar
-                                            </Button>
+                                    <Button
+                                        type="submit"
+                                        className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        disabled={registerForm.processing}
+                                    >
+                                        {registerForm.processing && <Spinner />}
+                                        Daftar
+                                    </Button>
 
-                                            <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-                                                Sudah punya akun?{' '}
-                                                <Link
-                                                    href="/login"
-                                                    className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                                >
-                                                    Masuk sekarang
-                                                </Link>
-                                            </div>
-                                        </>
-                                    )}
-                                </Form>
+                                    <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
+                                        Sudah punya akun?{' '}
+                                        <Link
+                                            href="/login"
+                                            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        >
+                                            Masuk sekarang
+                                        </Link>
+                                    </div>
+                                </form>
                             )}
                         </div>
                     </div>
