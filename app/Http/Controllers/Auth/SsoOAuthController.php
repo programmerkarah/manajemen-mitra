@@ -115,6 +115,10 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        $ssoUserId = isset($profile['id']) && (is_int($profile['id']) || is_string($profile['id']))
+            ? (int) $profile['id']
+            : null;
+
         $email = isset($profile['email']) && is_string($profile['email'])
             ? trim($profile['email'])
             : '';
@@ -129,9 +133,11 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        // Match user dengan priority: sso_user_id → email → username
         $localUser = User::query()
-            ->when($email !== '', fn ($query) => $query->where('email', $email))
-            ->when($username !== '', fn ($query) => $query->orWhere('username', $username))
+            ->when($ssoUserId !== null, fn ($query) => $query->where('sso_user_id', $ssoUserId))
+            ->when($ssoUserId === null && $email !== '', fn ($query) => $query->orWhere('email', $email))
+            ->when($ssoUserId === null && $username !== '', fn ($query) => $query->orWhere('username', $username))
             ->first();
 
         if (! $localUser) {
@@ -152,9 +158,11 @@ class SsoOAuthController extends Controller
 
         $emailVerifiedAt = $profile['email_verified_at'] ?? null;
 
+        // Sync data dari SSO ke local user
         $localUser->forceFill([
+            'sso_user_id' => $ssoUserId, // Save SSO user ID untuk matching di masa depan
             'name' => $name,
-            'username' => $username !== '' ? $username : $localUser->username,
+            'username' => $username !== '' ? $username : $localUser->username, // Auto-sync username dari SSO
             'email' => $email !== '' ? $email : $localUser->email,
             'email_verified_at' => is_string($emailVerifiedAt) && $emailVerifiedAt !== ''
                 ? $emailVerifiedAt
