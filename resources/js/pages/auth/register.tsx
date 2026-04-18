@@ -10,9 +10,10 @@ import { UserPlus } from 'lucide-react';
 
 interface RegisterProps {
     ssoActive?: boolean;
+    ssoRegisterUrl?: string | null;
 }
 
-export default function Register({ ssoActive = false }: RegisterProps) {
+export default function Register({ ssoActive = false, ssoRegisterUrl }: RegisterProps) {
     return (
         <>
             <Head title="Daftar" />
@@ -53,12 +54,18 @@ export default function Register({ ssoActive = false }: RegisterProps) {
 
                             {ssoActive ? (
                                 <div className="space-y-4">
-                                    <a
-                                        href="/register"
-                                        className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-base font-medium text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                    >
-                                        Lanjutkan Daftar via SSO
-                                    </a>
+                                    {ssoRegisterUrl ? (
+                                        <a
+                                            href={ssoRegisterUrl}
+                                            className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-base font-medium text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        >
+                                            Lanjutkan Daftar via SSO
+                                        </a>
+                                    ) : (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-200">
+                                            Konfigurasi SSO belum lengkap. Hubungi administrator.
+                                        </div>
+                                    )}
 
                                     <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
                                         Sudah punya akun?{' '}

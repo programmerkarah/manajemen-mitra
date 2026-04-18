@@ -8,7 +8,6 @@ use App\Services\SessionConcurrencyManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -38,10 +37,6 @@ class AuthenticatedSessionController extends Controller
         ]);
     }
 
-    /**
-     * Resolve whether SSO is active by querying the SSO API.
-     * Result is cached for 60 seconds to avoid excessive API calls.
-     */
     private function resolveSsoActive(): bool
     {
         $clientId = config('services.sso.client_id');
@@ -51,26 +46,22 @@ class AuthenticatedSessionController extends Controller
             return false;
         }
 
-        $cacheKey = 'sso:application_active:'.$clientId;
-
-        return Cache::remember($cacheKey, 60, function () use ($baseUrl, $clientId): bool {
-            try {
-                $response = Http::timeout(5)
-                    ->get(rtrim($baseUrl, '/').'/api/application/status', [
-                        'client_id' => $clientId,
-                    ]);
-
-                if ($response->successful()) {
-                    return (bool) $response->json('is_active', false);
-                }
-            } catch (\Throwable $e) {
-                Log::warning('SSO application status check failed, defaulting to native login.', [
-                    'error' => $e->getMessage(),
+        try {
+            $response = Http::timeout(5)
+                ->get(rtrim($baseUrl, '/').'/api/application/status', [
+                    'client_id' => $clientId,
                 ]);
-            }
 
-            return false;
-        });
+            if ($response->successful()) {
+                return (bool) $response->json('is_active', false);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('SSO application status check failed, defaulting to native login.', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 
     /**

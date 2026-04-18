@@ -9,7 +9,6 @@ use App\Services\SessionConcurrencyManager;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -19,17 +18,14 @@ class RegisteredUserController extends Controller
 {
     public function __construct(protected SessionConcurrencyManager $sessionConcurrencyManager) {}
 
-    public function create(): Response|RedirectResponse
+    public function create(): Response
     {
-        if ($this->resolveSsoActive()) {
-            $registerUrl = config('services.sso.register_url');
-            if (is_string($registerUrl) && $registerUrl !== '') {
-                return redirect()->away($registerUrl);
-            }
-        }
+        $ssoActive = $this->resolveSsoActive();
+        $ssoRegisterUrl = $ssoActive ? config('services.sso.register_url') : null;
 
         return Inertia::render('auth/register', [
-            'ssoActive' => false,
+            'ssoActive' => $ssoActive,
+            'ssoRegisterUrl' => is_string($ssoRegisterUrl) && $ssoRegisterUrl !== '' ? $ssoRegisterUrl : null,
         ]);
     }
 
@@ -65,25 +61,21 @@ class RegisteredUserController extends Controller
             return false;
         }
 
-        $cacheKey = 'sso:application_active:'.$clientId;
-
-        return Cache::remember($cacheKey, 60, function () use ($baseUrl, $clientId): bool {
-            try {
-                $response = Http::timeout(5)
-                    ->get(rtrim($baseUrl, '/').'/api/application/status', [
-                        'client_id' => $clientId,
-                    ]);
-
-                if ($response->successful()) {
-                    return (bool) $response->json('is_active', false);
-                }
-            } catch (\Throwable $e) {
-                Log::warning('SSO application status check failed on register.', [
-                    'error' => $e->getMessage(),
+        try {
+            $response = Http::timeout(5)
+                ->get(rtrim($baseUrl, '/').'/api/application/status', [
+                    'client_id' => $clientId,
                 ]);
-            }
 
-            return false;
-        });
+            if ($response->successful()) {
+                return (bool) $response->json('is_active', false);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('SSO application status check failed on register.', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 }

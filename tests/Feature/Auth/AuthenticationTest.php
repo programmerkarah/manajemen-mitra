@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
@@ -12,18 +13,56 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_login_screen_can_be_rendered()
+    public function test_login_screen_shows_sso_mode_when_application_is_active()
     {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+        config()->set('services.sso.register_url', 'http://localhost:8000/register');
+
+        Http::fake([
+            'http://localhost:8000/api/application/status*' => Http::response(['is_active' => true]),
+        ]);
+
         $response = $this->get(route('login'));
 
-        $response->assertStatus(200);
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('auth/login')
+            ->where('ssoEnabled', true)
+            ->where('ssoActive', true)
+            ->where('ssoLoginUrl', route('sso.redirect'))
+            ->where('ssoRegisterUrl', 'http://localhost:8000/register')
+            ->where('canResetPassword', false)
+            ->where('canRegister', false)
+        );
+    }
+
+    public function test_login_screen_can_be_rendered_when_sso_is_not_configured()
+    {
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('auth/login')
+            ->where('ssoEnabled', false)
+            ->where('ssoActive', false)
+            ->where('ssoLoginUrl', null)
+            ->where('canResetPassword', true)
+            ->where('canRegister', true)
+        );
     }
 
     public function test_users_can_authenticate_using_the_login_screen()
     {
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
         $user = User::factory()->withoutTwoFactor()->create();
 
-        $response = $this->post(route('login.store'), [
+        $response = $this->post(route('login'), [
             'username' => $user->username,
             'password' => 'password',
         ]);
@@ -34,6 +73,9 @@ class AuthenticationTest extends TestCase
 
     public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge()
     {
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
         if (! Features::canManageTwoFactorAuthentication()) {
             $this->markTestSkipped('Two-factor authentication is not enabled.');
         }
@@ -63,14 +105,61 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_not_authenticate_with_invalid_password()
     {
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
         $user = User::factory()->create();
 
-        $this->post(route('login.store'), [
+        $this->post(route('login'), [
             'username' => $user->username,
             'password' => 'wrong-password',
         ]);
 
         $this->assertGuest();
+    }
+
+    public function test_login_post_redirects_to_sso_when_native_login_is_disabled()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+
+        Http::fake([
+            'http://localhost:8000/api/application/status*' => Http::response(['is_active' => true]),
+        ]);
+
+        $response = $this->post(route('login'), [
+            'username' => 'local-user',
+            'password' => 'password',
+        ]);
+
+        $this->assertGuest();
+        $response->assertRedirect(route('sso.redirect'));
+    }
+
+    public function test_login_screen_switches_status_immediately_without_cache()
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'test-client-id');
+
+        Http::fake([
+            'http://localhost:8000/api/application/status*' => Http::sequence()
+                ->push(['is_active' => false])
+                ->push(['is_active' => true]),
+        ]);
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/login')
+                ->where('ssoActive', false)
+            );
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/login')
+                ->where('ssoActive', true)
+            );
     }
 
     public function test_users_can_logout()
@@ -89,7 +178,7 @@ class AuthenticationTest extends TestCase
 
         RateLimiter::increment(md5('login'.implode('|', [$user->username, '127.0.0.1'])), amount: 5);
 
-        $response = $this->post(route('login.store'), [
+        $response = $this->post(route('login'), [
             'username' => $user->username,
             'password' => 'wrong-password',
         ]);
