@@ -23,9 +23,10 @@ export default function Register({
         email: '',
         password: '',
         password_confirmation: '',
+        _token: '',
     });
 
-    const refreshCsrfToken = async (): Promise<void> => {
+    const refreshCsrfToken = async (): Promise<string> => {
         const response = await fetch('/csrf-token', {
             credentials: 'same-origin',
             headers: {
@@ -46,6 +47,8 @@ export default function Register({
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         csrfMeta?.setAttribute('content', token);
+
+        return token;
     };
 
     const submitRegisterForm = async (
@@ -53,11 +56,18 @@ export default function Register({
     ): Promise<void> => {
         event.preventDefault();
 
+        let csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
+
         try {
-            await refreshCsrfToken();
+            csrfToken = await refreshCsrfToken();
         } catch {
             // Continue submission; backend will provide localized flash if token is still invalid.
         }
+
+        registerForm.setData('_token', csrfToken);
 
         registerForm.post('/register', {
             preserveScroll: true,

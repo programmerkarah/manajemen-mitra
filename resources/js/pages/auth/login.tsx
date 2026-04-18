@@ -32,9 +32,10 @@ export default function Login({
         username: '',
         password: '',
         remember: false,
+        _token: '',
     });
 
-    const refreshCsrfToken = async (): Promise<void> => {
+    const refreshCsrfToken = async (): Promise<string> => {
         const response = await fetch('/csrf-token', {
             credentials: 'same-origin',
             headers: {
@@ -55,6 +56,8 @@ export default function Login({
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         csrfMeta?.setAttribute('content', token);
+
+        return token;
     };
 
     const submitLoginForm = async (
@@ -62,11 +65,18 @@ export default function Login({
     ): Promise<void> => {
         event.preventDefault();
 
+        let csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
+
         try {
-            await refreshCsrfToken();
+            csrfToken = await refreshCsrfToken();
         } catch {
             // Continue submission; backend will return a localized flash if token remains invalid.
         }
+
+        loginForm.setData('_token', csrfToken);
 
         loginForm.post('/login', {
             preserveScroll: true,
