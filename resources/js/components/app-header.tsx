@@ -1,6 +1,5 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Icon } from '@/components/icon';
-import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -228,9 +227,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                             </div>
                         </div>
                         
-                        {/* Theme Toggle */}
-                        <ThemeToggleButton />
-                        
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button

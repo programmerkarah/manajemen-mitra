@@ -1,5 +1,6 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import RoleSwitcher from '@/components/role-switcher';
+import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import ViewAsUserSwitcher from '@/components/view-as-user-switcher';
 import { useSidebarBreadcrumbs } from '@/hooks/useSidebarBreadcrumbs';
@@ -19,6 +20,7 @@ export function AppSidebarHeader({
                 <Breadcrumbs breadcrumbs={augmentedBreadcrumbs} />
             </div>
             <div className="flex items-center gap-2">
+                <ThemeToggleButton />
                 <ViewAsUserSwitcher />
                 <RoleSwitcher />
             </div>

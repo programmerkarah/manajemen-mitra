@@ -20,9 +20,10 @@ export function ThemeToggleButton() {
     const CurrentIcon = themeConfig[appearance].icon;
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
+                    type="button"
                     variant="ghost"
                     size="icon"
                     className="size-10 rounded-full"
