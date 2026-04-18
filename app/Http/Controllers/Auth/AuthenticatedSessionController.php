@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Fortify\Features;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -47,6 +48,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         try {
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(5)
                 ->get(rtrim($baseUrl, '/').'/api/application/status', [
                     'client_id' => $clientId,
@@ -76,6 +78,23 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->authenticate();
+
+        $user = Auth::user();
+
+        if (
+            $user
+            && Features::enabled(Features::twoFactorAuthentication())
+            && ! is_null($user->two_factor_secret)
+            && ! is_null($user->two_factor_confirmed_at)
+        ) {
+            Auth::guard('web')->logout();
+            $request->session()->put([
+                'login.id' => $user->getKey(),
+                'login.remember' => $request->boolean('remember'),
+            ]);
+
+            return redirect()->route('two-factor.login');
+        }
 
         $request->session()->regenerate();
 

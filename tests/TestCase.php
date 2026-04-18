@@ -2,8 +2,10 @@
 
 namespace Tests;
 
+use App\Http\Middleware\EnsureSingleActiveSession;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
@@ -11,6 +13,10 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
+
+        $this->withoutMiddleware(EnsureSingleActiveSession::class);
 
         // Disable foreign key checks for SQLite in tests
         if (DB::getDriverName() === 'sqlite') {

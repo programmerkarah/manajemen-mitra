@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\SessionConcurrencyManager;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -76,6 +77,7 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        /** @var Response $tokenResponse */
         $tokenResponse = Http::asForm()
             ->acceptJson()
             ->post(rtrim($this->baseUrl(), '/').'/oauth/token', [
@@ -100,6 +102,7 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        /** @var Response $profileResponse */
         $profileResponse = Http::withToken($accessToken)
             ->acceptJson()
             ->get(rtrim($this->baseUrl(), '/').$this->userEndpoint());

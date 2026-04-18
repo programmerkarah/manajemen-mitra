@@ -1,10 +1,10 @@
+import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
 import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/actions/App/Http/Controllers/Auth/RegisteredUserController';
 import { Form, Head, Link } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 
@@ -13,7 +13,10 @@ interface RegisterProps {
     ssoRegisterUrl?: string | null;
 }
 
-export default function Register({ ssoActive = false, ssoRegisterUrl }: RegisterProps) {
+export default function Register({
+    ssoActive = false,
+    ssoRegisterUrl,
+}: RegisterProps) {
     return (
         <>
             <Head title="Daftar" />
@@ -63,7 +66,8 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                         </a>
                                     ) : (
                                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-200">
-                                            Konfigurasi SSO belum lengkap. Hubungi administrator.
+                                            Konfigurasi SSO belum lengkap.
+                                            Hubungi administrator.
                                         </div>
                                     )}
 
@@ -80,13 +84,19 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                             ) : (
                                 <Form
                                     {...store.form()}
-                                    resetOnSuccess={['password', 'password_confirmation']}
+                                    resetOnSuccess={[
+                                        'password',
+                                        'password_confirmation',
+                                    ]}
                                     className="flex flex-col gap-5"
                                 >
                                     {({ processing, errors }) => (
                                         <>
                                             <div className="grid gap-2">
-                                                <Label htmlFor="name" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="name"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Nama Lengkap
                                                 </Label>
                                                 <Input
@@ -99,11 +109,16 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                                     placeholder="Masukkan nama lengkap"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.name} />
+                                                <InputError
+                                                    message={errors.name}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="username" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="username"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Username
                                                 </Label>
                                                 <Input
@@ -115,11 +130,16 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                                     placeholder="Masukkan username"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.username} />
+                                                <InputError
+                                                    message={errors.username}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="email" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="email"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Email
                                                 </Label>
                                                 <Input
@@ -131,11 +151,16 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                                     placeholder="Masukkan email"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.email} />
+                                                <InputError
+                                                    message={errors.email}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="password"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Password
                                                 </Label>
                                                 <Input
@@ -147,11 +172,16 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                                     placeholder="Minimal 8 karakter"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password} />
+                                                <InputError
+                                                    message={errors.password}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password_confirmation" className="text-neutral-900 dark:text-neutral-100">
+                                                <Label
+                                                    htmlFor="password_confirmation"
+                                                    className="text-neutral-900 dark:text-neutral-100"
+                                                >
                                                     Konfirmasi Password
                                                 </Label>
                                                 <Input
@@ -163,7 +193,11 @@ export default function Register({ ssoActive = false, ssoRegisterUrl }: Register
                                                     placeholder="Ulangi password"
                                                     className="h-11"
                                                 />
-                                                <InputError message={errors.password_confirmation} />
+                                                <InputError
+                                                    message={
+                                                        errors.password_confirmation
+                                                    }
+                                                />
                                             </div>
 
                                             <Button

@@ -52,8 +52,8 @@ class TwoFactorPromptTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('profile.edit'));
 
-        // Settings pages are allowed even without 2FA
-        $response->assertOk();
+        // Settings pages redirect to home since they are managed via SSO
+        $response->assertRedirect('/');
     }
 
     public function test_user_without_two_factor_can_access_two_factor_settings(): void
@@ -65,6 +65,7 @@ class TwoFactorPromptTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('two-factor.show'));
 
-        $response->assertOk();
+        // two-factor.show redirects to home since it is managed via SSO
+        $response->assertRedirect('/');
     }
 }

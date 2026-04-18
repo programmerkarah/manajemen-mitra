@@ -1,6 +1,3 @@
-import { Appearance, useAppearance } from '@/hooks/use-appearance';
-import { cn } from '@/lib/utils';
-import { Monitor, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -8,6 +5,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Appearance, useAppearance } from '@/hooks/use-appearance';
+import { cn } from '@/lib/utils';
+import { Monitor, Moon, Sun } from 'lucide-react';
 
 const themeConfig = {
     light: { icon: Sun, label: 'Light' },
@@ -33,13 +33,19 @@ export function ThemeToggleButton() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-                {(Object.entries(themeConfig) as [Appearance, typeof themeConfig.light][]).map(([value, { icon: Icon, label }]) => (
+                {(
+                    Object.entries(themeConfig) as [
+                        Appearance,
+                        typeof themeConfig.light,
+                    ][]
+                ).map(([value, { icon: Icon, label }]) => (
                     <DropdownMenuItem
                         key={value}
                         onClick={() => updateAppearance(value)}
                         className={cn(
                             'cursor-pointer',
-                            appearance === value && 'bg-gray-100 dark:bg-zinc-800'
+                            appearance === value &&
+                                'bg-gray-100 dark:bg-zinc-800',
                         )}
                     >
                         <Icon className="mr-2 size-4" />

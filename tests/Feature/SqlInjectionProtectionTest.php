@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureSingleActiveSession;
 use App\Models\Dipa;
 use App\Models\Kegiatan;
 use App\Models\Petugas;
@@ -42,6 +43,8 @@ class SqlInjectionProtectionTest extends TestCase
      */
     public function test_sql_injection_in_search_is_sanitized(): void
     {
+        $this->withoutMiddleware(EnsureSingleActiveSession::class);
+        $this->actingAsAdmin();
         $maliciousInputs = [
             "' OR '1'='1",
             "1' UNION SELECT * FROM users--",
@@ -52,7 +55,7 @@ class SqlInjectionProtectionTest extends TestCase
         ];
 
         foreach ($maliciousInputs as $input) {
-            $response = $this->actingAsAdmin()->get(route('petugas.index', [
+            $response = $this->get(route('petugas.index', [
                 'search' => $input,
             ]));
 
@@ -125,6 +128,8 @@ class SqlInjectionProtectionTest extends TestCase
      */
     public function test_xss_prevention_in_search(): void
     {
+        $this->withoutMiddleware(EnsureSingleActiveSession::class);
+        $this->actingAsAdmin();
         $xssAttempts = [
             '<script>alert("XSS")</script>',
             '<img src=x onerror=alert("XSS")>',
@@ -132,7 +137,7 @@ class SqlInjectionProtectionTest extends TestCase
         ];
 
         foreach ($xssAttempts as $xss) {
-            $response = $this->actingAsAdmin()->get(route('petugas.index', [
+            $response = $this->get(route('petugas.index', [
                 'search' => $xss,
             ]));
 

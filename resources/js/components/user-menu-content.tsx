@@ -1,5 +1,4 @@
 import {
-    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -40,9 +39,13 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
             document.body.appendChild(form);
             form.submit();
         } catch {
-            router.post('/logout', {}, {
-                onBefore: () => router.flushAll(),
-            });
+            router.post(
+                '/logout',
+                {},
+                {
+                    onBefore: () => router.flushAll(),
+                },
+            );
         }
     };
 

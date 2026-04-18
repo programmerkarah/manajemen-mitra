@@ -62,6 +62,7 @@ class RegisteredUserController extends Controller
         }
 
         try {
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(5)
                 ->get(rtrim($baseUrl, '/').'/api/application/status', [
                     'client_id' => $clientId,

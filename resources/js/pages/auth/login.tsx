@@ -1,3 +1,4 @@
+import { store } from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -5,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
 import { LogIn } from 'lucide-react';
@@ -120,7 +120,9 @@ export default function Login({
                                                             className="h-11"
                                                         />
                                                         <InputError
-                                                            message={errors.username}
+                                                            message={
+                                                                errors.username
+                                                            }
                                                         />
                                                     </div>
 
@@ -138,7 +140,8 @@ export default function Login({
                                                                     className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                                                     tabIndex={5}
                                                                 >
-                                                                    Lupa password?
+                                                                    Lupa
+                                                                    password?
                                                                 </TextLink>
                                                             )}
                                                         </div>
@@ -153,7 +156,9 @@ export default function Login({
                                                             className="h-11"
                                                         />
                                                         <InputError
-                                                            message={errors.password}
+                                                            message={
+                                                                errors.password
+                                                            }
                                                         />
                                                     </div>
 
@@ -164,7 +169,9 @@ export default function Login({
                                                         disabled={processing}
                                                         data-test="login-button"
                                                     >
-                                                        {processing && <Spinner />}
+                                                        {processing && (
+                                                            <Spinner />
+                                                        )}
                                                         Masuk
                                                     </Button>
                                                 </div>
