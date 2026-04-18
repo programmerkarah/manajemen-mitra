@@ -21,6 +21,17 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    server: {
+        hmr: {
+            host: '127.0.0.1',
+            port: 5173,
+            protocol: 'ws',
+        },
+        // Add headers for development
+        headers: {
+            'Cache-Control': 'no-cache',
+        },
+    },
     esbuild: {
         jsx: 'automatic',
     },
@@ -68,15 +79,5 @@ export default defineConfig({
         chunkSizeWarningLimit: 1000,
         // Source maps for debugging (set to false in production)
         sourcemap: false,
-    },
-    // Development server configuration
-    server: {
-        hmr: {
-            host: 'localhost',
-        },
-        // Add headers for development
-        headers: {
-            'Cache-Control': 'no-cache',
-        },
     },
 });

@@ -51,6 +51,10 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         $request->session()->regenerate();
+
+        // Set initial last login time for new user
+        $user->update(['last_login_at' => now()]);
+
         $this->sessionConcurrencyManager->activateLatestSession($request, $user->id);
 
         return redirect()->route('dashboard');

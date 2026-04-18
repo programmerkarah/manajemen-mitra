@@ -88,6 +88,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Update last login time
+        $user = Auth::user();
+        if ($user) {
+            $user->update(['last_login_at' => now()]);
+            $this->sessionConcurrencyManager->activateLatestSession($request, $user->id);
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
