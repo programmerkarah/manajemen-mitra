@@ -40,6 +40,10 @@ class AuthenticatedSessionController extends Controller
 
     private function resolveSsoActive(): bool
     {
+        if (! (bool) config('services.sso.active', true)) {
+            return false;
+        }
+
         $clientId = config('services.sso.client_id');
         $baseUrl = config('services.sso.base_url');
 
