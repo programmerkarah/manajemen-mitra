@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\SessionInvalidated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,8 @@ class SessionConcurrencyManager
             DB::table(config('session.table', 'sessions'))
                 ->where('id', $previousSessionId)
                 ->delete();
+
+            broadcast(new SessionInvalidated($userId, 'new_login'));
         }
     }
 
