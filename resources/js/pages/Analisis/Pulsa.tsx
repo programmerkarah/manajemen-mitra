@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import {
     Bar,
     BarChart,
@@ -59,6 +60,7 @@ interface AlokasiPulsaPerBulan {
 }
 
 interface DistribusiJenisPulsa {
+    [key: string]: unknown;
     jenis: string;
     count: number;
     total: number;
@@ -89,7 +91,8 @@ function GlassTooltipContent({
     label,
 }: {
     active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload?: Array<Record<string, any>>;
     label?: string;
 }) {
     if (!active || !payload || payload.length === 0) {
@@ -97,9 +100,11 @@ function GlassTooltipContent({
     }
     return (
         <div className={glassTooltipClass}>
-            <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
-                {label}
-            </p>
+            {label && (
+                <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
+                    {label}
+                </p>
+            )}
             {payload.map((entry, i) => (
                 <p
                     key={i}
@@ -107,6 +112,8 @@ function GlassTooltipContent({
                 >
                     <span style={{ color: entry.color }}>●</span> {entry.name}:{' '}
                     {entry.value}
+                    {typeof entry.percent === 'number' &&
+                        ` (${(entry.percent * 100).toFixed(1)}%)`}
                 </p>
             ))}
         </div>
@@ -173,13 +180,29 @@ export default function AnalisisPulsa({
             <Head title="Analisis Kebutuhan dan Pengadaan Pulsa" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
-                        Analisis Kebutuhan dan Pengadaan Pulsa
-                    </h1>
-                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                        Tahun {currentYear}
-                    </p>
+                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                    <div>
+                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+                            Analisis Kebutuhan dan Pengadaan Pulsa
+                        </h1>
+                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                            Tahun {currentYear}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.open(
+                                '/analisis/pulsa/export-pdf',
+                                '_blank',
+                                'noopener,noreferrer',
+                            )
+                        }
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export PDF
+                    </button>
                 </div>
 
                 {/* Summary Cards */}
@@ -257,9 +280,10 @@ export default function AnalisisPulsa({
                                         cx="50%"
                                         cy="50%"
                                         outerRadius={80}
-                                        label={({ jenis, count }) =>
-                                            `${jenis}: ${count}`
-                                        }
+                                        label={(
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            props: any,
+                                        ) => `${props.jenis}: ${props.count}`}
                                     >
                                         {distribusiJenisPulsa.map(
                                             (_, index) => (
@@ -276,7 +300,49 @@ export default function AnalisisPulsa({
                                         )}
                                     </Pie>
                                     <ChartTooltip
-                                        content={<GlassRupiahTooltipContent />}
+                                        content={({ active, payload }) => {
+                                            if (!active || !payload?.length)
+                                                return null;
+                                            const entry = payload[0];
+                                            const total =
+                                                distribusiJenisPulsa.reduce(
+                                                    (s, d) => s + d.total,
+                                                    0,
+                                                );
+                                            const pct =
+                                                total > 0
+                                                    ? (Number(entry.value) /
+                                                          total) *
+                                                      100
+                                                    : 0;
+                                            const pctLabel = Number.isInteger(
+                                                pct,
+                                            )
+                                                ? pct.toFixed(0)
+                                                : pct.toFixed(1);
+                                            return (
+                                                <div
+                                                    className={
+                                                        glassTooltipClass
+                                                    }
+                                                >
+                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                        <span
+                                                            style={{
+                                                                color: entry.color,
+                                                            }}
+                                                        >
+                                                            ●
+                                                        </span>{' '}
+                                                        {entry.name}:{' '}
+                                                        {formatRupiah(
+                                                            Number(entry.value),
+                                                        )}{' '}
+                                                        ({pctLabel}%)
+                                                    </p>
+                                                </div>
+                                            );
+                                        }}
                                     />
                                     <Legend />
                                 </PieChart>
@@ -353,22 +419,22 @@ export default function AnalisisPulsa({
                                             color: '',
                                         },
                                         {
-                                            label: 'Pengajuan Dikirim [Petugas]',
+                                            label: 'Pengajuan Dikirim [Petugas x Kegiatan]',
                                             key: 'diajukan' as const,
                                             color: 'text-blue-600 dark:text-blue-400',
                                         },
                                         {
-                                            label: 'Pengajuan Disetujui [Petugas]',
+                                            label: 'Pengajuan Disetujui [Petugas x Kegiatan]',
                                             key: 'disetujui' as const,
                                             color: 'text-green-600 dark:text-green-400',
                                         },
                                         {
-                                            label: 'Pengajuan Ditolak [Petugas]',
+                                            label: 'Pengajuan Ditolak [Petugas x Kegiatan]',
                                             key: 'ditolak' as const,
                                             color: 'text-red-600 dark:text-red-400',
                                         },
                                         {
-                                            label: 'Pengajuan Pending [Petugas]',
+                                            label: 'Pengajuan Pending [Petugas x Kegiatan]',
                                             key: 'menunggu' as const,
                                             color: 'text-yellow-600 dark:text-yellow-400',
                                         },

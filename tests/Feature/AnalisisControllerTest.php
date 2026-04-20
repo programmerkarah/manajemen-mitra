@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use App\Models\SkKpa;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -84,7 +87,7 @@ class AnalisisControllerTest extends TestCase
                 ->has('utilisasiAnggaran')
                 ->has('distribusiBebanKerja')
                 ->has('trenAlokasi')
-                ->has('kelengkapanDokumen')
+                ->has('trenAlokasi.0.total_kegiatan')
                 ->has('currentYear')
             );
     }
@@ -114,6 +117,112 @@ class AnalisisControllerTest extends TestCase
         $this->actingAs($user)
             ->get(route('analisis.petugas'))
             ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_perubahan_zero_allocation_is_excluded_from_analisis_petugas(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $currentYear,
+            'status' => 'draft',
+        ]);
+
+        $petugasAktif = Petugas::factory()->create([
+            'nama' => 'Petugas Aktif',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $nadya = Petugas::factory()->create([
+            'nama' => 'Nadya Salsabillah',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => $currentYear,
+            'status' => 'perubahan',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugasAktif->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 120000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $nadya->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 100000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugasAktif->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 150000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $nadya->id,
+            'jumlah_satuan' => 0,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $petugasDetail = collect($props['petugasAlokasiDetail']);
+
+        $this->assertFalse($petugasDetail->pluck('petugas_nama')->contains('Nadya Salsabillah'));
+
+        $januari = collect($props['alokasiPerBulan'])->firstWhere('bulan', 1);
+        $this->assertNotNull($januari);
+        $this->assertSame(1, $januari['jumlah_petugas']);
+        $this->assertSame(1, $januari['jumlah_kegiatan']);
+    }
+
+    public function test_admin_can_export_all_analisis_pdf(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        foreach ([
+            'analisis.umum.export-pdf',
+            'analisis.petugas.export-pdf',
+            'analisis.pulsa.export-pdf',
+            'analisis.dokumen.export-pdf',
+        ] as $routeName) {
+            $response = $this->actingAs($user)
+                ->get(route($routeName))
+                ->assertOk();
+
+            $contentType = (string) $response->headers->get('content-type');
+            $disposition = (string) $response->headers->get('content-disposition');
+
+            $this->assertStringContainsString('application/pdf', $contentType);
+            $this->assertStringContainsString('.pdf', $disposition);
+        }
     }
 
     public function test_sk_per_bulan_does_not_double_count_signed(): void

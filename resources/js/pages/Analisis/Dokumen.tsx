@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import {
     Bar,
     BarChart,
@@ -41,7 +42,8 @@ function GlassTooltipContent({
     label,
 }: {
     active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload?: Array<Record<string, any>>;
     label?: string;
 }) {
     if (!active || !payload || payload.length === 0) {
@@ -49,9 +51,11 @@ function GlassTooltipContent({
     }
     return (
         <div className={glassTooltipClass}>
-            <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
-                {label}
-            </p>
+            {label && (
+                <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
+                    {label}
+                </p>
+            )}
             {payload.map((entry, i) => (
                 <p
                     key={i}
@@ -59,6 +63,8 @@ function GlassTooltipContent({
                 >
                     <span style={{ color: entry.color }}>●</span> {entry.name}:{' '}
                     {entry.value}
+                    {typeof entry.percent === 'number' &&
+                        ` (${(entry.percent * 100).toFixed(1)}%)`}
                 </p>
             ))}
         </div>
@@ -114,13 +120,29 @@ export default function AnalisisDokumen({
             <Head title="Analisis Dokumen SK dan Perjanjian Kerja" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
-                        Analisis Dokumen SK dan Perjanjian Kerja
-                    </h1>
-                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                        Tahun {currentYear}
-                    </p>
+                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                    <div>
+                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+                            Analisis Dokumen SK dan Perjanjian Kerja
+                        </h1>
+                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                            Tahun {currentYear}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.open(
+                                '/analisis/dokumen/export-pdf',
+                                '_blank',
+                                'noopener,noreferrer',
+                            )
+                        }
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export PDF
+                    </button>
                 </div>
 
                 {/* Summary Cards */}
@@ -135,7 +157,7 @@ export default function AnalisisDokumen({
                     </div>
                     <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                         <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                            SK Diterbitkan
+                            SK KPA Diterbitkan
                         </p>
                         <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">
                             {skDiterbitkan}
@@ -151,7 +173,7 @@ export default function AnalisisDokumen({
                     </div>
                     <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                         <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                            SPK Diterbitkan
+                            Perjanjian Kerja Diterbitkan
                         </p>
                         <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">
                             {spkDiterbitkan}
@@ -179,16 +201,9 @@ export default function AnalisisDokumen({
                                 radius={[0, 0, 0, 0]}
                             />
                             <Bar
-                                dataKey="diterbitkan"
-                                fill="#22c55e"
-                                name="Diterbitkan"
-                                stackId="sk"
-                                radius={[0, 0, 0, 0]}
-                            />
-                            <Bar
                                 dataKey="ditandatangani"
                                 fill="#3b82f6"
-                                name="Ditandatangani"
+                                name="Diterbitkan & Ditandatangani"
                                 stackId="sk"
                                 radius={[4, 4, 0, 0]}
                             />
@@ -198,43 +213,66 @@ export default function AnalisisDokumen({
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                    <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                        Bulan
+                                    <th className="min-w-[100px] py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                        Status
                                     </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
+                                    {monthNames.map((m) => (
+                                        <th
+                                            key={m}
+                                            className="py-2 text-center font-medium text-neutral-600 dark:text-neutral-400"
+                                        >
+                                            {m}
+                                        </th>
+                                    ))}
+                                    <th className="py-2 text-center font-semibold text-neutral-600 dark:text-neutral-400">
                                         Total
-                                    </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                        Draft
-                                    </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                        Diterbitkan
-                                    </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                        Ditandatangani
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {skPerBulan.map((item) => (
+                                {(
+                                    [
+                                        {
+                                            label: 'Total',
+                                            key: 'total' as const,
+                                            color: '',
+                                        },
+                                        {
+                                            label: 'Draft',
+                                            key: 'draft' as const,
+                                            color: 'text-neutral-600 dark:text-neutral-400',
+                                        },
+                                        {
+                                            label: 'Diterbitkan & Ditandatangani',
+                                            key: 'ditandatangani' as const,
+                                            color: 'text-blue-600 dark:text-blue-400',
+                                        },
+                                    ] as const
+                                ).map((row) => (
                                     <tr
-                                        key={item.bulan}
+                                        key={row.key}
                                         className="border-b border-neutral-100 dark:border-neutral-700/50"
                                     >
-                                        <td className="py-1.5 text-neutral-900 dark:text-white">
-                                            {monthNames[item.bulan - 1]}
+                                        <td
+                                            className={`py-1.5 font-medium ${row.color || 'text-neutral-900 dark:text-white'}`}
+                                        >
+                                            {row.label}
                                         </td>
-                                        <td className="py-1.5 text-right font-medium text-neutral-900 dark:text-white">
-                                            {item.total}
-                                        </td>
-                                        <td className="py-1.5 text-right text-neutral-600 dark:text-neutral-400">
-                                            {item.draft}
-                                        </td>
-                                        <td className="py-1.5 text-right font-medium text-green-600 dark:text-green-400">
-                                            {item.diterbitkan}
-                                        </td>
-                                        <td className="py-1.5 text-right font-medium text-blue-600 dark:text-blue-400">
-                                            {item.ditandatangani}
+                                        {skPerBulan.map((item) => (
+                                            <td
+                                                key={item.bulan}
+                                                className={`py-1.5 text-center font-medium ${row.color || 'text-neutral-900 dark:text-white'}`}
+                                            >
+                                                {item[row.key]}
+                                            </td>
+                                        ))}
+                                        <td
+                                            className={`py-1.5 text-center font-bold ${row.color || 'text-neutral-900 dark:text-white'}`}
+                                        >
+                                            {skPerBulan.reduce(
+                                                (s, i) => s + i[row.key],
+                                                0,
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

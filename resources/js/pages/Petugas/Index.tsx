@@ -923,7 +923,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                         );
                                                     }}
                                                 >
-                                                    <SelectTrigger className="h-8 text-sm">
+                                                    <SelectTrigger className="h-8 text-sm [&>span]:text-left">
                                                         <SelectValue placeholder="Pilih" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -975,7 +975,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 </Select>
                                             </td>
                                             <td className="px-2 py-1.5">
-                                                <Input
+                                                <textarea
                                                     value={item.alamat}
                                                     onChange={(e) =>
                                                         updateBatchItem(
@@ -984,7 +984,8 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                             e.target.value,
                                                         )
                                                     }
-                                                    className="h-8 text-sm"
+                                                    className="flex min-h-[60px] w-full min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                                    rows={2}
                                                 />
                                             </td>
                                         </tr>

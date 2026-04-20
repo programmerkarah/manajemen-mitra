@@ -7,6 +7,7 @@ use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
 use App\Models\SkKpa;
 use App\Models\Spk;
+use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -14,6 +15,8 @@ use Inertia\Response;
 
 class AnalisisController extends Controller
 {
+    use EffectivePeriodeScope;
+
     /**
      * Analisis Petugas Non-Organik.
      */
@@ -96,8 +99,9 @@ class AnalisisController extends Controller
                 ->where('periode_alokasi.bulan', $bulanFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
-                ->distinct('alokasi_petugas.petugas_id')
+                ->whereRaw($this->nonZeroHonorClause().' > 0');
+            $this->applyEffectivePeriode($jumlahPetugas);
+            $jumlahPetugas = $jumlahPetugas->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
             $jumlahKegiatan = DB::table('alokasi_petugas')
@@ -106,8 +110,9 @@ class AnalisisController extends Controller
                 ->where('periode_alokasi.bulan', $bulanFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
-                ->distinct('periode_alokasi.kegiatan_id')
+                ->whereRaw($this->nonZeroHonorClause().' > 0');
+            $this->applyEffectivePeriode($jumlahKegiatan);
+            $jumlahKegiatan = $jumlahKegiatan->distinct('periode_alokasi.kegiatan_id')
                 ->count('periode_alokasi.kegiatan_id');
 
             $alokasiPerBulan[] = [
@@ -124,14 +129,15 @@ class AnalisisController extends Controller
             ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
-            ->select(
-                'petugas.id as petugas_id',
-                'petugas.nama as petugas_nama',
-                'kegiatan.id as kegiatan_id',
-                'kegiatan.nama_kegiatan',
-                'kegiatan.kode_kegiatan',
-            )
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($petugasKegiatan);
+        $petugasKegiatan = $petugasKegiatan->select(
+            'petugas.id as petugas_id',
+            'petugas.nama as petugas_nama',
+            'kegiatan.id as kegiatan_id',
+            'kegiatan.nama_kegiatan',
+            'kegiatan.kode_kegiatan',
+        )
             ->distinct()
             ->get();
 
@@ -150,19 +156,24 @@ class AnalisisController extends Controller
             ];
         })->sortByDesc('jumlah_kegiatan')->values()->all();
 
-        // Kegiatan list for filter (only kegiatan with non-organik petugas allocated)
-        $kegiatanList = Kegiatan::query()
-            ->where('tahun_anggaran', $currentYear)
-            ->whereNotIn('status', ['dibatalkan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($currentYear) {
-                $q->where('tahun', $currentYear)
-                    ->whereIn('status', ['dikirim', 'perubahan'])
-                    ->whereHas('alokasiPetugas', function ($q2) {
-                        $q2->whereHas('petugas', fn ($q3) => $q3->where('jenis_petugas', 'non-organik'));
-                    });
-            })
-            ->select('id', 'nama_kegiatan', 'kode_kegiatan')
-            ->orderBy('nama_kegiatan')
+        // Kegiatan list for filter (effective periode + alokasi non-zero)
+        $kegiatanList = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereNotIn('kegiatan.status', ['dibatalkan'])
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($kegiatanList);
+        $kegiatanList = $kegiatanList
+            ->select(
+                'kegiatan.id',
+                'kegiatan.nama_kegiatan',
+                'kegiatan.kode_kegiatan',
+            )
+            ->distinct()
+            ->orderBy('kegiatan.nama_kegiatan')
             ->get();
 
         // Per-petugas monthly allocation detail
@@ -171,29 +182,35 @@ class AnalisisController extends Controller
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
-            ->select(
-                'petugas.id as petugas_id',
-                'petugas.nama as petugas_nama',
-                'periode_alokasi.bulan',
-            )
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($petugasAlokasiRaw);
+        $petugasAlokasiRaw = $petugasAlokasiRaw->select(
+            'petugas.id as petugas_id',
+            'petugas.nama as petugas_nama',
+            'periode_alokasi.bulan',
+        )
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+            ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
             ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
             ->get();
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
             $first = $items->first();
             $bulanData = [];
+            $honorData = [];
             for ($b = 1; $b <= 12; $b++) {
                 $found = $items->firstWhere('bulan', str_pad($b, 2, '0', STR_PAD_LEFT));
                 $bulanData[$b] = $found ? (int) $found->jumlah_kegiatan : 0;
+                $honorData[$b] = $found ? (float) $found->total_honor : 0;
             }
 
             return [
                 'petugas_id' => $first->petugas_id,
                 'petugas_nama' => $first->petugas_nama,
                 'bulan' => $bulanData,
+                'honor' => $honorData,
                 'total' => array_sum($bulanData),
+                'total_honor' => array_sum($honorData),
             ];
         })->sortByDesc('total')->values()->all();
 
@@ -328,9 +345,9 @@ class AnalisisController extends Controller
                 ->where('bulan', $bulan)
                 ->where('tahun', $currentYear)
                 ->selectRaw('COUNT(*) as total')
-                ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft")
+                ->selectRaw("SUM(CASE WHEN status = 'draft' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as draft")
                 ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as diterbitkan")
-                ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' AND is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani")
+                ->selectRaw('SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani')
                 ->first();
 
             $skPerBulan[] = [
@@ -393,11 +410,15 @@ class AnalisisController extends Controller
             ->map(function ($kegiatan) use ($currentYear) {
                 $totalPagu = ($kegiatan->pagu_pencacahan ?? 0) + ($kegiatan->pagu_listing ?? 0);
 
-                $totalHonor = DB::table('alokasi_petugas')
+                $totalHonorQuery = DB::table('alokasi_petugas')
                     ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                     ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
                     ->where('periode_alokasi.tahun', $currentYear)
-                    ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
+                    ->whereRaw($this->nonZeroHonorClause().' > 0');
+
+                $this->applyEffectivePeriode($totalHonorQuery);
+
+                $totalHonor = $totalHonorQuery
                     ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total')
                     ->value('total');
 
@@ -410,7 +431,10 @@ class AnalisisController extends Controller
                     'total_terpakai' => (float) $totalHonor,
                     'persentase' => $totalPagu > 0 ? round(($totalHonor / $totalPagu) * 100, 1) : 0,
                 ];
-            })->filter(fn ($item) => $item['total_pagu'] > 0)->sortByDesc('total_pagu')->values()->all();
+            })->filter(fn ($item) => $item['total_pagu'] > 0)->sortBy([
+                ['persentase', 'desc'],
+                ['total_pagu', 'desc'],
+            ])->values()->all();
 
         // Beban Kerja Petugas (distribusi jumlah kegiatan per petugas)
         $bebanKerja = DB::table('alokasi_petugas')
@@ -418,7 +442,9 @@ class AnalisisController extends Controller
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($bebanKerja);
+        $bebanKerja = $bebanKerja
             ->groupBy('alokasi_petugas.petugas_id')
             ->selectRaw('alokasi_petugas.petugas_id, COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
             ->get();
@@ -442,57 +468,32 @@ class AnalisisController extends Controller
                 ->where('periode_alokasi.bulan', $bulanFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
+                ->whereRaw($this->nonZeroHonorClause().' > 0');
+            $this->applyEffectivePeriode($data);
+            $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
                 ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
+                ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
                 ->first();
 
             $trenAlokasi[] = [
                 'bulan' => $bulan,
                 'jumlah_petugas' => (int) $data->jumlah_petugas,
                 'total_honor' => (float) $data->total_honor,
+                'total_kegiatan' => (int) $data->total_kegiatan,
             ];
         }
-
-        // Kelengkapan Dokumen per Kegiatan
-        $kelengkapanDokumen = Kegiatan::query()
-            ->where('tahun_anggaran', $currentYear)
-            ->where('status', 'aktif')
-            ->withCount([
-                'periodeAlokasi as total_periode' => function ($query) use ($currentYear) {
-                    $query->where('tahun', $currentYear)->whereIn('status', ['dikirim', 'perubahan']);
-                },
-            ])
-            ->get()
-            ->map(function ($kegiatan) use ($currentYear) {
-                $skCount = SkKpa::query()
-                    ->where('kegiatan_id', $kegiatan->id)
-                    ->where('tahun', $currentYear)
-                    ->where('status', 'diterbitkan')
-                    ->count();
-
-                $spkCount = Spk::query()
-                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($kegiatan, $currentYear) {
-                        $q->where('kegiatan_id', $kegiatan->id)->where('tahun', $currentYear);
-                    })
-                    ->where('status', 'diterbitkan')
-                    ->count();
-
-                return [
-                    'nama_kegiatan' => $kegiatan->nama_kegiatan,
-                    'kode_kegiatan' => $kegiatan->kode_kegiatan,
-                    'total_periode' => $kegiatan->total_periode,
-                    'sk_diterbitkan' => $skCount,
-                    'spk_diterbitkan' => $spkCount,
-                ];
-            })->all();
 
         return Inertia::render('Analisis/Umum', [
             'utilisasiAnggaran' => $utilisasiAnggaran,
             'distribusiBebanKerja' => $distribusiBebanKerja,
             'trenAlokasi' => $trenAlokasi,
-            'kelengkapanDokumen' => $kelengkapanDokumen,
             'currentYear' => $currentYear,
         ]);
+    }
+
+    private function nonZeroHonorClause(): string
+    {
+        return '(COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0))';
     }
 }

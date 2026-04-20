@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\AnalisisController;
+use App\Http\Controllers\AnalisisExportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SsoOAuthController;
@@ -497,6 +498,11 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('analisis/pulsa', [AnalisisController::class, 'pulsa'])->name('analisis.pulsa');
         Route::get('analisis/dokumen', [AnalisisController::class, 'dokumen'])->name('analisis.dokumen');
         Route::get('analisis/umum', [AnalisisController::class, 'umum'])->name('analisis.umum');
+
+        Route::get('analisis/umum/export-pdf', [AnalisisExportController::class, 'umum'])->name('analisis.umum.export-pdf');
+        Route::get('analisis/petugas/export-pdf', [AnalisisExportController::class, 'petugas'])->name('analisis.petugas.export-pdf');
+        Route::get('analisis/pulsa/export-pdf', [AnalisisExportController::class, 'pulsa'])->name('analisis.pulsa.export-pdf');
+        Route::get('analisis/dokumen/export-pdf', [AnalisisExportController::class, 'dokumen'])->name('analisis.dokumen.export-pdf');
     });
 
     // Document Management - View routes (Admin, Operator, PJ, Ketua Tim can view)

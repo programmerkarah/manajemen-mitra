@@ -1,8 +1,10 @@
 import { SearchableSelect } from '@/components/searchable-select';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Download, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     Bar,
@@ -62,7 +64,8 @@ function GlassTooltipContent({
     label,
 }: {
     active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload?: Array<Record<string, any>>;
     label?: string;
 }) {
     if (!active || !payload || payload.length === 0) {
@@ -70,29 +73,48 @@ function GlassTooltipContent({
     }
     return (
         <div className={glassTooltipClass}>
-            <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
-                {label}
-            </p>
-            {payload.map((entry, i) => (
-                <p
-                    key={i}
-                    className="text-xs text-neutral-600 dark:text-neutral-400"
-                >
-                    <span style={{ color: entry.color }}>●</span> {entry.name}:{' '}
-                    {entry.value}
+            {label && (
+                <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
+                    {label}
                 </p>
-            ))}
+            )}
+            {payload.map((entry, i) => {
+                const pct =
+                    typeof entry.percent === 'number'
+                        ? (entry.percent * 100).toFixed(1)
+                        : null;
+                return (
+                    <p
+                        key={i}
+                        className="text-xs text-neutral-600 dark:text-neutral-400"
+                    >
+                        <span style={{ color: entry.color }}>●</span>{' '}
+                        {entry.name}: {entry.value}
+                        {pct !== null && ` (${pct}%)`}
+                    </p>
+                );
+            })}
         </div>
     );
 }
 
+function formatRupiah(value: number): string {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+    }).format(value);
+}
+
 interface DistribusiItem {
+    [key: string]: unknown;
     label: string;
     value?: string;
     count: number;
 }
 
 interface KecamatanItem {
+    [key: string]: unknown;
     kecamatan: string;
     count: number;
 }
@@ -131,7 +153,9 @@ interface PetugasAlokasiDetail {
     petugas_id: number;
     petugas_nama: string;
     bulan: Record<number, number>;
+    honor: Record<number, number>;
     total: number;
+    total_honor: number;
 }
 
 interface PetugasListItem {
@@ -168,8 +192,7 @@ export default function AnalisisPetugas({
 }: Props) {
     const [kegiatanFilter, setKegiatanFilter] = useState<string>('');
     const [searchPetugas, setSearchPetugas] = useState('');
-    const [selectedPetugasChart, setSelectedPetugasChart] =
-        useState<string>('');
+    const [selectedPetugasIds, setSelectedPetugasIds] = useState<string[]>([]);
     const [searchAlokasiDetail, setSearchAlokasiDetail] = useState('');
 
     const filteredPetugasKegiatan = useMemo(() => {
@@ -198,21 +221,39 @@ export default function AnalisisPetugas({
         );
     }, [petugasAlokasiDetail, searchAlokasiDetail]);
 
-    const selectedPetugasChartData = useMemo(() => {
-        if (!selectedPetugasChart) {
+    const multiPetugasChartData = useMemo(() => {
+        if (selectedPetugasIds.length === 0) {
             return null;
         }
-        const petugas = petugasAlokasiDetail.find(
-            (p) => String(p.petugas_id) === selectedPetugasChart,
+        const selected = petugasAlokasiDetail.filter((p) =>
+            selectedPetugasIds.includes(String(p.petugas_id)),
         );
-        if (!petugas) {
+        if (selected.length === 0) {
             return null;
         }
-        return monthNames.map((name, i) => ({
-            name,
-            jumlah_kegiatan: petugas.bulan[i + 1] || 0,
-        }));
-    }, [petugasAlokasiDetail, selectedPetugasChart]);
+        return monthNames.map((name, i) => {
+            const row: Record<string, number | string> = { name };
+            selected.forEach((p) => {
+                row[`kegiatan_${p.petugas_id}`] = p.bulan[i + 1] || 0;
+                row[`honor_${p.petugas_id}`] = p.honor[i + 1] || 0;
+            });
+            return row;
+        });
+    }, [petugasAlokasiDetail, selectedPetugasIds]);
+
+    const addPetugas = (id: string) => {
+        if (
+            id &&
+            !selectedPetugasIds.includes(id) &&
+            selectedPetugasIds.length < 5
+        ) {
+            setSelectedPetugasIds((prev) => [...prev, id]);
+        }
+    };
+
+    const removePetugas = (id: string) => {
+        setSelectedPetugasIds((prev) => prev.filter((p) => p !== id));
+    };
 
     const alokasiChartData = alokasiPerBulan.map((item) => ({
         ...item,
@@ -229,16 +270,33 @@ export default function AnalisisPetugas({
             <Head title="Analisis Petugas Non-Organik" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
-                        Analisis Petugas Non-Organik
-                    </h1>
-                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                        Tahun {currentYear} · Total petugas non-organik aktif:{' '}
-                        <span className="font-semibold text-neutral-900 dark:text-white">
-                            {totalPetugas}
-                        </span>
-                    </p>
+                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                    <div>
+                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+                            Analisis Petugas Non-Organik
+                        </h1>
+                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                            Tahun {currentYear} · Total petugas non-organik
+                            aktif:{' '}
+                            <span className="font-semibold text-neutral-900 dark:text-white">
+                                {totalPetugas}
+                            </span>
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.open(
+                                '/analisis/petugas/export-pdf',
+                                '_blank',
+                                'noopener,noreferrer',
+                            )
+                        }
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export PDF
+                    </button>
                 </div>
 
                 {/* Charts Row */}
@@ -258,9 +316,10 @@ export default function AnalisisPetugas({
                                         cx="50%"
                                         cy="50%"
                                         outerRadius={80}
-                                        label={({ label, count }) =>
-                                            `${label}: ${count}`
-                                        }
+                                        label={(
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            props: any,
+                                        ) => `${props.label}: ${props.count}`}
                                     >
                                         {distribusiJenisKelamin.map(
                                             (_, index) => (
@@ -277,7 +336,47 @@ export default function AnalisisPetugas({
                                         )}
                                     </Pie>
                                     <ChartTooltip
-                                        content={<GlassTooltipContent />}
+                                        content={({ active, payload }) => {
+                                            if (!active || !payload?.length)
+                                                return null;
+                                            const entry = payload[0];
+                                            const total =
+                                                distribusiJenisKelamin.reduce(
+                                                    (s, d) => s + d.count,
+                                                    0,
+                                                );
+                                            const pct =
+                                                total > 0
+                                                    ? (Number(entry.value) /
+                                                          total) *
+                                                      100
+                                                    : 0;
+                                            const pctLabel = Number.isInteger(
+                                                pct,
+                                            )
+                                                ? pct.toFixed(0)
+                                                : pct.toFixed(1);
+                                            return (
+                                                <div
+                                                    className={
+                                                        glassTooltipClass
+                                                    }
+                                                >
+                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                        <span
+                                                            style={{
+                                                                color: entry.color,
+                                                            }}
+                                                        >
+                                                            ●
+                                                        </span>{' '}
+                                                        {entry.name}:{' '}
+                                                        {entry.value} (
+                                                        {pctLabel}%)
+                                                    </p>
+                                                </div>
+                                            );
+                                        }}
                                     />
                                     <Legend />
                                 </PieChart>
@@ -321,41 +420,85 @@ export default function AnalisisPetugas({
 
                 {/* Kecamatan & Pendidikan */}
                 <div className="grid gap-6 lg:grid-cols-2">
-                    {/* Kecamatan */}
+                    {/* Kecamatan - Pie Chart */}
                     <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                         <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
                             Distribusi Kecamatan
                         </h3>
                         {distribusiKecamatan.length > 0 ? (
-                            <div className="max-h-64 overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-white dark:bg-neutral-800">
-                                        <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                            <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                                Kecamatan
-                                            </th>
-                                            <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                                Jumlah
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {distribusiKecamatan.map((item) => (
-                                            <tr
-                                                key={item.kecamatan}
-                                                className="border-b border-neutral-100 dark:border-neutral-700/50"
-                                            >
-                                                <td className="py-1.5 text-neutral-900 dark:text-white">
-                                                    {item.kecamatan}
-                                                </td>
-                                                <td className="py-1.5 text-right font-medium text-neutral-900 dark:text-white">
-                                                    {item.count}
-                                                </td>
-                                            </tr>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={distribusiKecamatan}
+                                        dataKey="count"
+                                        nameKey="kecamatan"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={80}
+                                        label={(
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            props: any,
+                                        ) =>
+                                            `${props.kecamatan}: ${props.count}`
+                                        }
+                                    >
+                                        {distribusiKecamatan.map((_, index) => (
+                                            <Cell
+                                                key={`cell-${index}`}
+                                                fill={
+                                                    COLORS[
+                                                        index % COLORS.length
+                                                    ]
+                                                }
+                                            />
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </Pie>
+                                    <ChartTooltip
+                                        content={({ active, payload }) => {
+                                            if (!active || !payload?.length)
+                                                return null;
+                                            const entry = payload[0];
+                                            const total =
+                                                distribusiKecamatan.reduce(
+                                                    (s, d) => s + d.count,
+                                                    0,
+                                                );
+                                            const pct =
+                                                total > 0
+                                                    ? (Number(entry.value) /
+                                                          total) *
+                                                      100
+                                                    : 0;
+                                            const pctLabel = Number.isInteger(
+                                                pct,
+                                            )
+                                                ? pct.toFixed(0)
+                                                : pct.toFixed(1);
+                                            return (
+                                                <div
+                                                    className={
+                                                        glassTooltipClass
+                                                    }
+                                                >
+                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                        <span
+                                                            style={{
+                                                                color: entry.color,
+                                                            }}
+                                                        >
+                                                            ●
+                                                        </span>{' '}
+                                                        {entry.name}:{' '}
+                                                        {entry.value} (
+                                                        {pctLabel}%)
+                                                    </p>
+                                                </div>
+                                            );
+                                        }}
+                                    />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Data kecamatan belum tersedia
@@ -399,7 +542,7 @@ export default function AnalisisPetugas({
                 <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                     <div className="mb-4 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                            Tabel Alokasi Petugas per Bulan
+                            Alokasi Petugas per Bulan
                         </h3>
                         <span className="text-xs text-neutral-500 dark:text-neutral-400">
                             Total alokasi setahun: {totalAlokasiTahun}
@@ -436,31 +579,61 @@ export default function AnalisisPetugas({
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                    <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                        Bulan
+                                    <th className="min-w-[120px] py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                        Metrik
                                     </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                        Jumlah Petugas
-                                    </th>
-                                    <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                        Jumlah Kegiatan
+                                    {monthNames.map((m) => (
+                                        <th
+                                            key={m}
+                                            className="py-2 text-center font-medium text-neutral-600 dark:text-neutral-400"
+                                        >
+                                            {m}
+                                        </th>
+                                    ))}
+                                    <th className="py-2 text-center font-semibold text-neutral-600 dark:text-neutral-400">
+                                        Total
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {alokasiPerBulan.map((item) => (
+                                {(
+                                    [
+                                        {
+                                            label: 'Jumlah Petugas',
+                                            key: 'jumlah_petugas' as const,
+                                            color: 'text-blue-600 dark:text-blue-400',
+                                        },
+                                        {
+                                            label: 'Jumlah Kegiatan',
+                                            key: 'jumlah_kegiatan' as const,
+                                            color: 'text-green-600 dark:text-green-400',
+                                        },
+                                    ] as const
+                                ).map((row) => (
                                     <tr
-                                        key={item.bulan}
+                                        key={row.key}
                                         className="border-b border-neutral-100 dark:border-neutral-700/50"
                                     >
-                                        <td className="py-1.5 text-neutral-900 dark:text-white">
-                                            {monthNames[item.bulan - 1]}
+                                        <td
+                                            className={`py-1.5 font-medium ${row.color}`}
+                                        >
+                                            {row.label}
                                         </td>
-                                        <td className="py-1.5 text-right font-medium text-neutral-900 dark:text-white">
-                                            {item.jumlah_petugas}
-                                        </td>
-                                        <td className="py-1.5 text-right font-medium text-neutral-900 dark:text-white">
-                                            {item.jumlah_kegiatan}
+                                        {alokasiPerBulan.map((item) => (
+                                            <td
+                                                key={item.bulan}
+                                                className={`py-1.5 text-center font-medium ${row.color}`}
+                                            >
+                                                {item[row.key]}
+                                            </td>
+                                        ))}
+                                        <td
+                                            className={`py-1.5 text-center font-bold ${row.color}`}
+                                        >
+                                            {alokasiPerBulan.reduce(
+                                                (s, i) => s + i[row.key],
+                                                0,
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -469,52 +642,198 @@ export default function AnalisisPetugas({
                     </div>
                 </div>
 
-                {/* Per-Petugas Chart */}
+                {/* Per-Petugas Chart - Dynamic Multi-select */}
                 <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                     <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
                         Grafik Alokasi per Petugas
                     </h3>
-                    <div className="mb-4 w-72">
-                        <SearchableSelect
-                            options={petugasList.map((p) => ({
-                                value: String(p.id),
-                                label: p.nama,
-                            }))}
-                            value={selectedPetugasChart}
-                            onValueChange={setSelectedPetugasChart}
-                            placeholder="Pilih petugas untuk chart..."
-                            searchPlaceholder="Cari petugas..."
-                        />
+                    <div className="mb-4 flex flex-wrap items-end gap-3">
+                        <div className="w-72">
+                            <SearchableSelect
+                                options={petugasList
+                                    .filter(
+                                        (p) =>
+                                            !selectedPetugasIds.includes(
+                                                String(p.id),
+                                            ),
+                                    )
+                                    .map((p) => ({
+                                        value: String(p.id),
+                                        label: p.nama,
+                                    }))}
+                                value=""
+                                onValueChange={addPetugas}
+                                placeholder={
+                                    selectedPetugasIds.length >= 5
+                                        ? 'Maks 5 petugas'
+                                        : 'Tambah petugas...'
+                                }
+                                searchPlaceholder="Cari petugas..."
+                            />
+                        </div>
+                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                            {selectedPetugasIds.length}/5 petugas dipilih
+                        </span>
                     </div>
-                    {selectedPetugasChartData ? (
-                        <div>
-                            <p className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                                Jumlah kegiatan per bulan:{' '}
-                                {petugasList.find(
-                                    (p) =>
-                                        String(p.id) === selectedPetugasChart,
-                                )?.nama ?? ''}
-                            </p>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <LineChart data={selectedPetugasChartData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" fontSize={12} />
-                                    <YAxis
-                                        fontSize={12}
-                                        allowDecimals={false}
-                                    />
-                                    <ChartTooltip
-                                        content={<GlassTooltipContent />}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="jumlah_kegiatan"
-                                        stroke="#8b5cf6"
-                                        name="Kegiatan"
-                                        strokeWidth={2}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                    {selectedPetugasIds.length > 0 && (
+                        <div className="mb-4 flex flex-wrap gap-2">
+                            {selectedPetugasIds.map((id, idx) => {
+                                const p = petugasList.find(
+                                    (pt) => String(pt.id) === id,
+                                );
+                                return (
+                                    <span
+                                        key={id}
+                                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-white"
+                                        style={{
+                                            backgroundColor:
+                                                COLORS[idx % COLORS.length],
+                                        }}
+                                    >
+                                        {p?.nama ?? id}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-4 w-4 p-0 text-white hover:bg-white/20"
+                                            onClick={() => removePetugas(id)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {multiPetugasChartData ? (
+                        <div className="space-y-4">
+                            <div>
+                                <p className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                    Jumlah Kegiatan per Bulan
+                                </p>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <LineChart data={multiPetugasChartData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" fontSize={12} />
+                                        <YAxis
+                                            fontSize={12}
+                                            allowDecimals={false}
+                                        />
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                        <Legend />
+                                        {selectedPetugasIds.map((id, idx) => {
+                                            const p = petugasList.find(
+                                                (pt) => String(pt.id) === id,
+                                            );
+                                            return (
+                                                <Line
+                                                    key={id}
+                                                    type="monotone"
+                                                    dataKey={`kegiatan_${id}`}
+                                                    stroke={
+                                                        COLORS[
+                                                            idx % COLORS.length
+                                                        ]
+                                                    }
+                                                    name={
+                                                        p?.nama ??
+                                                        `Petugas ${id}`
+                                                    }
+                                                    strokeWidth={2}
+                                                />
+                                            );
+                                        })}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div>
+                                <p className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                    Total Honor per Bulan
+                                </p>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <LineChart data={multiPetugasChartData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" fontSize={12} />
+                                        <YAxis
+                                            fontSize={12}
+                                            tickFormatter={(v) =>
+                                                `${(v / 1_000_000).toFixed(0)}jt`
+                                            }
+                                        />
+                                        <ChartTooltip
+                                            content={({
+                                                active,
+                                                payload,
+                                                label,
+                                            }) => {
+                                                if (
+                                                    !active ||
+                                                    !payload ||
+                                                    payload.length === 0
+                                                ) {
+                                                    return null;
+                                                }
+                                                return (
+                                                    <div
+                                                        className={
+                                                            glassTooltipClass
+                                                        }
+                                                    >
+                                                        <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
+                                                            {label}
+                                                        </p>
+                                                        {payload.map(
+                                                            (entry, i) => (
+                                                                <p
+                                                                    key={i}
+                                                                    className="text-xs text-neutral-600 dark:text-neutral-400"
+                                                                >
+                                                                    <span
+                                                                        style={{
+                                                                            color: entry.color,
+                                                                        }}
+                                                                    >
+                                                                        ●
+                                                                    </span>{' '}
+                                                                    {entry.name}
+                                                                    :{' '}
+                                                                    {formatRupiah(
+                                                                        entry.value as number,
+                                                                    )}
+                                                                </p>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                );
+                                            }}
+                                        />
+                                        <Legend />
+                                        {selectedPetugasIds.map((id, idx) => {
+                                            const p = petugasList.find(
+                                                (pt) => String(pt.id) === id,
+                                            );
+                                            return (
+                                                <Line
+                                                    key={id}
+                                                    type="monotone"
+                                                    dataKey={`honor_${id}`}
+                                                    stroke={
+                                                        COLORS[
+                                                            idx % COLORS.length
+                                                        ]
+                                                    }
+                                                    name={
+                                                        p?.nama ??
+                                                        `Petugas ${id}`
+                                                    }
+                                                    strokeWidth={2}
+                                                />
+                                            );
+                                        })}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     ) : (
                         <p className="py-10 text-center text-sm text-neutral-400">

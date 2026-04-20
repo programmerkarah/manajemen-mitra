@@ -1,6 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import {
     Bar,
     BarChart,
@@ -59,6 +60,7 @@ interface UtilisasiAnggaran {
 }
 
 interface DistribusiBebanKerja {
+    [key: string]: unknown;
     label: string;
     count: number;
 }
@@ -67,21 +69,13 @@ interface TrenAlokasi {
     bulan: number;
     jumlah_petugas: number;
     total_honor: number;
-}
-
-interface KelengkapanDokumen {
-    nama_kegiatan: string;
-    kode_kegiatan: string;
-    total_periode: number;
-    sk_diterbitkan: number;
-    spk_diterbitkan: number;
+    total_kegiatan: number;
 }
 
 interface Props {
     utilisasiAnggaran: UtilisasiAnggaran[];
     distribusiBebanKerja: DistribusiBebanKerja[];
     trenAlokasi: TrenAlokasi[];
-    kelengkapanDokumen: KelengkapanDokumen[];
     currentYear: number;
 }
 
@@ -96,41 +90,10 @@ function formatRupiah(value: number): string {
 const glassTooltipClass =
     'rounded-xl border border-white/20 bg-white/80 p-3 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-900/80';
 
-function GlassTooltipContent({
-    active,
-    payload,
-    label,
-}: {
-    active?: boolean;
-    payload?: Array<{ name: string; value: number; color: string }>;
-    label?: string;
-}) {
-    if (!active || !payload || payload.length === 0) {
-        return null;
-    }
-    return (
-        <div className={glassTooltipClass}>
-            <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
-                {label}
-            </p>
-            {payload.map((entry, i) => (
-                <p
-                    key={i}
-                    className="text-xs text-neutral-600 dark:text-neutral-400"
-                >
-                    <span style={{ color: entry.color }}>●</span> {entry.name}:{' '}
-                    {entry.value}
-                </p>
-            ))}
-        </div>
-    );
-}
-
 export default function AnalisisUmum({
     utilisasiAnggaran,
     distribusiBebanKerja,
     trenAlokasi,
-    kelengkapanDokumen,
     currentYear,
 }: Props) {
     const trenChartData = trenAlokasi.map((item) => ({
@@ -146,23 +109,43 @@ export default function AnalisisUmum({
             <Head title="Analisis Umum" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
-                        Analisis Umum
-                    </h1>
-                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                        Utilisasi anggaran, beban kerja petugas, tren alokasi,
-                        dan kelengkapan dokumen · Tahun {currentYear}
-                    </p>
+                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                    <div>
+                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+                            Analisis Umum
+                        </h1>
+                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                            Utilisasi anggaran, beban kerja petugas, dan tren
+                            alokasi · Tahun {currentYear}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            window.open(
+                                '/analisis/umum/export-pdf',
+                                '_blank',
+                                'noopener,noreferrer',
+                            )
+                        }
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export PDF
+                    </button>
                 </div>
 
                 {/* Charts Row */}
                 <div className="grid gap-6 lg:grid-cols-2">
                     {/* Beban Kerja */}
                     <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
+                        <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
                             Distribusi Beban Kerja Petugas
                         </h3>
+                        <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
+                            Total petugas berdasarkan jumlah kegiatan yang
+                            ditangani sepanjang tahun
+                        </p>
                         <ResponsiveContainer width="100%" height={280}>
                             <PieChart>
                                 <Pie
@@ -174,9 +157,10 @@ export default function AnalisisUmum({
                                     cx="50%"
                                     cy="50%"
                                     outerRadius={80}
-                                    label={({ label, count }) =>
-                                        `${label}: ${count}`
-                                    }
+                                    label={(
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        props: any,
+                                    ) => `${props.label}: ${props.count}`}
                                 >
                                     {distribusiBebanKerja
                                         .filter((d) => d.count > 0)
@@ -192,7 +176,40 @@ export default function AnalisisUmum({
                                         ))}
                                 </Pie>
                                 <ChartTooltip
-                                    content={<GlassTooltipContent />}
+                                    content={({ active, payload }) => {
+                                        if (!active || !payload?.length)
+                                            return null;
+                                        const entry = payload[0];
+                                        const total =
+                                            distribusiBebanKerja.reduce(
+                                                (s, d) => s + d.count,
+                                                0,
+                                            );
+                                        const pct =
+                                            total > 0
+                                                ? (Number(entry.value) /
+                                                      total) *
+                                                  100
+                                                : 0;
+                                        const pctLabel = Number.isInteger(pct)
+                                            ? pct.toFixed(0)
+                                            : pct.toFixed(1);
+                                        return (
+                                            <div className={glassTooltipClass}>
+                                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                    <span
+                                                        style={{
+                                                            color: entry.color,
+                                                        }}
+                                                    >
+                                                        ●
+                                                    </span>{' '}
+                                                    {entry.name}: {entry.value}{' '}
+                                                    ({pctLabel}%)
+                                                </p>
+                                            </div>
+                                        );
+                                    }}
                                 />
                                 <Legend />
                             </PieChart>
@@ -212,29 +229,69 @@ export default function AnalisisUmum({
                                     yAxisId="left"
                                     fontSize={12}
                                     orientation="left"
+                                    tickFormatter={(v) =>
+                                        `${(v / 1_000_000).toFixed(0)}jt`
+                                    }
                                 />
                                 <YAxis
                                     yAxisId="right"
                                     fontSize={12}
                                     orientation="right"
+                                    allowDecimals={false}
                                 />
                                 <ChartTooltip
-                                    content={<GlassTooltipContent />}
+                                    content={({ active, payload, label }) => {
+                                        if (
+                                            !active ||
+                                            !payload ||
+                                            payload.length === 0
+                                        ) {
+                                            return null;
+                                        }
+                                        return (
+                                            <div className={glassTooltipClass}>
+                                                <p className="mb-1 text-xs font-semibold text-neutral-900 dark:text-white">
+                                                    {label}
+                                                </p>
+                                                {payload.map((entry, i) => (
+                                                    <p
+                                                        key={i}
+                                                        className="text-xs text-neutral-600 dark:text-neutral-400"
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                color: entry.color,
+                                                            }}
+                                                        >
+                                                            ●
+                                                        </span>{' '}
+                                                        {entry.name}:{' '}
+                                                        {entry.dataKey ===
+                                                        'total_honor'
+                                                            ? formatRupiah(
+                                                                  entry.value as number,
+                                                              )
+                                                            : entry.value}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        );
+                                    }}
                                 />
                                 <Legend />
                                 <Line
                                     type="monotone"
-                                    dataKey="jumlah_petugas"
-                                    stroke="#3b82f6"
-                                    name="Jumlah Petugas"
+                                    dataKey="total_honor"
+                                    stroke="#22c55e"
+                                    name="Total Honor"
                                     strokeWidth={2}
                                     yAxisId="left"
                                 />
                                 <Line
                                     type="monotone"
-                                    dataKey="total_honor_jt"
-                                    stroke="#22c55e"
-                                    name="Total Honor (juta Rp)"
+                                    dataKey="total_kegiatan"
+                                    stroke="#3b82f6"
+                                    name="Total Kegiatan"
                                     strokeWidth={2}
                                     yAxisId="right"
                                 />
@@ -398,62 +455,6 @@ export default function AnalisisUmum({
                     ) : (
                         <p className="py-10 text-center text-sm text-neutral-400">
                             Belum ada data kegiatan
-                        </p>
-                    )}
-                </div>
-
-                {/* Kelengkapan Dokumen */}
-                <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                    <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
-                        Kelengkapan Dokumen per Kegiatan
-                    </h3>
-                    {kelengkapanDokumen.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                        <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                            Kegiatan
-                                        </th>
-                                        <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                            Periode Aktif
-                                        </th>
-                                        <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                            SK Diterbitkan
-                                        </th>
-                                        <th className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
-                                            Perjanjian Kerja Diterbitkan
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {kelengkapanDokumen.map((item, index) => (
-                                        <tr
-                                            key={index}
-                                            className="border-b border-neutral-100 dark:border-neutral-700/50"
-                                        >
-                                            <td className="py-1.5">
-                                                <div className="text-neutral-900 dark:text-white">
-                                                    {item.nama_kegiatan}
-                                                </div>
-                                            </td>
-                                            <td className="py-1.5 text-right font-medium text-neutral-900 dark:text-white">
-                                                {item.total_periode}
-                                            </td>
-                                            <td className="py-1.5 text-right font-medium text-green-600 dark:text-green-400">
-                                                {item.sk_diterbitkan}
-                                            </td>
-                                            <td className="py-1.5 text-right font-medium text-blue-600 dark:text-blue-400">
-                                                {item.spk_diterbitkan}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <p className="py-10 text-center text-sm text-neutral-400">
-                            Belum ada kegiatan aktif
                         </p>
                     )}
                 </div>

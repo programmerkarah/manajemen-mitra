@@ -63,7 +63,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton
-                                            className="cursor-pointer"
+                                            className="cursor-pointer touch-manipulation"
                                             tooltip={{ children: item.title }}
                                         >
                                             {item.icon && <item.icon />}
