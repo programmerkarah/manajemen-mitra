@@ -8,16 +8,23 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { Form, Head, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const { data, setData, processing } = useForm({
+    const { data, setData, post, processing } = useForm({
         code: '',
         recovery_code: '',
     });
     const { errors } = usePage().props as { errors: Record<string, string> };
+
+    const submitChallenge = (event: FormEvent<HTMLFormElement>): void => {
+        event.preventDefault();
+        post('/two-factor-challenge', {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <>
@@ -50,7 +57,10 @@ export default function TwoFactorChallenge() {
                                 </p>
                             </div>
 
-                            <Form method="post" className="flex flex-col gap-6">
+                            <form
+                                onSubmit={submitChallenge}
+                                className="flex flex-col gap-6"
+                            >
                                 <div className="grid gap-5">
                                     {!showRecoveryInput ? (
                                         <div className="grid gap-2">
@@ -146,7 +156,7 @@ export default function TwoFactorChallenge() {
                                         Autentikasi
                                     </Button>
                                 </div>
-                            </Form>
+                            </form>
                         </div>
                     </div>
                 </main>

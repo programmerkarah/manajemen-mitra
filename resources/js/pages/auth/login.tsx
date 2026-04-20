@@ -42,14 +42,14 @@ export default function Login({
             },
         });
 
-        if (! response.ok) {
+        if (!response.ok) {
             throw new Error('Gagal memperbarui CSRF token.');
         }
 
         const payload = (await response.json()) as { token?: string };
         const token = payload.token;
 
-        if (! token) {
+        if (!token) {
             throw new Error('CSRF token tidak tersedia.');
         }
 
@@ -185,7 +185,9 @@ export default function Login({
                                                     autoComplete="username"
                                                     placeholder="Masukkan username"
                                                     className="h-11"
-                                                    value={loginForm.data.username}
+                                                    value={
+                                                        loginForm.data.username
+                                                    }
                                                     onChange={(event) =>
                                                         loginForm.setData(
                                                             'username',
@@ -228,7 +230,9 @@ export default function Login({
                                                     autoComplete="current-password"
                                                     placeholder="Masukkan password"
                                                     className="h-11"
-                                                    value={loginForm.data.password}
+                                                    value={
+                                                        loginForm.data.password
+                                                    }
                                                     onChange={(event) =>
                                                         loginForm.setData(
                                                             'password',
@@ -249,11 +253,14 @@ export default function Login({
                                                     id="remember"
                                                     type="checkbox"
                                                     name="remember"
-                                                    checked={loginForm.data.remember}
+                                                    checked={
+                                                        loginForm.data.remember
+                                                    }
                                                     onChange={(event) =>
                                                         loginForm.setData(
                                                             'remember',
-                                                            event.target.checked,
+                                                            event.target
+                                                                .checked,
                                                         )
                                                     }
                                                 />

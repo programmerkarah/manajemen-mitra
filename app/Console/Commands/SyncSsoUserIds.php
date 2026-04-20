@@ -33,14 +33,14 @@ class SyncSsoUserIds extends Command
         $this->newLine();
 
         $dryRun = $this->option('dry-run');
-        
+
         if ($dryRun) {
             $this->warn('⚠️  DRY RUN MODE - No changes will be saved');
             $this->newLine();
         }
 
         $token = $this->option('token');
-        
+
         if (! $token) {
             $this->error('❌ SSO access token required.');
             $this->info('💡 Get token by logging in to SSO and running:');
@@ -51,14 +51,15 @@ class SyncSsoUserIds extends Command
             $this->newLine();
             $this->info('Then run this command with --token option:');
             $this->line('   php artisan sso:sync-user-ids --token=YOUR_TOKEN');
-            
+
             return self::FAILURE;
         }
 
         $baseUrl = rtrim((string) config('services.sso.base_url'), '/');
-        
+
         if ($baseUrl === '') {
             $this->error('❌ SSO base URL not configured in config/services.php');
+
             return self::FAILURE;
         }
 
@@ -72,17 +73,19 @@ class SyncSsoUserIds extends Command
             $this->error('❌ Failed to fetch users from SSO');
             $this->line("   Status: {$response->status()}");
             $this->line("   Body: {$response->body()}");
+
             return self::FAILURE;
         }
 
         $ssoUsers = $response->json('data') ?? $response->json();
-        
+
         if (! is_array($ssoUsers)) {
             $this->error('❌ Invalid response format from SSO');
+
             return self::FAILURE;
         }
 
-        $this->info("✅ Found " . count($ssoUsers) . " users in SSO");
+        $this->info('✅ Found '.count($ssoUsers).' users in SSO');
         $this->newLine();
 
         $matched = 0;
@@ -101,6 +104,7 @@ class SyncSsoUserIds extends Command
             if (! $ssoUserId || ! $ssoEmail) {
                 $skipped++;
                 $progressBar->advance();
+
                 continue;
             }
 
@@ -109,6 +113,7 @@ class SyncSsoUserIds extends Command
             if (! $localUser) {
                 $notFound++;
                 $progressBar->advance();
+
                 continue;
             }
 
@@ -117,6 +122,7 @@ class SyncSsoUserIds extends Command
             if ($localUser->sso_user_id === $ssoUserId) {
                 $skipped++;
                 $progressBar->advance();
+
                 continue;
             }
 
@@ -156,4 +162,3 @@ class SyncSsoUserIds extends Command
         return self::SUCCESS;
     }
 }
-
