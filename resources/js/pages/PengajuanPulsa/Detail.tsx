@@ -21,6 +21,7 @@ import {
     CheckCheck,
     ClipboardCheck,
     Loader2,
+    RotateCcw,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -76,6 +77,7 @@ interface Props {
     allPulsaPerPetugas: Record<number, AllPulsaItem[]>;
     filters: { bulan: string; tahun: string };
     canReview: boolean;
+    canResubmit: boolean;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -131,6 +133,7 @@ export default function PengajuanPulsaDetail({
     allPulsaPerPetugas,
     filters,
     canReview,
+    canResubmit,
 }: Props) {
     const items = useDecryptedData<PengajuanPulsaItem>(pengajuanList.encrypted);
 
@@ -156,6 +159,12 @@ export default function PengajuanPulsaDetail({
     const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
     const [batchCatatan, setBatchCatatan] = useState('');
     const [isReviewingAll, setIsReviewingAll] = useState(false);
+    const [resubmitItem, setResubmitItem] = useState<PengajuanPulsaItem | null>(
+        null,
+    );
+    const [resubmitNominal, setResubmitNominal] = useState<number>(0);
+    const [resubmitCatatan, setResubmitCatatan] = useState('');
+    const [isResubmitting, setIsResubmitting] = useState(false);
 
     const dikirimItems = items.filter((i) => i.status === 'dikirim');
 
@@ -244,6 +253,31 @@ export default function PengajuanPulsaDetail({
     };
 
     const totalNominal = items.reduce((sum, i) => sum + i.nominal, 0);
+    const showActionColumn = canReview || canResubmit;
+
+    const handleResubmitSubmit = () => {
+        if (!resubmitItem) {
+            return;
+        }
+
+        setIsResubmitting(true);
+        router.post(
+            `/pengajuan-pulsa/${resubmitItem.hashed_id}/resubmit`,
+            {
+                nominal: resubmitNominal,
+                catatan: resubmitCatatan,
+            },
+            {
+                onSuccess: () => {
+                    setResubmitItem(null);
+                    setResubmitNominal(0);
+                    setResubmitCatatan('');
+                    setIsResubmitting(false);
+                },
+                onError: () => setIsResubmitting(false),
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -357,9 +391,9 @@ export default function PengajuanPulsaDetail({
                                     <th className="px-4 py-3.5 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                         Diajukan Oleh
                                     </th>
-                                    {canReview && (
+                                    {showActionColumn && (
                                         <th className="px-4 py-3.5 text-center text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                            Review
+                                            Aksi
                                         </th>
                                     )}
                                 </tr>
@@ -368,7 +402,7 @@ export default function PengajuanPulsaDetail({
                                 {items.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={canReview ? 6 : 5}
+                                            colSpan={showActionColumn ? 6 : 5}
                                             className="px-6 py-12 text-center text-sm text-neutral-500 dark:text-neutral-400"
                                         >
                                             Tidak ada pengajuan pulsa untuk
@@ -438,7 +472,7 @@ export default function PengajuanPulsaDetail({
                                             <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 {item.submitted_by?.name ?? '-'}
                                             </td>
-                                            {canReview && (
+                                            {showActionColumn && (
                                                 <td className="px-4 py-3">
                                                     {item.status ===
                                                         'dikirim' && (
@@ -467,6 +501,32 @@ export default function PengajuanPulsaDetail({
                                                             </Button>
                                                         </div>
                                                     )}
+                                                    {item.status ===
+                                                        'ditolak' &&
+                                                        canResubmit && (
+                                                            <div className="flex items-center justify-center">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950"
+                                                                    onClick={() => {
+                                                                        setResubmitItem(
+                                                                            item,
+                                                                        );
+                                                                        setResubmitNominal(
+                                                                            item.nominal,
+                                                                        );
+                                                                        setResubmitCatatan(
+                                                                            item.catatan ??
+                                                                                '',
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <RotateCcw className="h-3.5 w-3.5" />
+                                                                    Perbaiki
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     {item.status ===
                                                         'diterima' && (
                                                         <div className="flex items-center justify-center">
@@ -836,6 +896,115 @@ export default function PengajuanPulsaDetail({
                                 <>
                                     <X className="mr-2 h-4 w-4" />
                                     Konfirmasi Tolak
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Resubmit Dialog */}
+            <Dialog
+                open={resubmitItem !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isResubmitting) {
+                        setResubmitItem(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <RotateCcw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            Perbaiki Pengajuan Ditolak
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {resubmitItem && (
+                        <div className="space-y-4 py-1">
+                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900/50">
+                                <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                                    {resubmitItem.petugas?.nama ?? '-'}
+                                </p>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    {resubmitItem.jenis_pulsa === 'pendataan'
+                                        ? 'Pulsa Pendataan'
+                                        : 'Pulsa Pelatihan'}
+                                    {' · '}
+                                    {BULAN_LABELS[resubmitItem.bulan]}{' '}
+                                    {resubmitItem.tahun}
+                                </p>
+                                {resubmitItem.catatan_penolakan && (
+                                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                        Alasan ditolak:{' '}
+                                        {resubmitItem.catatan_penolakan}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="resubmit_nominal">
+                                    Nominal Baru
+                                </Label>
+                                <Input
+                                    id="resubmit_nominal"
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={formatNumber(resubmitNominal)}
+                                    onChange={(e) =>
+                                        setResubmitNominal(
+                                            parseFormattedNumber(
+                                                e.target.value,
+                                            ),
+                                        )
+                                    }
+                                    className="text-right"
+                                />
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Maksimal Rp100.000 dan harus kelipatan
+                                    Rp1.000.
+                                </p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="resubmit_catatan">
+                                    Catatan (Opsional)
+                                </Label>
+                                <Textarea
+                                    id="resubmit_catatan"
+                                    value={resubmitCatatan}
+                                    onChange={(e) =>
+                                        setResubmitCatatan(e.target.value)
+                                    }
+                                    rows={3}
+                                    placeholder="Catatan tambahan saat kirim ulang..."
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setResubmitItem(null)}
+                            disabled={isResubmitting}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleResubmitSubmit}
+                            disabled={isResubmitting || resubmitNominal <= 0}
+                            className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600"
+                        >
+                            {isResubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Mengirim Ulang...
+                                </>
+                            ) : (
+                                <>
+                                    <RotateCcw className="mr-2 h-4 w-4" />
+                                    Kirim Ulang
                                 </>
                             )}
                         </Button>

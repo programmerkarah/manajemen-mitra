@@ -614,4 +614,93 @@ class PengajuanPulsaTest extends TestCase
             ->where("existingTotals.{$petugas->id}", 30000)
         );
     }
+
+    public function test_ketua_tim_can_resubmit_rejected_pengajuan_with_revised_nominal(): void
+    {
+        [$ketuaTim, $ketuaTimRole] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $pengajuan = PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '08',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'nominal_disetujui' => null,
+            'status' => 'ditolak',
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now()->subDay(),
+            'reviewed_by' => $ketuaTim->id,
+            'reviewed_at' => now()->subDay(),
+            'catatan_penolakan' => 'Nominal perlu diperbaiki.',
+        ]);
+
+        $response = $this->actingAs($ketuaTim)
+            ->withSession(['active_role_id' => $ketuaTimRole->id])
+            ->post("/pengajuan-pulsa/{$pengajuan->hashed_id}/resubmit", [
+                'nominal' => 45000,
+                'catatan' => 'Revisi nominal sesuai arahan reviewer.',
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('pengajuan_pulsa', [
+            'id' => $pengajuan->id,
+            'status' => 'dikirim',
+            'nominal' => 45000,
+            'catatan_penolakan' => null,
+            'nominal_disetujui' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+        ]);
+    }
+
+    public function test_ketua_tim_cannot_resubmit_rejected_pengajuan_from_other_kegiatan(): void
+    {
+        [$ketuaTim, $ketuaTimRole] = $this->makeUserWithRole('ketua_tim');
+        [$otherKetua] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $otherKetua->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $pengajuan = PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '08',
+            'tahun' => date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 50000,
+            'status' => 'ditolak',
+            'submitted_by' => $otherKetua->id,
+            'submitted_at' => now()->subDay(),
+            'reviewed_by' => $otherKetua->id,
+            'reviewed_at' => now()->subDay(),
+            'catatan_penolakan' => 'Perlu perbaikan.',
+        ]);
+
+        $response = $this->actingAs($ketuaTim)
+            ->withSession(['active_role_id' => $ketuaTimRole->id])
+            ->post("/pengajuan-pulsa/{$pengajuan->hashed_id}/resubmit", [
+                'nominal' => 40000,
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('pengajuan_pulsa', [
+            'id' => $pengajuan->id,
+            'status' => 'ditolak',
+            'nominal' => 50000,
+        ]);
+    }
 }

@@ -1,20 +1,29 @@
 <style>
+    @page {
+        margin: 20px;
+    }
+
     body {
         font-family: DejaVu Sans, sans-serif;
         font-size: 11px;
         color: #111827;
-        margin: 20px;
+        margin: 0;
     }
     h1 {
         font-size: 14px;
         margin: 0 0 4px 0;
         text-align: center;
+        line-height: 1.35;
+    }
+    .title-line {
+        display: block;
     }
     h2 {
         font-size: 12px;
         margin: 16px 0 6px 0;
         border-bottom: 1px solid #d1d5db;
         padding-bottom: 3px;
+        page-break-after: avoid;
     }
     .meta {
         text-align: right;
@@ -26,11 +35,26 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 12px;
+        page-break-inside: auto;
     }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tfoot {
+        display: table-row-group;
+    }
+
     th, td {
         border: 1px solid #374151;
         padding: 4px 6px;
         vertical-align: top;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
     }
     th {
         background: #f3f4f6;
@@ -77,8 +101,67 @@
         margin-top: 12px;
         font-size: 10px;
         color: #6b7280;
+        page-break-inside: avoid;
+        page-break-before: avoid;
     }
     .month-names {
         font-size: 10px;
+    }
+
+    .chart-block {
+        margin-bottom: 10px;
+        page-break-inside: avoid;
+        text-align: center;
+    }
+
+    .chart-section {
+        margin-bottom: 10px;
+        page-break-inside: avoid;
+    }
+
+    .chart-section h2 {
+        margin-bottom: 6px;
+    }
+
+    .section-block {
+        margin-bottom: 10px;
+        page-break-inside: avoid;
+    }
+
+    .section-block h2 {
+        margin-bottom: 6px;
+    }
+
+    .table-section {
+        margin-bottom: 10px;
+        page-break-inside: auto;
+    }
+
+    .table-section.tight {
+        page-break-inside: avoid;
+    }
+
+    .table-section.tight table {
+        page-break-inside: avoid;
+    }
+
+    .closing-block {
+        page-break-inside: avoid;
+    }
+
+    .page-break-before {
+        page-break-before: always;
+    }
+
+    .chart-image {
+        width: 94%;
+        max-width: 760px;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .no-break {
+        page-break-inside: avoid;
     }
 </style>

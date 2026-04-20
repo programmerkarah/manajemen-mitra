@@ -611,6 +611,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create');
         Route::get('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail');
         Route::post('pengajuan-pulsa', [PengajuanPulsaController::class, 'store'])->name('pengajuan-pulsa.store');
+        Route::post('pengajuan-pulsa/{pengajuanPulsa}/resubmit', [PengajuanPulsaController::class, 'resubmit'])->name('pengajuan-pulsa.resubmit');
     });
     Route::middleware(['active.role:admin,operator'])->group(function () {
         Route::post('pengajuan-pulsa/{pengajuanPulsa}/review', [PengajuanPulsaController::class, 'review'])->name('pengajuan-pulsa.review');

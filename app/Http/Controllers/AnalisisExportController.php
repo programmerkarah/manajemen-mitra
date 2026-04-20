@@ -101,7 +101,7 @@ class AnalisisExportController extends Controller
             ];
         }
 
-        $umumPieSvg = $this->buildPieChartSvg($distribusiBebanKerja, 'label', 'count');
+        $umumPieSvg = $this->buildPieChartSvg($distribusiBebanKerja, 'label', 'count', 'Distribusi Beban Kerja Petugas');
         $umumLineSvg = $this->buildLineChartSvg(
             array_map(fn ($item) => [
                 'label' => $this->monthName((int) $item['bulan']),
@@ -113,6 +113,8 @@ class AnalisisExportController extends Controller
                 ['key' => 'total_honor_jt', 'label' => 'Total Honor (juta)', 'color' => '#22c55e'],
                 ['key' => 'total_kegiatan', 'label' => 'Total Kegiatan', 'color' => '#3b82f6'],
             ],
+            'Tren Alokasi Bulanan',
+            1,
         );
 
         $pdf = Pdf::loadView('analisis.umum-pdf', [
@@ -224,7 +226,193 @@ class AnalisisExportController extends Controller
             ];
         }
 
-        $petugasPieSvg = $this->buildPieChartSvg($distribusiJenisKelamin, 'label', 'count');
+        $petugasKegiatan = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($petugasKegiatan);
+        $petugasKegiatan = $petugasKegiatan->select(
+            'petugas.id as petugas_id',
+            'petugas.nama as petugas_nama',
+            'kegiatan.id as kegiatan_id',
+            'kegiatan.nama_kegiatan',
+            'kegiatan.kode_kegiatan',
+        )
+            ->distinct()
+            ->get();
+
+        $petugasKegiatanGrouped = $petugasKegiatan->groupBy('petugas_id')->map(function ($items) {
+            $first = $items->first();
+
+            return [
+                'petugas_id' => $first->petugas_id,
+                'petugas_nama' => $first->petugas_nama,
+                'kegiatan' => $items->map(fn ($item) => [
+                    'id' => $item->kegiatan_id,
+                    'nama' => $item->nama_kegiatan,
+                    'kode' => $item->kode_kegiatan,
+                ])->unique('id')->values()->all(),
+                'jumlah_kegiatan' => $items->unique('kegiatan_id')->count(),
+            ];
+        })->sortByDesc('jumlah_kegiatan')->values()->all();
+
+        $petugasAlokasiRaw = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($petugasAlokasiRaw);
+        $petugasAlokasiRaw = $petugasAlokasiRaw->select(
+            'petugas.id as petugas_id',
+            'petugas.nama as petugas_nama',
+            'periode_alokasi.bulan',
+        )
+            ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+            ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
+            ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
+            ->get();
+
+        $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
+            $first = $items->first();
+            $bulanData = [];
+            $honorData = [];
+            for ($b = 1; $b <= 12; $b++) {
+                $found = $items->firstWhere('bulan', str_pad($b, 2, '0', STR_PAD_LEFT));
+                $bulanData[$b] = $found ? (int) $found->jumlah_kegiatan : 0;
+                $honorData[$b] = $found ? (float) $found->total_honor : 0;
+            }
+
+            return [
+                'petugas_id' => $first->petugas_id,
+                'petugas_nama' => $first->petugas_nama,
+                'bulan' => $bulanData,
+                'honor' => $honorData,
+                'total' => array_sum($bulanData),
+                'total_honor' => array_sum($honorData),
+            ];
+        })->sortByDesc('total')->values()->all();
+
+        $top5ByKegiatan = collect($petugasAlokasiDetail)
+            ->sortByDesc('total')
+            ->take(5)
+            ->values()
+            ->map(fn ($item) => [
+                'label' => (string) $item['petugas_nama'],
+                'value' => (int) $item['total'],
+            ])
+            ->all();
+
+        $top5ByHonor = collect($petugasAlokasiDetail)
+            ->sortByDesc('total_honor')
+            ->take(5)
+            ->values()
+            ->map(fn ($item) => [
+                'label' => (string) $item['petugas_nama'],
+                'value' => (float) $item['total_honor'],
+            ])
+            ->all();
+
+        $top5DetailByKegiatan = collect($petugasAlokasiDetail)
+            ->sortByDesc('total')
+            ->take(5)
+            ->values()
+            ->all();
+
+        $top5DetailByHonor = collect($petugasAlokasiDetail)
+            ->sortByDesc('total_honor')
+            ->take(5)
+            ->values()
+            ->all();
+
+        $top5Colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+        $top5KegiatanRows = [];
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $row = ['label' => $this->monthName($bulan)];
+            foreach ($top5DetailByKegiatan as $index => $item) {
+                $row['series_'.$index] = (int) ($item['bulan'][$bulan] ?? 0);
+            }
+            $top5KegiatanRows[] = $row;
+        }
+
+        $top5KegiatanSeries = collect($top5DetailByKegiatan)
+            ->values()
+            ->map(fn ($item, $index) => [
+                'key' => 'series_'.$index,
+                'label' => (string) $item['petugas_nama'],
+                'color' => $top5Colors[$index % count($top5Colors)],
+            ])
+            ->all();
+
+        $top5HonorRows = [];
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $row = ['label' => $this->monthName($bulan)];
+            foreach ($top5DetailByHonor as $index => $item) {
+                $row['series_'.$index] = round(((float) ($item['honor'][$bulan] ?? 0)) / 1_000_000, 2);
+            }
+            $top5HonorRows[] = $row;
+        }
+
+        $top5HonorSeries = collect($top5DetailByHonor)
+            ->values()
+            ->map(fn ($item, $index) => [
+                'key' => 'series_'.$index,
+                'label' => (string) $item['petugas_nama'],
+                'color' => $top5Colors[$index % count($top5Colors)],
+            ])
+            ->all();
+
+        $top5KegiatanSvg = $this->buildLineChartSvg(
+            $top5KegiatanRows,
+            'label',
+            $top5KegiatanSeries,
+            'Top 5 Petugas Berdasarkan Alokasi Kegiatan (Per Bulan)',
+            0,
+        );
+
+        $top5HonorSvg = $this->buildLineChartSvg(
+            $top5HonorRows,
+            'label',
+            $top5HonorSeries,
+            'Top 5 Petugas Berdasarkan Alokasi Honor (Juta Rupiah per Bulan)',
+            2,
+        );
+
+        $kecamatanPieSvg = $this->buildPieChartSvg(
+            array_map(fn ($item) => [
+                'label' => (string) ($item['kecamatan'] ?? 'Belum Diisi'),
+                'count' => (int) ($item['count'] ?? 0),
+            ], $distribusiKecamatan),
+            'label',
+            'count',
+            'Distribusi Kecamatan Petugas',
+        );
+
+        $usiaPieSvg = $this->buildPieChartSvg(
+            array_map(fn ($item) => [
+                'label' => (string) ($item['label'] ?? '-'),
+                'count' => (int) ($item['count'] ?? 0),
+            ], array_values(array_filter($distribusiUsia, fn ($item) => (int) ($item['count'] ?? 0) > 0))),
+            'label',
+            'count',
+            'Distribusi Usia Petugas',
+        );
+
+        $pendidikanPieSvg = $this->buildPieChartSvg(
+            array_map(fn ($item) => [
+                'label' => (string) (($item['pendidikan'] ?? null) ?: 'Belum Diisi'),
+                'count' => (int) ($item['count'] ?? 0),
+            ], $distribusiPendidikan),
+            'label',
+            'count',
+            'Distribusi Pendidikan Petugas',
+        );
+
+        $petugasPieSvg = $this->buildPieChartSvg($distribusiJenisKelamin, 'label', 'count', 'Distribusi Jenis Kelamin Petugas');
         $petugasLineSvg = $this->buildLineChartSvg(
             array_map(fn ($item) => [
                 'label' => $this->monthName((int) $item['bulan']),
@@ -236,6 +424,8 @@ class AnalisisExportController extends Controller
                 ['key' => 'jumlah_petugas', 'label' => 'Jumlah Petugas', 'color' => '#3b82f6'],
                 ['key' => 'jumlah_kegiatan', 'label' => 'Jumlah Kegiatan', 'color' => '#22c55e'],
             ],
+            'Tren Alokasi Petugas dan Kegiatan',
+            0,
         );
 
         $pdf = Pdf::loadView('analisis.petugas-pdf', [
@@ -243,7 +433,18 @@ class AnalisisExportController extends Controller
             'distribusiKecamatan' => $distribusiKecamatan,
             'distribusiUsia' => $distribusiUsia,
             'distribusiPendidikan' => $distribusiPendidikan,
+            'kecamatanPieSvg' => $kecamatanPieSvg,
+            'usiaPieSvg' => $usiaPieSvg,
+            'pendidikanPieSvg' => $pendidikanPieSvg,
             'alokasiPerBulan' => $alokasiPerBulan,
+            'petugasKegiatan' => $petugasKegiatanGrouped,
+            'petugasAlokasiDetail' => $petugasAlokasiDetail,
+            'top5ByKegiatan' => $top5ByKegiatan,
+            'top5ByHonor' => $top5ByHonor,
+            'top5KegiatanSvg' => $top5KegiatanSvg,
+            'top5HonorSvg' => $top5HonorSvg,
+            'top5DetailByKegiatan' => $top5DetailByKegiatan,
+            'top5DetailByHonor' => $top5DetailByHonor,
             'pieChartSvg' => $petugasPieSvg,
             'lineChartSvg' => $petugasLineSvg,
             'totalPetugas' => $petugasNonOrganik->count(),
@@ -296,7 +497,7 @@ class AnalisisExportController extends Controller
                 'total' => (float) $item->total,
             ])->all();
 
-        $pulsaPieSvg = $this->buildPieChartSvg($distribusiJenisPulsa, 'jenis', 'total');
+        $pulsaPieSvg = $this->buildPieChartSvg($distribusiJenisPulsa, 'jenis', 'total', 'Komposisi Nominal Disetujui per Jenis Pulsa');
         $pulsaLineSvg = $this->buildLineChartSvg(
             array_map(fn ($item) => [
                 'label' => $this->monthName((int) $item['bulan']),
@@ -306,6 +507,8 @@ class AnalisisExportController extends Controller
             [
                 ['key' => 'total_disetujui_jt', 'label' => 'Nominal Disetujui (juta)', 'color' => '#22c55e'],
             ],
+            'Tren Nominal Disetujui per Bulan',
+            2,
         );
 
         $pdf = Pdf::loadView('analisis.pulsa-pdf', [
@@ -372,7 +575,7 @@ class AnalisisExportController extends Controller
             ['label' => 'SK Draft', 'value' => collect($skPerBulan)->sum('draft')],
             ['label' => 'SK Diterbitkan', 'value' => collect($skPerBulan)->sum('diterbitkan')],
             ['label' => 'SK Ditandatangani', 'value' => collect($skPerBulan)->sum('ditandatangani')],
-        ], 'label', 'value');
+        ], 'label', 'value', 'Komposisi Status Dokumen SK');
 
         $dokumenLineSvg = $this->buildLineChartSvg(
             array_map(function ($index) use ($skPerBulan, $spkPerBulan) {
@@ -387,6 +590,8 @@ class AnalisisExportController extends Controller
                 ['key' => 'sk_total', 'label' => 'Total SK', 'color' => '#3b82f6'],
                 ['key' => 'spk_total', 'label' => 'Total SPK', 'color' => '#f59e0b'],
             ],
+            'Tren Dokumen SK dan SPK per Bulan',
+            0,
         );
 
         $pdf = Pdf::loadView('analisis.dokumen-pdf', [
@@ -406,21 +611,28 @@ class AnalisisExportController extends Controller
     /**
      * @param  array<int, array<string, mixed>>  $items
      */
-    private function buildPieChartSvg(array $items, string $labelKey, string $valueKey): string
+    private function buildPieChartSvg(array $items, string $labelKey, string $valueKey, ?string $title = null): string
     {
         $filtered = array_values(array_filter($items, function ($item) use ($valueKey) {
             return (float) ($item[$valueKey] ?? 0) > 0;
         }));
 
+        $titleElement = $title
+            ? sprintf('<text x="380" y="18" font-size="12" fill="#111827" text-anchor="middle" font-weight="700">%s</text>', $this->escapeSvg($title))
+            : '';
+
         if (count($filtered) === 0) {
-            return '<p>Tidak ada data untuk pie chart.</p>';
+            return sprintf(
+                '<svg width="760" height="240" viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s<text x="24" y="52" font-size="12" fill="#6b7280">Tidak ada data untuk pie chart.</text></svg>',
+                $titleElement,
+            );
         }
 
         $colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
         $total = array_sum(array_map(fn ($item) => (float) $item[$valueKey], $filtered));
 
         $cx = 120;
-        $cy = 110;
+        $cy = 128;
         $r = 70;
         $startAngle = -90.0;
 
@@ -458,11 +670,11 @@ class AnalisisExportController extends Controller
             $percentage = round(($value / $total) * 100, 1);
             $legend[] = sprintf(
                 '<rect x="260" y="%d" width="10" height="10" fill="%s" /><text x="276" y="%d" font-size="10" fill="#111827">%s: %s (%.1f%%)</text>',
-                30 + ($index * 16),
+                48 + ($index * 16),
                 $color,
-                39 + ($index * 16),
+                57 + ($index * 16),
                 $label,
-                number_format($value, 1, ',', '.'),
+                number_format($value, 0, ',', '.'),
                 $percentage,
             );
 
@@ -470,7 +682,8 @@ class AnalisisExportController extends Controller
         }
 
         return sprintf(
-            '<svg width="760" height="230" viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s%s</svg>',
+            '<svg width="760" height="240" viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s%s%s</svg>',
+            $titleElement,
             implode('', $paths),
             implode('', $legend),
         );
@@ -480,18 +693,25 @@ class AnalisisExportController extends Controller
      * @param  array<int, array<string, mixed>>  $rows
      * @param  array<int, array{key: string, label: string, color: string}>  $series
      */
-    private function buildLineChartSvg(array $rows, string $xKey, array $series): string
+    private function buildLineChartSvg(array $rows, string $xKey, array $series, ?string $title = null, int $valueDecimals = 1): string
     {
+        $titleElement = $title
+            ? sprintf('<text x="380" y="18" font-size="12" fill="#111827" text-anchor="middle" font-weight="700">%s</text>', $this->escapeSvg($title))
+            : '';
+
         if (count($rows) === 0 || count($series) === 0) {
-            return '<p>Tidak ada data untuk line chart.</p>';
+            return sprintf(
+                '<svg width="760" height="280" viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s<text x="24" y="54" font-size="12" fill="#6b7280">Tidak ada data untuk line chart.</text></svg>',
+                $titleElement,
+            );
         }
 
         $width = 760;
-        $height = 260;
+        $height = 280;
         $left = 42;
         $right = 740;
-        $top = 20;
-        $bottom = 210;
+        $top = $title ? 36 : 20;
+        $bottom = 220;
 
         $maxValue = 0.0;
         foreach ($rows as $row) {
@@ -506,7 +726,7 @@ class AnalisisExportController extends Controller
             $y = $top + (($bottom - $top) * $i / 4);
             $value = $maxValue - (($maxValue * $i) / 4);
             $grid[] = sprintf('<line x1="%d" y1="%.2f" x2="%d" y2="%.2f" stroke="#e5e7eb" stroke-width="1" />', $left, $y, $right, $y);
-            $grid[] = sprintf('<text x="2" y="%.2f" font-size="9" fill="#6b7280">%s</text>', $y + 3, number_format($value, 1, ',', '.'));
+            $grid[] = sprintf('<text x="2" y="%.2f" font-size="9" fill="#6b7280">%s</text>', $y + 3, number_format($value, $valueDecimals, ',', '.'));
         }
 
         $axis = sprintf('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="#9ca3af" stroke-width="1" />', $left, $bottom, $right, $bottom)
@@ -525,39 +745,182 @@ class AnalisisExportController extends Controller
         }
 
         $lines = [];
-        foreach ($series as $s) {
+        foreach ($series as $seriesIndex => $s) {
             $points = [];
             $dots = [];
+            $pointLabels = [];
             foreach ($rows as $index => $row) {
                 $value = (float) ($row[$s['key']] ?? 0);
                 $x = $left + ($index * $stepX);
                 $y = $bottom - (($value / $maxValue) * ($bottom - $top));
-                $points[] = sprintf('%.2f,%.2f', $x, $y);
+                $points[] = ['x' => $x, 'y' => $y];
                 $dots[] = sprintf('<circle cx="%.2f" cy="%.2f" r="2.4" fill="%s" />', $x, $y, $s['color']);
+
+                if ($value <= 0) {
+                    continue;
+                }
+
+                $valueText = number_format($value, $valueDecimals, ',', '.');
+                $valueYOffset = ($seriesIndex % 2 === 0)
+                    ? (-8 - ($seriesIndex * 2))
+                    : (12 + ($seriesIndex * 2));
+                $labelY = $y + $valueYOffset;
+
+                if ($labelY < ($top + 8)) {
+                    $labelY = $top + 8;
+                }
+
+                if ($labelY > ($bottom - 4)) {
+                    $labelY = $bottom - 4;
+                }
+
+                $pointLabels[] = sprintf(
+                    '<text x="%.2f" y="%.2f" font-size="8" fill="%s" text-anchor="middle">%s</text>',
+                    $x,
+                    $labelY,
+                    $s['color'],
+                    $valueText,
+                );
             }
 
+            $lineShape = count($points) > 1
+                ? sprintf(
+                    '<path d="%s" fill="none" stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />',
+                    $this->buildSmoothSvgPath($points),
+                    $s['color'],
+                )
+                : sprintf(
+                    '<polyline fill="none" stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="%s" />',
+                    $s['color'],
+                    implode(' ', array_map(fn ($point) => sprintf('%.2f,%.2f', $point['x'], $point['y']), $points)),
+                );
+
             $lines[] = sprintf(
-                '<polyline fill="none" stroke="%s" stroke-width="2" points="%s" />%s',
-                $s['color'],
-                implode(' ', $points),
+                '%s%s%s',
+                $lineShape,
                 implode('', $dots),
+                implode('', $pointLabels),
             );
         }
 
         $legend = [];
         foreach ($series as $index => $s) {
             $legendX = 52 + ($index * 190);
-            $legend[] = sprintf('<line x1="%d" y1="244" x2="%d" y2="244" stroke="%s" stroke-width="2" />', $legendX, $legendX + 16, $s['color']);
-            $legend[] = sprintf('<text x="%d" y="247" font-size="10" fill="#111827">%s</text>', $legendX + 22, $this->escapeSvg($s['label']));
+            $legend[] = sprintf('<line x1="%d" y1="262" x2="%d" y2="262" stroke="%s" stroke-width="2" />', $legendX, $legendX + 16, $s['color']);
+            $legend[] = sprintf('<text x="%d" y="265" font-size="10" fill="#111827">%s</text>', $legendX + 22, $this->escapeSvg($s['label']));
         }
 
         return sprintf(
-            '<svg width="760" height="260" viewBox="0 0 760 260" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s%s%s%s%s</svg>',
+            '<svg width="760" height="280" viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s%s%s%s%s%s</svg>',
+            $titleElement,
             implode('', $grid),
             $axis,
             implode('', $labels),
             implode('', $lines),
             implode('', $legend),
+        );
+    }
+
+    /**
+     * @param  array<int, array{x: float, y: float}>  $points
+     */
+    private function buildSmoothSvgPath(array $points): string
+    {
+        if (count($points) === 0) {
+            return '';
+        }
+
+        if (count($points) === 1) {
+            return sprintf('M %.2f %.2f', $points[0]['x'], $points[0]['y']);
+        }
+
+        $path = sprintf('M %.2f %.2f', $points[0]['x'], $points[0]['y']);
+        $tension = 0.18;
+        $lastIndex = count($points) - 1;
+
+        for ($index = 0; $index < $lastIndex; $index++) {
+            $previous = $points[max(0, $index - 1)];
+            $current = $points[$index];
+            $next = $points[$index + 1];
+            $afterNext = $points[min($lastIndex, $index + 2)];
+
+            $controlPointOneX = $current['x'] + (($next['x'] - $previous['x']) * $tension);
+            $controlPointOneY = $current['y'] + (($next['y'] - $previous['y']) * $tension);
+            $controlPointTwoX = $next['x'] - (($afterNext['x'] - $current['x']) * $tension);
+            $controlPointTwoY = $next['y'] - (($afterNext['y'] - $current['y']) * $tension);
+
+            $path .= sprintf(
+                ' C %.2f %.2f, %.2f %.2f, %.2f %.2f',
+                $controlPointOneX,
+                $controlPointOneY,
+                $controlPointTwoX,
+                $controlPointTwoY,
+                $next['x'],
+                $next['y'],
+            );
+        }
+
+        return $path;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function buildHorizontalBarChartSvg(array $items, string $labelKey, string $valueKey, string $barColor, bool $showInMillions = false): string
+    {
+        $filtered = array_values(array_filter($items, function ($item) use ($valueKey) {
+            return (float) ($item[$valueKey] ?? 0) > 0;
+        }));
+
+        if (count($filtered) === 0) {
+            return '<svg width="760" height="240" viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#ffffff" /><text x="24" y="40" font-size="12" fill="#6b7280">Tidak ada data untuk grafik.</text></svg>';
+        }
+
+        $width = 760;
+        $height = 280;
+        $left = 220;
+        $right = 730;
+        $top = 20;
+        $rowHeight = 44;
+        $barHeight = 18;
+        $maxValue = max(array_map(fn ($item) => (float) $item[$valueKey], $filtered));
+        $maxValue = $maxValue > 0 ? $maxValue : 1;
+
+        $elements = [];
+
+        foreach ($filtered as $index => $item) {
+            $y = $top + ($index * $rowHeight);
+            $value = (float) ($item[$valueKey] ?? 0);
+            $barWidth = (($right - $left) * $value) / $maxValue;
+            $label = $this->escapeSvg((string) ($item[$labelKey] ?? '-'));
+            $displayValue = $showInMillions
+                ? number_format($value / 1_000_000, 2, ',', '.').' jt'
+                : number_format($value, 0, ',', '.');
+
+            $elements[] = sprintf('<text x="12" y="%d" font-size="10" fill="#111827">%s</text>', $y + 14, $label);
+            $elements[] = sprintf(
+                '<rect x="%d" y="%d" width="%.2f" height="%d" rx="4" fill="%s" />',
+                $left,
+                $y,
+                $barWidth,
+                $barHeight,
+                $barColor,
+            );
+            $elements[] = sprintf(
+                '<text x="%.2f" y="%d" font-size="10" fill="#111827">%s</text>',
+                $left + $barWidth + 8,
+                $y + 13,
+                $displayValue,
+            );
+        }
+
+        return sprintf(
+            '<svg width="%d" height="%d" viewBox="0 0 %d %d" xmlns="http://www.w3.org/2000/svg"><rect width="100%%" height="100%%" fill="#ffffff" />%s</svg>',
+            $width,
+            $height,
+            $width,
+            $height,
+            implode('', $elements),
         );
     }
 
