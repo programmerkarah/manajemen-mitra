@@ -15,7 +15,7 @@ class ViewAsUserController extends Controller
     public function set(Request $request): RedirectResponse
     {
         // Only allow rhmtzikri to use this feature
-        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri' ) {
+        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri') {
             abort(403, 'Unauthorized');
         }
 
@@ -49,7 +49,7 @@ class ViewAsUserController extends Controller
     public function clear(Request $request): RedirectResponse
     {
         // Only allow rhmtzikri to use this feature
-        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri' ) {
+        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri') {
             abort(403, 'Unauthorized');
         }
 
@@ -75,7 +75,7 @@ class ViewAsUserController extends Controller
     public function search(Request $request)
     {
         // Only allow rhmtzikri to use this feature
-        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri' ) {
+        if ($request->user()->username !== 'rhmtzikri' || $request->user()->username !== 'rahmat.zikri') {
             abort(403, 'Unauthorized');
         }
 

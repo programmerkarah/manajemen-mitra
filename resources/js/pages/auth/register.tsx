@@ -33,14 +33,14 @@ export default function Register({
             },
         });
 
-        if (! response.ok) {
+        if (!response.ok) {
             throw new Error('Gagal memperbarui CSRF token.');
         }
 
         const payload = (await response.json()) as { token?: string };
         const token = payload.token;
 
-        if (! token) {
+        if (!token) {
             throw new Error('CSRF token tidak tersedia.');
         }
 
@@ -201,7 +201,9 @@ export default function Register({
                                             }
                                         />
                                         <InputError
-                                            message={registerForm.errors.username}
+                                            message={
+                                                registerForm.errors.username
+                                            }
                                         />
                                     </div>
 
@@ -257,7 +259,9 @@ export default function Register({
                                             }
                                         />
                                         <InputError
-                                            message={registerForm.errors.password}
+                                            message={
+                                                registerForm.errors.password
+                                            }
                                         />
                                     </div>
 

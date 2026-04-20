@@ -13,59 +13,15 @@ import { FormEvent, useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const twoFactorForm = useForm({
+    const { data, setData, post, processing } = useForm({
         code: '',
         recovery_code: '',
     });
     const { errors } = usePage().props as { errors: Record<string, string> };
 
-    const refreshCsrfToken = async (): Promise<string> => {
-        const response = await fetch('/csrf-token', {
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
-
-        if (! response.ok) {
-            throw new Error('Gagal memperbarui CSRF token.');
-        }
-
-        const payload = (await response.json()) as { token?: string };
-        const token = payload.token;
-
-        if (! token) {
-            throw new Error('CSRF token tidak tersedia.');
-        }
-
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        csrfMeta?.setAttribute('content', token);
-
-        return token;
-    };
-
-    const submitTwoFactorForm = async (
-        event: FormEvent<HTMLFormElement>,
-    ): Promise<void> => {
+    const submitChallenge = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
-
-        let csrfToken =
-            document
-                .querySelector('meta[name="csrf-token"]')
-                ?.getAttribute('content') ?? '';
-
-        try {
-            csrfToken = await refreshCsrfToken();
-        } catch {
-            // Continue submission; backend will provide localized flash if token is still invalid.
-        }
-
-        twoFactorForm.transform((data) => ({
-            ...data,
-            _token: csrfToken,
-        }));
-
-        twoFactorForm.post('/two-factor-challenge', {
+        post('/two-factor-challenge', {
             preserveScroll: true,
         });
     };
@@ -102,7 +58,7 @@ export default function TwoFactorChallenge() {
                             </div>
 
                             <form
-                                onSubmit={submitTwoFactorForm}
+                                onSubmit={submitChallenge}
                                 className="flex flex-col gap-6"
                             >
                                 <div className="grid gap-5">
