@@ -13,7 +13,7 @@ import { FormEvent, useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const { data, setData, post, processing } = useForm({
+    const twoFactorForm = useForm({
         code: '',
         recovery_code: '',
     });
@@ -21,7 +21,7 @@ export default function TwoFactorChallenge() {
 
     const submitChallenge = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
-        post('/two-factor-challenge', {
+        twoFactorForm.post('/two-factor-challenge', {
             preserveScroll: true,
         });
     };
