@@ -1696,7 +1696,7 @@ export default function Dashboard({
                                     <div className="mb-1 flex items-center gap-2">
                                         <TrendingUp className="size-3.5 text-blue-600 dark:text-blue-400" />
                                         <span className="text-[10px] font-medium text-blue-600 uppercase dark:text-blue-400">
-                                            Rata-rata
+                                            Rata-rata Honor
                                         </span>
                                     </div>
                                     <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
@@ -1747,7 +1747,7 @@ export default function Dashboard({
                                                       : 'text-green-600 dark:text-green-400'
                                             }`}
                                         >
-                                            Ketimpangan
+                                            Rata-rata Ketimpangan
                                         </span>
                                     </div>
                                     <p
@@ -1792,7 +1792,7 @@ export default function Dashboard({
                                     <div className="mb-1 flex items-center gap-2">
                                         <AlertCircle className="size-3.5 text-red-600 dark:text-red-400" />
                                         <span className="text-[10px] font-medium text-red-600 uppercase dark:text-red-400">
-                                            Gap Honor
+                                            Rata-rata Gap Honor
                                         </span>
                                     </div>
                                     <p className="text-xl font-bold text-red-700 dark:text-red-300">
@@ -1813,7 +1813,7 @@ export default function Dashboard({
                                     <div className="mb-1 flex items-center gap-2">
                                         <Users className="size-3.5 text-green-600 dark:text-green-400" />
                                         <span className="text-[10px] font-medium text-green-600 uppercase dark:text-green-400">
-                                            Total Petugas
+                                            Rata-rata Petugas
                                         </span>
                                     </div>
                                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">

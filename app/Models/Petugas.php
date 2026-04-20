@@ -30,6 +30,7 @@ class Petugas extends Model
     {
         return [
             'tahun_bergabung' => 'integer',
+            'tanggal_lahir' => 'date',
         ];
     }
 
@@ -39,13 +40,16 @@ class Petugas extends Model
         'email',
         'telepon',
         'alamat',
+        'jenis_kelamin',
+        'kecamatan',
+        'desa_kelurahan',
+        'tanggal_lahir',
         'pendidikan',
         'tahun_bergabung',
         'jenis_petugas',
         'jabatan',
         'golongan',
         'status',
-        'jenis_petugas',
         'npwp',
         'bank',
         'no_rekening',
@@ -120,6 +124,10 @@ class Petugas extends Model
             'email' => $this->getAttribute('email'),
             'telepon' => $this->getAttribute('telepon'),
             'alamat' => $this->getAttribute('alamat'),
+            'jenis_kelamin' => $this->getAttribute('jenis_kelamin'),
+            'kecamatan' => $this->getAttribute('kecamatan'),
+            'desa_kelurahan' => $this->getAttribute('desa_kelurahan'),
+            'tanggal_lahir' => $this->getAttribute('tanggal_lahir')?->format('Y-m-d'),
             'pendidikan' => $this->getAttribute('pendidikan'),
             'tahun_bergabung' => $this->getAttribute('tahun_bergabung'),
             'jenis_petugas' => $this->getAttribute('jenis_petugas'),
@@ -130,6 +138,7 @@ class Petugas extends Model
             'no_rekening' => $this->getAttribute('no_rekening'),
             'nama_rekening' => $this->getAttribute('nama_rekening'),
             'status' => $this->getAttribute('status'),
+            'catatan' => $this->getAttribute('catatan'),
         ];
     }
 }

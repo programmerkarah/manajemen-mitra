@@ -2,6 +2,7 @@ import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import {
     Airplay,
+    BarChart3,
     ClipboardList,
     File,
     FileText,
@@ -94,6 +95,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                     },
                 ],
             },
+            {
+                title: 'Analisis',
+                href: '#',
+                icon: BarChart3,
+                items: [
+                    { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
+                    { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
+                    { title: 'Analisis Umum', href: '/analisis/umum' },
+                ],
+            },
             { title: 'Manajemen User', href: '/users', icon: Users },
             {
                 title: 'Pengaturan Sistem',
@@ -172,6 +184,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/monitoring-penilaian-mitra',
                         icon: LineChart,
                     },
+                ],
+            },
+            {
+                title: 'Analisis',
+                href: '#',
+                icon: BarChart3,
+                items: [
+                    { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
+                    { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
+                    { title: 'Analisis Umum', href: '/analisis/umum' },
                 ],
             },
         );
@@ -278,6 +301,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/monitoring-penilaian-mitra',
                         icon: LineChart,
                     },
+                ],
+            },
+            {
+                title: 'Analisis',
+                href: '#',
+                icon: BarChart3,
+                items: [
+                    { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
+                    { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
+                    { title: 'Analisis Umum', href: '/analisis/umum' },
                 ],
             },
         );

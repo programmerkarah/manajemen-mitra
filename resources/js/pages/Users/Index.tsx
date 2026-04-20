@@ -73,6 +73,7 @@ interface User {
     is_active: boolean;
     email_verified_at: string | null;
     two_factor_enabled: boolean;
+    is_sso_user: boolean;
     roles: Role[];
 }
 
@@ -492,22 +493,30 @@ export default function Index({ users }: UsersIndexProps) {
                                                 />
                                             </td>
                                             <td className="px-3 py-3">
-                                                <StatusBadge
-                                                    status={
-                                                        user.email_verified_at
-                                                            ? 'terverifikasi'
-                                                            : 'belum_verifikasi'
-                                                    }
-                                                />
+                                                {user.is_sso_user ? (
+                                                    <StatusBadge status="sso_active" />
+                                                ) : (
+                                                    <StatusBadge
+                                                        status={
+                                                            user.email_verified_at
+                                                                ? 'terverifikasi'
+                                                                : 'belum_verifikasi'
+                                                        }
+                                                    />
+                                                )}
                                             </td>
                                             <td className="px-3 py-3">
-                                                <StatusBadge
-                                                    status={
-                                                        user.two_factor_enabled
-                                                            ? '2fa_aktif'
-                                                            : '2fa_nonaktif'
-                                                    }
-                                                />
+                                                {user.is_sso_user ? (
+                                                    <StatusBadge status="sso_active" />
+                                                ) : (
+                                                    <StatusBadge
+                                                        status={
+                                                            user.two_factor_enabled
+                                                                ? '2fa_aktif'
+                                                                : '2fa_nonaktif'
+                                                        }
+                                                    />
+                                                )}
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex justify-center gap-2">
@@ -524,83 +533,90 @@ export default function Index({ users }: UsersIndexProps) {
                                                             Edit Role
                                                         </Link>
                                                     </Button>
-                                                    <Dialog>
-                                                        <DialogTrigger asChild>
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                                    {!user.is_sso_user && (
+                                                        <Dialog>
+                                                            <DialogTrigger
+                                                                asChild
                                                             >
-                                                                Reset 2FA
-                                                            </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>
-                                                                    Reset
-                                                                    Autentikasi
-                                                                    Dua Faktor
-                                                                </DialogTitle>
-                                                                <DialogDescription>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                                                >
                                                                     Reset 2FA
-                                                                    akan
-                                                                    menghapus
-                                                                    autentikasi
-                                                                    dua faktor
-                                                                    user ini.
-                                                                    Lanjutkan?
-                                                                </DialogDescription>
-                                                            </DialogHeader>
-                                                            <form
-                                                                method="post"
-                                                                action={`/users/${user.id}/reset-2fa`}
-                                                            >
-                                                                <input
-                                                                    type="hidden"
-                                                                    name="_token"
-                                                                    value={
-                                                                        (
-                                                                            window as Window & {
-                                                                                Laravel?: {
-                                                                                    csrfToken?: string;
-                                                                                };
-                                                                            }
-                                                                        )
-                                                                            ?.Laravel
-                                                                            ?.csrfToken ||
-                                                                        document
-                                                                            .querySelector(
-                                                                                'meta[name=csrf-token]',
-                                                                            )
-                                                                            ?.getAttribute(
-                                                                                'content',
-                                                                            ) ||
-                                                                        ''
-                                                                    }
-                                                                />
-                                                                <DialogFooter>
-                                                                    <DialogClose
-                                                                        asChild
-                                                                    >
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="outline"
-                                                                        >
-                                                                            Batal
-                                                                        </Button>
-                                                                    </DialogClose>
-                                                                    <Button
-                                                                        type="submit"
-                                                                        variant="destructive"
-                                                                    >
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent>
+                                                                <DialogHeader>
+                                                                    <DialogTitle>
                                                                         Reset
-                                                                        2FA
-                                                                    </Button>
-                                                                </DialogFooter>
-                                                            </form>
-                                                        </DialogContent>
-                                                    </Dialog>
+                                                                        Autentikasi
+                                                                        Dua
+                                                                        Faktor
+                                                                    </DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Reset
+                                                                        2FA akan
+                                                                        menghapus
+                                                                        autentikasi
+                                                                        dua
+                                                                        faktor
+                                                                        user
+                                                                        ini.
+                                                                        Lanjutkan?
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <form
+                                                                    method="post"
+                                                                    action={`/users/${user.id}/reset-2fa`}
+                                                                >
+                                                                    <input
+                                                                        type="hidden"
+                                                                        name="_token"
+                                                                        value={
+                                                                            (
+                                                                                window as Window & {
+                                                                                    Laravel?: {
+                                                                                        csrfToken?: string;
+                                                                                    };
+                                                                                }
+                                                                            )
+                                                                                ?.Laravel
+                                                                                ?.csrfToken ||
+                                                                            document
+                                                                                .querySelector(
+                                                                                    'meta[name=csrf-token]',
+                                                                                )
+                                                                                ?.getAttribute(
+                                                                                    'content',
+                                                                                ) ||
+                                                                            ''
+                                                                        }
+                                                                    />
+                                                                    <DialogFooter>
+                                                                        <DialogClose
+                                                                            asChild
+                                                                        >
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                            >
+                                                                                Batal
+                                                                            </Button>
+                                                                        </DialogClose>
+                                                                        <Button
+                                                                            type="submit"
+                                                                            variant="destructive"
+                                                                        >
+                                                                            Reset
+                                                                            2FA
+                                                                        </Button>
+                                                                    </DialogFooter>
+                                                                </form>
+                                                            </DialogContent>
+                                                        </Dialog>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

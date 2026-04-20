@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
+import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -28,11 +30,13 @@ import {
     GraduationCap,
     Mail,
     Pencil,
+    PencilLine,
     Phone,
     Plus,
     RefreshCw,
     Search,
     User as UserIcon,
+    X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -67,6 +71,23 @@ interface Petugas {
     tahun_bergabung: number;
     status: string;
     jenis_petugas: string;
+    jenis_kelamin: string | null;
+    tanggal_lahir: string | null;
+    kecamatan: string | null;
+    desa_kelurahan: string | null;
+    alamat: string | null;
+}
+
+interface BatchEditItem {
+    id: string;
+    nama: string;
+    telepon: string;
+    pendidikan: string;
+    jenis_kelamin: string;
+    tanggal_lahir: string;
+    kecamatan: string;
+    desa_kelurahan: string;
+    alamat: string;
 }
 
 interface PetugasIndexProps {
@@ -107,6 +128,10 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [showBatchEdit, setShowBatchEdit] = useState(false);
+    const [batchEditItems, setBatchEditItems] = useState<BatchEditItem[]>([]);
+    const [batchProcessing, setBatchProcessing] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null as File | null,
@@ -216,6 +241,73 @@ export default function Index({ petugas }: PetugasIndexProps) {
         }
     };
 
+    const toggleSelectPetugas = (id: number) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === paginatedPetugas.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(paginatedPetugas.map((p) => p.id)));
+        }
+    };
+
+    const openBatchEdit = () => {
+        const items: BatchEditItem[] = allPetugas
+            .filter((p) => selectedIds.has(p.id))
+            .map((p) => ({
+                id: p.hashed_id,
+                nama: p.nama || '',
+                telepon: p.telepon || '',
+                pendidikan: p.pendidikan || '',
+                jenis_kelamin: p.jenis_kelamin || '',
+                tanggal_lahir: p.tanggal_lahir || '',
+                kecamatan: p.kecamatan || '',
+                desa_kelurahan: p.desa_kelurahan || '',
+                alamat: p.alamat || '',
+            }));
+        setBatchEditItems(items);
+        setShowBatchEdit(true);
+    };
+
+    const updateBatchItem = (
+        index: number,
+        field: keyof BatchEditItem,
+        value: string,
+    ) => {
+        setBatchEditItems((prev) =>
+            prev.map((item, i) =>
+                i === index ? { ...item, [field]: value } : item,
+            ),
+        );
+    };
+
+    const handleBatchSubmit = () => {
+        setBatchProcessing(true);
+        router.put(
+            '/petugas/batch-update',
+            { petugas: batchEditItems },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShowBatchEdit(false);
+                    setSelectedIds(new Set());
+                    setBatchEditItems([]);
+                },
+                onFinish: () => setBatchProcessing(false),
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Data Petugas" />
@@ -260,6 +352,17 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                     <FileUp className="h-4 w-4" />
                                     Import Excel
                                 </Button>
+                                {selectedIds.size > 0 && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={openBatchEdit}
+                                        className="gap-2"
+                                    >
+                                        <PencilLine className="h-4 w-4" />
+                                        Batch Edit ({selectedIds.size})
+                                    </Button>
+                                )}
                                 <Button size="sm" asChild className="gap-2">
                                     <Link href="/petugas/create">
                                         <Plus className="h-4 w-4" />
@@ -359,6 +462,21 @@ export default function Index({ petugas }: PetugasIndexProps) {
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
+                                    {!isPJ && (
+                                        <th className="w-10 px-3 py-3.5">
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    paginatedPetugas.length >
+                                                        0 &&
+                                                    selectedIds.size ===
+                                                        paginatedPetugas.length
+                                                }
+                                                onChange={toggleSelectAll}
+                                                className="h-4 w-4 rounded border-neutral-300"
+                                            />
+                                        </th>
+                                    )}
                                     <th
                                         className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() => handleSort('nama')}
@@ -420,7 +538,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 {paginatedPetugas.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={7}
+                                            colSpan={isPJ ? 7 : 8}
                                             className="px-6 py-12 text-center"
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -441,6 +559,22 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                             key={Petugas.id}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                         >
+                                            {!isPJ && (
+                                                <td className="w-10 px-3 py-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.has(
+                                                            Petugas.id,
+                                                        )}
+                                                        onChange={() =>
+                                                            toggleSelectPetugas(
+                                                                Petugas.id,
+                                                            )
+                                                        }
+                                                        className="h-4 w-4 rounded border-neutral-300"
+                                                    />
+                                                </td>
+                                            )}
                                             <td className="px-3 py-3 text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -604,6 +738,289 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     )}
                 </ContentCard>
             </div>
+
+            {/* Batch Edit Modal */}
+            {showBatchEdit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <ContentCard className="flex max-h-[90vh] w-full max-w-6xl flex-col">
+                        <div className="mb-4 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                                    Batch Edit Petugas
+                                </h3>
+                                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                                    Mengedit {batchEditItems.length} petugas
+                                    sekaligus
+                                </p>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowBatchEdit(false)}
+                                className="h-8 w-8 p-0"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto">
+                            <table className="w-full">
+                                <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
+                                    <tr>
+                                        <th className="px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            #
+                                        </th>
+                                        <th className="min-w-[160px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Nama
+                                        </th>
+                                        <th className="min-w-[130px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Telepon
+                                        </th>
+                                        <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Pendidikan
+                                        </th>
+                                        <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Jenis Kelamin
+                                        </th>
+                                        <th className="min-w-[140px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Tanggal Lahir
+                                        </th>
+                                        <th className="min-w-[140px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Kecamatan
+                                        </th>
+                                        <th className="min-w-[140px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Desa/Kelurahan
+                                        </th>
+                                        <th className="min-w-[160px] px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">
+                                            Alamat
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                    {batchEditItems.map((item, index) => (
+                                        <tr key={item.id}>
+                                            <td className="px-2 py-2 text-xs text-neutral-500">
+                                                {index + 1}
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Input
+                                                    value={item.nama}
+                                                    onChange={(e) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'nama',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="h-8 text-sm"
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Input
+                                                    value={item.telepon}
+                                                    onChange={(e) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'telepon',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="h-8 text-sm"
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Select
+                                                    value={item.pendidikan}
+                                                    onValueChange={(v) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'pendidikan',
+                                                            v,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue placeholder="Pilih" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {[
+                                                            'SD',
+                                                            'SMP',
+                                                            'SMA',
+                                                            'D1',
+                                                            'D2',
+                                                            'D3',
+                                                            'D4',
+                                                            'S1',
+                                                            'S2',
+                                                            'S3',
+                                                        ].map((p) => (
+                                                            <SelectItem
+                                                                key={p}
+                                                                value={p}
+                                                            >
+                                                                {p}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Select
+                                                    value={item.jenis_kelamin}
+                                                    onValueChange={(v) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'jenis_kelamin',
+                                                            v,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue placeholder="Pilih" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="laki-laki">
+                                                            Laki-laki
+                                                        </SelectItem>
+                                                        <SelectItem value="perempuan">
+                                                            Perempuan
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <DatePicker
+                                                    value={item.tanggal_lahir}
+                                                    onChange={(v) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'tanggal_lahir',
+                                                            v,
+                                                        )
+                                                    }
+                                                    max={
+                                                        new Date()
+                                                            .toISOString()
+                                                            .split('T')[0]
+                                                    }
+                                                    className="h-8"
+                                                />
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Select
+                                                    value={item.kecamatan}
+                                                    onValueChange={(v) => {
+                                                        updateBatchItem(
+                                                            index,
+                                                            'kecamatan',
+                                                            v,
+                                                        );
+                                                        updateBatchItem(
+                                                            index,
+                                                            'desa_kelurahan',
+                                                            '',
+                                                        );
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue placeholder="Pilih" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {KECAMATAN_LIST.map(
+                                                            (kec) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        kec.kode
+                                                                    }
+                                                                    value={
+                                                                        kec.nama
+                                                                    }
+                                                                >
+                                                                    {kec.nama}
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Select
+                                                    value={item.desa_kelurahan}
+                                                    onValueChange={(v) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'desa_kelurahan',
+                                                            v,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="h-8 text-sm">
+                                                        <SelectValue placeholder="Pilih" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {getDesaByKecamatan(
+                                                            item.kecamatan,
+                                                        ).map((desa) => (
+                                                            <SelectItem
+                                                                key={desa.kode}
+                                                                value={
+                                                                    desa.nama
+                                                                }
+                                                            >
+                                                                {desa.nama}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <Input
+                                                    value={item.alamat}
+                                                    onChange={(e) =>
+                                                        updateBatchItem(
+                                                            index,
+                                                            'alamat',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="h-8 text-sm"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="mt-4 flex justify-end gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowBatchEdit(false)}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={handleBatchSubmit}
+                                disabled={batchProcessing}
+                                className="gap-2"
+                            >
+                                {batchProcessing ? (
+                                    <>
+                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    <>
+                                        <PencilLine className="h-4 w-4" />
+                                        Simpan Perubahan
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </ContentCard>
+                </div>
+            )}
 
             {/* Import Modal */}
             {showImportModal && (

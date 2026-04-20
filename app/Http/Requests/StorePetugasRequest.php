@@ -40,6 +40,10 @@ class StorePetugasRequest extends FormRequest
             'no_rekening' => $this->no_rekening ?: null,
             'nama_rekening' => $this->nama_rekening ?: null,
             'catatan' => $this->catatan ?: null,
+            'kecamatan' => $this->kecamatan ?: null,
+            'desa_kelurahan' => $this->desa_kelurahan ?: null,
+            'jenis_kelamin' => $this->jenis_kelamin ?: null,
+            'tanggal_lahir' => $this->tanggal_lahir ?: null,
         ]);
 
     }
@@ -88,6 +92,10 @@ class StorePetugasRequest extends FormRequest
             'nama_rekening' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:aktif,nonaktif'],
             'catatan' => ['nullable', 'string'],
+            'jenis_kelamin' => ['nullable', 'in:laki-laki,perempuan'],
+            'kecamatan' => ['nullable', 'in:Silungkang,Lembah Segar,Barangin,Talawi'],
+            'desa_kelurahan' => ['nullable', 'string', 'max:255'],
+            'tanggal_lahir' => ['nullable', 'date', 'before:today'],
         ];
     }
 

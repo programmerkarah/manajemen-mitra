@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
+use App\Http\Controllers\AnalisisController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SsoOAuthController;
@@ -247,6 +248,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
+        Route::put('petugas/batch-update', [PetugasController::class, 'batchUpdate'])->name('petugas.batch-update');
         Route::get('petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
         Route::post('petugas', [PetugasController::class, 'store'])->name('petugas.store');
 
@@ -488,6 +490,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::match(['get', 'post'], 'rekap-honor', [SbmlReportController::class, 'index'])
         ->name('sbml.report')
         ->middleware('active.role:admin,operator,pj,ketua_tim');
+
+    // Analisis (Admin, Operator, PJ can view)
+    Route::middleware(['active.role:admin,operator,pj'])->group(function () {
+        Route::get('analisis/petugas', [AnalisisController::class, 'petugas'])->name('analisis.petugas');
+        Route::get('analisis/pulsa', [AnalisisController::class, 'pulsa'])->name('analisis.pulsa');
+        Route::get('analisis/dokumen', [AnalisisController::class, 'dokumen'])->name('analisis.dokumen');
+        Route::get('analisis/umum', [AnalisisController::class, 'umum'])->name('analisis.umum');
+    });
 
     // Document Management - View routes (Admin, Operator, PJ, Ketua Tim can view)
     Route::middleware(['active.role:admin,operator,pj,approver,ketua_tim'])->group(function () {

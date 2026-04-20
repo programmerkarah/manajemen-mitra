@@ -12,6 +12,7 @@ import {
     Eye,
     FileCheck,
     FileText,
+    Globe,
     Mail,
     RefreshCw,
     Send,
@@ -219,6 +220,14 @@ export function StatusBadge({
             textColor: 'text-gray-800 dark:text-gray-300',
             borderColor: 'border-gray-300 dark:border-gray-600',
             icon: ShieldX,
+        },
+        // SSO status
+        sso_active: {
+            label: 'SSO',
+            bgColor: 'bg-cyan-100 dark:bg-cyan-900',
+            textColor: 'text-cyan-900 dark:text-cyan-200',
+            borderColor: 'border-cyan-300 dark:border-cyan-600',
+            icon: Globe,
         },
         // User Roles
         admin: {

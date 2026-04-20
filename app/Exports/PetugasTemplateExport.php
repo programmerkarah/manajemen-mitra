@@ -14,7 +14,6 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
 {
     public function array(): array
     {
-        // Return sample data with explanation rows
         return [
             [
                 'John Doe',
@@ -28,6 +27,10 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
                 'Non-Organik',
                 'Mitra Statistik',
                 'Non PNS',
+                'laki-laki',
+                'Silungkang',
+                'Silungkang Oso',
+                '1990-01-15',
                 '123456789012345',
                 'Bank BCA',
                 '1234567890',
@@ -46,19 +49,23 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
                 'Organik',
                 'Statistisi Ahli Pertama',
                 'III/b',
+                'perempuan',
+                'Barangin',
+                'Rantih',
+                '1985-06-20',
                 '987654321098765',
                 'Bank Mandiri',
                 '9876543210',
                 'Jane Smith',
                 'Contoh catatan lainnya',
             ],
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 4 kosong
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 5 kosong
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 6 kosong
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 7 kosong
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 8 kosong
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''], // Baris 9 kosong
-            ['Keterangan: Kolom dengan warna hijau (A-K) adalah field yang wajib diisi. Kolom dengan warna biru (L-P) bersifat opsional.'],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+            ['Keterangan: Kolom hijau (A-K) wajib diisi. Kolom kuning (L-O) data demografi. Kolom biru (P-T) opsional. Kecamatan: Silungkang/Lembah Segar/Barangin/Talawi. Jenis kelamin: laki-laki/perempuan.'],
         ];
     }
 
@@ -76,6 +83,10 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
             'jenis_petugas',
             'jabatan',
             'golongan',
+            'jenis_kelamin',
+            'kecamatan',
+            'desa_kelurahan',
+            'tanggal_lahir',
             'npwp',
             'bank',
             'no_rekening',
@@ -86,7 +97,6 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
 
     public function styles(Worksheet $sheet)
     {
-        // Set column widths
         $sheet->getColumnDimension('A')->setWidth(25);
         $sheet->getColumnDimension('B')->setWidth(20);
         $sheet->getColumnDimension('C')->setWidth(30);
@@ -98,11 +108,15 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         $sheet->getColumnDimension('I')->setWidth(20);
         $sheet->getColumnDimension('J')->setWidth(20);
         $sheet->getColumnDimension('K')->setWidth(20);
-        $sheet->getColumnDimension('L')->setWidth(25);
-        $sheet->getColumnDimension('M')->setWidth(25);
-        $sheet->getColumnDimension('N')->setWidth(40);
-        $sheet->getColumnDimension('O')->setWidth(25);
-        $sheet->getColumnDimension('P')->setWidth(30);
+        $sheet->getColumnDimension('L')->setWidth(15);
+        $sheet->getColumnDimension('M')->setWidth(20);
+        $sheet->getColumnDimension('N')->setWidth(25);
+        $sheet->getColumnDimension('O')->setWidth(15);
+        $sheet->getColumnDimension('P')->setWidth(25);
+        $sheet->getColumnDimension('Q')->setWidth(25);
+        $sheet->getColumnDimension('R')->setWidth(20);
+        $sheet->getColumnDimension('S')->setWidth(25);
+        $sheet->getColumnDimension('T')->setWidth(30);
 
         // Style for mandatory fields (A:K) - Green
         $sheet->getStyle('A1:K1')->applyFromArray([
@@ -117,8 +131,21 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
             ],
         ]);
 
-        // Style for optional fields (L:P) - Blue
-        $sheet->getStyle('L1:P1')->applyFromArray([
+        // Style for demographic fields (L:O) - Yellow
+        $sheet->getStyle('L1:O1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '000000']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFC107'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        // Style for optional fields (P:T) - Blue
+        $sheet->getStyle('P1:T1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -131,14 +158,14 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         ]);
 
         // Style for note row (row 10)
-        $sheet->getStyle('A10:P10')->applyFromArray([
+        $sheet->getStyle('A10:T10')->applyFromArray([
             'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '666666']],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_LEFT,
                 'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ]);
-        $sheet->mergeCells('A10:P10');
+        $sheet->mergeCells('A10:T10');
 
         return [];
     }

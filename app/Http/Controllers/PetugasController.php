@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\PetugasTemplateExport;
+use App\Http\Requests\BatchUpdatePetugasRequest;
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StorePetugasRequest;
 use App\Http\Requests\UpdatePetugasRequest;
@@ -395,5 +396,53 @@ class PetugasController extends Controller
             return redirect()->route('petugas.index')
                 ->with('error', 'Gagal mengimport data: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Batch update multiple petugas.
+     */
+    public function batchUpdate(BatchUpdatePetugasRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+        $updated = 0;
+
+        foreach ($validated['petugas'] as $item) {
+            $id = Hashids::decode($item['id'])[0] ?? null;
+            if (! $id) {
+                continue;
+            }
+
+            $petugas = Petugas::find($id);
+            if (! $petugas) {
+                continue;
+            }
+
+            $petugas->update([
+                'nama' => $item['nama'],
+                'telepon' => $item['telepon'],
+                'pendidikan' => $item['pendidikan'],
+                'jenis_kelamin' => $item['jenis_kelamin'] ?? null,
+                'tanggal_lahir' => $item['tanggal_lahir'] ?? null,
+                'kecamatan' => $item['kecamatan'] ?? null,
+                'desa_kelurahan' => $item['desa_kelurahan'] ?? null,
+                'alamat' => $item['alamat'],
+            ]);
+            $updated++;
+        }
+
+        try {
+            ActivityLog::log(
+                'Batch Edit Mitra',
+                'mitra',
+                "Berhasil mengubah {$updated} data mitra secara batch.",
+                'success',
+                ['count' => $updated]
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
+        }
+
+        return redirect()->route('petugas.index')
+            ->with('success', "Berhasil memperbarui {$updated} data petugas.");
     }
 }

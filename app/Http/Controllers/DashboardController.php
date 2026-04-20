@@ -447,12 +447,15 @@ class DashboardController extends Controller
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
 
             // Get all honor data for this month, prefer 'perubahan' over 'dikirim' per (petugas, kegiatan)
+            // Only include survei kegiatan (sensus excluded as honor can exceed 3.5 million)
             $rawAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
+                ->where('kegiatan.jenis_kegiatan', 'survei')
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
                 ->select(
                     'alokasi_petugas.petugas_id',

@@ -54,6 +54,11 @@ class UpdatePetugasRequest extends FormRequest
             'no_rekening' => ['nullable', 'string', 'max:100'],
             'nama_rekening' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:aktif,nonaktif'],
+            'catatan' => ['nullable', 'string'],
+            'jenis_kelamin' => ['nullable', 'in:laki-laki,perempuan'],
+            'kecamatan' => ['nullable', 'in:Silungkang,Lembah Segar,Barangin,Talawi'],
+            'desa_kelurahan' => ['nullable', 'string', 'max:255'],
+            'tanggal_lahir' => ['nullable', 'date', 'before:today'],
         ];
     }
 

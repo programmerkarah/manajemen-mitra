@@ -399,8 +399,9 @@ export default function Index({ periodeList }: IndexProps) {
                                             </td>
                                             <td className="px-4 py-4">
                                                 <div className="max-w-md space-y-1">
-                                                    {monthData.kegiatan_list.map(
-                                                        (kegiatan) => (
+                                                    {monthData.kegiatan_list
+                                                        .slice(0, 3)
+                                                        .map((kegiatan) => (
                                                             <div
                                                                 key={
                                                                     kegiatan.periode_id
@@ -421,7 +422,17 @@ export default function Index({ periodeList }: IndexProps) {
                                                                     non-organik
                                                                 </div>
                                                             </div>
-                                                        ),
+                                                        ))}
+                                                    {monthData.kegiatan_list
+                                                        .length > 3 && (
+                                                        <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                                                            +
+                                                            {monthData
+                                                                .kegiatan_list
+                                                                .length -
+                                                                3}{' '}
+                                                            kegiatan lainnya
+                                                        </div>
                                                     )}
                                                 </div>
                                             </td>

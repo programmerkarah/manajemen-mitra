@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { AlertCircle, ArrowLeft, Loader2, Save, X } from 'lucide-react';
@@ -45,6 +47,10 @@ export default function Create() {
         no_rekening: '',
         nama_rekening: '',
         catatan: '',
+        jenis_kelamin: '',
+        kecamatan: '',
+        desa_kelurahan: '',
+        tanggal_lahir: '',
     });
 
     const handleJenisPetugasChange = (value: string) => {
@@ -153,6 +159,32 @@ export default function Create() {
                                 <InputError message={errors.nama} />
                             </div>
 
+                            {/* Jenis Kelamin */}
+                            <div className="space-y-2">
+                                <Label htmlFor="jenis_kelamin">
+                                    Jenis Kelamin
+                                </Label>
+                                <Select
+                                    value={data.jenis_kelamin}
+                                    onValueChange={(value) =>
+                                        setData('jenis_kelamin', value)
+                                    }
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Pilih Jenis Kelamin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="laki-laki">
+                                            Laki-laki
+                                        </SelectItem>
+                                        <SelectItem value="perempuan">
+                                            Perempuan
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.jenis_kelamin} />
+                            </div>
+
                             {/* NIK */}
                             <div className="space-y-2">
                                 <Label htmlFor="nik">
@@ -171,6 +203,23 @@ export default function Create() {
                                     className="h-10"
                                 />
                                 <InputError message={errors.nik} />
+                            </div>
+
+                            {/* Tanggal Lahir */}
+                            <div className="space-y-2">
+                                <Label htmlFor="tanggal_lahir">
+                                    Tanggal Lahir
+                                </Label>
+                                <DatePicker
+                                    id="tanggal_lahir"
+                                    value={data.tanggal_lahir}
+                                    onChange={(value) =>
+                                        setData('tanggal_lahir', value)
+                                    }
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="h-10"
+                                />
+                                <InputError message={errors.tanggal_lahir} />
                             </div>
 
                             {/* Email */}
@@ -239,6 +288,23 @@ export default function Create() {
                                     </SelectContent>
                                 </Select>
                                 <InputError message={errors.pendidikan} />
+                            </div>
+
+                            {/* Tanggal Lahir */}
+                            <div className="space-y-2">
+                                <Label htmlFor="tanggal_lahir">
+                                    Tanggal Lahir
+                                </Label>
+                                <DatePicker
+                                    id="tanggal_lahir"
+                                    value={data.tanggal_lahir}
+                                    onChange={(value) =>
+                                        setData('tanggal_lahir', value)
+                                    }
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="h-10"
+                                />
+                                <InputError message={errors.tanggal_lahir} />
                             </div>
 
                             {/* Tahun Bergabung */}
@@ -473,6 +539,73 @@ export default function Create() {
                                     required
                                 />
                                 <InputError message={errors.alamat} />
+                            </div>
+
+                            {/* Kecamatan */}
+                            <div className="space-y-2">
+                                <Label htmlFor="kecamatan">Kecamatan</Label>
+                                <Select
+                                    value={data.kecamatan}
+                                    onValueChange={(value) => {
+                                        setData((prev) => ({
+                                            ...prev,
+                                            kecamatan: value,
+                                            desa_kelurahan: '',
+                                        }));
+                                    }}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Pilih Kecamatan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {KECAMATAN_LIST.map((kec) => (
+                                            <SelectItem
+                                                key={kec.kode}
+                                                value={kec.nama}
+                                            >
+                                                {kec.nama}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.kecamatan} />
+                            </div>
+
+                            {/* Desa / Kelurahan */}
+                            <div className="space-y-2">
+                                <Label htmlFor="desa_kelurahan">
+                                    Desa / Kelurahan
+                                </Label>
+                                <Select
+                                    value={data.desa_kelurahan}
+                                    onValueChange={(value) =>
+                                        setData('desa_kelurahan', value)
+                                    }
+                                    disabled={!data.kecamatan}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue
+                                            placeholder={
+                                                data.kecamatan
+                                                    ? 'Pilih Desa/Kelurahan'
+                                                    : 'Pilih kecamatan terlebih dahulu'
+                                            }
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {getDesaByKecamatan(data.kecamatan).map(
+                                            (desa) => (
+                                                <SelectItem
+                                                    key={desa.kode}
+                                                    value={desa.nama}
+                                                >
+                                                    {desa.nama}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.desa_kelurahan} />
                             </div>
 
                             {/* Catatan */}

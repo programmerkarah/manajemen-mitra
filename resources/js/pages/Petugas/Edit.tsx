@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
@@ -34,6 +36,11 @@ interface Petugas {
     no_rekening: string | null;
     nama_rekening: string | null;
     status: string;
+    jenis_kelamin: string | null;
+    kecamatan: string | null;
+    desa_kelurahan: string | null;
+    tanggal_lahir: string | null;
+    catatan: string | null;
 }
 
 interface EditProps {
@@ -83,6 +90,11 @@ export default function Edit({ petugas }: EditProps) {
         no_rekening: petugas.no_rekening || '',
         nama_rekening: petugas.nama_rekening || '',
         status: petugas.status,
+        jenis_kelamin: petugas.jenis_kelamin || '',
+        kecamatan: petugas.kecamatan || '',
+        desa_kelurahan: petugas.desa_kelurahan || '',
+        tanggal_lahir: petugas.tanggal_lahir || '',
+        catatan: petugas.catatan || '',
     });
 
     const handleJenisPetugasChange = (value: 'organik' | 'non-organik') => {
@@ -158,6 +170,35 @@ export default function Edit({ petugas }: EditProps) {
                                     </p>
                                 )}
                             </div>
+                            {/* Jenis Kelamin */}
+                            <div>
+                                <Label className="block text-sm font-medium">
+                                    Jenis Kelamin
+                                </Label>
+                                <Select
+                                    value={data.jenis_kelamin}
+                                    onValueChange={(value) =>
+                                        setData('jenis_kelamin', value)
+                                    }
+                                >
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Jenis Kelamin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="laki-laki">
+                                            Laki-laki
+                                        </SelectItem>
+                                        <SelectItem value="perempuan">
+                                            Perempuan
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {errors.jenis_kelamin && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.jenis_kelamin}
+                                    </p>
+                                )}
+                            </div>
 
                             {/* NIK */}
                             <div>
@@ -177,6 +218,26 @@ export default function Edit({ petugas }: EditProps) {
                                 {errors.nik && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.nik}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Tanggal Lahir */}
+                            <div>
+                                <Label className="block text-sm font-medium">
+                                    Tanggal Lahir
+                                </Label>
+                                <DatePicker
+                                    value={data.tanggal_lahir}
+                                    onChange={(value) =>
+                                        setData('tanggal_lahir', value)
+                                    }
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="mt-1 h-10"
+                                />
+                                {errors.tanggal_lahir && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.tanggal_lahir}
                                     </p>
                                 )}
                             </div>
@@ -433,10 +494,10 @@ export default function Edit({ petugas }: EditProps) {
 
                             {/* Alamat - Full Width */}
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-medium">
+                                <Label className="block text-sm font-medium">
                                     Alamat{' '}
                                     <span className="text-red-600">*</span>
-                                </label>
+                                </Label>
                                 <Textarea
                                     value={data.alamat}
                                     onChange={(e) =>
@@ -448,6 +509,83 @@ export default function Edit({ petugas }: EditProps) {
                                 {errors.alamat && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.alamat}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Kecamatan */}
+                            <div>
+                                <Label className="block text-sm font-medium">
+                                    Kecamatan
+                                </Label>
+                                <Select
+                                    value={data.kecamatan}
+                                    onValueChange={(value) => {
+                                        setData((prev) => ({
+                                            ...prev,
+                                            kecamatan: value,
+                                            desa_kelurahan: '',
+                                        }));
+                                    }}
+                                >
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue placeholder="Pilih Kecamatan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {KECAMATAN_LIST.map((kec) => (
+                                            <SelectItem
+                                                key={kec.kode}
+                                                value={kec.nama}
+                                            >
+                                                {kec.nama}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.kecamatan && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.kecamatan}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Desa / Kelurahan */}
+                            <div>
+                                <Label className="block text-sm font-medium">
+                                    Desa / Kelurahan
+                                </Label>
+                                <Select
+                                    value={data.desa_kelurahan}
+                                    onValueChange={(value) =>
+                                        setData('desa_kelurahan', value)
+                                    }
+                                    disabled={!data.kecamatan}
+                                >
+                                    <SelectTrigger className="mt-1 h-10">
+                                        <SelectValue
+                                            placeholder={
+                                                data.kecamatan
+                                                    ? 'Pilih Desa/Kelurahan'
+                                                    : 'Pilih kecamatan dulu'
+                                            }
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {getDesaByKecamatan(data.kecamatan).map(
+                                            (desa) => (
+                                                <SelectItem
+                                                    key={desa.kode}
+                                                    value={desa.nama}
+                                                >
+                                                    {desa.nama}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {errors.desa_kelurahan && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.desa_kelurahan}
                                     </p>
                                 )}
                             </div>
@@ -546,6 +684,32 @@ export default function Edit({ petugas }: EditProps) {
                                         </p>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Catatan */}
+                        <div className="rounded-lg border border-neutral-200 bg-neutral-50/50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                            <h3 className="mb-3 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                Catatan
+                            </h3>
+                            <div>
+                                <Label className="block text-sm font-medium">
+                                    Catatan
+                                </Label>
+                                <Textarea
+                                    value={data.catatan}
+                                    onChange={(e) =>
+                                        setData('catatan', e.target.value)
+                                    }
+                                    rows={3}
+                                    className="mt-1"
+                                    placeholder="Catatan tambahan tentang petugas..."
+                                />
+                                {errors.catatan && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.catatan}
+                                    </p>
+                                )}
                             </div>
                         </div>
 

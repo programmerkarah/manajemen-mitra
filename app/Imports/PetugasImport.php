@@ -49,6 +49,10 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'no_rekening' => isset($row['no_rekening']) ? (string) $row['no_rekening'] : null,
                 'nama_rekening' => $row['nama_rekening'] ?? null,
                 'catatan' => $row['catatan'] ?? null,
+                'jenis_kelamin' => isset($row['jenis_kelamin']) ? strtolower(trim($row['jenis_kelamin'])) : null,
+                'kecamatan' => $row['kecamatan'] ?? null,
+                'desa_kelurahan' => $row['desa_kelurahan'] ?? null,
+                'tanggal_lahir' => $row['tanggal_lahir'] ?? null,
             ];
 
             // Auto-set jabatan and golongan for non-organik
@@ -75,6 +79,10 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
                 'no_rekening' => ['nullable', 'string', 'max:255'],
                 'nama_rekening' => ['nullable', 'string', 'max:255'],
                 'catatan' => ['nullable', 'string'],
+                'jenis_kelamin' => ['nullable', Rule::in(['laki-laki', 'perempuan'])],
+                'kecamatan' => ['nullable', Rule::in(['Silungkang', 'Lembah Segar', 'Barangin', 'Talawi'])],
+                'desa_kelurahan' => ['nullable', 'string', 'max:255'],
+                'tanggal_lahir' => ['nullable', 'date'],
             ], [
                 'nama.required' => 'Nama wajib diisi',
                 'nik.required' => 'NIK wajib diisi',

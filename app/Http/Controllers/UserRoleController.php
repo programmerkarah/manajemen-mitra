@@ -26,7 +26,7 @@ class UserRoleController extends Controller
         $validated = $request->validated();
 
         // Load ALL users for client-side filtering, sorting, and pagination
-        $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.email_verified_at', 'users.two_factor_secret', 'users.created_at')
+        $users = User::select('users.id', 'users.name', 'users.username', 'users.email', 'users.is_active', 'users.email_verified_at', 'users.two_factor_secret', 'users.sso_user_id', 'users.created_at')
             ->with('roles:id,name')
             ->orderBy('name')
             ->get();
@@ -41,6 +41,7 @@ class UserRoleController extends Controller
                 'is_active' => $user->is_active,
                 'email_verified_at' => $user->email_verified_at,
                 'two_factor_enabled' => ! is_null($user->two_factor_secret),
+                'is_sso_user' => ! is_null($user->sso_user_id),
                 'roles' => $user->roles,
                 'created_at' => $user->created_at,
             ];
