@@ -2,10 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Kegiatan;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Kegiatan>
+ * @extends Factory<Kegiatan>
  */
 class KegiatanFactory extends Factory
 {
@@ -26,8 +28,8 @@ class KegiatanFactory extends Factory
             'tahun_anggaran' => $this->faker->year,
             'pagu_pencacahan' => $this->faker->randomFloat(2, 100000, 10000000),
             'kode_coa' => $this->faker->optional()->numerify('COA-####'),
-            'ketua_tim_user_id' => fn () => \App\Models\User::factory(),
-            'pj_lainnya_id' => fn () => \App\Models\User::factory(),
+            'ketua_tim_user_id' => fn () => User::factory(),
+            'pj_lainnya_id' => fn () => User::factory(),
             'status' => 'draft',
             'tanggal_validasi' => null,
             'catatan' => $this->faker->optional()->text(30),

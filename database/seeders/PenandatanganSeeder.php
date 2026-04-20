@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Penandatangan;
 use Illuminate\Database\Seeder;
 
 class PenandatanganSeeder extends Seeder
@@ -11,7 +12,7 @@ class PenandatanganSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\Penandatangan::create([
+        Penandatangan::create([
             'nama' => 'Arieswaty, SST',
             'nip' => '197003291990032001',
             'jenis_penandatangan' => 'kepala',
@@ -21,7 +22,7 @@ class PenandatanganSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        \App\Models\Penandatangan::create([
+        Penandatangan::create([
             'nama' => 'Rahmat Zikri, S.Tr.Stat.',
             'nip' => '199710242019121001',
             'jenis_penandatangan' => 'ppk',

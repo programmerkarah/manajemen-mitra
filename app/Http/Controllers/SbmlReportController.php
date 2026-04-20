@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
 use App\Models\AlokasiPetugas;
+use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Sbml;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -155,7 +157,7 @@ class SbmlReportController extends Controller
         // Generate month options for dropdown
         $bulanOptions = collect(range(1, 12))->map(function ($m) {
             $monthStr = str_pad($m, 2, '0', STR_PAD_LEFT);
-            $date = \Carbon\Carbon::create()->month($m);
+            $date = Carbon::create()->month($m);
             $date->setLocale('id');
 
             return [
@@ -167,7 +169,7 @@ class SbmlReportController extends Controller
         $currentYear = (int) date('Y');
 
         // Get unique years from alokasi petugas
-        $tahunOptions = \App\Models\PeriodeAlokasi::select('tahun')
+        $tahunOptions = PeriodeAlokasi::select('tahun')
             ->distinct()
             ->orderBy('tahun', 'desc')
             ->pluck('tahun')

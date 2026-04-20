@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Vinkla\Hashids\Facades\Hashids;
 
 class UpdatePetugasRequest extends FormRequest
 {
@@ -18,7 +20,7 @@ class UpdatePetugasRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -28,7 +30,7 @@ class UpdatePetugasRequest extends FormRequest
 
         if ($petugasHash) {
             try {
-                $decoded = \Vinkla\Hashids\Facades\Hashids::decode($petugasHash);
+                $decoded = Hashids::decode($petugasHash);
                 $petugasId = $decoded[0] ?? null;
             } catch (\Exception $e) {
                 // If decode fails, petugasId remains null

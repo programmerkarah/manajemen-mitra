@@ -8,9 +8,11 @@ use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
 use App\Models\PeriodeAlokasi;
+use App\Services\ActiveYearService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +30,7 @@ class PengajuanPulsaController extends Controller
     {
         $effectiveUser = effectiveUser($request);
         $bulan = $request->input('bulan', now()->format('m'));
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $query = PengajuanPulsa::query()
             ->with([
@@ -71,7 +73,7 @@ class PengajuanPulsaController extends Controller
     {
         $effectiveUser = effectiveUser($request);
         $bulan = $request->input('bulan', now()->format('m'));
-        $tahun = (string) \App\Services\ActiveYearService::get();
+        $tahun = (string) ActiveYearService::get();
         $bulanInt = (int) $bulan;
 
         $isAdminOrOperator = $effectiveUser?->isAdmin() || $effectiveUser?->isOperator();
@@ -99,7 +101,7 @@ class PengajuanPulsaController extends Controller
         /**
          * Map kegiatan_id → alokasi period info for pelatihan petugas lookup.
          *
-         * @var \Illuminate\Support\Collection<int, array{kegiatan_id: int, alokasi_bulan: string, alokasi_tahun: string}>
+         * @var Collection<int, array{kegiatan_id: int, alokasi_bulan: string, alokasi_tahun: string}>
          */
         $pelatihanAlokasiInfo = $pelatihanKegiatanList->map(function ($k) use ($bulanInt, $tahun) {
             $mulaiMonth = $k->tanggal_mulai?->month;
@@ -217,7 +219,7 @@ class PengajuanPulsaController extends Controller
 
         // --- Step 5: Build petugasPerKegiatanPelatihan (from allocation bulan per kegiatan) ---
         // Group eligible pelatihan kegiatan by their alokasi period to minimize queries
-        /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, array{kegiatan_id: int, alokasi_bulan: string, alokasi_tahun: string}>> $byAlokasiPeriod */
+        /** @var Collection<string, Collection<int, array{kegiatan_id: int, alokasi_bulan: string, alokasi_tahun: string}>> $byAlokasiPeriod */
         $byAlokasiPeriod = $pelatihanAlokasiInfo
             ->filter(fn ($info) => $kegiatanWithPelatihanPeriod->contains($info['kegiatan_id']))
             ->groupBy(fn ($info) => $info['alokasi_bulan'].'_'.$info['alokasi_tahun']);
@@ -337,7 +339,7 @@ class PengajuanPulsaController extends Controller
         $validated = $request->validated();
         $effectiveUser = effectiveUser($request);
         $bulan = $validated['bulan'];
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
         $items = $validated['items'];
 
         /** @var array<int, array{kegiatan_id: int, petugas_id: int, jenis_pulsa: string, nominal: float}> $items */
@@ -369,7 +371,7 @@ class PengajuanPulsaController extends Controller
         // Validate per-item: pulsa pelatihan only allowed for kegiatan with pelatihan month configured
         foreach ($items as $item) {
             if ($item['jenis_pulsa'] === 'pelatihan') {
-                /** @var \App\Models\Kegiatan|null $kegiatan */
+                /** @var Kegiatan|null $kegiatan */
                 $kegiatan = $validKegiatanById->get($item['kegiatan_id']);
                 $metodePelatihan = $kegiatan?->metode_pelatihan;
                 if ($metodePelatihan === null || $metodePelatihan === 'tidak_ada_pelatihan') {
@@ -385,7 +387,7 @@ class PengajuanPulsaController extends Controller
                 }
             }
             if ($item['jenis_pulsa'] === 'pendataan') {
-                /** @var \App\Models\Kegiatan|null $kegiatan */
+                /** @var Kegiatan|null $kegiatan */
                 $kegiatan = $validKegiatanById->get($item['kegiatan_id']);
                 if ($kegiatan?->metode_pendataan_pencacahan !== 'CAPI') {
                     return back()->withErrors([
@@ -489,7 +491,7 @@ class PengajuanPulsaController extends Controller
         $effectiveUser = effectiveUser($request);
         $kegiatanId = (int) $request->input('kegiatan_id');
         $bulan = $request->input('bulan', now()->format('m'));
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
 
@@ -528,7 +530,7 @@ class PengajuanPulsaController extends Controller
             ->whereNotIn('status', ['ditolak'])
             ->get(['id', 'petugas_id', 'kegiatan_id', 'jenis_pulsa', 'nominal', 'nominal_disetujui', 'status']);
 
-        /** @var \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, array{id: int, kegiatan_id: int, kegiatan_kode: string|null, kegiatan_nama: string|null, jenis_pulsa: string, nominal: float, nominal_disetujui: float|null, status: string, is_current_kegiatan: bool}>> $allPulsaPerPetugas */
+        /** @var Collection<int, Collection<int, array{id: int, kegiatan_id: int, kegiatan_kode: string|null, kegiatan_nama: string|null, jenis_pulsa: string, nominal: float, nominal_disetujui: float|null, status: string, is_current_kegiatan: bool}>> $allPulsaPerPetugas */
         $allPulsaPerPetugas = $allPulsaForPetugas
             ->groupBy('petugas_id')
             ->map(function ($group) use ($kegiatanId) {

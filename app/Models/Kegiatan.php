@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\KegiatanFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Kegiatan extends Model
 {
-    /** @use HasFactory<\Database\Factories\KegiatanFactory> */
+    /** @use HasFactory<KegiatanFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
     protected $table = 'kegiatan';

@@ -12,6 +12,7 @@ use App\Models\RateHonor;
 use App\Models\Satuan;
 use App\Models\User;
 use App\Services\ActiveYearService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -380,8 +381,8 @@ class KegiatanController extends Controller
         // Check if tanggal kegiatan is being changed
         $oldTanggalMulai = $kegiatan->tanggal_mulai;
         $oldTanggalSelesai = $kegiatan->tanggal_selesai;
-        $newTanggalMulai = isset($data['tanggal_mulai']) ? \Carbon\Carbon::parse($data['tanggal_mulai']) : $oldTanggalMulai;
-        $newTanggalSelesai = isset($data['tanggal_selesai']) ? \Carbon\Carbon::parse($data['tanggal_selesai']) : $oldTanggalSelesai;
+        $newTanggalMulai = isset($data['tanggal_mulai']) ? Carbon::parse($data['tanggal_mulai']) : $oldTanggalMulai;
+        $newTanggalSelesai = isset($data['tanggal_selesai']) ? Carbon::parse($data['tanggal_selesai']) : $oldTanggalSelesai;
         $tanggalChanged = $oldTanggalMulai != $newTanggalMulai || $oldTanggalSelesai != $newTanggalSelesai;
 
         if ($tanggalChanged) {
@@ -396,7 +397,7 @@ class KegiatanController extends Controller
             $invalidPeriodes = [];
             foreach ($existingPeriodes as $periode) {
                 // Create date from periode (first day of the month)
-                $periodeTanggal = \Carbon\Carbon::createFromDate($periode->tahun, (int) $periode->bulan, 1);
+                $periodeTanggal = Carbon::createFromDate($periode->tahun, (int) $periode->bulan, 1);
 
                 // Compare with start and end of month ranges (use copy to avoid mutating original)
                 $rangeStart = $newTanggalMulai->copy()->startOfMonth();
@@ -405,7 +406,7 @@ class KegiatanController extends Controller
                 if ($periodeTanggal->lt($rangeStart) || $periodeTanggal->gt($rangeEnd)) {
                     // Get month name in Indonesian
                     $bulanInt = (int) $periode->bulan;
-                    $namabulan = \Carbon\Carbon::create()->month($bulanInt)->translatedFormat('F');
+                    $namabulan = Carbon::create()->month($bulanInt)->translatedFormat('F');
 
                     $invalidPeriodes[] = sprintf('%s %d', $namabulan, $periode->tahun);
                 }

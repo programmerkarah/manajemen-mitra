@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
@@ -26,7 +27,7 @@ class MaintenanceController extends Controller
 
             if ($secretToken && $request->query('key') === $secretToken) {
                 // Set bypass cookie menggunakan Laravel's maintenance mode bypass cookie
-                $cookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($secretToken);
+                $cookie = MaintenanceModeBypassCookie::create($secretToken);
 
                 return redirect('/')
                     ->withCookie($cookie)
@@ -57,7 +58,7 @@ class MaintenanceController extends Controller
 
         if ($secretToken && $request->input('key') === $secretToken) {
             // Set bypass cookie menggunakan Laravel's maintenance mode bypass cookie
-            $cookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($secretToken);
+            $cookie = MaintenanceModeBypassCookie::create($secretToken);
 
             return redirect('/')
                 ->withCookie($cookie)
@@ -187,7 +188,7 @@ class MaintenanceController extends Controller
                 $this->removeMaintenancePrerenderTemplate();
 
                 // Create bypass cookie for current user
-                $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($bypassSecret);
+                $bypassCookie = MaintenanceModeBypassCookie::create($bypassSecret);
 
                 // Log aktivitas
                 ActivityLog::log(
@@ -252,7 +253,7 @@ class MaintenanceController extends Controller
             $this->removeMaintenancePrerenderTemplate();
 
             // Create bypass cookie for current user
-            $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($bypassSecret);
+            $bypassCookie = MaintenanceModeBypassCookie::create($bypassSecret);
 
             // Log aktivitas
             ActivityLog::log(

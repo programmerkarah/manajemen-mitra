@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, WithTitle
@@ -107,7 +108,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         $sheet->getStyle('A1:K1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '28A745'],
             ],
             'alignment' => [
@@ -120,7 +121,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         $sheet->getStyle('L1:P1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '4A90E2'],
             ],
             'alignment' => [

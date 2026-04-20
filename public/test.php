@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Contracts\Http\Kernel;
+
 echo '<h2>🔍 Laravel Diagnostics</h2>';
 echo '✅ PHP Version: '.phpversion().'<br>';
 echo '✅ Document Root: '.$_SERVER['DOCUMENT_ROOT'].'<br>';
@@ -39,7 +41,7 @@ try {
     $app = require_once __DIR__.'/../bootstrap/app.php';
     echo '✅ Laravel app bootstrapped<br>';
 
-    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $kernel = $app->make(Kernel::class);
     echo '✅ HTTP Kernel created<br>';
 
     // Try to get config

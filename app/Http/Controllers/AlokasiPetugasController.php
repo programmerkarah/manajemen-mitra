@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AlokasiPetugasTemplateExport;
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreAlokasiPetugasRequest;
 use App\Http\Requests\UpdateAlokasiPetugasRequest;
 use App\Http\Requests\UpdateNonResponseRequest;
+use App\Imports\AlokasiPetugasImport;
+use App\Imports\AlokasiPetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
@@ -25,6 +28,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Vinkla\Hashids\Facades\Hashids;
 
 class AlokasiPetugasController extends Controller
@@ -423,32 +429,32 @@ class AlokasiPetugasController extends Controller
         $dateValidationErrors = [];
 
         if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
-            $tanggalMulaiBulan = \Carbon\Carbon::parse($validated['tanggal_mulai'])->month;
-            $tanggalMulaiTahun = \Carbon\Carbon::parse($validated['tanggal_mulai'])->year;
+            $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
+            $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
             if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
-            $tanggalSelesaiBulan = \Carbon\Carbon::parse($validated['tanggal_selesai'])->month;
-            $tanggalSelesaiTahun = \Carbon\Carbon::parse($validated['tanggal_selesai'])->year;
+            $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
+            $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
             if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
-            $tanggalMulaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->month;
-            $tanggalMulaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->year;
+            $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
+            $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
             if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
-            $tanggalSelesaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->month;
-            $tanggalSelesaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->year;
+            $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
+            $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
             if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
             }
@@ -2046,32 +2052,32 @@ class AlokasiPetugasController extends Controller
         $dateValidationErrors = [];
 
         if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
-            $tanggalMulaiBulan = \Carbon\Carbon::parse($validated['tanggal_mulai'])->month;
-            $tanggalMulaiTahun = \Carbon\Carbon::parse($validated['tanggal_mulai'])->year;
+            $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
+            $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
             if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
-            $tanggalSelesaiBulan = \Carbon\Carbon::parse($validated['tanggal_selesai'])->month;
-            $tanggalSelesaiTahun = \Carbon\Carbon::parse($validated['tanggal_selesai'])->year;
+            $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
+            $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
             if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
-            $tanggalMulaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->month;
-            $tanggalMulaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_mulai_listing'])->year;
+            $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
+            $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
             if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
             }
         }
 
         if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
-            $tanggalSelesaiListingBulan = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->month;
-            $tanggalSelesaiListingTahun = \Carbon\Carbon::parse($validated['tanggal_selesai_listing'])->year;
+            $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
+            $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
             if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
                 $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
             }
@@ -3060,7 +3066,7 @@ class AlokasiPetugasController extends Controller
      * Download alokasi petugas template for import (create mode).
      * Accepts optional ?kegiatan=<hash>&tahapan=<value> query params to produce a dynamically-structured template.
      */
-    public function exportTemplateCreate(Request $request, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function exportTemplateCreate(Request $request, string $type = 'create'): BinaryFileResponse
     {
         $kegiatan = null;
         $tahapan = $request->query('tahapan');
@@ -3072,8 +3078,8 @@ class AlokasiPetugasController extends Controller
             }
         }
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\AlokasiPetugasTemplateExport(null, $type, $kegiatan, $tahapan),
+        return Excel::download(
+            new AlokasiPetugasTemplateExport(null, $type, $kegiatan, $tahapan),
             "alokasi-petugas-template-{$type}.xlsx"
         );
     }
@@ -3082,7 +3088,7 @@ class AlokasiPetugasController extends Controller
      * Download alokasi petugas template for import (edit mode).
      * Kegiatan and tahapan are derived from the existing PeriodeAlokasi record.
      */
-    public function exportTemplate(?string $periodeAlokasiHash = null, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function exportTemplate(?string $periodeAlokasiHash = null, string $type = 'create'): BinaryFileResponse
     {
         $periodeAlokasiId = null;
         $kegiatan = null;
@@ -3099,8 +3105,8 @@ class AlokasiPetugasController extends Controller
             $tahapan = $periode?->tahapan;
         }
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\AlokasiPetugasTemplateExport($periodeAlokasiId, $type, $kegiatan, $tahapan),
+        return Excel::download(
+            new AlokasiPetugasTemplateExport($periodeAlokasiId, $type, $kegiatan, $tahapan),
             "alokasi-petugas-template-{$type}.xlsx"
         );
     }
@@ -3122,8 +3128,8 @@ class AlokasiPetugasController extends Controller
 
         try {
             $isCreate = $request->input('is_create', false) === 'true' || $request->input('is_create') === true;
-            $import = new \App\Imports\AlokasiPetugasImport($periodeAlokasiId, $isCreate);
-            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+            $import = new AlokasiPetugasImport($periodeAlokasiId, $isCreate);
+            Excel::import($import, $validated['file']);
 
             ActivityLog::log(
                 'Import Alokasi Petugas',
@@ -3141,7 +3147,7 @@ class AlokasiPetugasController extends Controller
 
             return redirect($backUrl)
                 ->with('success', "Berhasil mengimport {$import->getSuccessCount()} data alokasi petugas");
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+        } catch (ValidationException $e) {
             $failures = $e->failures();
             $errorMessage = 'Gagal mengimport file. Errors: ';
             $errorDetails = [];
@@ -3174,8 +3180,8 @@ class AlokasiPetugasController extends Controller
 
         $tahapan = $validated['tahapan'] ?? ($kegiatan->has_listing_updating ? 'both' : 'pencacahan_only');
 
-        $import = new \App\Imports\AlokasiPetugasPreviewImport;
-        \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+        $import = new AlokasiPetugasPreviewImport;
+        Excel::import($import, $validated['file']);
 
         $rows = $import->rows();
         $previewRows = [];
@@ -3356,8 +3362,8 @@ class AlokasiPetugasController extends Controller
                 'revision_number' => 0,
             ]);
 
-            $import = new \App\Imports\AlokasiPetugasImport($periode->id, true);
-            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+            $import = new AlokasiPetugasImport($periode->id, true);
+            Excel::import($import, $validated['file']);
 
             ActivityLog::log(
                 'Import Alokasi Petugas (Create)',

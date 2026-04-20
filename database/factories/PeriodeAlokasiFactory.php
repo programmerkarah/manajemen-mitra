@@ -2,10 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Kegiatan;
+use App\Models\PeriodeAlokasi;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\PeriodeAlokasi>
+ * @extends Factory<PeriodeAlokasi>
  */
 class PeriodeAlokasiFactory extends Factory
 {
@@ -17,7 +20,7 @@ class PeriodeAlokasiFactory extends Factory
     public function definition(): array
     {
         return [
-            'kegiatan_id' => \App\Models\Kegiatan::factory(),
+            'kegiatan_id' => Kegiatan::factory(),
             'bulan' => str_pad(fake()->numberBetween(1, 12), 2, '0', STR_PAD_LEFT),
             'tahun' => fake()->numberBetween(2020, 2025),
             'jenis_kegiatan' => fake()->randomElement(['sensus', 'survei']),
@@ -29,7 +32,7 @@ class PeriodeAlokasiFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => 'diajukan',
-            'submitted_by' => \App\Models\User::factory(),
+            'submitted_by' => User::factory(),
             'submitted_at' => now(),
         ]);
     }
@@ -38,9 +41,9 @@ class PeriodeAlokasiFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => 'disetujui',
-            'submitted_by' => \App\Models\User::factory(),
+            'submitted_by' => User::factory(),
             'submitted_at' => now()->subDays(2),
-            'approved_by' => \App\Models\User::factory(),
+            'approved_by' => User::factory(),
             'approved_at' => now(),
         ]);
     }
@@ -49,9 +52,9 @@ class PeriodeAlokasiFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => 'ditolak',
-            'submitted_by' => \App\Models\User::factory(),
+            'submitted_by' => User::factory(),
             'submitted_at' => now()->subDays(2),
-            'rejected_by' => \App\Models\User::factory(),
+            'rejected_by' => User::factory(),
             'rejected_at' => now(),
             'catatan' => fake()->sentence(),
         ]);

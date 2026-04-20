@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PengajuanPulsa;
+use App\Services\ActiveYearService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -72,7 +73,7 @@ class MonitoringPulsaController extends Controller
     public function index(Request $request): Response
     {
         $bulan = $this->normalizeBulanValue($request->input('bulan', now()->format('m')));
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $query = PengajuanPulsa::query()
             ->with([
@@ -105,7 +106,7 @@ class MonitoringPulsaController extends Controller
     public function exportPdf(Request $request): HttpResponse
     {
         $bulan = $this->normalizeBulanValue($request->input('bulan', now()->format('m')));
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $approvedItems = PengajuanPulsa::query()
             ->with('petugas:id,nama')

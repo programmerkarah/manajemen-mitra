@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\EncryptsAttributes;
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\PetugasFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Petugas extends Model
 {
-    /** @use HasFactory<\Database\Factories\PetugasFactory> */
+    /** @use HasFactory<PetugasFactory> */
     use EncryptsAttributes, HasFactory, HasHashedRouteKey, SoftDeletes;
 
     protected $table = 'petugas';

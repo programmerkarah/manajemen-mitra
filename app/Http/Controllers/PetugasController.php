@@ -9,13 +9,16 @@ use App\Http\Requests\UpdatePetugasRequest;
 use App\Imports\PetugasImport;
 use App\Models\ActivityLog;
 use App\Models\Petugas;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Vinkla\Hashids\Facades\Hashids;
 
 class PetugasController extends Controller
 {
@@ -118,7 +121,7 @@ class PetugasController extends Controller
                     'success' => 'Data petugas baru sudah berhasil disimpan ke sistem.',
                 ]);
 
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // Activity Log for error
             try {
                 ActivityLog::log(
@@ -162,7 +165,7 @@ class PetugasController extends Controller
      */
     public function show(string $petuga): Response
     {
-        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+        $id = Hashids::decode($petuga)[0] ?? null;
 
         if (! $id) {
             abort(404);
@@ -230,7 +233,7 @@ class PetugasController extends Controller
      */
     public function edit(string $petuga): Response
     {
-        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+        $id = Hashids::decode($petuga)[0] ?? null;
 
         if (! $id) {
             abort(404);
@@ -250,7 +253,7 @@ class PetugasController extends Controller
      */
     public function update(UpdatePetugasRequest $request, string $petuga): RedirectResponse
     {
-        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+        $id = Hashids::decode($petuga)[0] ?? null;
 
         if (! $id) {
             abort(404);
@@ -280,7 +283,7 @@ class PetugasController extends Controller
      */
     public function destroy(string $petuga): RedirectResponse
     {
-        $id = \Vinkla\Hashids\Facades\Hashids::decode($petuga)[0] ?? null;
+        $id = Hashids::decode($petuga)[0] ?? null;
 
         if (! $id) {
             abort(404);
@@ -367,7 +370,7 @@ class PetugasController extends Controller
 
             return redirect()->route('petugas.index')
                 ->with('success', "Import berhasil! {$successCount} petugas telah ditambahkan.");
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+        } catch (ValidationException $e) {
             $failures = $e->failures();
             $errorMessages = [];
 

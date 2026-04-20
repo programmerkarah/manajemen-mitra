@@ -26,24 +26,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        // Include role and view-as user in version to force cache invalidation
-        // when role is switched or view-as is changed
-        $user = $request->user();
-        $versionParts = [
-            parent::version($request),
-        ];
-
-        if ($user) {
-            // Add active role ID to version
-            $versionParts[] = 'role_'.$user->active_role;
-
-            // Add view-as user ID to version if exists
-            if (session()->has('view_as_user_id')) {
-                $versionParts[] = 'viewas_'.session('view_as_user_id');
-            }
-        }
-
-        return md5(implode('|', $versionParts));
+        return parent::version($request);
     }
 
     /**

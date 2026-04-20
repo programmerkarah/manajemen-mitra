@@ -11,6 +11,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, WithMapping, WithStyles, WithTitle
@@ -82,7 +83,7 @@ class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, Wi
                 'color' => ['rgb' => '1F2937'],
             ],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'E2E8F0'],
             ],
             'alignment' => [

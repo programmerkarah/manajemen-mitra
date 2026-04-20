@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\SbmlTemplateExport;
+use App\Imports\SbmlImport;
 use App\Models\ActivityLog;
 use App\Models\Sbml;
 use Illuminate\Http\RedirectResponse;
@@ -9,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SbmlController extends Controller
 {
@@ -265,10 +270,10 @@ class SbmlController extends Controller
     /**
      * Download SBML template for import
      */
-    public function exportTemplate(int $tahun, string $type = 'create'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function exportTemplate(int $tahun, string $type = 'create'): BinaryFileResponse
     {
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\SbmlTemplateExport($tahun, $type),
+        return Excel::download(
+            new SbmlTemplateExport($tahun, $type),
             "SBML-{$tahun}-template-{$type}.xlsx"
         );
     }
@@ -286,8 +291,8 @@ class SbmlController extends Controller
         ]);
 
         try {
-            $import = new \App\Imports\SbmlImport($tahun);
-            \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+            $import = new SbmlImport($tahun);
+            Excel::import($import, $validated['file']);
 
             ActivityLog::log(
                 'Import SBML',
@@ -299,7 +304,7 @@ class SbmlController extends Controller
 
             return redirect()->route('sbml.show', $tahun)
                 ->with('success', "Berhasil mengimport {$import->getSuccessCount()} data SBML");
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+        } catch (ValidationException $e) {
             $failures = $e->failures();
             $errorMessage = 'Gagal mengimport file. Error pada baris: ';
             foreach ($failures as $failure) {

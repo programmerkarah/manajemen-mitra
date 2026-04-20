@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\SbmlFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Sbml extends Model
 {
-    /** @use HasFactory<\Database\Factories\SbmlFactory> */
+    /** @use HasFactory<SbmlFactory> */
     use HasFactory, HasHashedRouteKey;
 
     protected $table = 'sbml';

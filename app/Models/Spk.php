@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\SpkFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Spk extends Model
 {
-    /** @use HasFactory<\Database\Factories\SpkFactory> */
+    /** @use HasFactory<SpkFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
     protected $table = 'spk';

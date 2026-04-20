@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class TestCdnPerformance extends Command
@@ -115,7 +116,7 @@ class TestCdnPerformance extends Command
         $startTime = microtime(true);
 
         try {
-            /** @var \Illuminate\Http\Client\Response $response */
+            /** @var Response $response */
             $response = Http::timeout(30)->head($fileUrl);
             $headTime = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -176,7 +177,7 @@ class TestCdnPerformance extends Command
         $startTime = microtime(true);
 
         try {
-            /** @var \Illuminate\Http\Client\Response $response */
+            /** @var Response $response */
             $response = Http::timeout(30)
                 ->withHeaders(['Range' => "bytes=0-{$testSize}"])
                 ->get($fileUrl);

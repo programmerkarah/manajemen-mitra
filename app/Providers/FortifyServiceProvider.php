@@ -7,6 +7,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Events\SessionInvalidated;
 use App\Models\TrustedDevice;
 use App\Models\User;
+use App\Services\SessionConcurrencyManager;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -248,6 +249,8 @@ class FortifyServiceProvider extends ServiceProvider
                                 'strict'
                             );
                         }
+
+                        app(SessionConcurrencyManager::class)->activateLatestSession($request, $user->id);
                     }
 
                     return redirect()->intended(config('fortify.home'));
@@ -367,6 +370,8 @@ class FortifyServiceProvider extends ServiceProvider
                             'strict' // sameSite
                         );
                     }
+
+                    app(SessionConcurrencyManager::class)->activateLatestSession($request, $user->id);
                 }
             }
         );

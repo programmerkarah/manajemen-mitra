@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Kegiatan;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreAlokasiPetugasRequest extends FormRequest
@@ -17,7 +19,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -32,7 +34,7 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
         // Dual-phase: require jumlah_satuan_listing if kegiatan has listing
-        $kegiatan = \App\Models\Kegiatan::find($this->kegiatan_id);
+        $kegiatan = Kegiatan::find($this->kegiatan_id);
         if ($kegiatan && $kegiatan->has_listing_updating) {
             $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:0'];
         } else {

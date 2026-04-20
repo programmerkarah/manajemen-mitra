@@ -4,18 +4,25 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
 use App\Models\ActivityLog;
+use App\Models\DasarHukum;
+use App\Models\Dipa;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
+use App\Models\RateHonor;
 use App\Models\SkKpa;
 use App\Services\ActiveYearService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Vinkla\Hashids\Facades\Hashids;
 
 class SkKpaController extends Controller
 {
@@ -153,7 +160,7 @@ class SkKpaController extends Controller
      */
     public function listByKegiatan(string $kegiatanHashedId): Response
     {
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
         if (! $kegiatanId) {
             abort(404);
@@ -198,7 +205,7 @@ class SkKpaController extends Controller
      */
     public function create(string $kegiatanHashedId): Response|RedirectResponse
     {
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
         if (! $kegiatanId) {
             abort(404);
@@ -217,7 +224,7 @@ class SkKpaController extends Controller
         }
 
         // Get active dasar hukum
-        $dasarHukum = \App\Models\DasarHukum::where('status', 'aktif')
+        $dasarHukum = DasarHukum::where('status', 'aktif')
             ->orderBy('tahun', 'asc')
             ->get()
             ->map(function ($item) {
@@ -263,7 +270,7 @@ class SkKpaController extends Controller
      */
     public function show(string $skKpaHashedId): Response
     {
-        $skKpaId = \Vinkla\Hashids\Facades\Hashids::decode($skKpaHashedId)[0] ?? null;
+        $skKpaId = Hashids::decode($skKpaHashedId)[0] ?? null;
 
         if (! $skKpaId) {
             abort(404);
@@ -299,7 +306,7 @@ class SkKpaController extends Controller
 
         // Parse dasar hukum JSON
         $dasarHukumIds = json_decode($skKpa->dasar_hukum, true) ?? [];
-        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $dasarHukumIds)
+        $dasarHukum = DasarHukum::whereIn('id', $dasarHukumIds)
             ->get()
             ->map(function ($dh) {
                 $kategoriLabel = match ($dh->kategori) {
@@ -375,7 +382,7 @@ class SkKpaController extends Controller
      */
     public function uploadSigned(Request $request, string $skKpaHashedId): RedirectResponse
     {
-        $skKpaId = \Vinkla\Hashids\Facades\Hashids::decode($skKpaHashedId)[0] ?? null;
+        $skKpaId = Hashids::decode($skKpaHashedId)[0] ?? null;
 
         if (! $skKpaId) {
             abort(404);
@@ -431,7 +438,7 @@ class SkKpaController extends Controller
      */
     public function previewSk(Request $request, string $kegiatanHashedId)
     {
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
         if (! $kegiatanId) {
             abort(404);
@@ -445,7 +452,7 @@ class SkKpaController extends Controller
         ]);
 
         // Get tahun from tanggal_sk
-        $tahunSk = \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y');
+        $tahunSk = Carbon::parse($validated['tanggal_sk'])->format('Y');
 
         // Check if nomor_sk already exists for this year (for preview, just warn)
         $existingSkWithSameNumber = SkKpa::where('nomor_sk', $validated['nomor_sk'])
@@ -462,10 +469,10 @@ class SkKpaController extends Controller
 
         // Get active Kepala BPS and DIPA from database
         $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
-        $dipa = \App\Models\Dipa::active()->firstOrFail();
+        $dipa = Dipa::active()->firstOrFail();
 
         // Get dasar hukum
-        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+        $dasarHukum = DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
             ->get()
             ->sortBy(function ($item) {
                 // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
@@ -561,7 +568,7 @@ class SkKpaController extends Controller
             }
 
             // Get all rate honors for this petugas based on their peran
-            $rateHonors = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+            $rateHonors = RateHonor::where('kegiatan_id', $kegiatan->id)
                 ->where('jenis_penugasan', $alokasi->peran)
                 ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
                 ->with(['satuan', 'satuanListing'])
@@ -605,8 +612,8 @@ class SkKpaController extends Controller
             'kegiatan' => $kegiatan,
             'periode' => $periode,
             'nomorSk' => $validated['nomor_sk'],
-            'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
-            'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
+            'tanggalSk' => Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
+            'tahunSk' => Carbon::parse($validated['tanggal_sk'])->format('Y'),
             'kategoriKeputusan' => 'KEPUTUSAN',
             'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'dipa' => $dipa->nomor_dipa,
@@ -627,7 +634,7 @@ class SkKpaController extends Controller
         $view = ($revisionNumber > 0 && $validated['nomor_sk'] !== $firstSkNumber) ? 'sk-petugas-perubahan' : 'sk-petugas';
 
         // Generate and stream PDF directly (tidak save)
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
+        $pdf = Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait');
         $sanitizedNamaKegiatan = preg_replace('/[^A-Za-z0-9_\-]/', '_', $kegiatan->nama_kegiatan);
         $filename = 'Preview_SK_'.$sanitizedNamaKegiatan.'.pdf';
@@ -658,7 +665,7 @@ class SkKpaController extends Controller
      */
     public function generateSk(Request $request, string $kegiatanHashedId)
     {
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
         if (! $kegiatanId) {
             abort(404);
@@ -672,7 +679,7 @@ class SkKpaController extends Controller
         ]);
 
         // Get tahun from tanggal_sk
-        $tahunSk = \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y');
+        $tahunSk = Carbon::parse($validated['tanggal_sk'])->format('Y');
 
         // Check if nomor_sk already exists for this year
         $existingSkWithSameNumber = SkKpa::where('nomor_sk', $validated['nomor_sk'])
@@ -689,10 +696,10 @@ class SkKpaController extends Controller
 
         // Get active Kepala BPS and DIPA from database
         $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
-        $dipa = \App\Models\Dipa::active()->firstOrFail();
+        $dipa = Dipa::active()->firstOrFail();
 
         // Get dasar hukum
-        $dasarHukum = \App\Models\DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+        $dasarHukum = DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
             ->get()
             ->sortBy(function ($item) {
                 // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
@@ -788,7 +795,7 @@ class SkKpaController extends Controller
             }
 
             // Get all rate honors for this petugas based on their peran
-            $rateHonors = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+            $rateHonors = RateHonor::where('kegiatan_id', $kegiatan->id)
                 ->where('jenis_penugasan', $alokasi->peran)
                 ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
                 ->with(['satuan', 'satuanListing'])
@@ -832,8 +839,8 @@ class SkKpaController extends Controller
             'kegiatan' => $kegiatan,
             'periode' => $periode,
             'nomorSk' => $validated['nomor_sk'],
-            'tanggalSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
-            'tahunSk' => \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
+            'tanggalSk' => Carbon::parse($validated['tanggal_sk'])->format('d-m-Y'),
+            'tahunSk' => Carbon::parse($validated['tanggal_sk'])->format('Y'),
             'kategoriKeputusan' => 'KEPUTUSAN',
             'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'dipa' => $dipa->nomor_dipa,
@@ -854,7 +861,7 @@ class SkKpaController extends Controller
         $view = ($revisionNumber > 0) ? 'sk-petugas-perubahan' : 'sk-petugas';
 
         // Generate PDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
+        $pdf = Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait');
 
         // Create filename
@@ -877,8 +884,8 @@ class SkKpaController extends Controller
                 'nomor_sk' => $validated['nomor_sk'],
                 'kegiatan_id' => $kegiatan->id,
                 'tanggal_sk' => $validated['tanggal_sk'],
-                'bulan' => (int) \Carbon\Carbon::parse($validated['tanggal_sk'])->format('m'),
-                'tahun' => (int) \Carbon\Carbon::parse($validated['tanggal_sk'])->format('Y'),
+                'bulan' => (int) Carbon::parse($validated['tanggal_sk'])->format('m'),
+                'tahun' => (int) Carbon::parse($validated['tanggal_sk'])->format('Y'),
                 'nama_kpa' => $penandatangan->nama,
                 'perihal' => 'Petugas '.$kegiatan->nama_kegiatan.' '.$kegiatan->tahun_anggaran,
                 'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
@@ -901,7 +908,7 @@ class SkKpaController extends Controller
                     'file_path' => $filePath,
                 ]
             );
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // Delete the generated PDF file
             if (file_exists(public_path($filePath))) {
                 unlink(public_path($filePath));
@@ -964,7 +971,7 @@ class SkKpaController extends Controller
      * If latestSk is provided, only check changes AFTER that SK's period
      * Returns true ONLY if there are actual personnel changes (added/removed)
      */
-    private function checkPersonnelChanges(int $kegiatanId, ?\App\Models\SkKpa $latestSk = null): bool
+    private function checkPersonnelChanges(int $kegiatanId, ?SkKpa $latestSk = null): bool
     {
         $activeYear = ActiveYearService::get();
 

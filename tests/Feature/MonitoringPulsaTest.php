@@ -7,6 +7,7 @@ use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ActiveYearService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfWrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,7 +100,7 @@ class MonitoringPulsaTest extends TestCase
         ]);
         $petugas = Petugas::factory()->create();
         $bulan = now()->format('m');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         PengajuanPulsa::create([
             'kegiatan_id' => $kegiatan->id,
@@ -145,7 +146,7 @@ class MonitoringPulsaTest extends TestCase
 
         $petugas = Petugas::factory()->create();
         $bulan = now()->format('m');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         PengajuanPulsa::create([
             'kegiatan_id' => $ownKegiatan->id,
@@ -198,7 +199,7 @@ class MonitoringPulsaTest extends TestCase
         ]);
 
         $bulan = now()->format('m');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         PengajuanPulsa::create([
             'kegiatan_id' => $kegiatan->id,

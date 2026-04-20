@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,8 +40,8 @@ class UpdateNonResponseTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
         ]);
 
-        $petugas1 = \App\Models\Petugas::factory()->create();
-        $petugas2 = \App\Models\Petugas::factory()->create();
+        $petugas1 = Petugas::factory()->create();
+        $petugas2 = Petugas::factory()->create();
 
         $alokasi1Id = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
@@ -128,7 +129,7 @@ class UpdateNonResponseTest extends TestCase
         ]);
 
         // Create alokasi petugas
-        $petugas = \App\Models\Petugas::factory()->create();
+        $petugas = Petugas::factory()->create();
         $alokasiId = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
@@ -182,7 +183,7 @@ class UpdateNonResponseTest extends TestCase
         ]);
 
         // Create alokasi petugas
-        $petugas = \App\Models\Petugas::factory()->create();
+        $petugas = Petugas::factory()->create();
         $alokasiId = DB::table('alokasi_petugas')->insertGetId([
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,

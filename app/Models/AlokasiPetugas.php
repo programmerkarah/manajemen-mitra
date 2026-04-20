@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\AlokasiPetugasFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AlokasiPetugas extends Model
 {
-    /** @use HasFactory<\Database\Factories\AlokasiPetugasFactory> */
+    /** @use HasFactory<AlokasiPetugasFactory> */
     use HasFactory, HasHashedRouteKey;
 
     protected $table = 'alokasi_petugas';

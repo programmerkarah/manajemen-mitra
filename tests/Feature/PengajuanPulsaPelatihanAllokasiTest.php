@@ -7,6 +7,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ActiveYearService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -76,7 +77,7 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
     public function test_pelatihan_petugas_comes_from_next_month_allocation(): void
     {
         [$user, $role] = $this->makeUserWithRole('admin');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $kegiatan = Kegiatan::factory()->create([
             'metode_pelatihan' => 'daring',
@@ -121,7 +122,7 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
     public function test_pelatihan_petugas_uses_same_month_when_kegiatan_starts_in_bulan_pelatihan(): void
     {
         [$user, $role] = $this->makeUserWithRole('admin');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $kegiatan = Kegiatan::factory()->create([
             'metode_pelatihan' => 'luring',
@@ -164,7 +165,7 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
     public function test_pendataan_petugas_comes_from_current_month_allocation(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $kegiatan = Kegiatan::factory()->create([
             'ketua_tim_user_id' => $user->id,
@@ -209,7 +210,7 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
     public function test_pelatihan_kegiatan_without_allocation_in_next_month_not_shown(): void
     {
         [$user, $role] = $this->makeUserWithRole('admin');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
 
         $kegiatan = Kegiatan::factory()->create([
             'metode_pelatihan' => 'daring',
@@ -239,7 +240,7 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
     public function test_december_pelatihan_uses_january_next_year_allocation(): void
     {
         [$user, $role] = $this->makeUserWithRole('admin');
-        $tahun = \App\Services\ActiveYearService::get();
+        $tahun = ActiveYearService::get();
         $nextTahun = $tahun + 1;
 
         $kegiatan = Kegiatan::factory()->create([

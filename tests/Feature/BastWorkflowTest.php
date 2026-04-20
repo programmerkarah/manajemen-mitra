@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
+use App\Models\BastKegiatan;
 use App\Models\BastNumberAllocation;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
@@ -389,7 +390,7 @@ class BastWorkflowTest extends TestCase
         $response->assertRedirect($redirectUrl);
         $response->assertSessionHas('success');
 
-        $previewRecord = \App\Models\BastKegiatan::query()
+        $previewRecord = BastKegiatan::query()
             ->whereNull('bast_id')
             ->where('spk_id', $context['spk']->id)
             ->where('kegiatan_id', $context['kegiatanOwnCompleted']->id)
@@ -519,6 +520,62 @@ class BastWorkflowTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertNotNull($lampiran->fresh()->signed_file_path);
+    }
+
+    public function test_open_detail_redirect_preserves_selected_petugas_in_query(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $periode = $context['spk']->alokasiPetugas->periodeAlokasi;
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.open-detail-by-petugas'), [
+                'bulan' => (int) $periode->bulan,
+                'tahun' => (int) $periode->tahun,
+                'petugas_id' => $context['petugas']->id,
+            ]);
+
+        $response->assertRedirect(route('bast.open-detail-by-petugas', [
+            'petugas_id' => $context['petugas']->id,
+        ], absolute: false));
+
+        $response->assertSessionHas('bast_open_detail_filters', [
+            'bulan' => (int) $periode->bulan,
+            'tahun' => (int) $periode->tahun,
+        ]);
+    }
+
+    public function test_legacy_bast_reupload_keeps_signed_download_available_without_signed_lampiran(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+
+        $bast->periodeAlokasi()->update([
+            'bulan' => '03',
+            'tahun' => 2026,
+            'tanggal_selesai' => '2026-03-15',
+            'tanggal_selesai_listing' => '2026-03-10',
+        ]);
+
+        $this->assertTrue($bast->bastKegiatan->isNotEmpty());
+
+        $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.upload-signed', $bast->hashed_id), [
+                'file' => $this->makePdfUpload('legacy-main-signed.pdf'),
+            ])
+            ->assertRedirect();
+
+        $bast->refresh();
+
+        $this->assertNotNull($bast->main_signed_file_path);
+        $this->assertNotNull($bast->signed_file_path);
+        $this->assertSame($bast->main_signed_file_path, $bast->signed_file_path);
     }
 
     public function test_preview_bast_uses_allocated_number_sequence_like_generate_flow(): void

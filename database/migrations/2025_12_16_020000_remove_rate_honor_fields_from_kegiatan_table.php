@@ -16,11 +16,11 @@ return new class extends Migration
         // Drop foreign key constraints with raw SQL (ignore error if not exists)
         try {
             DB::statement('ALTER TABLE kegiatan DROP FOREIGN KEY kegiatan_rate_honor_id_foreign');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
         try {
             DB::statement('ALTER TABLE kegiatan DROP FOREIGN KEY kegiatan_rate_honor_approved_by_foreign');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
         Schema::table('kegiatan', function (Blueprint $table) {
             $table->dropColumn([

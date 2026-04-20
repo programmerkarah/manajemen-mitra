@@ -5,18 +5,27 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FilterRequest;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
+use App\Models\Dipa;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\RateHonor;
 use App\Models\Spk;
+use App\Services\ActiveYearService;
+use App\Services\PdfMergerService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use Vinkla\Hashids\Facades\Hashids;
 
 class SpkController extends Controller
 {
@@ -26,7 +35,7 @@ class SpkController extends Controller
     public function index(FilterRequest $request): Response
     {
         $validated = $request->validated();
-        $activeYear = \App\Services\ActiveYearService::get();
+        $activeYear = ActiveYearService::get();
 
         // Get periode alokasi yang sudah validated grouped by month
         $query = PeriodeAlokasi::query()
@@ -233,7 +242,7 @@ class SpkController extends Controller
         $paginatedItems = $groupedByMonth->slice($offset, $perPage)->values();
         $total = $groupedByMonth->count();
 
-        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+        $paginator = new LengthAwarePaginator(
             $paginatedItems,
             $total,
             $perPage,
@@ -267,7 +276,7 @@ class SpkController extends Controller
     /**
      * Display list of SPKs for a specific month
      */
-    public function listByMonth(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function listByMonth(Request $request): Response|RedirectResponse
     {
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
@@ -351,7 +360,7 @@ class SpkController extends Controller
     /**
      * Show SPK for a specific month with petugas list (GET version)
      */
-    public function showByMonthGet(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function showByMonthGet(Request $request): Response|RedirectResponse
     {
         $bulan = $request->query('bulan');
         $tahun = $request->query('tahun');
@@ -363,7 +372,7 @@ class SpkController extends Controller
     /**
      * Show SPK for a specific month with petugas list (POST version)
      */
-    public function showByMonth(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function showByMonth(Request $request): Response|RedirectResponse
     {
         // Decrypt payload
         $decrypted = [];
@@ -383,7 +392,7 @@ class SpkController extends Controller
     /**
      * Internal method to render ShowByMonth view
      */
-    private function renderShowByMonth($bulan, $tahun, $spkHashedId): Response|\Illuminate\Http\RedirectResponse
+    private function renderShowByMonth($bulan, $tahun, $spkHashedId): Response|RedirectResponse
     {
 
         if (! $bulan || ! $tahun) {
@@ -419,7 +428,7 @@ class SpkController extends Controller
         // Determine which SPK to show
         $spk = null;
         if ($spkHashedId) {
-            $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
+            $spkId = Hashids::decode($spkHashedId)[0] ?? null;
             $spk = $allSpks->firstWhere('id', $spkId);
         }
 
@@ -841,8 +850,8 @@ class SpkController extends Controller
      */
     public function downloadAllByKegiatan(Request $request, string $periodeHashedId, string $kegiatanHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
         if (! $periodeId || ! $kegiatanId) {
             abort(404);
@@ -1029,7 +1038,7 @@ class SpkController extends Controller
      */
     public function downloadByKegiatanMonth(Request $request, string $kegiatanHashedId)
     {
-        $kegiatanId = \Vinkla\Hashids\Facades\Hashids::decode($kegiatanHashedId)[0] ?? null;
+        $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
@@ -1197,7 +1206,7 @@ class SpkController extends Controller
      */
     public function uploadSigned(Request $request, string $spkHashedId)
     {
-        $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
+        $spkId = Hashids::decode($spkHashedId)[0] ?? null;
 
         if (! $spkId) {
             abort(404);
@@ -1300,7 +1309,7 @@ class SpkController extends Controller
      */
     public function create(string $periodeHashedId): Response|RedirectResponse
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
 
         if (! $periodeId) {
             abort(404);
@@ -1539,7 +1548,7 @@ class SpkController extends Controller
      */
     public function createAddendum(Request $request, string $periodeHashedId): Response|RedirectResponse
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $requestedMode = $request->input('mode');
@@ -1769,7 +1778,7 @@ class SpkController extends Controller
         ]);
     }
 
-    private function getEffectiveAlokasiByKegiatan(\Illuminate\Support\Collection $alokasiGroup): \Illuminate\Support\Collection
+    private function getEffectiveAlokasiByKegiatan(Collection $alokasiGroup): Collection
     {
         return $alokasiGroup
             ->groupBy(function ($alokasi) {
@@ -1802,8 +1811,8 @@ class SpkController extends Controller
      */
     public function previewAddendum(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -1938,8 +1947,8 @@ class SpkController extends Controller
      */
     public function generateAddendum(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -2006,7 +2015,7 @@ class SpkController extends Controller
 
     public function generateBatchAddendum(Request $request, string $periodeHashedId): RedirectResponse
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
 
         if (! $periodeId) {
             abort(404);
@@ -2025,7 +2034,7 @@ class SpkController extends Controller
         $failedCount = 0;
 
         foreach ($validated['batch_items'] as $item) {
-            $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
+            $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
 
             if (! $petugasId) {
                 $failedCount++;
@@ -2266,7 +2275,7 @@ class SpkController extends Controller
      */
     public function show(string $spkHashedId): Response
     {
-        $spkId = \Vinkla\Hashids\Facades\Hashids::decode($spkHashedId)[0] ?? null;
+        $spkId = Hashids::decode($spkHashedId)[0] ?? null;
         if (! $spkId) {
             abort(404);
         }
@@ -2491,8 +2500,8 @@ class SpkController extends Controller
      */
     public function previewSpk(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -2547,10 +2556,10 @@ class SpkController extends Controller
 
         // Fallback to end of month if no specific dates found
         if ($latestEndDate === null) {
-            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
         }
 
-        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
@@ -2608,8 +2617,8 @@ class SpkController extends Controller
             'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'kegiatanData' => $kegiatanData, // Pass kegiatan data with COA
             'nomorSpk' => $validated['nomor_spk'],
-            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'tanggalSpk' => Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'peran' => $allAlokasi->first()->peran,
@@ -2622,13 +2631,13 @@ class SpkController extends Controller
         ];
 
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
+        $pdfMain = Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
 
         // Set PDF title metadata untuk main
         $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
 
-        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+        $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
 
         // Set PDF title metadata untuk lampiran
@@ -2649,7 +2658,7 @@ class SpkController extends Controller
         file_put_contents($lampiranPath, $pdfLampiran->output());
 
         // Try to merge PDFs with title metadata
-        $merged = \App\Services\PdfMergerService::mergePdfFiles(
+        $merged = PdfMergerService::mergePdfFiles(
             [$mainPath, $lampiranPath],
             $mergedPath,
             $filename
@@ -2676,7 +2685,7 @@ class SpkController extends Controller
         @unlink($lampiranPath);
 
         // Fallback: Use combined template if merge failed
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
+        $pdf = Pdf::loadView('spk-petugas', $data)
             ->setPaper('a4', 'portrait');
 
         // Sanitize filename untuk menghindari masalah karakter khusus
@@ -2694,8 +2703,8 @@ class SpkController extends Controller
      */
     public function previewSpkMain(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -2752,10 +2761,10 @@ class SpkController extends Controller
 
         // Fallback to end of month if no specific dates found
         if ($latestEndDate === null) {
-            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
         }
 
-        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
@@ -2799,8 +2808,8 @@ class SpkController extends Controller
             'petugas' => $petugas,
             'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
-            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'tanggalSpk' => Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'peran' => $allAlokasi->first()->peran,
@@ -2811,7 +2820,7 @@ class SpkController extends Controller
             'workType' => $this->detectWorkType($allAlokasi),
         ];
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
+        $pdf = Pdf::loadView('spk-main', $data)
             ->setPaper('a4', 'portrait');
 
         // Sanitize filename untuk menghindari masalah karakter khusus
@@ -2844,8 +2853,8 @@ class SpkController extends Controller
      */
     public function previewSpkLampiran(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -2900,10 +2909,10 @@ class SpkController extends Controller
 
         // Fallback to end of month if no specific dates found
         if ($latestEndDate === null) {
-            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
         }
 
-        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         // Get all alokasi for this petugas in the same month
@@ -2946,8 +2955,8 @@ class SpkController extends Controller
             'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
-            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'tanggalSpk' => Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'peran' => $allAlokasi->first()->peran,
@@ -2958,7 +2967,7 @@ class SpkController extends Controller
             'workType' => $this->detectWorkType($allAlokasi),
         ];
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+        $pdf = Pdf::loadView('spk-lampiran', $data)
             ->setPaper('a4', 'landscape');
 
         // Sanitize filename untuk menghindari masalah karakter khusus
@@ -2991,8 +3000,8 @@ class SpkController extends Controller
      */
     public function generateSpk(Request $request, string $periodeHashedId, string $petugasHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
-        $petugasId = \Vinkla\Hashids\Facades\Hashids::decode($petugasHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+        $petugasId = Hashids::decode($petugasHashedId)[0] ?? null;
 
         if (! $periodeId || ! $petugasId) {
             abort(404);
@@ -3047,10 +3056,10 @@ class SpkController extends Controller
 
         // Fallback to end of month if no specific dates found
         if ($latestEndDate === null) {
-            $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
         }
 
-        $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate)->format('Y-m-d');
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
         $validated['sampai_tanggal'] = $calculatedSampaiTanggal;
 
         if ($allAlokasi->isEmpty()) {
@@ -3083,8 +3092,8 @@ class SpkController extends Controller
             'petugas' => $petugas,
             'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
             'nomorSpk' => $nomorSpk,
-            'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
-            'sampaiTanggal' => \Carbon\Carbon::parse($validated['sampai_tanggal']),
+            'tanggalSpk' => Carbon::parse($validated['tanggal_spk']),
+            'sampaiTanggal' => Carbon::parse($validated['sampai_tanggal']),
             'tanggalPerpanjangan' => null,
             'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
             'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
@@ -3099,10 +3108,10 @@ class SpkController extends Controller
         DB::beginTransaction();
         try {
             // Generate 2 separate PDFs (SPK Main + Lampiran only)
-            $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
+            $pdfMain = Pdf::loadView('spk-main', $data)
                 ->setPaper('a4', 'portrait');
 
-            $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+            $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
                 ->setPaper('a4', 'landscape');
 
             // Save temporary PDFs
@@ -3120,7 +3129,7 @@ class SpkController extends Controller
             file_put_contents($lampiranPath, $pdfLampiran->output());
 
             // Try to merge PDFs
-            $merged = \App\Services\PdfMergerService::mergePdfFiles(
+            $merged = PdfMergerService::mergePdfFiles(
                 [$mainPath, $lampiranPath],
                 $mergedPath
             );
@@ -3130,7 +3139,7 @@ class SpkController extends Controller
                 $pdfOutput = file_get_contents($mergedPath);
             } else {
                 // Fallback to single PDF if merge failed
-                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
+                $pdf = Pdf::loadView('spk-petugas', $data)
                     ->setPaper('a4', 'portrait');
                 $pdfOutput = $pdf->output();
             }
@@ -3167,8 +3176,8 @@ class SpkController extends Controller
                 'alokasi_petugas_id' => $allAlokasi->first()->id,
                 'alokasi_petugas_ids' => $allAlokasi->pluck('id')->toArray(),
                 'tanggal_spk' => $validated['tanggal_spk'],
-                'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
-                'tanggal_selesai_kerja' => \Carbon\Carbon::parse($calculatedSampaiTanggal),
+                'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
+                'tanggal_selesai_kerja' => Carbon::parse($calculatedSampaiTanggal),
                 'nilai_kontrak' => $totalHonor,
                 'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                 'nip_ppk' => $penandatangan->nip ?? null,
@@ -3179,7 +3188,7 @@ class SpkController extends Controller
 
             DB::commit();
 
-            $bulanName = \Carbon\Carbon::create()->month($periode->bulan)->translatedFormat('F');
+            $bulanName = Carbon::create()->month($periode->bulan)->translatedFormat('F');
 
             ActivityLog::log(
                 'Generate SPK',
@@ -3231,7 +3240,7 @@ class SpkController extends Controller
      */
     private function getUraianTugas(Kegiatan $kegiatan, AlokasiPetugas $alokasi): array
     {
-        $rateHonor = \App\Models\RateHonor::where('kegiatan_id', $kegiatan->id)
+        $rateHonor = RateHonor::where('kegiatan_id', $kegiatan->id)
             ->where('jenis_penugasan', $alokasi->peran)
             ->where('status_kepegawaian', $alokasi->status_kepegawaian ?? ($alokasi->petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik'))
             ->with(['satuan', 'satuanListing'])
@@ -3338,7 +3347,7 @@ class SpkController extends Controller
         }
 
         // Fallback ke MAK dari DIPA
-        $dipa = \App\Models\Dipa::active()->first();
+        $dipa = Dipa::active()->first();
 
         return $dipa->mak ?? '2904.BMA.006.005.A.521213';
     }
@@ -3399,8 +3408,8 @@ class SpkController extends Controller
 
         $pdfData = [
             'nomorSpk' => $data['nomor_spk'],
-            'tanggalSpk' => \Carbon\Carbon::parse($data['tanggal_spk']),
-            'sampaiTanggal' => \Carbon\Carbon::parse($data['sampai_tanggal']),
+            'tanggalSpk' => Carbon::parse($data['tanggal_spk']),
+            'sampaiTanggal' => Carbon::parse($data['sampai_tanggal']),
             'addendum_number' => $data['addendum_number'],
             'parent_nomor_spk' => $data['parent_nomor_spk'],
             'petugas' => (object) $data['petugas'],
@@ -3414,11 +3423,11 @@ class SpkController extends Controller
         ];
 
         // Generate addendum main PDF
-        $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-addendum-main', $pdfData)
+        $pdfMain = Pdf::loadView('spk-addendum-main', $pdfData)
             ->setPaper('a4', 'portrait');
 
         // Generate addendum lampiran PDF
-        $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-addendum-lampiran', $pdfData)
+        $pdfLampiran = Pdf::loadView('spk-addendum-lampiran', $pdfData)
             ->setPaper('a4', 'landscape');
 
         // Save temporary PDFs
@@ -3436,7 +3445,7 @@ class SpkController extends Controller
         file_put_contents($lampiranPath, $pdfLampiran->output());
 
         // Try to merge PDFs
-        $merged = \App\Services\PdfMergerService::mergePdfFiles(
+        $merged = PdfMergerService::mergePdfFiles(
             [$mainPath, $lampiranPath],
             $mergedPath
         );
@@ -3462,7 +3471,7 @@ class SpkController extends Controller
      */
     public function generateAllSpk(Request $request, string $periodeHashedId)
     {
-        $periodeId = \Vinkla\Hashids\Facades\Hashids::decode($periodeHashedId)[0] ?? null;
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
         if (! $periodeId) {
             abort(404);
         }
@@ -3476,7 +3485,7 @@ class SpkController extends Controller
         $selectedPetugasIds = [];
         if (! empty($validated['petugas_ids'])) {
             foreach ($validated['petugas_ids'] as $hashedId) {
-                $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashedId);
+                $decoded = Hashids::decode($hashedId);
                 if (! empty($decoded)) {
                     $selectedPetugasIds[] = $decoded[0];
                 }
@@ -3633,7 +3642,7 @@ class SpkController extends Controller
                 continue;
             }
 
-            $penandatangan = \App\Models\Penandatangan::active()->ppk()->first();
+            $penandatangan = Penandatangan::active()->ppk()->first();
             if (! $penandatangan) {
                 $results[] = [
                     'petugas_id' => $petugasId,
@@ -3683,10 +3692,10 @@ class SpkController extends Controller
 
             // Fallback to end of month if no activity end dates found
             if ($latestEndDate === null) {
-                $latestEndDate = \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+                $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
             }
 
-            $calculatedSampaiTanggal = \Carbon\Carbon::parse($latestEndDate);
+            $calculatedSampaiTanggal = Carbon::parse($latestEndDate);
 
             $data = [
                 'periode' => $periode,
@@ -3695,7 +3704,7 @@ class SpkController extends Controller
                 'petugas' => $petugas,
                 'kegiatan' => $allAlokasiPetugas->first()->periodeAlokasi->kegiatan,
                 'nomorSpk' => $nomorSpk,
-                'tanggalSpk' => \Carbon\Carbon::parse($validated['tanggal_spk']),
+                'tanggalSpk' => Carbon::parse($validated['tanggal_spk']),
                 'sampaiTanggal' => $calculatedSampaiTanggal,
                 'tanggalPerpanjangan' => null,
                 'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
@@ -3711,9 +3720,9 @@ class SpkController extends Controller
             // Use the same PDF/database logic as generateSpk
             DB::beginTransaction();
             try {
-                $pdfMain = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-main', $data)
+                $pdfMain = Pdf::loadView('spk-main', $data)
                     ->setPaper('a4', 'portrait');
-                $pdfLampiran = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-lampiran', $data)
+                $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
                     ->setPaper('a4', 'landscape');
                 $tempPath = storage_path('app/temp');
                 if (! file_exists($tempPath)) {
@@ -3725,7 +3734,7 @@ class SpkController extends Controller
                 $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
                 file_put_contents($mainPath, $pdfMain->output());
                 file_put_contents($lampiranPath, $pdfLampiran->output());
-                $merged = \App\Services\PdfMergerService::mergePdfFiles(
+                $merged = PdfMergerService::mergePdfFiles(
                     [$mainPath, $lampiranPath],
                     $mergedPath
                 );
@@ -3733,7 +3742,7 @@ class SpkController extends Controller
                 if ($merged && file_exists($mergedPath)) {
                     $pdfOutput = file_get_contents($mergedPath);
                 } else {
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('spk-petugas', $data)
+                    $pdf = Pdf::loadView('spk-petugas', $data)
                         ->setPaper('a4', 'portrait');
                     $pdfOutput = $pdf->output();
                 }
@@ -3763,7 +3772,7 @@ class SpkController extends Controller
                         'nomor_urut_base' => $noUrut, // Populate base number if NULL
                         'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
                         'tanggal_spk' => $validated['tanggal_spk'],
-                        'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
+                        'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
@@ -3796,7 +3805,7 @@ class SpkController extends Controller
                         'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
                         'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
                         'tanggal_spk' => $validated['tanggal_spk'],
-                        'tanggal_mulai_kerja' => \Carbon\Carbon::create($periode->tahun, $periode->bulan, 1),
+                        'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),

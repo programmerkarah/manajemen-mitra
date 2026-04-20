@@ -2,10 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\AlokasiPetugas;
+use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\AlokasiPetugas>
+ * @extends Factory<AlokasiPetugas>
  */
 class AlokasiPetugasFactory extends Factory
 {
@@ -17,8 +20,8 @@ class AlokasiPetugasFactory extends Factory
     public function definition(): array
     {
         return [
-            'periode_alokasi_id' => \App\Models\PeriodeAlokasi::factory(),
-            'petugas_id' => \App\Models\Petugas::factory(),
+            'periode_alokasi_id' => PeriodeAlokasi::factory(),
+            'petugas_id' => Petugas::factory(),
             'jumlah_satuan' => fake()->numberBetween(1, 100),
             'total_honor' => fake()->randomFloat(2, 100000, 10000000),
             'peran' => fake()->randomElement(['pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan']),

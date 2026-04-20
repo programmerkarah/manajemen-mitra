@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+
 if (! function_exists('terbilang')) {
     /**
      * Convert number to Indonesian text
@@ -67,13 +71,13 @@ if (! function_exists('effectiveUser')) {
      * Get the effective user for authorization checks.
      * Returns the viewed user if viewing as another user, otherwise returns the authenticated user.
      */
-    function effectiveUser(?Illuminate\Http\Request $request = null): ?\App\Models\User
+    function effectiveUser(?Request $request = null): ?User
     {
         $request = $request ?? request();
 
         // If session has view_as_user_id, always use that user
         if (session()->has('view_as_user_id')) {
-            return \App\Models\User::find(session('view_as_user_id'));
+            return User::find(session('view_as_user_id'));
         }
 
         // Fallback to request attribute (for legacy/edge cases)
@@ -256,7 +260,7 @@ if (! function_exists('decryptFilters')) {
             $filters = json_decode($decrypted, true);
 
             return is_array($filters) ? $filters : [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return [];
         }
@@ -359,7 +363,7 @@ if (! function_exists('isHariLibur')) {
      */
     function isHariLibur($date)
     {
-        $carbon = \Carbon\Carbon::parse($date);
+        $carbon = Carbon::parse($date);
 
         // Check if weekend (Saturday or Sunday)
         if ($carbon->isWeekend()) {
@@ -382,7 +386,7 @@ if (! function_exists('getHariKerjaTerakhir')) {
      */
     function getHariKerjaTerakhir($date)
     {
-        $carbon = \Carbon\Carbon::parse($date);
+        $carbon = Carbon::parse($date);
 
         // Loop backwards until we find a working day
         while (isHariLibur($carbon)) {

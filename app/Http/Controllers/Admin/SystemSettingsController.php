@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Exports\ActivityLogExport;
 use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Services\DatabaseBackupService;
 use App\Traits\EncryptsFilterParams;
+use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -42,7 +45,7 @@ class SystemSettingsController
 
     public function activityLog(Request $request): Response
     {
-        $query = \App\Models\ActivityLog::with('user');
+        $query = ActivityLog::with('user');
         $filters = [
             'status' => $request->input('status'),
             'user' => $request->input('user'),
@@ -80,7 +83,7 @@ class SystemSettingsController
                     'properties' => $log->metadata,
                 ];
             });
-        $users = \App\Models\User::orderBy('name')->get(['id', 'name']);
+        $users = User::orderBy('name')->get(['id', 'name']);
 
         // Encrypt filter values for frontend
         $encryptedFilters = $this->encryptFilterParams($filters);
@@ -287,7 +290,7 @@ class SystemSettingsController
         // Enable/disable maintenance mode
         if ($enabled) {
             // Generate a bypass secret token
-            $secret = Config::get('app.maintenance_bypass_secret') ?: \Illuminate\Support\Str::random(40);
+            $secret = Config::get('app.maintenance_bypass_secret') ?: Str::random(40);
 
             // Use Laravel's built-in maintenance mode with secret
             Artisan::call('down', [
@@ -299,7 +302,7 @@ class SystemSettingsController
             $this->removeMaintenancePrerenderTemplate();
 
             // Create bypass cookie for current admin user
-            $bypassCookie = \Illuminate\Foundation\Http\MaintenanceModeBypassCookie::create($secret);
+            $bypassCookie = MaintenanceModeBypassCookie::create($secret);
 
             ActivityLog::logSystem(
                 'Mode Maintenance Diaktifkan',

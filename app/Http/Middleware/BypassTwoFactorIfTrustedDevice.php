@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\TrustedDevice;
 use App\Models\User;
+use App\Services\SessionConcurrencyManager;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ class BypassTwoFactorIfTrustedDevice
     private const TRUSTED_DEVICE_DAYS = 14;
 
     private const TRUSTED_DEVICE_MINUTES = 60 * 24 * self::TRUSTED_DEVICE_DAYS;
+
+    public function __construct(protected SessionConcurrencyManager $sessionConcurrencyManager) {}
 
     /**
      * Handle an incoming request.
@@ -50,6 +53,8 @@ class BypassTwoFactorIfTrustedDevice
 
                         $request->session()->forget(['login.id', 'login.remember']);
                         $request->session()->regenerate();
+
+                        $this->sessionConcurrencyManager->activateLatestSession($request, $user->id);
 
                         cookie()->queue(
                             'trusted_device',

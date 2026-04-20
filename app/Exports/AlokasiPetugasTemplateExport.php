@@ -18,6 +18,8 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -219,8 +221,8 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $sheet->getStyle('1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle('1')->getAlignment()->setWrapText(true);
-        $sheet->getStyle('1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-        $sheet->getStyle('1')->getFill()->getStartColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_YELLOW);
+        $sheet->getStyle('1')->getFill()->setFillType(Fill::FILL_SOLID);
+        $sheet->getStyle('1')->getFill()->getStartColor()->setARGB(Color::COLOR_YELLOW);
         $sheet->getRowDimension(1)->setRowHeight(40);
 
         // Pre-format the entire NIK column as text so that any value typed by
@@ -233,7 +235,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $requiredLastCol = chr(ord('A') + $requiredCount - 1);
 
         for ($col = 'A'; $col <= $requiredLastCol; $col++) {
-            $sheet->getStyle("{$col}2:{$col}100")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+            $sheet->getStyle("{$col}2:{$col}100")->getFill()->setFillType(Fill::FILL_SOLID);
             $sheet->getStyle("{$col}2:{$col}100")->getFill()->getStartColor()->setARGB('FFFFCCCC');
         }
 

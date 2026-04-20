@@ -47,7 +47,7 @@ class ActivityLog extends Model
     public static function log(string $action, string $type, string $description, string $status = 'success', ?array $metadata = null): void
     {
         try {
-            /** @var \App\Models\User|null $user */
+            /** @var User|null $user */
             $user = Auth::user();
 
             self::create([

@@ -107,6 +107,11 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $userId = Auth::id();
+
+        if (is_int($userId)) {
+            $this->sessionConcurrencyManager->activateLatestSession($request, $userId);
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

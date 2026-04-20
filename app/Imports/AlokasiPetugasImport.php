@@ -7,11 +7,13 @@ use App\Models\Petugas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Validators\Failure;
 
 class AlokasiPetugasImport implements WithMultipleSheets
 {
@@ -134,7 +136,7 @@ class AlokasiPetugasImport implements WithMultipleSheets
             $failures = [];
 
             foreach ($this->errors as $rowNumber => $messages) {
-                $failures[] = new \Maatwebsite\Excel\Validators\Failure(
+                $failures[] = new Failure(
                     (int) $rowNumber,
                     'file',
                     array_values($messages),
@@ -142,7 +144,7 @@ class AlokasiPetugasImport implements WithMultipleSheets
             }
 
             throw new \Maatwebsite\Excel\Validators\ValidationException(
-                new \Illuminate\Validation\ValidationException($validator),
+                new ValidationException($validator),
                 $failures,
             );
         }

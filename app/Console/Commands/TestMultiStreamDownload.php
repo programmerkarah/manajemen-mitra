@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class TestMultiStreamDownload extends Command
@@ -60,7 +61,7 @@ class TestMultiStreamDownload extends Command
         // Test 1: Check if server supports byte-range requests
         $this->line('🔹 Test 1: Checking Accept-Ranges support...');
         try {
-            /** @var \Illuminate\Http\Client\Response $response */
+            /** @var Response $response */
             $response = Http::timeout(10)->head($testUrl);
 
             if ($response->successful()) {
@@ -102,7 +103,7 @@ class TestMultiStreamDownload extends Command
         // Test 2: Try byte-range request (partial content)
         $this->line('🔹 Test 2: Testing byte-range request (bytes=0-1023)...');
         try {
-            /** @var \Illuminate\Http\Client\Response $response */
+            /** @var Response $response */
             $response = Http::timeout(10)
                 ->withHeaders(['Range' => 'bytes=0-1023'])
                 ->get($testUrl);
@@ -134,7 +135,7 @@ class TestMultiStreamDownload extends Command
         // Test 3: Simulate multiple connections
         $this->line('🔹 Test 3: Simulating 3 parallel connections...');
         try {
-            /** @var \Illuminate\Http\Client\Response[] $responses */
+            /** @var Response[] $responses */
             $responses = [
                 Http::timeout(10)->withHeaders(['Range' => 'bytes=0-1023'])->get($testUrl),
                 Http::timeout(10)->withHeaders(['Range' => 'bytes=1024-2047'])->get($testUrl),

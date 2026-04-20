@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Kegiatan;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAlokasiPetugasRequest extends FormRequest
@@ -24,7 +26,7 @@ class UpdateAlokasiPetugasRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -37,7 +39,7 @@ class UpdateAlokasiPetugasRequest extends FormRequest
             'jumlah_satuan' => ['required', 'integer', 'min:1'],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
         ];
-        $kegiatan = \App\Models\Kegiatan::find($this->kegiatan_id);
+        $kegiatan = Kegiatan::find($this->kegiatan_id);
         if ($kegiatan && $kegiatan->has_listing_updating) {
             $rules['jumlah_satuan_listing'] = ['required', 'integer', 'min:1'];
         } else {

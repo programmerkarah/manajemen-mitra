@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Dipa;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Dipa>
+ * @extends Factory<Dipa>
  */
 class DipaFactory extends Factory
 {

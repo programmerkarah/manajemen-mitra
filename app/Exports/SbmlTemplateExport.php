@@ -8,6 +8,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class SbmlTemplateExport implements FromArray, WithHeadings, WithStyles, WithTitle
@@ -113,11 +115,11 @@ class SbmlTemplateExport implements FromArray, WithHeadings, WithStyles, WithTit
         // Style header row
         $sheet->getStyle('1')->getFont()->setBold(true);
         $sheet->getStyle('1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-        $sheet->getStyle('1')->getFill()->getStartColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_YELLOW);
+        $sheet->getStyle('1')->getFill()->setFillType(Fill::FILL_SOLID);
+        $sheet->getStyle('1')->getFill()->getStartColor()->setARGB(Color::COLOR_YELLOW);
 
         // Highlight required column (D - honor_max)
-        $sheet->getStyle('D:D')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $sheet->getStyle('D:D')->getFill()->setFillType(Fill::FILL_SOLID);
         $sheet->getStyle('D:D')->getFill()->getStartColor()->setARGB('FFFFFFCC'); // Light yellow
 
         return [];

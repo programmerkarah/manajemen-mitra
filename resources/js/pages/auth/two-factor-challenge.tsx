@@ -8,22 +8,31 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-    const twoFactorForm = useForm({
-        code: '',
-        recovery_code: '',
-    });
+    const [processing, setProcessing] = useState(false);
+    const [code, setCode] = useState('');
+    const [recoveryCode, setRecoveryCode] = useState('');
     const { errors } = usePage().props as { errors: Record<string, string> };
 
     const submitChallenge = (event: FormEvent<HTMLFormElement>): void => {
-        event.preventDefault();
-        twoFactorForm.post('/two-factor-challenge', {
-            preserveScroll: true,
-        });
+        setProcessing(true);
+
+        const formElement = event.currentTarget;
+        const csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
+
+        const tokenInput = formElement.querySelector<HTMLInputElement>(
+            'input[name="_token"]',
+        );
+        if (tokenInput) {
+            tokenInput.value = csrfToken;
+        }
     };
 
     return (
@@ -58,9 +67,12 @@ export default function TwoFactorChallenge() {
                             </div>
 
                             <form
+                                method="POST"
+                                action="/two-factor-challenge"
                                 onSubmit={submitChallenge}
                                 className="flex flex-col gap-6"
                             >
+                                <input type="hidden" name="_token" />
                                 <div className="grid gap-5">
                                     {!showRecoveryInput ? (
                                         <div className="grid gap-2">
@@ -72,18 +84,14 @@ export default function TwoFactorChallenge() {
                                             </Label>
                                             <InputOTP
                                                 id="code"
-                                                name="code"
                                                 maxLength={6}
                                                 pattern="[0-9]*"
                                                 inputMode="numeric"
                                                 autoFocus
-                                                value={twoFactorForm.data.code}
+                                                value={code}
                                                 onChange={(val: string) => {
                                                     if (/^\d*$/.test(val)) {
-                                                        twoFactorForm.setData(
-                                                            'code',
-                                                            val,
-                                                        );
+                                                        setCode(val);
                                                     }
                                                 }}
                                                 containerClassName="justify-center"
@@ -104,9 +112,10 @@ export default function TwoFactorChallenge() {
                                                 type="button"
                                                 variant="link"
                                                 className="mt-2 px-0 text-sm"
-                                                onClick={() =>
-                                                    setShowRecoveryInput(true)
-                                                }
+                                                onClick={() => {
+                                                    setCode('');
+                                                    setShowRecoveryInput(true);
+                                                }}
                                             >
                                                 Login dengan Recovery Code
                                             </Button>
@@ -127,13 +136,9 @@ export default function TwoFactorChallenge() {
                                                 autoComplete="one-time-code"
                                                 placeholder="Recovery code"
                                                 className="h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                                value={
-                                                    twoFactorForm.data
-                                                        .recovery_code
-                                                }
+                                                value={recoveryCode}
                                                 onChange={(e) =>
-                                                    twoFactorForm.setData(
-                                                        'recovery_code',
+                                                    setRecoveryCode(
                                                         e.target.value,
                                                     )
                                                 }
@@ -145,18 +150,24 @@ export default function TwoFactorChallenge() {
                                                 type="button"
                                                 variant="link"
                                                 className="mt-2 px-0 text-sm"
-                                                onClick={() =>
-                                                    setShowRecoveryInput(false)
-                                                }
+                                                onClick={() => {
+                                                    setRecoveryCode('');
+                                                    setShowRecoveryInput(false);
+                                                }}
                                             >
                                                 Kembali ke Kode Autentikasi
                                             </Button>
                                         </div>
                                     )}
+                                    <input
+                                        type="hidden"
+                                        name="code"
+                                        value={code}
+                                    />
                                     <Button
                                         type="submit"
                                         className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        disabled={twoFactorForm.processing}
+                                        disabled={processing}
                                         data-test="two-factor-challenge-button"
                                     >
                                         Autentikasi

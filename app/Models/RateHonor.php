@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
+use Database\Factories\RateHonorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RateHonor extends Model
 {
-    /** @use HasFactory<\Database\Factories\RateHonorFactory> */
+    /** @use HasFactory<RateHonorFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
     protected $table = 'rate_honor';

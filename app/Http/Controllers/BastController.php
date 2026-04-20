@@ -13,15 +13,20 @@ use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Spk;
+use App\Services\ActiveYearService;
+use App\Services\PdfMergerService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use setasign\Fpdi\PdfParser\StreamReader;
+use setasign\Fpdi\Tcpdf\Fpdi;
 
 class BastController extends Controller
 {
@@ -421,7 +426,7 @@ class BastController extends Controller
         $absoluteDirectory = $this->ensureBastExportDirectory($subdirectory);
         $absoluteOutputPath = $absoluteDirectory.DIRECTORY_SEPARATOR.$filename;
 
-        $merged = \App\Services\PdfMergerService::mergePdfFiles(
+        $merged = PdfMergerService::mergePdfFiles(
             $absolutePaths,
             $absoluteOutputPath,
             $filename
@@ -513,7 +518,30 @@ class BastController extends Controller
 
     private function syncCompiledBastFiles(Bast $bast): void
     {
-        $bast->loadMissing('bastKegiatan');
+        $bast->loadMissing(['bastKegiatan', 'periodeAlokasi']);
+
+        $periode = $bast->periodeAlokasi;
+        $isLegacyMode = $periode
+            && ((int) $periode->tahun < 2026
+                || ((int) $periode->tahun === 2026 && (int) $periode->bulan < 4));
+
+        if ($isLegacyMode) {
+            if (filled($bast->main_signed_file_path)) {
+                if ($bast->signed_file_path !== $bast->main_signed_file_path) {
+                    $this->deleteStoredDocument($bast->signed_file_path);
+                    $bast->forceFill([
+                        'signed_file_path' => $bast->main_signed_file_path,
+                    ])->save();
+                }
+            } elseif (filled($bast->signed_file_path)) {
+                $this->deleteStoredDocument($bast->signed_file_path);
+                $bast->forceFill([
+                    'signed_file_path' => null,
+                ])->save();
+            }
+
+            return;
+        }
 
         if ($bast->bastKegiatan->isEmpty()) {
             return;
@@ -772,19 +800,26 @@ class BastController extends Controller
                 'tahun' => (int) $validated['tahun'],
             ];
 
-            if (filled($validated['petugas_id'] ?? null)) {
-                $filters['petugas_id'] = (int) $validated['petugas_id'];
-            }
-
             $request->session()->put('bast_open_detail_filters', $filters);
 
-            return redirect()->route('bast.open-detail-by-petugas');
+            $routeParams = [];
+
+            if (filled($validated['petugas_id'] ?? null)) {
+                $routeParams['petugas_id'] = (int) $validated['petugas_id'];
+            }
+
+            return redirect()->route('bast.open-detail-by-petugas', $routeParams);
         }
 
         $filters = $request->session()->get('bast_open_detail_filters');
         if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
             return redirect()->route('bast.index')
                 ->with('error', 'Pilih periode terlebih dahulu untuk membuka detail BAST.');
+        }
+
+        $selectedPetugasId = $request->query('petugas_id');
+        if (filled($selectedPetugasId) && is_numeric((string) $selectedPetugasId)) {
+            $filters['petugas_id'] = (int) $selectedPetugasId;
         }
 
         $request->merge($filters);
@@ -821,7 +856,7 @@ class BastController extends Controller
      * that uses CAPI as its metode_pendataan. If all non-pengolahan alokasi
      * use PAPI (or metode is null / not yet set) the clause is omitted.
      *
-     * @param  iterable<\App\Models\AlokasiPetugas>  $allAlokasi
+     * @param  iterable<AlokasiPetugas>  $allAlokasi
      */
     private function isMenggunakanFasih(iterable $allAlokasi): bool
     {
@@ -909,7 +944,7 @@ class BastController extends Controller
      * Get effective allocation by kegiatan using priority:
      * perubahan > direvisi > disetujui > dikirim
      */
-    private function getEffectiveAlokasiByKegiatan(\Illuminate\Support\Collection $alokasiGroup): \Illuminate\Support\Collection
+    private function getEffectiveAlokasiByKegiatan(Collection $alokasiGroup): Collection
     {
         return $alokasiGroup
             ->groupBy(function ($alokasi) {
@@ -937,7 +972,7 @@ class BastController extends Controller
             ->filter();
     }
 
-    private function getEffectiveAlokasiForPetugasInMonth(int $petugasId, string $bulanFormatted, int $tahun): \Illuminate\Support\Collection
+    private function getEffectiveAlokasiForPetugasInMonth(int $petugasId, string $bulanFormatted, int $tahun): Collection
     {
         $allAlokasi = AlokasiPetugas::query()
             ->where('petugas_id', $petugasId)
@@ -1000,7 +1035,7 @@ class BastController extends Controller
 
         // For each kegiatan, check if there's a 'perubahan' periode that removes this petugas
         foreach ($kegiatanIds as $kegiatanId) {
-            $perubahanPeriode = \App\Models\PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
+            $perubahanPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
                 ->where('bulan', $bulanFormatted)
                 ->where('tahun', $tahun)
                 ->where('status', 'perubahan')
@@ -1008,7 +1043,7 @@ class BastController extends Controller
 
             // If there's a perubahan periode for this kegiatan, check if petugas is removed
             if ($perubahanPeriode) {
-                $hasAlokasiInPerubahan = \App\Models\AlokasiPetugas::where('petugas_id', $petugasId)
+                $hasAlokasiInPerubahan = AlokasiPetugas::where('petugas_id', $petugasId)
                     ->where('periode_alokasi_id', $perubahanPeriode->id)
                     ->exists();
 
@@ -1078,7 +1113,7 @@ class BastController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search');
-        $activeYear = \App\Services\ActiveYearService::get();
+        $activeYear = ActiveYearService::get();
 
         // Ambil semua SPK yang punya alokasi > 0 pada periode status 'perubahan' (final allocation state) di tahun berjalan
         // Konsisten dengan filtering di create() method
@@ -1200,7 +1235,7 @@ class BastController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $selectedPetugasId = (int) $request->input('petugas_id', 0);
-        $activeYear = \App\Services\ActiveYearService::get();
+        $activeYear = ActiveYearService::get();
 
         // Default to current year if no filter
         if (! $tahun) {
@@ -1271,7 +1306,7 @@ class BastController extends Controller
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
                 ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $tahun) {
-                    $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun) {
+                    $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun) {
                         $q->where('bulan', $bulanFormatted)
                             ->where('tahun', $tahun)
                             ->whereHas('kegiatan', function ($qk) use ($user) {
@@ -1528,7 +1563,7 @@ class BastController extends Controller
     {
 
         $bulan = $request->input('bulan');
-        $tahun = $request->input('tahun', \App\Services\ActiveYearService::get());
+        $tahun = $request->input('tahun', ActiveYearService::get());
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
         if (! $bulan) {
             return redirect()->route('bast.index')
@@ -4041,7 +4076,7 @@ class BastController extends Controller
                     ->where('bulan', $bulanFormatted);
             })
             ->when($isKetuaTim, function ($query) use ($user, $tahun, $bulanFormatted) {
-                $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $tahun, $bulanFormatted) {
+                $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $tahun, $bulanFormatted) {
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
                         ->whereHas('kegiatan', function ($qk) use ($user) {
@@ -4831,7 +4866,7 @@ class BastController extends Controller
                     ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $periode) {
-                $alokasiIds = \App\Models\AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $periode) {
+                $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $periode) {
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $periode->tahun)
                         ->whereHas('kegiatan', function ($qk) use ($user) {
@@ -5009,7 +5044,7 @@ class BastController extends Controller
         bool $isKetuaTim,
         Request $request,
         ?Bast $currentBast = null,
-    ): \Illuminate\Support\Collection {
+    ): Collection {
         $user = $this->getRequestUser($request);
 
         $user = $this->getRequestUser($request);
@@ -5062,6 +5097,9 @@ class BastController extends Controller
     public function uploadSigned(Request $request, Bast $bast): RedirectResponse
     {
         $bast->loadMissing('bastKegiatan.kegiatan');
+        $periode = $bast->periodeAlokasi;
+        $isLegacyMode = (int) $periode->tahun < 2026
+            || ((int) $periode->tahun === 2026 && (int) $periode->bulan < 4);
 
         abort_unless($this->userCanManageBastMain($request) && $this->userCanAccessBast($request, $bast), 403);
 
@@ -5071,15 +5109,31 @@ class BastController extends Controller
 
         try {
             $file = $request->file('file');
-            $filename = 'BAgitST_MAIN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'-'.time().'.pdf';
+            $filename = 'BAST_MAIN_SIGNED_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'-'.time().'.pdf';
             $directory = $this->ensureBastExportDirectory('main-signed');
             $file->move($directory, $filename);
+
+            $mainSignedPath = trim('bast-export/main-signed/'.$filename, '/');
+
+            // Legacy mode (before Apr 2026) does not require per-lampiran signed upload.
+            // Re-uploading main signed file should keep final signed download available.
+            if ($isLegacyMode) {
+                $this->deleteStoredDocument($bast->main_signed_file_path);
+                $this->deleteStoredDocument($bast->signed_file_path);
+
+                $bast->update([
+                    'main_signed_file_path' => $mainSignedPath,
+                    'signed_file_path' => $mainSignedPath,
+                ]);
+
+                return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
+            }
 
             if ($bast->bastKegiatan->isEmpty()) {
                 $this->deleteStoredDocument($bast->signed_file_path);
                 $bast->update([
-                    'main_signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
-                    'signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
+                    'main_signed_file_path' => $mainSignedPath,
+                    'signed_file_path' => $mainSignedPath,
                 ]);
 
                 return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
@@ -5088,7 +5142,7 @@ class BastController extends Controller
             $this->deleteStoredDocument($bast->main_signed_file_path);
 
             $bast->update([
-                'main_signed_file_path' => trim('bast-export/main-signed/'.$filename, '/'),
+                'main_signed_file_path' => $mainSignedPath,
             ]);
 
             $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
@@ -5312,7 +5366,7 @@ class BastController extends Controller
     private function mergePdfStrings(array $pdfStrings): string
     {
         // Use FPDI TCPDF implementation
-        $pdf = new \setasign\Fpdi\Tcpdf\Fpdi;
+        $pdf = new Fpdi;
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
 
@@ -5321,7 +5375,7 @@ class BastController extends Controller
                 continue;
             }
             // use StreamReader to feed string directly
-            $reader = \setasign\Fpdi\PdfParser\StreamReader::createByString($str);
+            $reader = StreamReader::createByString($str);
             $pageCount = $pdf->setSourceFile($reader);
             for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                 $tplId = $pdf->importPage($pageNo);

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Dipa;
 use Illuminate\Database\Seeder;
 
 class DipaSeeder extends Seeder
@@ -11,7 +12,7 @@ class DipaSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\Dipa::create([
+        Dipa::create([
             'nomor_dipa' => 'SP-DIPA-015.01.428001/2024',
             'tahun' => 2025,
             'tanggal_dipa' => '2024-02-12',

@@ -9,6 +9,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ActiveYearService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -561,7 +562,7 @@ class PengajuanPulsaTest extends TestCase
     public function test_create_uses_nominal_disetujui_for_approved_existing_nominal_display(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');
-        $tahun = (string) \App\Services\ActiveYearService::get();
+        $tahun = (string) ActiveYearService::get();
 
         $kegiatan = Kegiatan::factory()->create([
             'ketua_tim_user_id' => $user->id,
