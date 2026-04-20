@@ -560,7 +560,93 @@ class PengajuanPulsaController extends Controller
                 'tahun' => (string) $tahun,
             ],
             'canReview' => $isAdminOrOperator,
+            'canResubmit' => true,
         ]);
+    }
+
+    /**
+     * Resubmit a rejected pengajuan pulsa after revision.
+     */
+    public function resubmit(Request $request, PengajuanPulsa $pengajuanPulsa): RedirectResponse
+    {
+        $effectiveUser = effectiveUser($request);
+        $isAdminOrOperator = $effectiveUser?->isAdmin() || $effectiveUser?->isOperator();
+
+        if (! $isAdminOrOperator) {
+            $isOwner = Kegiatan::query()
+                ->where('id', $pengajuanPulsa->kegiatan_id)
+                ->where(function ($q) use ($effectiveUser) {
+                    $q->where('ketua_tim_user_id', $effectiveUser?->id)
+                        ->orWhere('pj_lainnya_id', $effectiveUser?->id);
+                })
+                ->exists();
+
+            abort_unless($isOwner, 403);
+        }
+
+        if ($pengajuanPulsa->status !== 'ditolak') {
+            return back()->withErrors([
+                'nominal' => 'Hanya pengajuan dengan status Ditolak yang dapat diperbaiki dan dikirim ulang.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'nominal' => ['required', 'numeric', 'min:1', 'max:100000'],
+            'catatan' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $nominal = (float) $validated['nominal'];
+        if (((int) $nominal) % 1000 !== 0) {
+            return back()->withErrors([
+                'nominal' => 'Nominal pulsa harus kelipatan Rp1.000.',
+            ]);
+        }
+
+        $currentTotal = (float) PengajuanPulsa::query()
+            ->where('petugas_id', $pengajuanPulsa->petugas_id)
+            ->where('bulan', $pengajuanPulsa->bulan)
+            ->where('tahun', $pengajuanPulsa->tahun)
+            ->whereNotIn('status', ['ditolak'])
+            ->sum('nominal');
+
+        if (($currentTotal + $nominal) > 100000) {
+            return back()->withErrors([
+                'nominal' => 'Total pulsa petugas melebihi batas Rp100.000 per bulan.',
+            ]);
+        }
+
+        $pengajuanPulsa->update([
+            'nominal' => $nominal,
+            'status' => 'dikirim',
+            'nominal_disetujui' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'catatan_penolakan' => null,
+            'submitted_by' => $effectiveUser?->id ?? Auth::id(),
+            'submitted_at' => now(),
+            'catatan' => $validated['catatan'] ?? $pengajuanPulsa->catatan,
+        ]);
+
+        try {
+            ActivityLog::log(
+                'Kirim Ulang Pengajuan Pulsa',
+                'pengajuan_pulsa',
+                'Pengajuan pulsa yang ditolak telah diperbaiki dan dikirim ulang.',
+                'success',
+                [
+                    'pengajuan_id' => $pengajuanPulsa->id,
+                    'kegiatan_id' => $pengajuanPulsa->kegiatan_id,
+                    'petugas_id' => $pengajuanPulsa->petugas_id,
+                    'bulan' => $pengajuanPulsa->bulan,
+                    'tahun' => $pengajuanPulsa->tahun,
+                    'nominal' => $nominal,
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to log resubmit pengajuan pulsa activity', ['error' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Pengajuan pulsa berhasil diperbaiki dan dikirim ulang.');
     }
 
     /**

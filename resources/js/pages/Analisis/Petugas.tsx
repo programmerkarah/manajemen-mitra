@@ -7,8 +7,6 @@ import { Head } from '@inertiajs/react';
 import { Download, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
-    Bar,
-    BarChart,
     CartesianGrid,
     Cell,
     Tooltip as ChartTooltip,
@@ -54,6 +52,23 @@ const COLORS = [
     '#6366f1',
     '#84cc16',
 ];
+
+const KEGIATAN_CHIP_STYLES = [
+    'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+    'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
+    'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200',
+    'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200',
+    'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200',
+    'bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-200',
+];
+
+function kegiatanChipStyle(kegiatanId: number): string {
+    const index = Math.abs(kegiatanId) % KEGIATAN_CHIP_STYLES.length;
+
+    return KEGIATAN_CHIP_STYLES[index];
+}
 
 const glassTooltipClass =
     'rounded-xl border border-white/20 bg-white/80 p-3 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-900/80';
@@ -260,6 +275,21 @@ export default function AnalisisPetugas({
         name: monthNames[item.bulan - 1],
     }));
 
+    const usiaChartData = useMemo(
+        () => distribusiUsia.filter((item) => item.count > 0),
+        [distribusiUsia],
+    );
+
+    const totalUsia = useMemo(
+        () => usiaChartData.reduce((sum, item) => sum + item.count, 0),
+        [usiaChartData],
+    );
+
+    const totalPendidikan = useMemo(
+        () => distribusiPendidikan.reduce((sum, item) => sum + item.count, 0),
+        [distribusiPendidikan],
+    );
+
     const totalAlokasiTahun = alokasiPerBulan.reduce(
         (sum, item) => sum + item.jumlah_petugas,
         0,
@@ -395,20 +425,46 @@ export default function AnalisisPetugas({
                         </h3>
                         {distribusiUsia.some((d) => d.count > 0) ? (
                             <ResponsiveContainer width="100%" height={250}>
-                                <BarChart data={distribusiUsia}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="label" fontSize={12} />
-                                    <YAxis fontSize={12} />
+                                <PieChart>
+                                    <Pie
+                                        data={usiaChartData}
+                                        dataKey="count"
+                                        nameKey="label"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={80}
+                                        label={(
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            props: any,
+                                        ) => {
+                                            const percentage =
+                                                totalUsia > 0
+                                                    ? (
+                                                          (props.count /
+                                                              totalUsia) *
+                                                          100
+                                                      ).toFixed(1)
+                                                    : '0.0';
+
+                                            return `${props.label}: ${props.count} (${percentage}%)`;
+                                        }}
+                                    >
+                                        {usiaChartData.map((_, index) => (
+                                            <Cell
+                                                key={`usia-cell-${index}`}
+                                                fill={
+                                                    COLORS[
+                                                        index % COLORS.length
+                                                    ]
+                                                }
+                                            />
+                                        ))}
+                                    </Pie>
                                     <ChartTooltip
                                         content={<GlassTooltipContent />}
                                     />
-                                    <Bar
-                                        dataKey="count"
-                                        fill="#3b82f6"
-                                        name="Jumlah"
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                </BarChart>
+                                    <Legend />
+                                </PieChart>
                             </ResponsiveContainer>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
@@ -511,30 +567,57 @@ export default function AnalisisPetugas({
                         <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
                             Distribusi Pendidikan
                         </h3>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart
-                                data={distribusiPendidikan}
-                                layout="vertical"
-                            >
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" fontSize={12} />
-                                <YAxis
-                                    dataKey="pendidikan"
-                                    type="category"
-                                    fontSize={12}
-                                    width={40}
-                                />
-                                <ChartTooltip
-                                    content={<GlassTooltipContent />}
-                                />
-                                <Bar
-                                    dataKey="count"
-                                    fill="#22c55e"
-                                    name="Jumlah"
-                                    radius={[0, 4, 4, 0]}
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {distribusiPendidikan.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={distribusiPendidikan}
+                                        dataKey="count"
+                                        nameKey="pendidikan"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={80}
+                                        label={(
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            props: any,
+                                        ) => {
+                                            const percentage =
+                                                totalPendidikan > 0
+                                                    ? (
+                                                          (props.count /
+                                                              totalPendidikan) *
+                                                          100
+                                                      ).toFixed(1)
+                                                    : '0.0';
+
+                                            return `${props.pendidikan || 'Belum Diisi'}: ${props.count} (${percentage}%)`;
+                                        }}
+                                    >
+                                        {distribusiPendidikan.map(
+                                            (_, index) => (
+                                                <Cell
+                                                    key={`pendidikan-cell-${index}`}
+                                                    fill={
+                                                        COLORS[
+                                                            index %
+                                                                COLORS.length
+                                                        ]
+                                                    }
+                                                />
+                                            ),
+                                        )}
+                                    </Pie>
+                                    <ChartTooltip
+                                        content={<GlassTooltipContent />}
+                                    />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <p className="py-10 text-center text-sm text-neutral-400">
+                                Data pendidikan belum tersedia
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -564,14 +647,18 @@ export default function AnalisisPetugas({
                                     stroke="#3b82f6"
                                     name="Jumlah Petugas"
                                     strokeWidth={2}
-                                />
+                                    dot={{ r: 3 }}
+                                    activeDot={{ r: 5 }}
+                                ></Line>
                                 <Line
                                     type="monotone"
                                     dataKey="jumlah_kegiatan"
                                     stroke="#22c55e"
                                     name="Jumlah Kegiatan"
                                     strokeWidth={2}
-                                />
+                                    dot={{ r: 3 }}
+                                    activeDot={{ r: 5 }}
+                                ></Line>
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -992,7 +1079,7 @@ export default function AnalisisPetugas({
                                                     {item.kegiatan.map((k) => (
                                                         <span
                                                             key={k.id}
-                                                            className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                                                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${kegiatanChipStyle(k.id)}`}
                                                         >
                                                             {k.nama}
                                                         </span>

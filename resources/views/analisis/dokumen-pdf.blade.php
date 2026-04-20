@@ -6,7 +6,10 @@
     @include('analisis._pdf-style')
 </head>
 <body>
-    <h1>Analisis Dokumen SK &amp; Perjanjian Kerja Sensus dan Survei di Lingkungan Badan Pusat Statistik Kota Sawahlunto &mdash; Tahun Anggaran {{ $currentYear }}</h1>
+    <h1>
+        <span class="title-line">Analisis Dokumen SK &amp; Perjanjian Kerja Sensus dan Survei</span>
+        <span class="title-line">di Lingkungan Badan Pusat Statistik Kota Sawahlunto &mdash; Tahun Anggaran {{ $currentYear }}</span>
+    </h1>
     <p class="meta">Dicetak: {{ $tanggalCetak }} &nbsp;|&nbsp; SK Total: {{ $skTotal }} &nbsp;|&nbsp; SPK Total: {{ $spkTotal }}</p>
 
     <h2>Visualisasi Ringkas</h2>
@@ -61,41 +64,43 @@
     </table>
 
     {{-- SPK per Bulan --}}
-    <h2>Surat Perjanjian Kerja (SPK) per Bulan</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Status</th>
-                @foreach($bulanNames as $b)
-                    <th class="month-names">{{ $b }}</th>
-                @endforeach
-                <th>Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td class="font-bold">Total</td>
-                @foreach($spkPerBulan as $item)
-                    <td class="text-center">{{ $item['total'] ?: '-' }}</td>
-                @endforeach
-                <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('total') }}</td>
-            </tr>
-            <tr>
-                <td class="font-bold">Draft</td>
-                @foreach($spkPerBulan as $item)
-                    <td class="text-center">{{ $item['draft'] ?: '-' }}</td>
-                @endforeach
-                <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('draft') }}</td>
-            </tr>
-            <tr>
-                <td class="font-bold">Diterbitkan</td>
-                @foreach($spkPerBulan as $item)
-                    <td class="text-center">{{ $item['diterbitkan'] ?: '-' }}</td>
-                @endforeach
-                <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('diterbitkan') }}</td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="no-break">
+        <h2>Surat Perjanjian Kerja (SPK) per Bulan</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    @foreach($bulanNames as $b)
+                        <th class="month-names">{{ $b }}</th>
+                    @endforeach
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="font-bold">Total</td>
+                    @foreach($spkPerBulan as $item)
+                        <td class="text-center">{{ $item['total'] ?: '-' }}</td>
+                    @endforeach
+                    <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('total') }}</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">Draft</td>
+                    @foreach($spkPerBulan as $item)
+                        <td class="text-center">{{ $item['draft'] ?: '-' }}</td>
+                    @endforeach
+                    <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('draft') }}</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">Diterbitkan</td>
+                    @foreach($spkPerBulan as $item)
+                        <td class="text-center">{{ $item['diterbitkan'] ?: '-' }}</td>
+                    @endforeach
+                    <td class="text-center font-bold">{{ collect($spkPerBulan)->sum('diterbitkan') }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <p class="disclaimer">Dokumen ini di-generate secara otomatis oleh SIMANTIK.</p>
 </body>
