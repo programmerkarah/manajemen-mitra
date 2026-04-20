@@ -9,6 +9,10 @@
     <h1>Analisis Kebutuhan dan Pengadaan Pulsa Sensus dan Survei di Lingkungan Badan Pusat Statistik Kota Sawahlunto &mdash; Tahun Anggaran {{ $currentYear }}</h1>
     <p class="meta">Dicetak: {{ $tanggalCetak }}</p>
 
+    <h2>Visualisasi Ringkas</h2>
+    <div>{!! $pieChartSvg !!}</div>
+    <div style="margin-top:8px">{!! $lineChartSvg !!}</div>
+
     {{-- Distribusi Pulsa per Bulan --}}
     <h2>Distribusi Alokasi Pulsa per Bulan</h2>
     @php
@@ -27,10 +31,6 @@
         <tbody>
             <tr>
                 <td class="font-bold">Pengajuan</td>
-
-            <h2>Visualisasi Ringkas</h2>
-            <div>{!! $pieChartSvg !!}</div>
-            <div style="margin-top:8px">{!! $lineChartSvg !!}</div>
                 @foreach($pulsaPerBulan as $item)
                     <td class="text-center">{{ $item['total_pengajuan'] ?: '-' }}</td>
                 @endforeach

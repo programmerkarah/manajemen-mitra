@@ -9,6 +9,10 @@
     <h1>Analisis Dokumen SK &amp; Perjanjian Kerja Sensus dan Survei di Lingkungan Badan Pusat Statistik Kota Sawahlunto &mdash; Tahun Anggaran {{ $currentYear }}</h1>
     <p class="meta">Dicetak: {{ $tanggalCetak }} &nbsp;|&nbsp; SK Total: {{ $skTotal }} &nbsp;|&nbsp; SPK Total: {{ $spkTotal }}</p>
 
+    <h2>Visualisasi Ringkas</h2>
+    <div>{!! $pieChartSvg !!}</div>
+    <div style="margin-top:8px">{!! $lineChartSvg !!}</div>
+
     {{-- SK per Bulan --}}
     <h2>Surat Keputusan (SK) per Bulan</h2>
     @php
@@ -27,10 +31,6 @@
         <tbody>
             <tr>
                 <td class="font-bold">Total</td>
-
-            <h2>Visualisasi Ringkas</h2>
-            <div>{!! $pieChartSvg !!}</div>
-            <div style="margin-top:8px">{!! $lineChartSvg !!}</div>
                 @foreach($skPerBulan as $item)
                     <td class="text-center">{{ $item['total'] ?: '-' }}</td>
                 @endforeach
