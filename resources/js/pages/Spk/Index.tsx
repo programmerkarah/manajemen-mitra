@@ -13,6 +13,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle,
@@ -544,11 +545,15 @@ export default function Index({ periodeList }: IndexProps) {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() =>
-                                                                router.post(
+                                                                router.get(
                                                                     '/spk/month',
                                                                     {
-                                                                        bulan: monthData.bulan,
-                                                                        tahun: monthData.tahun,
+                                                                        state: encryptFilters(
+                                                                            {
+                                                                                bulan: monthData.bulan,
+                                                                                tahun: monthData.tahun,
+                                                                            },
+                                                                        ),
                                                                     },
                                                                 )
                                                             }
@@ -756,11 +761,15 @@ export default function Index({ periodeList }: IndexProps) {
                                                         size="sm"
                                                         variant="secondary"
                                                         onClick={() =>
-                                                            router.post(
+                                                            router.get(
                                                                 '/spk/month',
                                                                 {
-                                                                    bulan: monthData.bulan,
-                                                                    tahun: monthData.tahun,
+                                                                    state: encryptFilters(
+                                                                        {
+                                                                            bulan: monthData.bulan,
+                                                                            tahun: monthData.tahun,
+                                                                        },
+                                                                    ),
                                                                 },
                                                             )
                                                         }
