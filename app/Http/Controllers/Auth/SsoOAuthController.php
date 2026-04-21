@@ -166,6 +166,15 @@ class SsoOAuthController extends Controller
             ]);
         }
 
+        /** @var User|null $authenticatedUser */
+        $authenticatedUser = Auth::user();
+
+        if ($authenticatedUser && $authenticatedUser->isNot($localUser)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
         $name = isset($profile['name']) && is_string($profile['name'])
             ? trim($profile['name'])
             : $localUser->name;

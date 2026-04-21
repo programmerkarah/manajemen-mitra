@@ -56,11 +56,11 @@ Route::get('/csrf-token', function () {
     return response()->json(['token' => csrf_token()]);
 })->name('csrf.token');
 
-Route::middleware('guest')->group(function () {
-    Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
-    Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
-    Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
+Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
+Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
+Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
 
+Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 

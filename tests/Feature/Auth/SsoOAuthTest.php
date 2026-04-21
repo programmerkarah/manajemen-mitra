@@ -43,6 +43,24 @@ class SsoOAuthTest extends TestCase
         $this->assertStringContainsString('prompt=consent', $location);
     }
 
+    public function test_sso_redirect_route_still_works_when_user_is_authenticated(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.prompt', '');
+
+        $user = User::factory()->withoutTwoFactor()->create();
+
+        $response = $this->actingAs($user)->get(route('sso.redirect'));
+
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location', '');
+
+        $this->assertStringStartsWith('http://localhost:8000/oauth/authorize?', $location);
+        $this->assertTrue(session()->has('sso_oauth_state'));
+    }
+
     public function test_sso_callback_can_login_existing_local_user(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
@@ -100,5 +118,56 @@ class SsoOAuthTest extends TestCase
         $response
             ->assertRedirect(route('login'))
             ->assertSessionHasErrors(['username']);
+    }
+
+    public function test_sso_callback_replaces_authenticated_session_when_sso_user_differs(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.client_secret', 'secret-123');
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.user_endpoint', '/api/user');
+        config()->set('services.sso.allowed_organization_types', ['internal']);
+
+        $authenticatedUser = User::factory()->withoutTwoFactor()->create([
+            'name' => 'User Lama',
+            'username' => 'user-lama',
+            'email' => 'lama@example.com',
+            'is_active' => true,
+        ]);
+
+        $ssoResolvedUser = User::factory()->withoutTwoFactor()->create([
+            'name' => 'User Baru',
+            'username' => 'user-baru',
+            'email' => 'baru@example.com',
+            'sso_user_id' => 2002,
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'token_type' => 'Bearer',
+                'access_token' => 'access-token-xyz',
+            ], 200),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 2002,
+                'name' => 'User Baru Dari SSO',
+                'username' => 'user-baru',
+                'email' => 'baru@example.com',
+                'organization_type' => 'internal',
+                'email_verified_at' => now()->toDateTimeString(),
+            ], 200),
+        ]);
+
+        $response = $this
+            ->actingAs($authenticatedUser)
+            ->withSession(['sso_oauth_state' => 'state-abc'])
+            ->get(route('sso.callback', [
+                'code' => 'code-xyz',
+                'state' => 'state-abc',
+            ]));
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($ssoResolvedUser->fresh());
     }
 }
