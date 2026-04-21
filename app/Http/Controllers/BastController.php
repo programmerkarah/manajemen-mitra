@@ -811,13 +811,36 @@ class BastController extends Controller
             return redirect()->route('bast.open-detail-by-petugas', $routeParams);
         }
 
-        $filters = $request->session()->get('bast_open_detail_filters');
-        if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
-            return redirect()->route('bast.index')
-                ->with('error', 'Pilih periode terlebih dahulu untuk membuka detail BAST.');
+        if ($request->filled('state')) {
+            $request->merge(decryptFilters((string) $request->query('state')));
         }
 
-        $selectedPetugasId = $request->query('petugas_id');
+        $filters = null;
+
+        if ($request->hasAny(['bulan', 'tahun'])) {
+            $validated = $request->validate([
+                'bulan' => 'required|integer|min:1|max:12',
+                'tahun' => 'required|integer|min:2000',
+                'petugas_id' => 'nullable|integer|exists:petugas,id',
+            ]);
+
+            $filters = [
+                'bulan' => (int) $validated['bulan'],
+                'tahun' => (int) $validated['tahun'],
+            ];
+
+            $request->session()->put('bast_open_detail_filters', $filters);
+        }
+
+        if (! is_array($filters)) {
+            $filters = $request->session()->get('bast_open_detail_filters');
+            if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
+                return redirect()->route('bast.index')
+                    ->with('error', 'Pilih periode terlebih dahulu untuk membuka detail BAST.');
+            }
+        }
+
+        $selectedPetugasId = $request->input('petugas_id');
         if (filled($selectedPetugasId) && is_numeric((string) $selectedPetugasId)) {
             $filters['petugas_id'] = (int) $selectedPetugasId;
         }

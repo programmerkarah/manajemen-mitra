@@ -362,9 +362,14 @@ class SpkController extends Controller
      */
     public function showByMonthGet(Request $request): Response|RedirectResponse
     {
-        $bulan = $request->query('bulan');
-        $tahun = $request->query('tahun');
-        $spkHashedId = $request->query('spk');
+        $decrypted = [];
+        if ($request->filled('state')) {
+            $decrypted = decryptFilters((string) $request->query('state'));
+        }
+
+        $bulan = $decrypted['bulan'] ?? $request->query('bulan');
+        $tahun = $decrypted['tahun'] ?? $request->query('tahun');
+        $spkHashedId = $decrypted['spk'] ?? $request->query('spk');
 
         return $this->renderShowByMonth($bulan, $tahun, $spkHashedId);
     }

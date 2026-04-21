@@ -102,8 +102,10 @@ export default function Index({ data, active_year }: IndexProps) {
     };
 
     const openDetailByPeriod = (bulan: number, tahun: number) => {
-        router.post('/bast/open-detail', {
-            encrypted_filters: encryptFilters({ bulan, tahun }),
+        const state = encryptFilters({ bulan, tahun });
+
+        router.get('/bast/open-detail', {
+            state,
         });
     };
 

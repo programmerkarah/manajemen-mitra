@@ -337,14 +337,14 @@ export default function ShowByMonth({
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {
-        const payload = {
-            bulan: bulan,
-            tahun: tahun,
+        const state = encryptFilters({
+            bulan,
+            tahun,
             spk: spkHashedId,
-        };
-        const encryptedPayload = encryptFilters(payload);
-        router.post('/spk/month', {
-            encrypted_filters: encryptedPayload,
+        });
+
+        router.get('/spk/month', {
+            state,
         });
     };
 
