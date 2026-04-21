@@ -228,14 +228,16 @@ export default function Show({
             return;
         }
 
-        router.post(
+        const state = encryptFilters({
+            bulan,
+            tahun,
+            petugas_id: petugasId,
+        });
+
+        router.get(
             '/bast/open-detail',
             {
-                encrypted_filters: encryptFilters({
-                    bulan,
-                    tahun,
-                    petugas_id: petugasId,
-                }),
+                state,
             },
             {
                 preserveScroll: true,
