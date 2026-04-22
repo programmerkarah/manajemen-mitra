@@ -258,7 +258,10 @@ class SsoOAuthController extends Controller
 
     private function isExpiredSsoSessionError(string $oauthError): bool
     {
-        return in_array($oauthError, ['login_required', 'interaction_required', 'session_expired'], true);
+        // Treat only explicit session expiration as a hard signal to invalidate local session.
+        // Other prompt=none errors (e.g. login_required / interaction_required) can be transient
+        // and should not force local logout.
+        return in_array($oauthError, ['session_expired'], true);
     }
 
     private function logoutAndRedirectToLogin(Request $request): RedirectResponse

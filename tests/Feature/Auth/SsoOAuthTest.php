@@ -193,7 +193,7 @@ class SsoOAuthTest extends TestCase
         $this->assertAuthenticatedAs($ssoResolvedUser->fresh());
     }
 
-    public function test_sso_callback_sync_request_logs_out_local_session_when_sso_session_expired(): void
+    public function test_sso_callback_sync_request_does_not_log_out_local_session_on_login_required_error(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
         config()->set('services.sso.client_id', 'client-id-123');
@@ -214,6 +214,34 @@ class SsoOAuthTest extends TestCase
             ->get(route('sso.callback', [
                 'state' => 'sync-state',
                 'error' => 'login_required',
+            ]));
+
+        $response->assertRedirect('/dashboard');
+        $response->assertSessionHas('warning', 'Sinkronisasi sesi SSO belum berhasil.');
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_sso_callback_sync_request_logs_out_local_session_when_sso_session_expired(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+
+        $user = User::factory()->withoutTwoFactor()->create([
+            'is_active' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'sso_oauth_state' => 'sync-state',
+                'sso_oauth_context' => [
+                    'sync' => true,
+                    'return_to' => '/dashboard',
+                ],
+            ])
+            ->get(route('sso.callback', [
+                'state' => 'sync-state',
+                'error' => 'session_expired',
             ]));
 
         $response->assertRedirect(route('login'));
