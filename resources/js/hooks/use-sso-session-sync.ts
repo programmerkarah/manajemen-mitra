@@ -30,9 +30,7 @@ function setLastSyncAt(timestamp: number): void {
 
 function getCurrentPathWithQueryAndHash(): string {
     return (
-        window.location.pathname +
-        window.location.search +
-        window.location.hash
+        window.location.pathname + window.location.search + window.location.hash
     );
 }
 
@@ -104,7 +102,10 @@ export function useSsoSessionSync({
         return () => {
             window.clearInterval(intervalId);
             window.removeEventListener('focus', onWindowFocus);
-            document.removeEventListener('visibilitychange', onVisibilityChange);
+            document.removeEventListener(
+                'visibilitychange',
+                onVisibilityChange,
+            );
         };
     }, [enabled, focusCooldownSeconds, intervalSeconds, userId]);
 }

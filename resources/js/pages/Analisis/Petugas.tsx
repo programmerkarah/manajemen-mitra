@@ -121,6 +121,37 @@ function formatRupiah(value: number): string {
     }).format(value);
 }
 
+function toNumericAmount(value: unknown): number {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+        const normalized = value.replace(/\./g, '').replace(',', '.').trim();
+        const parsed = Number(normalized);
+
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+}
+
+function formatHonorAxis(value: number): string {
+    if (value >= 1_000_000) {
+        const inMillions = value / 1_000_000;
+
+        return Number.isInteger(inMillions)
+            ? `${inMillions.toFixed(0)}jt`
+            : `${inMillions.toFixed(1)}jt`;
+    }
+
+    if (value >= 1_000) {
+        return `${Math.round(value / 1_000)}rb`;
+    }
+
+    return `${Math.round(value)}`;
+}
+
 interface DistribusiItem {
     [key: string]: unknown;
     label: string;
@@ -249,12 +280,52 @@ export default function AnalisisPetugas({
         return monthNames.map((name, i) => {
             const row: Record<string, number | string> = { name };
             selected.forEach((p) => {
-                row[`kegiatan_${p.petugas_id}`] = p.bulan[i + 1] || 0;
-                row[`honor_${p.petugas_id}`] = p.honor[i + 1] || 0;
+                row[`kegiatan_${p.petugas_id}`] =
+                    toNumericAmount(p.bulan[i + 1]) || 0;
+                row[`honor_${p.petugas_id}`] =
+                    toNumericAmount(p.honor[i + 1]) || 0;
             });
             return row;
         });
     }, [petugasAlokasiDetail, selectedPetugasIds]);
+
+    const honorAxisConfig = useMemo(() => {
+        if (!multiPetugasChartData || selectedPetugasIds.length === 0) {
+            return {
+                max: 1_000_000,
+                ticks: [0, 250_000, 500_000, 750_000, 1_000_000],
+            };
+        }
+
+        const maxValue = multiPetugasChartData.reduce((max, row) => {
+            const rowMax = selectedPetugasIds.reduce((innerMax, id) => {
+                const value = toNumericAmount(row[`honor_${id}`]);
+
+                return Math.max(innerMax, value);
+            }, 0);
+
+            return Math.max(max, rowMax);
+        }, 0);
+
+        const step =
+            maxValue <= 2_000_000
+                ? 250_000
+                : maxValue <= 5_000_000
+                  ? 500_000
+                  : 1_000_000;
+
+        const axisMax = Math.max(step, Math.ceil(maxValue / step) * step);
+        const ticks: number[] = [];
+
+        for (let value = 0; value <= axisMax; value += step) {
+            ticks.push(value);
+        }
+
+        return {
+            max: axisMax,
+            ticks,
+        };
+    }, [multiPetugasChartData, selectedPetugasIds]);
 
     const addPetugas = (id: string) => {
         if (
@@ -844,9 +915,10 @@ export default function AnalisisPetugas({
                                         <XAxis dataKey="name" fontSize={12} />
                                         <YAxis
                                             fontSize={12}
-                                            tickFormatter={(v) =>
-                                                `${(v / 1_000_000).toFixed(0)}jt`
-                                            }
+                                            domain={[0, honorAxisConfig.max]}
+                                            ticks={honorAxisConfig.ticks}
+                                            allowDecimals={false}
+                                            tickFormatter={formatHonorAxis}
                                         />
                                         <ChartTooltip
                                             content={({
