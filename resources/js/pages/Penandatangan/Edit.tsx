@@ -44,8 +44,12 @@ export default function Edit({ Penandatangan }: EditProps) {
         nip: Penandatangan.nip || '',
         jenis_penandatangan: Penandatangan.jenis_penandatangan || 'kepala',
         jabatan: Penandatangan.jabatan || '',
-        periode_mulai: Penandatangan.periode_mulai || '',
-        periode_selesai: Penandatangan.periode_selesai || '',
+        periode_mulai: Penandatangan.periode_mulai
+            ? Penandatangan.periode_mulai.substring(0, 10)
+            : '',
+        periode_selesai: Penandatangan.periode_selesai
+            ? Penandatangan.periode_selesai.substring(0, 10)
+            : '',
         is_active: Penandatangan.is_active,
     });
 

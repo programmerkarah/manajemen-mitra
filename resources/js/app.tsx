@@ -93,14 +93,16 @@ function initializeInertiaCsrfGuard(): void {
                         data: attachTokenToPayload(options.data ?? {}, token),
                     };
 
-                    originalMethod(url, nextOptions);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    originalMethod(url, nextOptions as unknown as any);
                 })();
             };
 
             continue;
         }
 
-        router[method] = (url, data = {}, options = {}) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router[method] = (url, data: any = {}, options = {}) => {
             void (async () => {
                 const token = await refreshCsrfToken();
                 const payloadWithToken = attachTokenToPayload(data, token);

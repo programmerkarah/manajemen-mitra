@@ -47,6 +47,8 @@ const normalizeSatuanValue = (
     return String(value);
 };
 
+const COA_PREFIX = '054.01.GG.';
+
 // Kombinasi rate honor berdasarkan jenis kegiatan
 const getCombinations = (jenisKegiatan: 'sensus' | 'survei') => {
     const combinations: Array<{
@@ -276,7 +278,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     const [formData, setFormData] = useState(() => {
         const data: Record<string, string> = {};
         data['satuan_id'] = initialPencacahanSatuanValue;
-        data['kode_coa'] = kegiatan.kode_coa || '';
+        const existingCoa = kegiatan.kode_coa || '';
+        data['kode_coa'] = existingCoa.startsWith(COA_PREFIX)
+            ? existingCoa.substring(COA_PREFIX.length)
+            : existingCoa;
         if (kegiatan.has_listing_updating) {
             data['satuan_listing_id'] = initialListingSatuanValue;
         }
@@ -419,7 +424,9 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             satuan_id: isNaN(selectedPencacahanSatuanId)
                 ? null
                 : selectedPencacahanSatuanId,
-            kode_coa: formData['kode_coa'] || null,
+            kode_coa: formData['kode_coa']
+                ? COA_PREFIX + formData['kode_coa']
+                : null,
         };
 
         if (kegiatan.has_listing_updating) {
@@ -543,25 +550,32 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     (Berlaku sama untuk listing dan pencacahan)
                                 </span>
                             </label>
-                            <input
-                                type="text"
-                                value={formData['kode_coa'] || ''}
-                                onChange={(e) =>
-                                    handleInputChange(
-                                        'kode_coa',
-                                        e.target.value,
-                                        true,
-                                    )
-                                }
-                                placeholder="Contoh: 054.01.GG.2905.BMA.004.005.A.521211"
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                            />
+                            <div className="flex rounded-md shadow-sm">
+                                <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 select-none dark:border-gray-600 dark:bg-gray-600 dark:text-gray-300">
+                                    {COA_PREFIX}
+                                </span>
+                                <input
+                                    type="text"
+                                    value={formData['kode_coa'] || ''}
+                                    onChange={(e) =>
+                                        handleInputChange(
+                                            'kode_coa',
+                                            e.target.value,
+                                            true,
+                                        )
+                                    }
+                                    placeholder="2905.BMA.004.005.A.521211"
+                                    className="block min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                                />
+                            </div>
                             {errors['kode_coa'] && (
                                 <InputError message={errors['kode_coa']} />
                             )}
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Kode CoA akan digunakan dalam lampiran
-                                Perjanjian Kerja
+                                Perjanjian Kerja. Prefix{' '}
+                                <span className="font-medium">054.01.GG.</span>{' '}
+                                sudah ditetapkan untuk honor.
                             </p>
                         </div>
                     </div>
