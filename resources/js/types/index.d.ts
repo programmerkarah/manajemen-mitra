@@ -57,6 +57,11 @@ export interface SharedData {
         warning?: string;
         info?: string;
     };
+    ssoSync?: {
+        enabled: boolean;
+        focusCooldownSeconds: number;
+        intervalSeconds: number;
+    };
     [key: string]: unknown;
 }
 

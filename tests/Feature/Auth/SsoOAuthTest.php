@@ -61,6 +61,28 @@ class SsoOAuthTest extends TestCase
         $this->assertTrue(session()->has('sso_oauth_state'));
     }
 
+    public function test_sso_redirect_sync_request_forces_prompt_none(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.prompt', 'consent');
+
+        $user = User::factory()->withoutTwoFactor()->create();
+
+        $response = $this->actingAs($user)->get(route('sso.redirect', [
+            'sync' => 1,
+            'return_to' => '/dashboard?from=test',
+        ]));
+
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location', '');
+
+        $this->assertStringContainsString('prompt=none', $location);
+        $this->assertSame(true, session('sso_oauth_context.sync'));
+        $this->assertSame('/dashboard?from=test', session('sso_oauth_context.return_to'));
+    }
+
     public function test_sso_callback_can_login_existing_local_user(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
@@ -169,5 +191,82 @@ class SsoOAuthTest extends TestCase
 
         $response->assertRedirect(route('dashboard'));
         $this->assertAuthenticatedAs($ssoResolvedUser->fresh());
+    }
+
+    public function test_sso_callback_sync_request_logs_out_local_session_when_sso_session_expired(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+
+        $user = User::factory()->withoutTwoFactor()->create([
+            'is_active' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'sso_oauth_state' => 'sync-state',
+                'sso_oauth_context' => [
+                    'sync' => true,
+                    'return_to' => '/dashboard',
+                ],
+            ])
+            ->get(route('sso.callback', [
+                'state' => 'sync-state',
+                'error' => 'login_required',
+            ]));
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('error', 'Sesi SSO Anda sudah berakhir. Silakan login ulang.');
+        $this->assertGuest();
+    }
+
+    public function test_sso_callback_sync_request_redirects_back_to_requested_path_on_success(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.client_secret', 'secret-123');
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.user_endpoint', '/api/user');
+        config()->set('services.sso.allowed_organization_types', ['internal']);
+
+        $user = User::factory()->withoutTwoFactor()->create([
+            'name' => 'User Sync',
+            'username' => 'user-sync',
+            'email' => 'user-sync@example.com',
+            'sso_user_id' => 555,
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'token_type' => 'Bearer',
+                'access_token' => 'sync-token-123',
+            ], 200),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 555,
+                'name' => 'User Sync SSO',
+                'username' => 'user-sync',
+                'email' => 'user-sync@example.com',
+                'organization_type' => 'internal',
+            ], 200),
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'sso_oauth_state' => 'sync-state',
+                'sso_oauth_context' => [
+                    'sync' => true,
+                    'return_to' => '/kegiatan?sync=1',
+                ],
+            ])
+            ->get(route('sso.callback', [
+                'code' => 'sync-code',
+                'state' => 'sync-state',
+            ]));
+
+        $response->assertRedirect('/kegiatan?sync=1');
+        $this->assertAuthenticatedAs($user->fresh());
     }
 }

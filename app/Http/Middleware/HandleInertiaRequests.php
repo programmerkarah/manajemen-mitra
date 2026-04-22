@@ -59,6 +59,11 @@ class HandleInertiaRequests extends Middleware
             $displayUser->load(['roles']);
         }
 
+        $ssoSyncEnabled = (bool) config('services.sso.active', true)
+            && filled(config('services.sso.base_url'))
+            && filled(config('services.sso.client_id'))
+            && $displayUser !== null;
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -90,6 +95,11 @@ class HandleInertiaRequests extends Middleware
                 'error' => $request->session()->pull('error'),
                 'warning' => $request->session()->pull('warning'),
                 'info' => $request->session()->pull('info'),
+            ],
+            'ssoSync' => [
+                'enabled' => $ssoSyncEnabled,
+                'focusCooldownSeconds' => max((int) config('services.sso.sync_focus_cooldown_seconds', 120), 30),
+                'intervalSeconds' => max((int) config('services.sso.sync_interval_seconds', 600), 60),
             ],
         ];
     }

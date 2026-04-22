@@ -33,7 +33,14 @@ class SsoOAuthController extends Controller
         }
 
         $state = Str::random(40);
+        $isSyncRequest = $request->boolean('sync');
+        $syncReturnTo = $this->sanitizeReturnTo($request->query('return_to'));
+
         $request->session()->put('sso_oauth_state', $state);
+        $request->session()->put('sso_oauth_context', [
+            'sync' => $isSyncRequest,
+            'return_to' => $syncReturnTo,
+        ]);
 
         $queryPayload = [
             'client_id' => $clientId,
@@ -43,7 +50,10 @@ class SsoOAuthController extends Controller
             'state' => $state,
         ];
 
-        $prompt = trim((string) config('services.sso.prompt', ''));
+        $prompt = $isSyncRequest
+            ? 'none'
+            : trim((string) config('services.sso.prompt', ''));
+
         if ($prompt !== '') {
             $queryPayload['prompt'] = $prompt;
         }
@@ -55,10 +65,17 @@ class SsoOAuthController extends Controller
 
     public function callback(Request $request): RedirectResponse
     {
+        $oauthContext = $request->session()->pull('sso_oauth_context', []);
+        $isSyncRequest = (bool) data_get($oauthContext, 'sync', false);
+        $syncReturnTo = $this->sanitizeReturnTo(data_get($oauthContext, 'return_to'));
         $expectedState = $request->session()->pull('sso_oauth_state');
         $receivedState = $request->string('state')->toString();
 
         if (! is_string($expectedState) || $expectedState === '' || $expectedState !== $receivedState) {
+            if ($isSyncRequest) {
+                return redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
+                    ->with('warning', 'Sinkronisasi sesi SSO gagal karena state tidak valid.');
+            }
 
             return redirect()->route('login')->withErrors([
                 'username' => 'State OAuth tidak valid. Silakan coba login lagi.',
@@ -66,6 +83,17 @@ class SsoOAuthController extends Controller
         }
 
         if ($request->filled('error')) {
+            if ($isSyncRequest) {
+                $oauthError = $request->string('error')->toString();
+
+                if ($this->isExpiredSsoSessionError($oauthError)) {
+                    return $this->logoutAndRedirectToLogin($request);
+                }
+
+                return redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
+                    ->with('warning', 'Sinkronisasi sesi SSO belum berhasil.');
+            }
+
             $errorDescription = $request->string('error_description')->toString();
             $message = $errorDescription !== '' ? $errorDescription : 'Login SSO dibatalkan atau gagal.';
 
@@ -197,7 +225,50 @@ class SsoOAuthController extends Controller
         $request->session()->regenerate();
         $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
 
+        if ($isSyncRequest) {
+            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+        }
+
         return redirect()->intended(route('dashboard'));
+    }
+
+    private function resolveSyncReturnTo(?string $returnTo): string
+    {
+        return $returnTo ?? route('dashboard');
+    }
+
+    private function sanitizeReturnTo(mixed $returnTo): ?string
+    {
+        if (! is_string($returnTo)) {
+            return null;
+        }
+
+        $trimmed = trim($returnTo);
+
+        if ($trimmed === '' || ! str_starts_with($trimmed, '/')) {
+            return null;
+        }
+
+        if (str_starts_with($trimmed, '//')) {
+            return null;
+        }
+
+        return $trimmed;
+    }
+
+    private function isExpiredSsoSessionError(string $oauthError): bool
+    {
+        return in_array($oauthError, ['login_required', 'interaction_required', 'session_expired'], true);
+    }
+
+    private function logoutAndRedirectToLogin(Request $request): RedirectResponse
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')
+            ->with('error', 'Sesi SSO Anda sudah berakhir. Silakan login ulang.');
     }
 
     private function baseUrl(): string

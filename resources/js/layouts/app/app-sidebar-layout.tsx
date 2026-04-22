@@ -3,6 +3,7 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
+import { useSsoSessionSync } from '@/hooks/use-sso-session-sync';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
@@ -12,10 +13,17 @@ export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, ssoSync } = usePage<SharedData>().props;
 
     // Listen for session invalidation via WebSocket
     useSessionInvalidation(auth?.user?.id);
+
+    useSsoSessionSync({
+        enabled: Boolean(ssoSync?.enabled),
+        userId: auth?.user?.id,
+        focusCooldownSeconds: Number(ssoSync?.focusCooldownSeconds ?? 120),
+        intervalSeconds: Number(ssoSync?.intervalSeconds ?? 600),
+    });
 
     return (
         <AppShell variant="sidebar">

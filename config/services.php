@@ -45,6 +45,8 @@ return [
         'user_endpoint' => env('SSO_USER_ENDPOINT', '/api/user'),
         'scope' => env('SSO_SCOPE', ''),
         'prompt' => env('SSO_PROMPT', ''),
+        'sync_focus_cooldown_seconds' => env('SSO_SYNC_FOCUS_COOLDOWN_SECONDS', 120),
+        'sync_interval_seconds' => env('SSO_SYNC_INTERVAL_SECONDS', 600),
         'allowed_organization_types' => array_values(array_filter(array_map(
             static fn (string $value): string => trim($value),
             explode(',', (string) env('SSO_ALLOWED_ORGANIZATION_TYPES', 'internal')),
