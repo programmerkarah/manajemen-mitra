@@ -221,13 +221,23 @@ class SsoOAuthController extends Controller
 
         $this->ensureDefaultRole($localUser);
 
+        if ($isSyncRequest) {
+            // For a sync (prompt=none) callback, only update the user profile.
+            // Do NOT regenerate the session or call activateLatestSession:
+            // doing so broadcasts SessionInvalidated via WebSocket and kicks
+            // the user out through the useSessionInvalidation hook.
+            if (! Auth::check()) {
+                Auth::login($localUser, true);
+                $request->session()->regenerate();
+                $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
+            }
+
+            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+        }
+
         Auth::login($localUser, true);
         $request->session()->regenerate();
         $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
-
-        if ($isSyncRequest) {
-            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
-        }
 
         return redirect()->intended(route('dashboard'));
     }

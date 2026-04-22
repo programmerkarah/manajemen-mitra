@@ -297,4 +297,57 @@ class SsoOAuthTest extends TestCase
         $response->assertRedirect('/kegiatan?sync=1');
         $this->assertAuthenticatedAs($user->fresh());
     }
+
+    public function test_sso_callback_sync_request_preserves_session_id_and_does_not_broadcast_invalidation(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.client_secret', 'secret-123');
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.user_endpoint', '/api/user');
+        config()->set('services.sso.allowed_organization_types', ['internal']);
+
+        $user = User::factory()->withoutTwoFactor()->create([
+            'name' => 'Rahmat Zikri',
+            'username' => 'rhmtzikri',
+            'email' => 'rhmtzikri@example.com',
+            'sso_user_id' => 999,
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'http://localhost:8000/oauth/token' => Http::response([
+                'token_type' => 'Bearer',
+                'access_token' => 'sync-token-999',
+            ], 200),
+            'http://localhost:8000/api/user' => Http::response([
+                'id' => 999,
+                'name' => 'Rahmat Zikri',
+                'username' => 'rhmtzikri',
+                'email' => 'rhmtzikri@example.com',
+                'organization_type' => 'internal',
+            ], 200),
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'sso_oauth_state' => 'preserved-state',
+                'sso_oauth_context' => [
+                    'sync' => true,
+                    'return_to' => '/dashboard',
+                ],
+            ])
+            ->get(route('sso.callback', [
+                'code' => 'preserved-code',
+                'state' => 'preserved-state',
+            ]));
+
+        // User must still be authenticated as the same user — session was not replaced.
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user->fresh());
+
+        // Profile data was updated from SSO without invalidating the session.
+        $this->assertSame('Rahmat Zikri', $user->fresh()->name);
+    }
 }
