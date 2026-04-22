@@ -43,6 +43,7 @@ use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +53,9 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
-Route::get('/csrf-token', function () {
+Route::get('/csrf-token', function (Request $request) {
+    $request->session()->regenerateToken();
+
     return response()->json(['token' => csrf_token()]);
 })->name('csrf.token');
 
@@ -254,6 +257,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('petugas', [PetugasController::class, 'store'])->name('petugas.store');
 
         Route::get('petugas/{petugas}/edit', [PetugasController::class, 'edit'])->name('petugas.edit');
+        Route::match(['put', 'patch'], 'petugas/{petugas}/edit', [PetugasController::class, 'update']);
         Route::put('petugas/{petugas}', [PetugasController::class, 'update'])->name('petugas.update');
         Route::patch('petugas/{petugas}', [PetugasController::class, 'update']);
         Route::delete('petugas/{petugas}', [PetugasController::class, 'destroy'])->name('petugas.destroy');
@@ -261,6 +265,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // User Role Management
         Route::match(['get', 'post'], 'users', [UserRoleController::class, 'index'])->name('users.index');
         Route::get('users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
+        Route::match(['put', 'patch'], 'users/{user}/edit', [UserRoleController::class, 'update']);
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
         Route::post('users/{user}/reset-2fa', ResetUserTwoFactorController::class)->name('users.reset-2fa');
     });
@@ -309,6 +314,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('kegiatan/{kegiatan}/copy', [KegiatanController::class, 'copy'])->name('kegiatan.copy');
         Route::post('kegiatan/store', [KegiatanController::class, 'store'])->name('kegiatan.store');
         Route::get('kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->name('kegiatan.edit');
+        Route::match(['put', 'patch'], 'kegiatan/{kegiatan}/edit', [KegiatanController::class, 'update']);
         Route::put('kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->name('kegiatan.update');
         Route::patch('kegiatan/{kegiatan}', [KegiatanController::class, 'update']);
         Route::delete('kegiatan/{kegiatan}', [KegiatanController::class, 'destroy'])->name('kegiatan.destroy');
@@ -344,6 +350,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('alokasi/kegiatan/{kegiatan}/import-preview', [AlokasiPetugasController::class, 'importPreview'])
             ->name('alokasi.import-preview');
         Route::get('alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'edit'])->name('alokasi.edit');
+        Route::match(['put', 'patch'], 'alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'update']);
         Route::put('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
         Route::patch('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update']);
         Route::delete('alokasi/{alokasi}', [AlokasiPetugasController::class, 'destroy'])->name('alokasi.destroy');
@@ -359,6 +366,12 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // Edit periode
         Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit', [AlokasiPetugasController::class, 'editPeriode'])
             ->name('alokasi.periode.edit')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
+        Route::match(['put', 'patch'], 'alokasi/periode/{kegiatan}/{tahun}/{bulan}/edit', [AlokasiPetugasController::class, 'updatePeriode'])
             ->where([
                 'kegiatan' => '[A-Za-z0-9]+',
                 'tahun' => '[0-9]{4}',
@@ -443,6 +456,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('sbml/create', [SbmlController::class, 'create'])->name('sbml.create');
         Route::post('sbml', [SbmlController::class, 'store'])->name('sbml.store');
         Route::get('sbml/{tahun}/edit', [SbmlController::class, 'edit'])->name('sbml.edit')->where('tahun', '[0-9]+');
+        Route::match(['put', 'patch'], 'sbml/{tahun}/edit', [SbmlController::class, 'update'])->where('tahun', '[0-9]+');
         Route::patch('sbml/{tahun}', [SbmlController::class, 'update'])->name('sbml.update')->where('tahun', '[0-9]+');
         Route::delete('sbml/{tahun}', [SbmlController::class, 'destroy'])->name('sbml.destroy')->where('tahun', '[0-9]+');
         Route::get('sbml/{tahun}/export/{type?}', [SbmlController::class, 'exportTemplate'])->name('sbml.exportTemplate')->where(['tahun' => '[0-9]+', 'type' => 'create|edit']);
@@ -467,6 +481,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('penandatangan/create', [PenandatanganController::class, 'create'])->name('penandatangan.create');
         Route::post('penandatangan/store', [PenandatanganController::class, 'store'])->name('penandatangan.store');
         Route::get('penandatangan/{penandatangan}/edit', [PenandatanganController::class, 'edit'])->name('penandatangan.edit');
+        Route::match(['put', 'patch'], 'penandatangan/{penandatangan}/edit', [PenandatanganController::class, 'update']);
         Route::put('penandatangan/{penandatangan}', [PenandatanganController::class, 'update'])->name('penandatangan.update');
         Route::patch('penandatangan/{penandatangan}', [PenandatanganController::class, 'update']);
         Route::delete('penandatangan/{penandatangan}', [PenandatanganController::class, 'destroy'])->name('penandatangan.destroy');
@@ -475,6 +490,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('dipa/create', [DipaController::class, 'create'])->name('dipa.create');
         Route::post('dipa/store', [DipaController::class, 'store'])->name('dipa.store');
         Route::get('dipa/{dipa}/edit', [DipaController::class, 'edit'])->name('dipa.edit');
+        Route::match(['put', 'patch'], 'dipa/{dipa}/edit', [DipaController::class, 'update']);
         Route::put('dipa/{dipa}', [DipaController::class, 'update'])->name('dipa.update');
         Route::patch('dipa/{dipa}', [DipaController::class, 'update']);
         Route::delete('dipa/{dipa}', [DipaController::class, 'destroy'])->name('dipa.destroy');
@@ -483,6 +499,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('dasar-hukum/create', [DasarHukumController::class, 'create'])->name('dasar-hukum.create');
         Route::post('dasar-hukum/store', [DasarHukumController::class, 'store'])->name('dasar-hukum.store');
         Route::get('dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
+        Route::match(['put', 'patch'], 'dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'update']);
         Route::patch('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'update'])->name('dasar-hukum.update');
         Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
     });
@@ -536,6 +553,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
         Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
+        Route::match(['put', 'patch'], 'bast/{bast}/edit', [BastController::class, 'update']);
         Route::post('bast/{bast}/upload-signed', [BastController::class, 'uploadSigned'])
             ->where('bast', '[A-Za-z0-9]+')
             ->name('bast.upload-signed');
@@ -570,6 +588,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('sk-kpa/kegiatan/{kegiatanHashedId}/generate', [SkKpaController::class, 'generateSk'])->name('sk-kpa.generate');
         // Route::post('sk-kpa', [SkKpaController::class, 'store'])->name('sk-kpa.store'); // REMOVED: Konflik dengan route filtering di atas
         Route::get('sk-kpa/{skKpa}/edit', [SkKpaController::class, 'edit'])->name('sk-kpa.edit');
+        Route::match(['put', 'patch'], 'sk-kpa/{skKpa}/edit', [SkKpaController::class, 'update']);
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
         Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);
         Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
@@ -589,6 +608,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/periode/{periodeHashedId}/generate-all', [SpkController::class, 'generateAllSpk'])->name('spk.generate-all');
         Route::post('spk', [SpkController::class, 'store'])->name('spk.store');
         Route::get('spk/{spk}/edit', [SpkController::class, 'edit'])->name('spk.edit');
+        Route::match(['put', 'patch'], 'spk/{spk}/edit', [SpkController::class, 'update']);
         Route::put('spk/{spk}', [SpkController::class, 'update'])->name('spk.update');
         Route::patch('spk/{spk}', [SpkController::class, 'update']);
         Route::delete('spk/{spk}', [SpkController::class, 'destroy'])->name('spk.destroy');
