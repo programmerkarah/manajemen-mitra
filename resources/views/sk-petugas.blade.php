@@ -521,7 +521,7 @@
                     {{ $alokasi->nip }}/<br>
                     {{ $alokasi->golongan }}
                     @else
-                    Non PNS
+                    Non ASN
                     @endif
                 </td>
                 @endif

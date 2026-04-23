@@ -574,41 +574,6 @@
         @endif
     </div>
 
-    @php
-        $minimumRowsForApproval = 1;
-        $minimumTotalRowsToSplit = 8;
-        $alokasiArray = $alokasiList->values()->all();
-        $totalRoleRows = collect($alokasiArray)->sum(fn ($alokasi) => count($alokasi->roles));
-        $approvalGroupIndexes = [];
-        $approvalRowCount = 0;
-
-        for ($index = count($alokasiArray) - 1; $index >= 0; $index--) {
-            if (count($approvalGroupIndexes) > 0 && $approvalRowCount >= $minimumRowsForApproval) {
-                break;
-            }
-
-            $approvalGroupIndexes[] = $index;
-            $approvalRowCount += count($alokasiArray[$index]->roles);
-        }
-
-        $shouldSplitApprovalBlock = $totalRoleRows > $minimumTotalRowsToSplit
-            && count($approvalGroupIndexes) > 0
-            && count($approvalGroupIndexes) < count($alokasiArray)
-            && $approvalRowCount >= $minimumRowsForApproval;
-
-        $mainGroups = [];
-        $approvalGroups = [];
-
-        foreach ($alokasiArray as $index => $alokasi) {
-            if ($shouldSplitApprovalBlock && in_array($index, $approvalGroupIndexes, true)) {
-                $approvalGroups[] = $alokasi;
-                continue;
-            }
-
-            $mainGroups[] = $alokasi;
-        }
-    @endphp
-
     <table class="petugas">
         <thead>
             <tr>
@@ -630,7 +595,7 @@
             @php
             $counter = 1;
             @endphp
-            @foreach($mainGroups as $alokasi)
+            @foreach($alokasiList as $alokasi)
             @php
             $roleCount = count($alokasi->roles);
             @endphp
@@ -661,7 +626,7 @@
                     {{ $alokasi->nip }}/<br>
                     {{ $alokasi->golongan }}
                     @else
-                    Non PNS
+                    Non ASN
                     @endif
                 </td>
                 @endif
@@ -674,6 +639,7 @@
         </tbody>
     </table>
 
+<<<<<<< HEAD
     <div class="approval-block">
         @if(count($approvalGroups) > 0)
         <table class="petugas">
@@ -750,6 +716,16 @@
                 <div style="margin-top: 80px; font-weight: bold;">
                     {{ strtoupper($kepalaBps) }}
                 </div>
+=======
+    <div class="signature" style="margin-top: 10px;">
+        <div class="signature-content">
+            <div>
+                KEPALA BADAN PUSAT STATISTIK<br>
+                KOTA SAWAHLUNTO,
+            </div>
+            <div style="margin-top: 80px; font-weight: bold;">
+                {{ strtoupper($kepalaBps) }}
+>>>>>>> main
             </div>
         </div>
     </div>

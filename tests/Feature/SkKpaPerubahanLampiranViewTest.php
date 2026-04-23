@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
 
-class SkKpaLampiranLayoutTest extends TestCase
+class SkKpaPerubahanLampiranViewTest extends TestCase
 {
-    private function makeAlokasi(string $nama): object
+    private function makeAlokasiWithTwoRoles(string $nama): object
     {
         return (object) [
             'nama' => $nama,
@@ -16,8 +16,12 @@ class SkKpaLampiranLayoutTest extends TestCase
             'jabatan' => 'Mitra Statistik',
             'roles' => [
                 (object) [
-                    'peran' => 'Petugas Pencacahan',
-                    'biaya_satuan' => 'Rp. 66.000,- / DOK',
+                    'peran' => 'Petugas Pengolahan - Listing',
+                    'biaya_satuan' => 'Rp. 35.000,- / Dokumen',
+                ],
+                (object) [
+                    'peran' => 'Petugas Pengolahan',
+                    'biaya_satuan' => 'Rp. 26.000,- / DOK',
                 ],
             ],
         ];
@@ -29,7 +33,7 @@ class SkKpaLampiranLayoutTest extends TestCase
     private function renderPerubahanLampiran(Collection $alokasiList): string
     {
         $kegiatan = (object) [
-            'nama_kegiatan' => 'Updating Direktori Perusahaan Pertambangan dan Energi',
+            'nama_kegiatan' => 'Survei Harga Produsen',
             'tahun_anggaran' => 2026,
         ];
 
@@ -66,26 +70,17 @@ class SkKpaLampiranLayoutTest extends TestCase
         ])->render();
     }
 
-    public function test_lampiran_does_not_repeat_table_header_for_short_list(): void
+    public function test_multi_role_rows_do_not_create_a_second_petugas_table(): void
     {
         $html = $this->renderPerubahanLampiran(collect([
-            $this->makeAlokasi('Cici Liani Indrias Putri'),
-            $this->makeAlokasi('Miranda Melliana'),
+            $this->makeAlokasiWithTwoRoles('Fissy Erlieta Hadi'),
+            $this->makeAlokasiWithTwoRoles('Mochamad Agistiana Tanjung'),
+            $this->makeAlokasiWithTwoRoles('Petugas Tiga'),
+            $this->makeAlokasiWithTwoRoles('Petugas Empat'),
+            $this->makeAlokasiWithTwoRoles('Petugas Lima'),
         ]));
 
         $this->assertSame(1, substr_count($html, '<table class="petugas">'));
-    }
-
-    public function test_lampiran_keeps_single_table_for_long_list(): void
-    {
-        $alokasiList = collect();
-
-        for ($i = 1; $i <= 10; $i++) {
-            $alokasiList->push($this->makeAlokasi('Petugas '.$i));
-        }
-
-        $html = $this->renderPerubahanLampiran($alokasiList);
-
-        $this->assertSame(1, substr_count($html, '<table class="petugas">'));
+        $this->assertSame(10, substr_count($html, '<tr class=" petugas-'));
     }
 }
