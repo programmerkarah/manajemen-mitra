@@ -11,6 +11,25 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 let csrfGuardInitialized = false;
 
 type InertiaMutationMethod = 'post' | 'put' | 'patch' | 'delete';
+type InertiaDataMutationMethod = Exclude<InertiaMutationMethod, 'delete'>;
+type MutationPayload = FormData | Record<string, unknown>;
+type MutationVisitOptions = Record<string, unknown>;
+type DeleteVisitOptions = MutationVisitOptions & { data?: MutationPayload };
+type DataMutationMethodHandler = (
+    url: string,
+    data?: MutationPayload,
+    options?: MutationVisitOptions,
+) => void;
+type DeleteMutationMethodHandler = (
+    url: string,
+    options?: DeleteVisitOptions,
+) => void;
+type MutationRouter = Record<
+    InertiaDataMutationMethod,
+    DataMutationMethodHandler
+> & {
+    delete: DeleteMutationMethodHandler;
+};
 
 function updateCsrfMetaToken(token: string): void {
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -55,20 +74,17 @@ function attachTokenToPayload<T>(payload: T, token: string | null): T {
     }
 
     if (payload instanceof FormData) {
-        if (!payload.has('_token')) {
-            payload.append('_token', token);
-        }
+        payload.set('_token', token);
         return payload;
     }
 
     if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
         const payloadObject = payload as Record<string, unknown>;
-        if (typeof payloadObject._token === 'undefined') {
-            return {
-                ...payloadObject,
-                _token: token,
-            } as T;
-        }
+
+        return {
+            ...payloadObject,
+            _token: token,
+        } as T;
     }
 
     return payload;
@@ -79,28 +95,31 @@ function initializeInertiaCsrfGuard(): void {
         return;
     }
 
-    const methods: InertiaMutationMethod[] = ['post', 'put', 'patch', 'delete'];
+    const mutationRouter = router as unknown as MutationRouter;
+    const dataMethods: InertiaDataMutationMethod[] = ['post', 'put', 'patch'];
 
-    for (const method of methods) {
-        const originalMethod = router[method].bind(router);
+    const originalDeleteMethod = mutationRouter.delete.bind(router);
 
-        if (method === 'delete') {
-            router.delete = (url, options = {}) => {
-                void (async () => {
-                    const token = await refreshCsrfToken();
-                    const nextOptions = {
-                        ...options,
-                        data: attachTokenToPayload(options.data ?? {}, token),
-                    };
-
-                    originalMethod(url, nextOptions);
-                })();
+    mutationRouter.delete = (url: string, options: DeleteVisitOptions = {}) => {
+        void (async () => {
+            const token = await refreshCsrfToken();
+            const nextOptions = {
+                ...options,
+                data: attachTokenToPayload(options.data ?? {}, token),
             };
 
-            continue;
-        }
+            originalDeleteMethod(url, nextOptions);
+        })();
+    };
 
-        router[method] = (url, data = {}, options = {}) => {
+    for (const method of dataMethods) {
+        const originalMethod = mutationRouter[method].bind(router);
+
+        mutationRouter[method] = (
+            url: string,
+            data: MutationPayload = {},
+            options: MutationVisitOptions = {},
+        ) => {
             void (async () => {
                 const token = await refreshCsrfToken();
                 const payloadWithToken = attachTokenToPayload(data, token);
