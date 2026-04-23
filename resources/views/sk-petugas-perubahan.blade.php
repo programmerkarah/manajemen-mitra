@@ -639,84 +639,6 @@
         </tbody>
     </table>
 
-<<<<<<< HEAD
-    <div class="approval-block">
-        @if(count($approvalGroups) > 0)
-        <table class="petugas">
-            <thead>
-                <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th style="width: 30%;">Nama/Jabatan</th>
-                    <th style="width: 25%;">NIP/NI PPPK / Golongan</th>
-                    <th style="width: 20%;">Ditetapkan Sebagai</th>
-                    <th style="width: 20%;">Biaya Satuan (Rp)</th>
-                </tr>
-                <tr>
-                    <th>(1)</th>
-                    <th>(2)</th>
-                    <th>(3)</th>
-                    <th>(4)</th>
-                    <th>(5)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php
-                    $counter = count($mainGroups) + 1;
-                @endphp
-                @foreach($approvalGroups as $alokasi)
-                    @php
-                        $roleCount = count($alokasi->roles);
-                    @endphp
-                    @foreach($alokasi->roles as $roleIndex => $role)
-                        @php
-                            $groupClass = '';
-
-                            if ($roleCount > 1) {
-                                if ($roleIndex === 0) {
-                                    $groupClass .= ' petugas-start';
-                                } elseif ($roleIndex === $roleCount - 1) {
-                                    $groupClass .= ' petugas-end';
-                                } else {
-                                    $groupClass .= ' petugas-middle';
-                                }
-                            }
-                        @endphp
-                        <tr class="{{ $groupClass }}">
-                            @if($roleIndex === 0)
-                            <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">{{ $counter }}.</td>
-                            <td style="vertical-align: top;" rowspan="{{ $roleCount }}">
-                                {{ $alokasi->nama }}/<br>
-                                {{ $alokasi->jabatan }}
-                            </td>
-                            <td style="text-align: center; vertical-align: top;" rowspan="{{ $roleCount }}">
-                                @if($alokasi->nip && $alokasi->nip !== '-'&& $alokasi->golongan !=="Non PNS")
-                                {{ $alokasi->nip }}/<br>
-                                {{ $alokasi->golongan }}
-                                @else
-                                Non PNS
-                                @endif
-                            </td>
-                            @endif
-                            <td style="vertical-align: top;">{{ $role->peran }}</td>
-                            <td style="text-align: right; vertical-align: top;">{{ $role->biaya_satuan }}</td>
-                        </tr>
-                    @endforeach
-                    @php $counter++; @endphp
-                @endforeach
-            </tbody>
-        </table>
-        @endif
-
-        <div class="signature" style="margin-top: 10px;">
-            <div class="signature-content">
-                <div>
-                    KEPALA BADAN PUSAT STATISTIK<br>
-                    KOTA SAWAHLUNTO,
-                </div>
-                <div style="margin-top: 80px; font-weight: bold;">
-                    {{ strtoupper($kepalaBps) }}
-                </div>
-=======
     <div class="signature" style="margin-top: 10px;">
         <div class="signature-content">
             <div>
@@ -725,7 +647,6 @@
             </div>
             <div style="margin-top: 80px; font-weight: bold;">
                 {{ strtoupper($kepalaBps) }}
->>>>>>> main
             </div>
         </div>
     </div>
