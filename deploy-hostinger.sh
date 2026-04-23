@@ -1,6 +1,19 @@
 #!/bin/bash
 
+set -euo pipefail
+
+cleanup() {
+    echo "⬆️ Bringing application back online..."
+    php artisan up || true
+}
+
+trap cleanup EXIT
+
 echo "🚀 Starting deployment to Hostinger..."
+
+# Prevent requests from hitting a half-deployed app where Blade and manifest are out of sync.
+echo "🛠️  Enabling maintenance mode..."
+php artisan down --retry=60
 
 # Pull latest code
 echo "📥 Pulling latest code..."
@@ -12,6 +25,7 @@ composer install --optimize-autoloader --no-dev
 
 # Build frontend assets
 echo "🎨 Building frontend assets..."
+rm -rf public/build
 npm ci
 npm run build
 
