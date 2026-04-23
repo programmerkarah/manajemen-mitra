@@ -456,7 +456,7 @@
             <tr>
                 <th style="width: 5%;">No.</th>
                 <th style="width: 30%;">Nama/Jabatan</th>
-                <th style="width: 25%;">NIP/Golongan</th>
+                <th style="width: 25%;">NIP/NI PPPK / Golongan</th>
                 <th style="width: 20%;">Ditetapkan Sebagai</th>
                 <th style="width: 20%;">Biaya Satuan (Rp)</th>
             </tr>

@@ -25,7 +25,7 @@
         }
         @font-face {
 			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+			src: url('{{ public_path("fonts/Bookman Old Style Bold Italic.TTF") }}') format('truetype');
 			font-weight: normal;
 			font-style: italic;
 		}
