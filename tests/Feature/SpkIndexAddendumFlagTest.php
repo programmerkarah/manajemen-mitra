@@ -361,4 +361,130 @@ class SpkIndexAddendumFlagTest extends TestCase
         $this->assertFalse((bool) ($april['has_new_kegiatan_after_spk'] ?? true));
         $this->assertTrue((bool) ($april['has_addendum_changes'] ?? false));
     }
+
+    public function test_zero_volume_or_honor_new_allocation_does_not_trigger_addendum_flags(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+        $bulan = '04';
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Riesvi Syafanda',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        Carbon::setTestNow("{$tahun}-04-02 09:00:00");
+
+        $kegiatanAwal = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeAwal = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanAwal->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiAwal = AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeAwal->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pengolahan',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 19,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 228000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        Carbon::setTestNow("{$tahun}-04-05 10:00:00");
+
+        $originalSpk = Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/APRIL/003',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiAwal->id,
+            'alokasi_petugas_ids' => [$alokasiAwal->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 3,
+            'tanggal_spk' => "{$tahun}-04-05",
+            'tanggal_mulai_kerja' => "{$tahun}-04-01",
+            'tanggal_selesai_kerja' => "{$tahun}-04-30",
+            'uraian_pekerjaan' => 'Perjanjian kerja awal',
+            'nilai_kontrak' => 228000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-04-08 09:00:00");
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ADD/APRIL/003',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiAwal->id,
+            'alokasi_petugas_ids' => [$alokasiAwal->id],
+            'parent_spk_id' => $originalSpk->id,
+            'addendum_number' => 1,
+            'nomor_urut_base' => 3,
+            'tanggal_spk' => "{$tahun}-04-08",
+            'tanggal_mulai_kerja' => "{$tahun}-04-01",
+            'tanggal_selesai_kerja' => "{$tahun}-04-30",
+            'uraian_pekerjaan' => 'Addendum kerja',
+            'nilai_kontrak' => 228000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-04-12 11:00:00");
+
+        $kegiatanBaruNol = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeBaruNol = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanBaruNol->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create(['periode_alokasi_id' => $periodeBaruNol->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pengolahan',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        Carbon::setTestNow();
+
+        $response = $this->get('/spk');
+        $response->assertStatus(200);
+
+        $page = $response->viewData('page');
+        $periodeList = decryptData($page['props']['periodeList']['encrypted'] ?? null);
+
+        $april = collect($periodeList)->first(function (array $item) use ($tahun) {
+            return (int) ($item['tahun'] ?? 0) === (int) $tahun
+                && (int) ($item['bulan'] ?? 0) === 4;
+        });
+
+        $this->assertNotNull($april);
+        $this->assertFalse((bool) ($april['has_new_kegiatan_after_spk'] ?? true));
+        $this->assertFalse((bool) ($april['has_addendum_changes'] ?? true));
+    }
 }

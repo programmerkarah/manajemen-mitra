@@ -16,6 +16,7 @@ use App\Services\ActiveYearService;
 use App\Services\PdfMergerService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -397,7 +398,7 @@ class SpkController extends Controller
     /**
      * Internal method to render ShowByMonth view
      */
-    private function renderShowByMonth($bulan, $tahun, $spkHashedId): Response|RedirectResponse
+    private function renderShowByMonth(?string $bulan, ?string $tahun, ?string $spkHashedId): Response|RedirectResponse
     {
 
         if (! $bulan || ! $tahun) {
@@ -1411,6 +1412,7 @@ class SpkController extends Controller
 
         // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)
         $existingSpkMap = [];
+        $existingKegiatanPerPetugas = [];
         $lastNomorUrutInMonth = 0;
         $usesSuffixForNewPetugas = false;
 
@@ -1649,9 +1651,15 @@ class SpkController extends Controller
                 // Get alokasi_petugas_ids from latest document
                 $latestAlokasIds = $latestDocument->alokasi_petugas_ids ?? [$latestDocument->alokasi_petugas_id];
 
-                // Get periode_alokasi_ids from those alokasi
-                $latestPeriodeIds = AlokasiPetugas::whereIn('id', $latestAlokasIds)
-                    ->pluck('periode_alokasi_id')
+                // Build reference snapshot from latest document using meaningful allocations only.
+                $latestSnapshot = $this->buildEffectiveAllocationSnapshotForPetugasFromDocument(
+                    (int) $firstAlokasi->petugas_id,
+                    $latestDocument,
+                    $bulanFormatted,
+                    (int) $tahun,
+                );
+                $latestPeriodeIds = collect(array_keys($latestSnapshot))
+                    ->map(static fn ($kegiatanId) => (int) $kegiatanId)
                     ->sort()
                     ->values()
                     ->toArray();
@@ -1661,7 +1669,8 @@ class SpkController extends Controller
 
                 // Get current periode_alokasi_ids
                 $currentPeriodeIds = $effectiveAlokasiByKegiatan
-                    ->pluck('periode_alokasi_id')
+                    ->pluck('periodeAlokasi.kegiatan_id')
+                    ->map(static fn ($kegiatanId) => (int) $kegiatanId)
                     ->sort()
                     ->values()
                     ->toArray();
@@ -1808,7 +1817,17 @@ class SpkController extends Controller
 
                 return $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
             })
-            ->filter();
+            ->filter(function ($alokasi) {
+                return $alokasi && $this->isMeaningfulAllocation($alokasi);
+            });
+    }
+
+    private function isMeaningfulAllocation(object $alokasi): bool
+    {
+        $totalVolume = (int) ($alokasi->jumlah_satuan ?? 0) + (int) ($alokasi->jumlah_satuan_listing ?? 0);
+        $totalHonor = (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
+
+        return $totalVolume > 0 && $totalHonor > 0;
     }
 
     /**
@@ -4336,6 +4355,10 @@ class SpkController extends Controller
             ->map(function ($kegiatanGroup) {
                 $effective = $kegiatanGroup->first();
 
+                if (! $effective || ! $this->isMeaningfulAllocation($effective)) {
+                    return null;
+                }
+
                 return [
                     'peran' => $effective?->peran,
                     'jumlah_satuan' => (int) ($effective->jumlah_satuan ?? 0),
@@ -4344,11 +4367,12 @@ class SpkController extends Controller
                     'total_honor_listing' => (float) ($effective->total_honor_listing ?? 0),
                 ];
             })
+            ->filter()
             ->sortKeys()
             ->all();
     }
 
-    private function hasAllocationDeltaAfterReferenceForPetugas(int $petugasId, string $bulanFormatted, int $tahun, $referenceCreatedAt): bool
+    private function hasAllocationDeltaAfterReferenceForPetugas(int $petugasId, string $bulanFormatted, int $tahun, DateTimeInterface|string|null $referenceCreatedAt): bool
     {
         $referenceSnapshot = $this->buildEffectiveAllocationSnapshotForPetugas(
             $petugasId,
@@ -4402,7 +4426,7 @@ class SpkController extends Controller
         int $petugasId,
         string $bulanFormatted,
         int $tahun,
-        $upToCreatedAt,
+        DateTimeInterface|string|null $upToCreatedAt,
     ): array {
         // Get all allocations for this petugas in this month (all statuses)
         $alokasiQuery = AlokasiPetugas::query()
@@ -4452,6 +4476,10 @@ class SpkController extends Controller
                     }
                 }
 
+                if (! $effective || ! $this->isMeaningfulAllocation($effective)) {
+                    return null;
+                }
+
                 return [
                     'peran' => $effective?->peran,
                     'jumlah_satuan' => (int) ($effective->jumlah_satuan ?? 0),
@@ -4460,6 +4488,7 @@ class SpkController extends Controller
                     'total_honor_listing' => (float) ($effective->total_honor_listing ?? 0),
                 ];
             })
+            ->filter()
             ->sortKeys()
             ->all();
 
