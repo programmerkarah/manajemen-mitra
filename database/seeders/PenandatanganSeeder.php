@@ -12,24 +12,24 @@ class PenandatanganSeeder extends Seeder
      */
     public function run(): void
     {
-        Penandatangan::create([
-            'nama' => 'Arieswaty, SST',
-            'nip' => '197003291990032001',
-            'jenis_penandatangan' => 'kepala',
-            'jabatan' => 'Kepala Badan Pusat Statistik',
-            'periode_mulai' => '2023-01-01',
-            'periode_selesai' => '2026-12-31',
-            'is_active' => true,
-        ]);
+        // Penandatangan::create([
+        //     'nama' => 'NAMA_KPA',
+        //     'nip' => 'nip_kpa',
+        //     'jenis_penandatangan' => 'kepala',
+        //     'jabatan' => 'Kepala Badan Pusat Statistik',
+        //     'periode_mulai' => 'yyyy-mm-dd',
+        //     'periode_selesai' => 'yyyy-mm-dd',
+        //     'is_active' => true,
+        // ]);
 
-        Penandatangan::create([
-            'nama' => 'Rahmat Zikri, S.Tr.Stat.',
-            'nip' => '199710242019121001',
-            'jenis_penandatangan' => 'ppk',
-            'jabatan' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto',
-            'periode_mulai' => '2023-01-01',
-            'periode_selesai' => '2026-12-31',
-            'is_active' => true,
-        ]);
+        // Penandatangan::create([
+        //     'nama' => 'nama_ppk',
+        //     'nip' => 'nip_ppk',
+        //     'jenis_penandatangan' => 'ppk',
+        //     'jabatan' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto',
+        //     'periode_mulai' => 'yyyy-mm-dd',
+        //     'periode_selesai' => 'yyyy-mm-dd',
+        //     'is_active' => true,
+        // ]);
     }
 }

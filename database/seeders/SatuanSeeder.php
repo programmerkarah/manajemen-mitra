@@ -14,7 +14,7 @@ class SatuanSeeder extends Seeder
     {
         $satuans = [
             [
-                'kode' => 'RT',
+                'kode' => 'RUTA',
                 'nama' => 'Rumah Tangga',
                 'deskripsi' => 'Satuan untuk menghitung jumlah rumah tangga',
                 'status' => 'aktif',
@@ -44,21 +44,21 @@ class SatuanSeeder extends Seeder
                 'status' => 'aktif',
             ],
             [
-                'kode' => 'OB',
-                'nama' => 'OB',
-                'deskripsi' => 'Observasi',
+                'kode' => 'O-B',
+                'nama' => 'O-B',
+                'deskripsi' => 'Orang/Bulan',
                 'status' => 'aktif',
             ],
             [
                 'kode' => 'SGMEN',
                 'nama' => 'Segmen',
-                'deskripsi' => 'Segmen (untuk KSA dan Ubinan)',
+                'deskripsi' => 'Segmen untuk KSA',
                 'status' => 'aktif',
             ],
         ];
 
         foreach ($satuans as $satuan) {
-            Satuan::create($satuan);
+            Satuan::updateOrCreate(['kode' => $satuan['kode']], $satuan);
         }
     }
 }

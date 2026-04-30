@@ -12,45 +12,55 @@ class SbmlSeeder extends Seeder
      */
     public function run(): void
     {
-        $tahunList = [2024, 2025];
+        /**
+         * @var array<int, array{jenis_kegiatan: string, status_kepegawaian: string, jenis_penugasan: string, honor_max: int}>
+         */
+        // $combinations = [
+        //     // Survei - Non Organik (3 jenis - TANPA pengawas_pengolahan dan koseka)
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => sbml honor max survei non organik pcl_ppl],
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pml', 'honor_max' => sbml honor max survei non organik pml],
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => sbml honor max survei non organik pengolahan],
+        //     // Survei - Organik (4 jenis - TANPA koseka)
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => sbml honor max survei organik pcl_ppl],
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pml', 'honor_max' => sbml honor max survei organik pml],
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => sbml honor max survei organik pengolahan],
+        //     ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => sbml honor max survei organik pengawas_pengolahan],
+        //     // Sensus - Non Organik (4 jenis - TANPA koseka)
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => sbml honor max sensus non organik pcl_ppl],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pml', 'honor_max' => sbml honor max sensus non organik pml],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => sbml honor max sensus non organik pengolahan],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => sbml honor max sensus non organik pengawas_pengolahan],
+        //     // Sensus - Organik (4 jenis - TANPA koseka)
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => sbml honor max sensus organik pcl_ppl],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pml', 'honor_max' => sbml honor max sensus organik pml],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => sbml honor max sensus organik pengolahan],
+        //     ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => sbml honor max sensus organik pengawas_pengolahan],
+        // ];
 
-        $combinations = [
-            // Survei - Non Organik (4 jenis - TANPA koseka)
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => 5000000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pml', 'honor_max' => 7000000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => 4000000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => 4000000],
-            // Survei - Organik (4 jenis - TANPA koseka)
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => 3000000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pml', 'honor_max' => 4000000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => 2500000],
-            ['jenis_kegiatan' => 'survei', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => 3500000],
-            // Sensus - Non Organik (5 jenis - dengan pengawas dan koseka)
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => 5000000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pml', 'honor_max' => 7000000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => 4000000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => 5500000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'non_organik', 'jenis_penugasan' => 'koseka', 'honor_max' => 4000000],
-            // Sensus - Organik (5 jenis - dengan pengawas dan koseka)
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pcl_ppl', 'honor_max' => 3000000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pml', 'honor_max' => 4000000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengolahan', 'honor_max' => 2500000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'pengawas_pengolahan', 'honor_max' => 3500000],
-            ['jenis_kegiatan' => 'sensus', 'status_kepegawaian' => 'organik', 'jenis_penugasan' => 'koseka', 'honor_max' => 2500000],
-        ];
+        /**
+         * @var array<int, array{tahun: int, status: string}>
+         */
+        // $tahunList = [
+        //     ['tahun' => 2025, 'status' => 'nonaktif'],
+        //     ['tahun' => 2026, 'status' => 'aktif'],
+        // ];
 
-        foreach ($tahunList as $tahun) {
-            foreach ($combinations as $combo) {
-                Sbml::create([
-                    'tahun_anggaran' => $tahun,
-                    'jenis_kegiatan' => $combo['jenis_kegiatan'],
-                    'status_kepegawaian' => $combo['status_kepegawaian'],
-                    'jenis_penugasan' => $combo['jenis_penugasan'],
-                    'honor_max' => $combo['honor_max'],
-                    'keterangan' => "SBML {$tahun} - ".ucfirst($combo['jenis_kegiatan']).' - '.ucfirst(str_replace('_', ' ', $combo['status_kepegawaian'])).' - '.strtoupper(str_replace('_', '/', $combo['jenis_penugasan'])),
-                    'status' => 'aktif',
-                ]);
-            }
-        }
+        // foreach ($tahunList as $entry) {
+        //     foreach ($combinations as $combo) {
+        //         Sbml::updateOrCreate(
+        //             [
+        //                 'tahun_anggaran' => $entry['tahun'],
+        //                 'jenis_kegiatan' => $combo['jenis_kegiatan'],
+        //                 'status_kepegawaian' => $combo['status_kepegawaian'],
+        //                 'jenis_penugasan' => $combo['jenis_penugasan'],
+        //             ],
+        //             [
+        //                 'honor_max' => $combo['honor_max'],
+        //                 'keterangan' => "SBML Kegiatan Sensus Survei {$entry['tahun']}",
+        //                 'status' => $entry['status'],
+        //             ]
+        //         );
+        //     }
+        // }
     }
 }
