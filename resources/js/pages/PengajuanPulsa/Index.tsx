@@ -19,6 +19,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle,
@@ -487,15 +488,24 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    asChild
                                                     className="gap-1.5"
+                                                    onClick={() =>
+                                                        router.get(
+                                                            '/pengajuan-pulsa/detail',
+                                                            {
+                                                                state: encryptFilters(
+                                                                    {
+                                                                        kegiatan_id:
+                                                                            group.kegiatanId,
+                                                                        bulan,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        )
+                                                    }
                                                 >
-                                                    <Link
-                                                        href={`/pengajuan-pulsa/detail?kegiatan_id=${group.kegiatanId}&bulan=${bulan}`}
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                        Lihat Detail
-                                                    </Link>
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    Lihat Detail
                                                 </Button>
                                             </td>
                                         </tr>
@@ -544,13 +554,22 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                asChild
+                                                onClick={() =>
+                                                    router.get(
+                                                        '/pengajuan-pulsa/detail',
+                                                        {
+                                                            state: encryptFilters(
+                                                                {
+                                                                    kegiatan_id:
+                                                                        group.kegiatanId,
+                                                                    bulan,
+                                                                },
+                                                            ),
+                                                        },
+                                                    )
+                                                }
                                             >
-                                                <Link
-                                                    href={`/pengajuan-pulsa/detail?kegiatan_id=${group.kegiatanId}&bulan=${bulan}`}
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                </Link>
+                                                <Eye className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     </div>

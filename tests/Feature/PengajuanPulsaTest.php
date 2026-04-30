@@ -703,4 +703,24 @@ class PengajuanPulsaTest extends TestCase
             'nominal' => 50000,
         ]);
     }
+
+    public function test_detail_page_accessible_with_encrypted_state(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $state = encryptData(['kegiatan_id' => $kegiatan->id, 'bulan' => '06']);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/detail?state='.urlencode($state));
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page->component('PengajuanPulsa/Detail'));
+    }
 }

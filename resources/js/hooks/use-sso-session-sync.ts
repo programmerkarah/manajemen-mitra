@@ -34,6 +34,40 @@ function getCurrentPathWithQueryAndHash(): string {
     );
 }
 
+const SSO_SCROLL_STATE_KEY = 'sso:pre-sync-scroll';
+
+interface SsoScrollState {
+    url: string;
+    scrollY: number;
+    timestamp: number;
+}
+
+function saveScrollState(): void {
+    try {
+        const state: SsoScrollState = {
+            url: getCurrentPathWithQueryAndHash(),
+            scrollY: window.scrollY,
+            timestamp: Date.now(),
+        };
+        sessionStorage.setItem(SSO_SCROLL_STATE_KEY, JSON.stringify(state));
+    } catch {
+        // ignore storage errors
+    }
+}
+
+export function popSavedScrollState(): SsoScrollState | null {
+    try {
+        const raw = sessionStorage.getItem(SSO_SCROLL_STATE_KEY);
+        if (!raw) {
+            return null;
+        }
+        sessionStorage.removeItem(SSO_SCROLL_STATE_KEY);
+        return JSON.parse(raw) as SsoScrollState;
+    } catch {
+        return null;
+    }
+}
+
 function buildSyncUrl(reason: 'focus' | 'interval' | 'initial'): string {
     const params = new URLSearchParams({
         sync: '1',
@@ -77,6 +111,7 @@ export function useSsoSessionSync({
             }
 
             setLastSyncAt(now);
+            saveScrollState();
             window.location.assign(buildSyncUrl(reason));
         };
 

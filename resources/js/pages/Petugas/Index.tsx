@@ -203,6 +203,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const handleRefresh = () => {
         setIsRefreshing(true);
         router.reload({
+            preserveScroll: true,
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
             },

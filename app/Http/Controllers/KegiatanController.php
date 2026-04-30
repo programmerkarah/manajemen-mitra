@@ -526,13 +526,14 @@ class KegiatanController extends Controller
         // Authorization via policy
         $this->authorize('delete', $kegiatan);
 
-        $allowedStatuses = ['divalidasi', 'aktif'];
+        $isBelumDikirim = $kegiatan->status === 'draft';
         $hasPeriodeAlokasi = $kegiatan->periodeAlokasi()
             ->where('status', '!=', 'dihapus')
             ->exists();
+        $hasNoPeriodeAlokasi = ! $hasPeriodeAlokasi;
 
-        if (! in_array($kegiatan->status, $allowedStatuses, true) || $hasPeriodeAlokasi) {
-            return back()->with('error', 'Kegiatan hanya dapat dihapus jika sudah disetujui dan belum memiliki periode alokasi.');
+        if (! $isBelumDikirim && ! $hasNoPeriodeAlokasi) {
+            return back()->with('error', 'Kegiatan hanya dapat dihapus jika belum dikirim atau belum memiliki alokasi kegiatan.');
         }
 
         ActivityLog::log(

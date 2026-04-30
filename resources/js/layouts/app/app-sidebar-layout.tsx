@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
+import { useSsoScrollRestore } from '@/hooks/use-sso-scroll-restore';
 import { useSsoSessionSync } from '@/hooks/use-sso-session-sync';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
@@ -24,6 +25,8 @@ export default function AppSidebarLayout({
         focusCooldownSeconds: Number(ssoSync?.focusCooldownSeconds ?? 120),
         intervalSeconds: Number(ssoSync?.intervalSeconds ?? 600),
     });
+
+    useSsoScrollRestore();
 
     return (
         <AppShell variant="sidebar">

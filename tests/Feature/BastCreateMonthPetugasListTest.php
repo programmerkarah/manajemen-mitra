@@ -129,4 +129,100 @@ class BastCreateMonthPetugasListTest extends TestCase
             $this->assertContains($expectedName, $petugasDalamDaftar);
         }
     }
+
+    public function test_non_legacy_bast_month_includes_petugas_even_when_spk_sync_is_outdated(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = 2026;
+        $bulan = '04';
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Cici Liani',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 3418000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 3493000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/TEST/2026/04',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Perjanjian kerja awal',
+            'nilai_kontrak' => 3418000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $createResponse = $this->get('/bast/create?bulan=4&tahun=2026');
+        $createResponse->assertStatus(200);
+
+        $createPage = $createResponse->viewData('page');
+        $spkList = decryptData($createPage['props']['spk_list']['encrypted'] ?? null);
+        $petugasDalamDaftar = collect($spkList)->pluck('petugas.nama')->all();
+
+        $this->assertContains('Cici Liani', $petugasDalamDaftar);
+
+        $indexResponse = $this->withSession(['active_year' => 2026])->get('/bast');
+        $indexResponse->assertStatus(200);
+
+        $indexPage = $indexResponse->viewData('page');
+        $bulanData = collect(decryptData($indexPage['props']['data']['encrypted'] ?? null))
+            ->firstWhere('bulan', 4);
+
+        $this->assertNotNull($bulanData);
+        $this->assertGreaterThanOrEqual(1, (int) ($bulanData['total_spk'] ?? 0));
+    }
 }

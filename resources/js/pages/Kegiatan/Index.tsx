@@ -401,10 +401,13 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
 
     const canDelete = (kegiatan: Kegiatan) => {
         if (!auth.user.active_role) return false;
+
+        const isBelumDikirim = kegiatan.status === 'draft';
+        const hasNoPeriodeAlokasi = (kegiatan.periode_alokasi_count ?? 0) === 0;
+
         return (
             auth.user.active_role === 'admin' &&
-            ['divalidasi', 'aktif'].includes(kegiatan.status) &&
-            (kegiatan.periode_alokasi_count ?? 0) === 0
+            (isBelumDikirim || hasNoPeriodeAlokasi)
         );
     };
 

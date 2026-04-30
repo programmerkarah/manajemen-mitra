@@ -1133,6 +1133,30 @@ class BastController extends Controller
         });
     }
 
+    private function isLegacyBastAttachmentMode(string $bulanFormatted, int $tahun): bool
+    {
+        $bulan = (int) ltrim($bulanFormatted, '0');
+
+        return $tahun < 2026 || ($tahun === 2026 && $bulan < 4);
+    }
+
+    private function hasPositiveEffectiveAlokasiForPetugasInMonth(int $petugasId, string $bulanFormatted, int $tahun): bool
+    {
+        $effectiveAlokasi = $this->getEffectiveAlokasiForPetugasInMonth($petugasId, $bulanFormatted, $tahun);
+
+        if ($effectiveAlokasi->isEmpty()) {
+            return false;
+        }
+
+        return $effectiveAlokasi->contains(function ($alokasi) {
+            return
+                (int) ($alokasi->jumlah_satuan ?? 0) > 0 ||
+                (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0 ||
+                (float) ($alokasi->total_honor ?? 0) > 0 ||
+                (float) ($alokasi->total_honor_listing ?? 0) > 0;
+        });
+    }
+
     /**
      * Display a listing of the resource.
      * Menampilkan periode bulan (Januari-Desember) dengan informasi BAST yang sudah/belum dibuat
@@ -1187,6 +1211,7 @@ class BastController extends Controller
         $data = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $isLegacyBastMode = $this->isLegacyBastAttachmentMode($bulanFormatted, (int) $activeYear);
 
             // Get all unique petugas who have SPK (original or addendum) in this month
             $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear, $bulanFormatted) {
@@ -1200,8 +1225,16 @@ class BastController extends Controller
                 ->values();
 
             // Filter petugas using the same logic as create() method
-            $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $activeYear) {
-                return $this->hasPositiveBastAttachmentPayloadForPetugas(
+            $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $activeYear, $isLegacyBastMode) {
+                if ($isLegacyBastMode) {
+                    return $this->hasPositiveBastAttachmentPayloadForPetugas(
+                        (int) $petugasId,
+                        $bulanFormatted,
+                        (int) $activeYear
+                    );
+                }
+
+                return $this->hasPositiveEffectiveAlokasiForPetugasInMonth(
                     (int) $petugasId,
                     $bulanFormatted,
                     (int) $activeYear
@@ -1623,9 +1656,19 @@ class BastController extends Controller
             ->filter()
             ->unique();
 
+        $isLegacyBastMode = $this->isLegacyBastAttachmentMode($bulanFormatted, (int) $tahun);
+
         // Filter petugas who are eligible for BAST (have positive honor and no pending addendum)
-        $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $tahun) {
-            return $this->hasPositiveBastAttachmentPayloadForPetugas(
+        $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $tahun, $isLegacyBastMode) {
+            if ($isLegacyBastMode) {
+                return $this->hasPositiveBastAttachmentPayloadForPetugas(
+                    (int) $petugasId,
+                    $bulanFormatted,
+                    (int) $tahun,
+                );
+            }
+
+            return $this->hasPositiveEffectiveAlokasiForPetugasInMonth(
                 (int) $petugasId,
                 $bulanFormatted,
                 (int) $tahun,

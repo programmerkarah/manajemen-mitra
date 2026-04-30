@@ -141,7 +141,10 @@ export default function PengajuanPulsaDetail({
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Pengajuan Pulsa', href: '/pengajuan-pulsa' },
-        { title: `Detail — ${kegiatan.kode_kegiatan}`, href: '#' },
+        {
+            title: `Detail — ${kegiatan.nama_kegiatan} — ${BULAN_LABELS[bulan]} ${tahun}`,
+            href: '#',
+        },
     ];
 
     const [reviewItem, setReviewItem] = useState<PengajuanPulsaItem | null>(
@@ -474,33 +477,34 @@ export default function PengajuanPulsaDetail({
                                             </td>
                                             {showActionColumn && (
                                                 <td className="px-4 py-3">
-                                                    {item.status ===
-                                                        'dikirim' && (
-                                                        <div className="flex items-center justify-center">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
-                                                                onClick={() => {
-                                                                    setReviewItem(
-                                                                        item,
-                                                                    );
-                                                                    setReviewAction(
-                                                                        'diterima',
-                                                                    );
-                                                                    setNominalDisetujui(
-                                                                        item.nominal,
-                                                                    );
-                                                                    setCatatanPenolakan(
-                                                                        '',
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <ClipboardCheck className="h-3.5 w-3.5" />
-                                                                Review
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                    {canReview &&
+                                                        item.status ===
+                                                            'dikirim' && (
+                                                            <div className="flex items-center justify-center">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
+                                                                    onClick={() => {
+                                                                        setReviewItem(
+                                                                            item,
+                                                                        );
+                                                                        setReviewAction(
+                                                                            'diterima',
+                                                                        );
+                                                                        setNominalDisetujui(
+                                                                            item.nominal,
+                                                                        );
+                                                                        setCatatanPenolakan(
+                                                                            '',
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <ClipboardCheck className="h-3.5 w-3.5" />
+                                                                    Review
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     {item.status ===
                                                         'ditolak' &&
                                                         canResubmit && (

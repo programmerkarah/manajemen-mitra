@@ -489,6 +489,11 @@ class PengajuanPulsaController extends Controller
     public function detail(Request $request): Response
     {
         $effectiveUser = effectiveUser($request);
+
+        if ($request->has('state')) {
+            $request->merge(decryptFilters((string) $request->query('state')));
+        }
+
         $kegiatanId = (int) $request->input('kegiatan_id');
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = ActiveYearService::get();

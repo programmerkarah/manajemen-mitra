@@ -119,6 +119,32 @@ class KegiatanPolicyTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_delete_draft_kegiatan_even_if_periode_alokasi_exists(): void
+    {
+        [$admin, $adminRole] = $this->makeAdmin();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'draft',
+        ]);
+
+        PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'status' => 'draft',
+            'bulan' => '03',
+            'tahun' => (int) date('Y'),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->delete("/kegiatan/{$kegiatan->hashed_id}");
+
+        $response->assertRedirect(route('kegiatan.index'));
+        $response->assertSessionHas('success');
+        $this->assertSoftDeleted('kegiatan', [
+            'id' => $kegiatan->id,
+        ]);
+    }
+
     public function test_admin_cannot_approve_kegiatan_draft(): void
     {
         [$admin, $adminRole] = $this->makeAdmin();
