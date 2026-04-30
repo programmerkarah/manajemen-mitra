@@ -270,8 +270,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('users/{user}/reset-2fa', ResetUserTwoFactorController::class)->name('users.reset-2fa');
     });
 
-    // View routes (Admin, PJ, and Administrator for read-only access)
-    Route::middleware(['active.role:admin,pj,administrator'])->group(function () {
+    // View routes (Admin, PJ, Ketua Tim, and Administrator for read-only access)
+    Route::middleware(['active.role:admin,pj,ketua_tim,administrator'])->group(function () {
         Route::get('petugas', [PetugasController::class, 'index'])->name('petugas.index');
         Route::get('petugas/{petugas}', [PetugasController::class, 'show'])->name('petugas.show');
     });

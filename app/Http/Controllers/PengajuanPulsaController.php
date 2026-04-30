@@ -29,6 +29,11 @@ class PengajuanPulsaController extends Controller
     public function index(Request $request): Response
     {
         $effectiveUser = effectiveUser($request);
+
+        if ($request->has('state')) {
+            $request->merge(decryptFilters((string) $request->query('state')));
+        }
+
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = ActiveYearService::get();
 
@@ -72,6 +77,11 @@ class PengajuanPulsaController extends Controller
     public function create(Request $request): Response
     {
         $effectiveUser = effectiveUser($request);
+
+        if ($request->has('state')) {
+            $request->merge(decryptFilters((string) $request->query('state')));
+        }
+
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = (string) ActiveYearService::get();
         $bulanInt = (int) $bulan;

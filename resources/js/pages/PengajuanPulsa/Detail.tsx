@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -291,7 +292,9 @@ export default function PengajuanPulsaDetail({
                     description={`${kegiatan.kode_kegiatan} — ${kegiatan.nama_kegiatan}`}
                 >
                     <Button variant="outline" asChild className="gap-2">
-                        <Link href={`/pengajuan-pulsa?bulan=${bulan}`}>
+                        <Link
+                            href={`/pengajuan-pulsa?state=${encodeURIComponent(encryptFilters({ bulan }))}`}
+                        >
                             <ArrowLeft className="h-4 w-4" />
                             Kembali
                         </Link>

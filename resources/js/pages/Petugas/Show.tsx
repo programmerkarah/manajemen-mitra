@@ -4,7 +4,24 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    Briefcase,
+    CalendarDays,
+    Pencil,
+    Trash2,
+    Wallet,
+} from 'lucide-react';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Tooltip as ChartTooltip,
+    Legend,
+    ResponsiveContainer,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 interface Petugas {
     id: number;
@@ -40,14 +57,24 @@ interface Petugas {
         };
         bulan: number;
         tahun: number;
-        jumlah_satuan: number;
-        total_honor: number;
+        jumlah_satuan: number | null;
+        jumlah_satuan_listing: number | null;
+        total_honor: number | null;
+        total_honor_listing: number | null;
         status: string;
     }>;
 }
 
+interface TrenAlokasi {
+    bulan: string;
+    jumlah_kegiatan: number;
+    total_honor: number;
+}
+
 interface ShowProps {
     petugas: Petugas;
+    tren_alokasi: TrenAlokasi[];
+    active_year: number;
 }
 
 const bulanNames = [
@@ -65,13 +92,18 @@ const bulanNames = [
     'Desember',
 ];
 
-export default function Show({ petugas }: ShowProps) {
+export default function Show({
+    petugas,
+    tren_alokasi,
+    active_year,
+}: ShowProps) {
     const { auth } = usePage<SharedData>().props;
 
-    // Check if user can edit (not pj or administrator)
+    // Check if user can edit (not pj, administrator, or ketua_tim)
     const canEdit =
         auth.activeRole?.name !== 'pj' &&
-        auth.activeRole?.name !== 'administrator';
+        auth.activeRole?.name !== 'administrator' &&
+        auth.activeRole?.name !== 'ketua_tim';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Petugas', href: '/petugas' },
@@ -82,6 +114,8 @@ export default function Show({ petugas }: ShowProps) {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
         }).format(amount);
     };
 
@@ -90,6 +124,22 @@ export default function Show({ petugas }: ShowProps) {
             router.delete(`/petugas/${petugas.hashed_id}`);
         }
     };
+
+    const alokasi = petugas.alokasi ?? [];
+
+    const jumlahKegiatan = new Set(alokasi.map((a) => a.kegiatan.nama_kegiatan))
+        .size;
+
+    const jumlahBulan = new Set(alokasi.map((a) => `${a.tahun}-${a.bulan}`))
+        .size;
+
+    const totalHonor = alokasi.reduce(
+        (sum, a) =>
+            sum +
+            (Number(a.total_honor) || 0) +
+            (Number(a.total_honor_listing) || 0),
+        0,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -269,6 +319,238 @@ export default function Show({ petugas }: ShowProps) {
                     </ContentCard>
                 )}
 
+                {/* Ringkasan Alokasi */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <ContentCard>
+                        <div className="flex items-center gap-4">
+                            <div className="shrink-0 rounded-xl bg-blue-100 p-3 dark:bg-blue-900/30">
+                                <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                                    Kegiatan Dialokasikan
+                                </p>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                    {jumlahKegiatan}
+                                </p>
+                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                                    kegiatan
+                                </p>
+                            </div>
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center gap-4">
+                            <div className="shrink-0 rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
+                                <CalendarDays className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                                    Bulan Dialokasikan
+                                </p>
+                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                    {jumlahBulan}
+                                </p>
+                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                                    periode
+                                </p>
+                            </div>
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center gap-4">
+                            <div className="shrink-0 rounded-xl bg-emerald-100 p-3 dark:bg-emerald-900/30">
+                                <Wallet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                                    Total Honor Diterima
+                                </p>
+                                <p className="text-xl font-bold text-neutral-900 dark:text-white">
+                                    {formatRupiah(totalHonor)}
+                                </p>
+                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                                    dari seluruh alokasi
+                                </p>
+                            </div>
+                        </div>
+                    </ContentCard>
+                </div>
+
+                {/* Grafik Tren Alokasi */}
+                <ContentCard>
+                    <h2 className="mb-1 text-lg font-semibold">
+                        Tren Alokasi {active_year}
+                    </h2>
+                    <p className="mb-5 text-xs text-neutral-500 dark:text-neutral-400">
+                        Jumlah kegiatan dan total honor per bulan sepanjang
+                        tahun {active_year}
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart
+                            data={tren_alokasi.map((d) => ({
+                                ...d,
+                                total_honor_juta: +d.total_honor.toFixed(2),
+                            }))}
+                            margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                        >
+                            <defs>
+                                <linearGradient
+                                    id="colorKegiatan"
+                                    x1="0"
+                                    y1="0"
+                                    x2="0"
+                                    y2="1"
+                                >
+                                    <stop
+                                        offset="5%"
+                                        stopColor="#6366f1"
+                                        stopOpacity={0.3}
+                                    />
+                                    <stop
+                                        offset="95%"
+                                        stopColor="#6366f1"
+                                        stopOpacity={0}
+                                    />
+                                </linearGradient>
+                                <linearGradient
+                                    id="colorHonor"
+                                    x1="0"
+                                    y1="0"
+                                    x2="0"
+                                    y2="1"
+                                >
+                                    <stop
+                                        offset="5%"
+                                        stopColor="#10b981"
+                                        stopOpacity={0.3}
+                                    />
+                                    <stop
+                                        offset="95%"
+                                        stopColor="#10b981"
+                                        stopOpacity={0}
+                                    />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid
+                                strokeDasharray="3 3"
+                                stroke="currentColor"
+                                className="text-neutral-200 dark:text-neutral-700"
+                                opacity={0.4}
+                            />
+                            <XAxis
+                                dataKey="bulan"
+                                tickFormatter={(v) =>
+                                    [
+                                        'Jan',
+                                        'Feb',
+                                        'Mar',
+                                        'Apr',
+                                        'Mei',
+                                        'Jun',
+                                        'Jul',
+                                        'Agu',
+                                        'Sep',
+                                        'Okt',
+                                        'Nov',
+                                        'Des',
+                                    ][parseInt(v) - 1]
+                                }
+                                tick={{ fontSize: 12 }}
+                                tickLine={false}
+                                axisLine={false}
+                                stroke="currentColor"
+                                className="text-neutral-500 dark:text-neutral-400"
+                            />
+                            <YAxis
+                                yAxisId="kegiatan"
+                                orientation="left"
+                                allowDecimals={false}
+                                tick={{ fontSize: 12 }}
+                                tickLine={false}
+                                axisLine={false}
+                                stroke="currentColor"
+                                className="text-neutral-500 dark:text-neutral-400"
+                                width={28}
+                            />
+                            <YAxis
+                                yAxisId="honor"
+                                orientation="right"
+                                tick={{ fontSize: 12 }}
+                                tickLine={false}
+                                axisLine={false}
+                                stroke="currentColor"
+                                className="text-neutral-500 dark:text-neutral-400"
+                                tickFormatter={(v) =>
+                                    `Rp ${v.toLocaleString('id-ID')}`
+                                }
+                                width={44}
+                            />
+                            <ChartTooltip
+                                contentStyle={{
+                                    borderRadius: '8px',
+                                    fontSize: '13px',
+                                    border: '1px solid rgba(0,0,0,0.08)',
+                                }}
+                                formatter={(value, name) =>
+                                    name === 'Honor (rupiah)'
+                                        ? [
+                                              `Rp ${Number(value).toLocaleString('id-ID')}`,
+                                              name,
+                                          ]
+                                        : [value, name]
+                                }
+                                labelFormatter={(label) =>
+                                    [
+                                        'Januari',
+                                        'Februari',
+                                        'Maret',
+                                        'April',
+                                        'Mei',
+                                        'Juni',
+                                        'Juli',
+                                        'Agustus',
+                                        'September',
+                                        'Oktober',
+                                        'November',
+                                        'Desember',
+                                    ][parseInt(label) - 1]
+                                }
+                            />
+                            <Legend
+                                iconType="circle"
+                                iconSize={8}
+                                wrapperStyle={{
+                                    fontSize: '12px',
+                                    paddingTop: '12px',
+                                }}
+                            />
+                            <Area
+                                yAxisId="kegiatan"
+                                type="monotone"
+                                dataKey="jumlah_kegiatan"
+                                name="Kegiatan"
+                                stroke="#6366f1"
+                                strokeWidth={2}
+                                fill="url(#colorKegiatan)"
+                                dot={{ r: 3, fill: '#6366f1' }}
+                                activeDot={{ r: 5 }}
+                            />
+                            <Area
+                                yAxisId="honor"
+                                type="monotone"
+                                dataKey="total_honor"
+                                name="Honor (rupiah)"
+                                stroke="#10b981"
+                                strokeWidth={2}
+                                fill="url(#colorHonor)"
+                                dot={{ r: 3, fill: '#10b981' }}
+                                activeDot={{ r: 5 }}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ContentCard>
+
                 {/* Riwayat Alokasi */}
                 <ContentCard>
                     <h2 className="mb-4 text-lg font-semibold">
@@ -286,10 +568,13 @@ export default function Show({ petugas }: ShowProps) {
                                             Posisi
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                                            Tahapan
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                                             Periode
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Jumlah
+                                            Jumlah Penugasan
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                                             Total Honor
@@ -312,27 +597,89 @@ export default function Show({ petugas }: ShowProps) {
                                                             .nama_kegiatan
                                                     }
                                                 </div>
-                                                <div className="text-neutral-600 dark:text-neutral-400">
-                                                    {
-                                                        alokasi.kegiatan
-                                                            .kode_kegiatan
-                                                    }
-                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 {alokasi.rate_honor.posisi}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(alokasi.jumlah_satuan ??
+                                                        0) > 0 && (
+                                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                                            Pendataan
+                                                        </span>
+                                                    )}
+                                                    {(alokasi.jumlah_satuan_listing ??
+                                                        0) > 0 && (
+                                                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+                                                            Listing
+                                                        </span>
+                                                    )}
+                                                    {!(
+                                                        (alokasi.jumlah_satuan ??
+                                                            0) > 0
+                                                    ) &&
+                                                        !(
+                                                            (alokasi.jumlah_satuan_listing ??
+                                                                0) > 0
+                                                        ) && (
+                                                            <span className="text-neutral-400">
+                                                                -
+                                                            </span>
+                                                        )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 {bulanNames[alokasi.bulan - 1]}{' '}
                                                 {alokasi.tahun}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
-                                                {alokasi.jumlah_satuan}{' '}
-                                                {alokasi.rate_honor.satuan.nama}
+                                                <div className="space-y-1">
+                                                    {(alokasi.jumlah_satuan ??
+                                                        0) > 0 && (
+                                                        <div>
+                                                            {
+                                                                alokasi.jumlah_satuan
+                                                            }{' '}
+                                                            {
+                                                                alokasi
+                                                                    .rate_honor
+                                                                    .satuan.nama
+                                                            }
+                                                        </div>
+                                                    )}
+                                                    {(alokasi.jumlah_satuan_listing ??
+                                                        0) > 0 && (
+                                                        <div>
+                                                            {
+                                                                alokasi.jumlah_satuan_listing
+                                                            }{' '}
+                                                            {
+                                                                alokasi
+                                                                    .rate_honor
+                                                                    .satuan.nama
+                                                            }
+                                                        </div>
+                                                    )}
+                                                    {!(
+                                                        (alokasi.jumlah_satuan ??
+                                                            0) > 0
+                                                    ) &&
+                                                        !(
+                                                            (alokasi.jumlah_satuan_listing ??
+                                                                0) > 0
+                                                        ) &&
+                                                        '-'}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-medium">
                                                 {formatRupiah(
-                                                    alokasi.total_honor,
+                                                    (Number(
+                                                        alokasi.total_honor,
+                                                    ) || 0) +
+                                                        (Number(
+                                                            alokasi.total_honor_listing,
+                                                        ) || 0),
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">

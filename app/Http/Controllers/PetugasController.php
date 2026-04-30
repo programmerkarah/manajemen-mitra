@@ -175,8 +175,32 @@ class PetugasController extends Controller
         $petugas = Petugas::findOrFail($id);
         $petugas->load(['alokasi.periodeAlokasi.kegiatan.rateHonors.satuan']);
 
+        // Priority order for picking the effective periode per kegiatan per bulan/tahun.
+        // Same logic used in BastController and SpkController.
+        $statusPriority = [
+            'perubahan' => 4,
+            'direvisi' => 3,
+            'disetujui' => 2,
+            'dikirim' => 1,
+            'draft' => 0,
+        ];
+
+        // Group by (kegiatan_id, bulan, tahun) and keep only the effective one per group.
+        $effectiveAlokasi = $petugas->alokasi
+            ->reject(fn ($alok) => $alok->periodeAlokasi->status === 'dihapus')
+            ->groupBy(fn ($alok) => $alok->periodeAlokasi->kegiatan_id
+                .'_'.$alok->periodeAlokasi->bulan
+                .'_'.$alok->periodeAlokasi->tahun)
+            ->map(fn ($group) => $group
+                ->sortByDesc(fn ($alok) => $statusPriority[$alok->periodeAlokasi->status] ?? -1)
+                ->first()
+            )
+            ->filter()
+            ->reject(fn ($alok) => ($alok->jumlah_satuan ?? 0) <= 0 && ($alok->jumlah_satuan_listing ?? 0) <= 0)
+            ->values();
+
         // Transform alokasi to include bulan, tahun, jenis_kegiatan from periode
-        $petugas->alokasi->each(function ($alok) {
+        $effectiveAlokasi->each(function ($alok) {
             $periode = $alok->periodeAlokasi;
             $alok->bulan = (int) $periode->bulan;
             $alok->tahun = $periode->tahun;
@@ -193,16 +217,19 @@ class PetugasController extends Controller
             if ($rateHonor) {
                 $alok->rate_honor = [
                     'posisi' => $this->getPositionLabel($alok->peran),
-                    'rate' => $alok->jumlah_satuan > 0 ? $alok->total_honor / $alok->jumlah_satuan : 0,
+                    'rate' => $alok->jumlah_satuan > 0
+                        ? $alok->total_honor / $alok->jumlah_satuan
+                        : ($alok->jumlah_satuan_listing > 0 ? $alok->total_honor_listing / $alok->jumlah_satuan_listing : 0),
                     'satuan' => [
                         'nama' => $rateHonor->satuan->nama ?? '-',
                     ],
                 ];
             } else {
-                // Fallback if rate honor not found
                 $alok->rate_honor = [
                     'posisi' => $this->getPositionLabel($alok->peran),
-                    'rate' => $alok->jumlah_satuan > 0 ? $alok->total_honor / $alok->jumlah_satuan : 0,
+                    'rate' => $alok->jumlah_satuan > 0
+                        ? $alok->total_honor / $alok->jumlah_satuan
+                        : ($alok->jumlah_satuan_listing > 0 ? $alok->total_honor_listing / $alok->jumlah_satuan_listing : 0),
                     'satuan' => ['nama' => '-'],
                 ];
             }
@@ -210,8 +237,32 @@ class PetugasController extends Controller
             unset($alok->periodeAlokasi);
         });
 
+        $petugas->setRelation('alokasi', $effectiveAlokasi);
+
+        // Build monthly trend data for the active year (Jan–Des).
+        $activeYear = (int) date('Y');
+        $trenAlokasi = [];
+
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $bulanStr = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+            $alokasiPerBulan = $effectiveAlokasi->filter(
+                fn ($alok) => $alok->tahun === $activeYear && (int) $alok->bulan === $bulan
+            );
+
+            $trenAlokasi[] = [
+                'bulan' => $bulanStr,
+                'jumlah_kegiatan' => $alokasiPerBulan->count(),
+                'total_honor' => (float) $alokasiPerBulan->sum(
+                    fn ($alok) => ($alok->total_honor ?? 0) + ($alok->total_honor_listing ?? 0)
+                ),
+            ];
+        }
+
         return Inertia::render('Petugas/Show', [
             'petugas' => $petugas,
+            'tren_alokasi' => $trenAlokasi,
+            'active_year' => $activeYear,
         ]);
     }
 

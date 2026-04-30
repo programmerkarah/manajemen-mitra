@@ -116,7 +116,8 @@ interface PetugasIndexProps {
 
 export default function Index({ petugas }: PetugasIndexProps) {
     const { auth } = usePage<SharedData>().props;
-    const isPJ = auth.activeRole?.name === 'pj';
+    const isPJ =
+        auth.activeRole?.name === 'pj' || auth.activeRole?.name === 'ketua_tim';
 
     const allPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState('');

@@ -205,6 +205,7 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 href: '#',
                 icon: Users,
                 items: [
+                    { title: 'Manajemen Petugas', href: '/petugas' },
                     { title: 'Alokasi Petugas', href: '/alokasi' },
                     {
                         title: 'Pengajuan Pulsa',

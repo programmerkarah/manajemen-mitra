@@ -260,11 +260,9 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
     }, [kegiatanGroups]);
 
     const handleFilterChange = (newBulan: string) => {
-        router.get(
-            '/pengajuan-pulsa',
-            { bulan: newBulan },
-            { preserveState: true },
-        );
+        router.get('/pengajuan-pulsa', {
+            state: encryptFilters({ bulan: newBulan }),
+        });
     };
 
     return (
