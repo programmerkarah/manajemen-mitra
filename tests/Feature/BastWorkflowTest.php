@@ -112,6 +112,93 @@ class BastWorkflowTest extends TestCase
         $this->assertNull($otherLampiran->fresh()->file_path);
     }
 
+    public function test_other_ketua_tim_can_download_lampiran_for_kegiatan_they_manage(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+
+        $otherLampiran = $bast->bastKegiatan
+            ->firstWhere('kegiatan_id', $context['kegiatanOther']->id);
+
+        $this->assertNotNull($otherLampiran);
+
+        // ketuaTimOther CAN download lampiran for kegiatanOther (their own kegiatan)
+        $response = $this
+            ->actingAsWithRole($context['ketuaTimOther'], 'ketua_tim')
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $otherLampiran->id,
+            ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+
+        $this->assertNotNull($otherLampiran->fresh()->file_path);
+    }
+
+    public function test_other_ketua_tim_cannot_download_lampiran_for_kegiatan_they_do_not_manage(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan');
+
+        $ownCompletedLampiran = $bast->bastKegiatan
+            ->firstWhere('kegiatan_id', $context['kegiatanOwnCompleted']->id);
+
+        $this->assertNotNull($ownCompletedLampiran);
+
+        // ketuaTimOther CANNOT download lampiran for kegiatanOwnCompleted (managed by ketuaTimOwn)
+        $response = $this
+            ->actingAsWithRole($context['ketuaTimOther'], 'ketua_tim')
+            ->post(route('bast.lampiran.download'), [
+                'bast_hashed_id' => $bast->hashed_id,
+                'bast_kegiatan_id' => $ownCompletedLampiran->id,
+            ]);
+
+        $response->assertForbidden();
+        $this->assertNull($ownCompletedLampiran->fresh()->file_path);
+    }
+
+    public function test_listbymonth_shows_bast_for_other_ketua_tim_managed_kegiatan(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $this->generateMainBast($context);
+
+        // ketuaTimOther opens the BAST list for April 2026
+        $response = $this
+            ->actingAsWithRole($context['ketuaTimOther'], 'ketua_tim')
+            ->get(route('bast.list', [
+                'bulan' => 4,
+                'tahun' => 2026,
+            ]));
+
+        // Should redirect to open-detail-by-petugas with the correct petugas stored in session
+        $response->assertRedirect(route('bast.open-detail-by-petugas'));
+
+        // Follow the redirect - should show the BAST detail with kegiatanOther's lampiran
+        $detailResponse = $this
+            ->actingAsWithRole($context['ketuaTimOther'], 'ketua_tim')
+            ->get(route('bast.open-detail-by-petugas'));
+
+        $detailResponse->assertOk();
+
+        $page = $detailResponse->viewData('page');
+        $props = $page['props'];
+
+        // Should show the BAST (not empty)
+        $this->assertNotSame('-', $props['bast']['nomor_bast']);
+
+        // Lampiran should contain only kegiatanOther's lampiran for ketuaTimOther
+        $lampiranKegiatanIds = collect($props['lampiran'])->pluck('kegiatan_id')->toArray();
+        $this->assertContains($context['kegiatanOther']->id, $lampiranKegiatanIds);
+        $this->assertNotContains($context['kegiatanOwnCompleted']->id, $lampiranKegiatanIds);
+    }
+
     public function test_signed_final_file_is_compiled_only_after_main_and_all_lampiran_are_uploaded(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));

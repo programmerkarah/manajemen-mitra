@@ -68,7 +68,8 @@ class BastController extends Controller
             return false;
         }
 
-        return (int) $bastKegiatan->kegiatan?->ketua_tim_user_id === (int) $user->id;
+        return (int) $bastKegiatan->kegiatan?->ketua_tim_user_id === (int) $user->id
+            || (int) $bastKegiatan->kegiatan?->pj_lainnya_id === (int) $user->id;
     }
 
     private function userCanAccessBast(Request $request, Bast $bast): bool
@@ -672,7 +673,10 @@ class BastController extends Controller
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
                 ->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
-                    $q->where('ketua_tim_user_id', $user->id);
+                    $q->where(function ($sub) use ($user) {
+                        $sub->where('ketua_tim_user_id', $user->id)
+                            ->orWhere('pj_lainnya_id', $user->id);
+                    });
                 })
                 ->exists();
 
@@ -1267,13 +1271,25 @@ class BastController extends Controller
 
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get first BAST for this month
+        $user = $this->getRequestUser($request);
+        $isKetuaTim = $user?->active_role === 'ketua_tim';
+
+        // Get first BAST for this month, filtered by kegiatan managed by the current ketua tim so
+        // they land on a BAST that actually contains their lampiran (not an unrelated BAST).
         $firstBast = Bast::whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
             $query->where('tahun', $tahun);
             if ($bulan) {
                 $query->where('bulan', $bulan);
             }
         })
+            ->when($isKetuaTim, function ($query) use ($user) {
+                $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->where('ketua_tim_user_id', $user?->id)
+                            ->orWhere('pj_lainnya_id', $user?->id);
+                    });
+                });
+            })
             ->orderBy('created_at', 'desc')
             ->first();
 
@@ -1301,8 +1317,6 @@ class BastController extends Controller
         // For April 2026+, when selecting a petugas without BAST (or no BAST exists yet),
         // show same detail layout without generating BAST document.
         if ($selectedPetugasId > 0 || ! $firstBast) {
-            $user = $this->getRequestUser($request);
-            $isKetuaTim = $user?->active_role === 'ketua_tim';
             $canManageMain = $this->userCanManageBastMain($request);
 
             $periodeReference = PeriodeAlokasi::query()
@@ -1333,7 +1347,10 @@ class BastController extends Controller
                         $q->where('bulan', $bulanFormatted)
                             ->where('tahun', $tahun)
                             ->whereHas('kegiatan', function ($qk) use ($user) {
-                                $qk->where('ketua_tim_user_id', $user?->id);
+                                $qk->where(function ($sub) use ($user) {
+                                    $sub->where('ketua_tim_user_id', $user?->id)
+                                        ->orWhere('pj_lainnya_id', $user?->id);
+                                });
                             });
                     })
                         ->pluck('id')
@@ -1419,7 +1436,10 @@ class BastController extends Controller
                     })
                     ->when($isKetuaTim, function ($query) use ($user) {
                         $query->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
-                            $q->where('ketua_tim_user_id', $user?->id);
+                            $q->where(function ($sub) use ($user) {
+                                $sub->where('ketua_tim_user_id', $user?->id)
+                                    ->orWhere('pj_lainnya_id', $user?->id);
+                            });
                         });
                     })
                     ->with([
@@ -3303,7 +3323,10 @@ class BastController extends Controller
                 if ($isKetuaTim) {
                     $managedPreview = Kegiatan::query()
                         ->whereKey((int) $kegiatanId)
-                        ->where('ketua_tim_user_id', $user?->id)
+                        ->where(function ($q) use ($user) {
+                            $q->where('ketua_tim_user_id', $user?->id)
+                                ->orWhere('pj_lainnya_id', $user?->id);
+                        })
                         ->exists();
 
                     abort_unless($managedPreview, 403, 'Kegiatan tidak ditemukan atau tidak dapat diakses.');
@@ -3335,7 +3358,10 @@ class BastController extends Controller
             if ($isKetuaTim) {
                 $managedQuery = Kegiatan::query()
                     ->whereKey((int) $kegiatanId)
-                    ->where('ketua_tim_user_id', $user?->id);
+                    ->where(function ($q) use ($user) {
+                        $q->where('ketua_tim_user_id', $user?->id)
+                            ->orWhere('pj_lainnya_id', $user?->id);
+                    });
 
                 if ($periodeAlokasiId > 0) {
                     $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiId) {
@@ -3449,7 +3475,10 @@ class BastController extends Controller
         if ($isKetuaTim) {
             $managedQuery = Kegiatan::query()
                 ->whereKey($kegiatanId)
-                ->where('ketua_tim_user_id', $user?->id);
+                ->where(function ($q) use ($user) {
+                    $q->where('ketua_tim_user_id', $user?->id)
+                        ->orWhere('pj_lainnya_id', $user?->id);
+                });
 
             if ($periodeAlokasiIdFromRequest > 0) {
                 $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiIdFromRequest) {
@@ -3570,7 +3599,10 @@ class BastController extends Controller
         if ($isKetuaTim) {
             $managedQuery = Kegiatan::query()
                 ->whereKey($kegiatanId)
-                ->where('ketua_tim_user_id', $user?->id);
+                ->where(function ($q) use ($user) {
+                    $q->where('ketua_tim_user_id', $user?->id)
+                        ->orWhere('pj_lainnya_id', $user?->id);
+                });
 
             if ($periodeAlokasiId > 0) {
                 $managedQuery->whereHas('periodeAlokasi', function ($query) use ($periodeAlokasiId) {
@@ -3679,7 +3711,10 @@ class BastController extends Controller
                 ->whereKey($periodeAlokasiId)
                 ->where('kegiatan_id', $kegiatanId)
                 ->whereHas('kegiatan', function ($query) use ($user) {
-                    $query->where('ketua_tim_user_id', $user?->id);
+                    $query->where(function ($sub) use ($user) {
+                        $sub->where('ketua_tim_user_id', $user?->id)
+                            ->orWhere('pj_lainnya_id', $user?->id);
+                    });
                 })
                 ->exists();
 
@@ -4103,7 +4138,10 @@ class BastController extends Controller
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $tahun)
                         ->whereHas('kegiatan', function ($qk) use ($user) {
-                            $qk->where('ketua_tim_user_id', $user?->id);
+                            $qk->where(function ($sub) use ($user) {
+                                $sub->where('ketua_tim_user_id', $user?->id)
+                                    ->orWhere('pj_lainnya_id', $user?->id);
+                            });
                         });
                 })->pluck('id')->toArray();
 
@@ -4851,7 +4889,7 @@ class BastController extends Controller
             'periodeAlokasi',
             'bastPetugas.petugas',
             'bastPetugas.spk',
-            'bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id',
+            'bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id,pj_lainnya_id',
             'createdBy:id,name',
             'spk.alokasiPetugas.petugas',
         ]);
@@ -4868,7 +4906,7 @@ class BastController extends Controller
         $bulanLabel = $this->getBulanLabel((int) $periode->bulan);
         $viewData = $this->prepareStoredBastViewData($bast);
         $this->syncBastKegiatanFromPayload($bast, $viewData['bast']->kegiatan_list ?? []);
-        $bast->load('bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id');
+        $bast->load('bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id,pj_lainnya_id');
         $kegiatanPayloadMap = collect($viewData['bast']->kegiatan_list)
             ->keyBy(fn (array $item) => $this->makeBastKegiatanKey($item['kegiatan_id'], $item['periode_alokasi_id']));
         $isLegacyMode = (int) $periode->tahun < 2026
@@ -4893,7 +4931,10 @@ class BastController extends Controller
                     $q->where('bulan', $bulanFormatted)
                         ->where('tahun', $periode->tahun)
                         ->whereHas('kegiatan', function ($qk) use ($user) {
-                            $qk->where('ketua_tim_user_id', $user?->id);
+                            $qk->where(function ($sub) use ($user) {
+                                $sub->where('ketua_tim_user_id', $user?->id)
+                                    ->orWhere('pj_lainnya_id', $user?->id);
+                            });
                         });
                 })
                     ->pluck('id')
@@ -5075,7 +5116,7 @@ class BastController extends Controller
         return Bast::with([
             'spk.alokasiPetugas.petugas',
             'createdBy:id,name',
-            'bastKegiatan.kegiatan:id,ketua_tim_user_id',
+            'bastKegiatan.kegiatan:id,ketua_tim_user_id,pj_lainnya_id',
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($periode) {
                 $query->where('bulan', $periode->bulan)
@@ -5083,7 +5124,10 @@ class BastController extends Controller
             })
             ->when($isKetuaTim, function ($query) use ($user) {
                 $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {
-                    $q->where('ketua_tim_user_id', $user?->id);
+                    $q->where(function ($sub) use ($user) {
+                        $sub->where('ketua_tim_user_id', $user?->id)
+                            ->orWhere('pj_lainnya_id', $user?->id);
+                    });
                 });
             })
             ->orderBy('nomor_bast')
