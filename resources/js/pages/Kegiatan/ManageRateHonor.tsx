@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { useSsoFormPreserve } from '@/hooks/use-sso-form-preserve';
 import AppLayout from '@/layouts/app-layout';
 import {
     type BreadcrumbItem,
@@ -317,6 +318,17 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     const inertiaErrors = (pageProps.errors as Record<string, string>) || {};
     const [errors, setErrors] = useState<Record<string, string>>(inertiaErrors);
     const [processing, setProcessing] = useState(false);
+
+    // Preserve form state across SSO redirects. When the SSO sync navigates
+    // away and then returns to this same URL, the saved enabledJenisPenugasan
+    // and formData are restored so the user doesn't lose their unsaved edits.
+    useSsoFormPreserve(
+        () => ({ enabledJenisPenugasan, formData }),
+        ({ enabledJenisPenugasan: savedEJP, formData: savedFD }) => {
+            setEnabledJenisPenugasan(savedEJP);
+            setFormData(savedFD);
+        },
+    );
 
     // Format currency untuk display
     const formatCurrency = (value: string): string => {

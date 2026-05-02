@@ -234,6 +234,9 @@ export function useSsoSessionSync({
 
             setLastSyncAt(now);
             saveScrollState();
+            // Give page components a chance to save their own state before
+            // the hard redirect wipes React's in-memory state.
+            window.dispatchEvent(new CustomEvent('sso:before-redirect'));
             window.location.assign(buildSyncUrl(reason));
         };
 
