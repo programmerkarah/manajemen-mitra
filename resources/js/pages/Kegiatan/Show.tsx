@@ -251,13 +251,12 @@ export default function Show({ kegiatan, auth, can }: Props) {
                         <div className="grid gap-6 md:grid-cols-2">
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Kode Kegiatan
+                                    Nama Kegiatan
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.kode_kegiatan}
+                                    {kegiatan.nama_kegiatan}
                                 </p>
                             </div>
-
                             <div>
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Status
@@ -276,15 +275,6 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                             'Selesai'}
                                     </span>
                                 </div>
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Nama Kegiatan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.nama_kegiatan}
-                                </p>
                             </div>
 
                             <div className="md:col-span-2">
@@ -437,13 +427,13 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                             <thead>
                                                 <tr className="border-b border-gray-200 dark:border-gray-700">
                                                     <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
-                                                        Kepegawaian
+                                                        Status Kepegawaian
                                                     </th>
                                                     <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
                                                         Penugasan
                                                     </th>
                                                     <th className="py-1 pr-4 text-right font-medium text-gray-600 dark:text-gray-400">
-                                                        Rate Pencacahan
+                                                        Rate Honor
                                                     </th>
                                                     {kegiatan.has_listing_updating && (
                                                         <th className="py-1 text-right font-medium text-gray-600 dark:text-gray-400">
@@ -533,7 +523,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 )}
                             </div>
 
-                            <div>
+                            <div className="md:col-span-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Total Alokasi
                                 </label>

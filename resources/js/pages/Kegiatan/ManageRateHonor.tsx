@@ -252,19 +252,23 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             pengawas_pengolahan: false,
         };
 
-        if (isFasihOnly) {
-            return initial;
-        }
-
         // Cek apakah ada data existing untuk setiap jenis
         kegiatan.rate_honors?.forEach((rh) => {
             if (rh.jenis_penugasan === 'koseka' && rh.rate > 0) {
                 initial.koseka = true;
             }
-            if (rh.jenis_penugasan === 'pengolahan' && rh.rate > 0) {
+            if (
+                !isFasihOnly &&
+                rh.jenis_penugasan === 'pengolahan' &&
+                rh.rate > 0
+            ) {
                 initial.pengolahan = true;
             }
-            if (rh.jenis_penugasan === 'pengawas_pengolahan' && rh.rate > 0) {
+            if (
+                !isFasihOnly &&
+                rh.jenis_penugasan === 'pengawas_pengolahan' &&
+                rh.rate > 0
+            ) {
                 initial.pengawas_pengolahan = true;
             }
         });
@@ -398,9 +402,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                     status_kepegawaian: combo.status_kepegawaian,
                     jenis_penugasan: combo.jenis_penugasan,
                     rate: isNaN(rateValue) ? 0 : rateValue,
-                    satuan_id: isNaN(selectedPencacahanSatuanId)
-                        ? null
-                        : selectedPencacahanSatuanId,
+                    satuan_id:
+                        selectedPencacahanSatuanId === null ||
+                        isNaN(selectedPencacahanSatuanId)
+                            ? null
+                            : selectedPencacahanSatuanId,
                 };
 
                 if (kegiatan.has_listing_updating) {
@@ -411,9 +417,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                     entry.rate_listing = isNaN(rateListingValue)
                         ? 0
                         : rateListingValue;
-                    entry.satuan_listing_id = isNaN(selectedListingSatuanId)
-                        ? null
-                        : selectedListingSatuanId;
+                    entry.satuan_listing_id =
+                        selectedListingSatuanId === null ||
+                        isNaN(selectedListingSatuanId)
+                            ? null
+                            : selectedListingSatuanId;
                 }
 
                 return entry;
@@ -421,18 +429,22 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
 
         const payload: RateHonorPayload = {
             rate_honors: rateHonors,
-            satuan_id: isNaN(selectedPencacahanSatuanId)
-                ? null
-                : selectedPencacahanSatuanId,
+            satuan_id:
+                selectedPencacahanSatuanId === null ||
+                isNaN(selectedPencacahanSatuanId)
+                    ? null
+                    : selectedPencacahanSatuanId,
             kode_coa: formData['kode_coa']
                 ? COA_PREFIX + formData['kode_coa']
                 : null,
         };
 
         if (kegiatan.has_listing_updating) {
-            payload.satuan_listing_id = isNaN(selectedListingSatuanId)
-                ? null
-                : selectedListingSatuanId;
+            payload.satuan_listing_id =
+                selectedListingSatuanId === null ||
+                isNaN(selectedListingSatuanId)
+                    ? null
+                    : selectedListingSatuanId;
         }
 
         router.post(

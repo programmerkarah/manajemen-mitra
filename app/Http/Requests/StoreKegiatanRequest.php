@@ -23,7 +23,7 @@ class StoreKegiatanRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->isAdmin() || $this->user()->isKetuaTim();
+        return $this->user()->isAdmin() || $this->user()->isOperator() || $this->user()->isKetuaTim();
     }
 
     /**
@@ -47,7 +47,7 @@ class StoreKegiatanRequest extends FormRequest
             'pagu_listing' => ['nullable', 'numeric', 'min:0'],
             'has_listing_updating' => ['nullable', 'boolean'],
             // Ketua tim optional if user is ketua_tim (will be auto-assigned)
-            'ketua_tim_user_id' => [$user && $user->isKetuaTim() ? 'nullable' : 'required', 'exists:users,id'],
+            'ketua_tim_user_id' => [$user && $user->hasActiveRole('ketua_tim') ? 'nullable' : 'required', 'exists:users,id'],
             'pj_lainnya_id' => ['nullable', 'exists:users,id'],
             'rate_honor_id' => ['nullable', 'exists:rate_honor,id'],
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai'],

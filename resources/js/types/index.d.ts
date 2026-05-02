@@ -166,6 +166,7 @@ export interface Satuan {
     id: string;
     hashed_id: string;
     nama: string;
+    kode?: string;
     created_at: string;
     updated_at: string;
 }

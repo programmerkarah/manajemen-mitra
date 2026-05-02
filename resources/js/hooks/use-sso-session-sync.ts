@@ -34,12 +34,133 @@ function getCurrentPathWithQueryAndHash(): string {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Form state preservation
+// ---------------------------------------------------------------------------
+
+/** Broad selector used for stable DOM-index based matching. */
+const FORM_ELEMENTS_SELECTOR = 'input, select, textarea';
+
+export interface FormFieldEntry {
+    /** Zero-based index in querySelectorAll('input, select, textarea') */
+    domIndex: number;
+    value: string;
+    /** Non-null only for checkbox / radio inputs */
+    checked: boolean | null;
+}
+
+function collectFormFields(): FormFieldEntry[] {
+    const elements = document.querySelectorAll<HTMLElement>(
+        FORM_ELEMENTS_SELECTOR,
+    );
+    const entries: FormFieldEntry[] = [];
+
+    elements.forEach((el, domIndex) => {
+        if (el instanceof HTMLInputElement) {
+            if (
+                [
+                    'submit',
+                    'button',
+                    'reset',
+                    'image',
+                    'file',
+                    'password',
+                    'hidden',
+                ].includes(el.type)
+            ) {
+                return;
+            }
+            if (el.disabled) {
+                return;
+            }
+            entries.push({
+                domIndex,
+                value: el.value,
+                checked:
+                    el.type === 'checkbox' || el.type === 'radio'
+                        ? el.checked
+                        : null,
+            });
+        } else if (el instanceof HTMLSelectElement && !el.disabled) {
+            entries.push({ domIndex, value: el.value, checked: null });
+        } else if (el instanceof HTMLTextAreaElement && !el.disabled) {
+            entries.push({ domIndex, value: el.value, checked: null });
+        }
+    });
+
+    return entries;
+}
+
+/**
+ * Apply saved form-field entries back to the DOM using native prototype
+ * setters so React's synthetic event system picks up the changes.
+ */
+export function applyFormFields(entries: FormFieldEntry[]): void {
+    const elements = document.querySelectorAll<HTMLElement>(
+        FORM_ELEMENTS_SELECTOR,
+    );
+
+    for (const entry of entries) {
+        const el = elements[entry.domIndex];
+        if (!el) {
+            continue;
+        }
+
+        if (
+            el instanceof HTMLInputElement &&
+            (el.type === 'checkbox' || el.type === 'radio')
+        ) {
+            const target = entry.checked ?? false;
+            if (el.checked === target) {
+                continue;
+            }
+            Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype,
+                'checked',
+            )?.set?.call(el, target);
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        } else if (
+            el instanceof HTMLInputElement ||
+            el instanceof HTMLTextAreaElement
+        ) {
+            if (el.value === entry.value) {
+                continue;
+            }
+            const proto =
+                el instanceof HTMLInputElement
+                    ? HTMLInputElement.prototype
+                    : HTMLTextAreaElement.prototype;
+            Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(
+                el,
+                entry.value,
+            );
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        } else if (el instanceof HTMLSelectElement) {
+            if (el.value === entry.value) {
+                continue;
+            }
+            Object.getOwnPropertyDescriptor(
+                HTMLSelectElement.prototype,
+                'value',
+            )?.set?.call(el, entry.value);
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scroll + form page-state
+// ---------------------------------------------------------------------------
+
 const SSO_SCROLL_STATE_KEY = 'sso:pre-sync-scroll';
 
 interface SsoScrollState {
     url: string;
     scrollY: number;
     timestamp: number;
+    /** Serialized form-field values captured before the SSO redirect. */
+    formFields?: FormFieldEntry[];
 }
 
 function saveScrollState(): void {
@@ -48,6 +169,7 @@ function saveScrollState(): void {
             url: getCurrentPathWithQueryAndHash(),
             scrollY: window.scrollY,
             timestamp: Date.now(),
+            formFields: collectFormFields(),
         };
         sessionStorage.setItem(SSO_SCROLL_STATE_KEY, JSON.stringify(state));
     } catch {

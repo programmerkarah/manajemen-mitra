@@ -226,7 +226,7 @@ class KegiatanController extends Controller
 
         // If ketua_tim creates kegiatan, automatically assign themselves as ketua_tim
         $effectiveUser = effectiveUser($request);
-        if ($effectiveUser->isKetuaTim()) {
+        if ($effectiveUser->hasActiveRole('ketua_tim')) {
             $data['ketua_tim_user_id'] = $effectiveUser->id;
         }
 
