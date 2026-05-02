@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\DasarHukum;
 use App\Models\Dipa;
@@ -326,6 +327,124 @@ class DashboardController extends Controller
             }
         }
 
+        if (in_array($activeRole, ['admin', 'pj', 'operator'], true)) {
+            // SK KPA belum dibuat: kegiatan aktif tahun ini dengan alokasi tapi belum punya SK
+            $skBelumDibuatCount = Kegiatan::query()
+                ->where('tahun_anggaran', $currentYear)
+                ->withCount('skKpa')
+                ->whereHas('periodeAlokasi', function ($q) use ($currentYear) {
+                    $q->where('tahun', $currentYear)
+                        ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+                        ->whereHas('alokasiPetugas');
+                })
+                ->having('sk_kpa_count', '=', 0)
+                ->count();
+
+            if ($skBelumDibuatCount > 0) {
+                $attentionItems->push([
+                    'key' => 'sk_kpa_missing',
+                    'label' => 'SK KPA belum dibuat',
+                    'count' => $skBelumDibuatCount,
+                    'url' => route('sk-kpa.index').'#filter=not_created',
+                    'description' => 'Kegiatan sudah ada alokasi tapi belum ada SK KPA',
+                    'severity' => 'warning',
+                ]);
+            }
+
+            // SK KPA perlu perubahan: ada perubahan personel nyata setelah SK terakhir dibuat
+            // Load candidates first, then check if personnel actually changed (mirrors SkKpaController logic)
+            $skPerluPerubahanCandidates = Kegiatan::query()
+                ->where('tahun_anggaran', $currentYear)
+                ->whereHas('skKpa')
+                ->whereHas('periodeAlokasi', function ($q) use ($currentYear) {
+                    $q->where('tahun', $currentYear)
+                        ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+                        ->whereHas('alokasiPetugas')
+                        ->whereExists(function ($sub) {
+                            $sub->select(DB::raw(1))
+                                ->from('sk_kpa')
+                                ->whereColumn('sk_kpa.kegiatan_id', 'periode_alokasi.kegiatan_id')
+                                ->whereColumn('periode_alokasi.created_at', '>', 'sk_kpa.created_at');
+                        });
+                })
+                ->with([
+                    'skKpa' => fn ($q) => $q->latest('created_at')->select(['id', 'kegiatan_id', 'created_at', 'revision_acknowledged_at']),
+                    // Load all periods (no year filter) so reference period can be found correctly
+                    'periodeAlokasi' => fn ($q) => $q
+                        ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
+                        ->with('alokasiPetugas:id,periode_alokasi_id,petugas_id,jumlah_satuan,jumlah_satuan_listing')
+                        ->orderBy('tahun')
+                        ->orderByRaw('CAST(bulan AS UNSIGNED)')
+                        ->orderBy('created_at')
+                        ->orderBy('id'),
+                ])
+                ->get();
+
+            $skPerluPerubahanCount = $skPerluPerubahanCandidates->filter(function ($keg) use ($currentYear) {
+                $latestSk = $keg->skKpa->first();
+                if (! $latestSk) {
+                    return false;
+                }
+
+                // If the SK has already been acknowledged as not needing revision, skip
+                if ($latestSk->revision_acknowledged_at !== null) {
+                    return false;
+                }
+
+                // Mirror resolveReferencePeriodeForStoredSk:
+                // first SK → use earliest (asc) period ≤ SK; revision SK → use latest (desc) period ≤ SK
+                $hasPreviousSk = $keg->skKpa->count() > 1;
+                $periodsBeforeSk = $keg->periodeAlokasi
+                    ->filter(fn ($p) => $p->created_at <= $latestSk->created_at);
+
+                $referencePeriode = $hasPreviousSk
+                    ? $periodsBeforeSk->last()
+                    : $periodsBeforeSk->first();
+
+                if (! $referencePeriode) {
+                    return false;
+                }
+
+                // Only check periods in the active year (mirrors SkKpaController::checkPersonnelChanges)
+                $periodsAfterSk = $keg->periodeAlokasi->filter(
+                    fn ($p) => $p->created_at->gt($latestSk->created_at) && (int) $p->tahun === $currentYear
+                );
+                if ($periodsAfterSk->isEmpty()) {
+                    return false;
+                }
+
+                // Reference team = all petugas listed on the SK (regardless of satuan)
+                $referenceTeam = $referencePeriode->alokasiPetugas->pluck('petugas_id')->flip();
+
+                // Flag only if a post-SK period adds a NEW active petugas not on the original SK
+                // Petugas with jumlah_satuan = 0 are "not needed this period" — not a team change
+                foreach ($periodsAfterSk as $period) {
+                    $activePostSkPetugas = $period->alokasiPetugas
+                        ->filter(fn ($ap) => ($ap->jumlah_satuan ?? 0) > 0 || ($ap->jumlah_satuan_listing ?? 0) > 0)
+                        ->pluck('petugas_id');
+
+                    foreach ($activePostSkPetugas as $petugasId) {
+                        if (! $referenceTeam->has($petugasId)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            })->count();
+
+            if ($skPerluPerubahanCount > 0) {
+                $attentionItems->push([
+                    'key' => 'sk_kpa_perlu_perubahan',
+                    'label' => 'SK KPA perlu perubahan',
+                    'count' => $skPerluPerubahanCount,
+                    'url' => route('sk-kpa.index').'#filter=needs_revision',
+                    'description' => 'Ada perubahan personel setelah SK terakhir diterbitkan',
+                    'severity' => 'warning',
+                ]);
+            }
+        }
+
         if (in_array($activeRole, ['admin', 'operator', 'pj', 'approver', 'ketua_tim'], true)) {
             $spkBastQuery = Spk::query()
                 ->with(['alokasiPetugas:id,periode_alokasi_id'])
@@ -344,6 +463,66 @@ class DashboardController extends Controller
 
             $spkWithoutBast = $spkBastQuery->get();
 
+            // Pre-load all alokasi_petugas satuan data to check BAST eligibility
+            // (petugas with jumlah_satuan=0 and jumlah_satuan_listing=0 are not BAST candidates)
+            $allAlokasiIds = $spkWithoutBast
+                ->flatMap(fn ($spk) => $spk->alokasi_petugas_ids ?? [])
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            // Load alokasi with status and periode_alokasi_id to apply effective alokasi priority:
+            // perubahan > direvisi > disetujui > dikirim (same logic as BastController)
+            $alokasiSatuanMap = AlokasiPetugas::whereIn('id', $allAlokasiIds)
+                ->select('id', 'jumlah_satuan', 'jumlah_satuan_listing', 'periode_alokasi_id')
+                ->with('periodeAlokasi:id,kegiatan_id,bulan,tahun,status')
+                ->get()
+                ->keyBy('id');
+
+            // Pre-load perubahan periods kegiatan to detect removed petugas.
+            // If a petugas is in a direvisi alokasi but NOT in the perubahan period for
+            // the same kegiatan/month, they have been removed and are not BAST candidates.
+            $kegiatanMonthCombos = $alokasiSatuanMap
+                ->filter(fn ($a) => $a->periodeAlokasi !== null)
+                ->map(fn ($a) => $a->periodeAlokasi->kegiatan_id.'_'.$a->periodeAlokasi->bulan.'_'.$a->periodeAlokasi->tahun)
+                ->unique()
+                ->values()
+                ->all();
+
+            // Build lookup: "kegiatan_id_bulan_tahun" => [petugas_id, ...]
+            // Only for kegiatan that have a perubahan period
+            $perubahanPetugasMap = [];
+
+            if (! empty($kegiatanMonthCombos)) {
+                $perubahanAlokasi = DB::table('alokasi_petugas as ap')
+                    ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+                    ->where('pa.status', 'perubahan')
+                    ->whereYear('pa.tahun', $currentYear)
+                    ->select('pa.kegiatan_id', 'pa.bulan', 'pa.tahun', 'ap.petugas_id')
+                    ->get();
+
+                foreach ($perubahanAlokasi as $row) {
+                    $key = $row->kegiatan_id.'_'.$row->bulan.'_'.$row->tahun;
+                    $perubahanPetugasMap[$key][] = $row->petugas_id;
+                }
+            }
+
+            // Pre-load which petugas already have a BAST for each year+month
+            // (to avoid counting old/batch SPKs superseded by newer individual SPKs)
+            $petugasMonthsWithBast = DB::table('bast_petugas as bp')
+                ->join('bast as b', 'bp.bast_id', '=', 'b.id')
+                ->whereYear('b.tanggal_bast', $currentYear)
+                ->select(
+                    'bp.petugas_id',
+                    DB::raw('YEAR(b.tanggal_bast) as bast_year'),
+                    DB::raw('MONTH(b.tanggal_bast) as bast_month'),
+                )
+                ->distinct()
+                ->get()
+                ->mapWithKeys(fn ($row) => [$row->petugas_id.'_'.$row->bast_year.'_'.$row->bast_month => true])
+                ->all();
+
             $bastDueSoonCount = 0;
             $bastOverdueCount = 0;
 
@@ -353,7 +532,50 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                $targetDate = Carbon::parse($expectedBastDate);
+                $bastDate = Carbon::parse($expectedBastDate);
+
+                // Skip if petugas has no positive satuan after applying effective alokasi priority
+                // (perubahan > direvisi > disetujui > dikirim — mirrors BastController logic)
+                $statusPriority = ['perubahan' => 4, 'direvisi' => 3, 'disetujui' => 2, 'dikirim' => 1];
+                $spkAlokasiIds = $spk->alokasi_petugas_ids ?? [];
+
+                // Group alokasi by kegiatan, pick highest priority status per kegiatan.
+                // If a perubahan period exists for a kegiatan but this petugas is NOT in it,
+                // they were removed (replaced) and that kegiatan must be excluded entirely.
+                $effectiveAlokasi = collect($spkAlokasiIds)
+                    ->map(fn ($id) => $alokasiSatuanMap->get($id))
+                    ->filter()
+                    ->groupBy(fn ($alokasi) => $alokasi->periodeAlokasi?->kegiatan_id)
+                    ->filter(function ($group, $kegiatanId) use ($spk, $bastDate, $perubahanPetugasMap) {
+                        $bulanFormatted = str_pad((string) $bastDate->month, 2, '0', STR_PAD_LEFT);
+                        $key = $kegiatanId.'_'.$bulanFormatted.'_'.$bastDate->year;
+                        if (! array_key_exists($key, $perubahanPetugasMap)) {
+                            return true; // no perubahan period — petugas not removed
+                        }
+
+                        return in_array($spk->petugas_id, $perubahanPetugasMap[$key], true);
+                    })
+                    ->map(function ($group) use ($statusPriority) {
+                        return $group->sortByDesc(
+                            fn ($alokasi) => $statusPriority[$alokasi->periodeAlokasi?->status] ?? 0
+                        )->first();
+                    });
+
+                $hasPositiveSatuan = $effectiveAlokasi->contains(
+                    fn ($alokasi) => (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0
+                );
+
+                if (! $hasPositiveSatuan) {
+                    continue;
+                }
+
+                // Skip if this petugas already has a BAST for the same month via another SPK
+                $petugasMonthKey = $spk->petugas_id.'_'.$bastDate->year.'_'.$bastDate->month;
+                if (array_key_exists($petugasMonthKey, $petugasMonthsWithBast)) {
+                    continue;
+                }
+
+                $targetDate = clone $bastDate;
                 while (in_array($targetDate->dayOfWeekIso, [6, 7], true)) {
                     $targetDate->subDay();
                 }

@@ -27,6 +27,7 @@ class SkKpa extends Model
             'tahun' => 'integer',
             'is_signed' => 'boolean',
             'signed_at' => 'datetime',
+            'revision_acknowledged_at' => 'datetime',
         ];
     }
 
@@ -44,6 +45,8 @@ class SkKpa extends Model
         'is_signed',
         'signed_at',
         'signed_by',
+        'revision_acknowledged_at',
+        'revision_acknowledged_by',
         'status',
         'created_by',
     ];

@@ -39,7 +39,7 @@ class SkKpaController extends Controller
             ->select('kegiatan.*') // Only select needed columns
             ->with([
                 'ketuaTim:id,name',
-                'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at,bulan,tahun',
+                'skKpa:id,kegiatan_id,nomor_sk,tanggal_sk,status,file_path,signed_file_path,created_at,bulan,tahun,revision_acknowledged_at',
                 'periodeAlokasi' => function ($q) use ($activeYear) {
                     $q->where('tahun', $activeYear)
                         ->whereIn('status', ['dikirim', 'perubahan', 'direvisi'])
@@ -117,6 +117,7 @@ class SkKpaController extends Controller
                     'status' => $latestSk->status,
                     'file_path' => $latestSk->file_path,
                     'signed_file_path' => $latestSk->signed_file_path,
+                    'revision_acknowledged_at' => $latestSk->revision_acknowledged_at,
                 ] : null,
             ];
         });
@@ -212,6 +213,25 @@ class SkKpaController extends Controller
         }
 
         $kegiatan = Kegiatan::findOrFail($kegiatanId);
+
+        // If a latest SK exists, check if revision is needed or already acknowledged
+        $latestSk = SkKpa::where('kegiatan_id', $kegiatanId)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($latestSk) {
+            // Block if SK was acknowledged as not needing revision
+            if ($latestSk->revision_acknowledged_at !== null) {
+                return redirect()->route('sk-kpa.index')
+                    ->with('error', 'SK ini sudah ditandai tidak perlu revisi.');
+            }
+
+            // Block if there are no real personnel changes
+            if (! $this->checkPersonnelChanges($kegiatanId, $latestSk)) {
+                return redirect()->route('sk-kpa.index')
+                    ->with('error', 'Tidak ada perubahan personel yang memerlukan SK Perubahan.');
+            }
+        }
 
         // Check if there are any approved periodes (dikirim, perubahan, or direvisi)
         $hasApprovedPeriodes = $kegiatan->periodeAlokasi()
@@ -378,8 +398,30 @@ class SkKpaController extends Controller
     }
 
     /**
-     * Upload signed SK file
+     * Acknowledge that the current SK does not need revision despite later personnel changes.
+     * This dismisses the "SK perlu perubahan" warning for this SK.
      */
+    public function acknowledgeRevision(string $skKpaHashedId): RedirectResponse
+    {
+        $skKpaId = Hashids::decode($skKpaHashedId)[0] ?? null;
+
+        if (! $skKpaId) {
+            abort(404);
+        }
+
+        $skKpa = SkKpa::findOrFail($skKpaId);
+
+        $user = Auth::user();
+
+        $skKpa->update([
+            'revision_acknowledged_at' => now(),
+            'revision_acknowledged_by' => $user?->getAuthIdentifier(),
+        ]);
+
+        return back()->with('success', 'SK telah ditandai tidak perlu revisi.');
+    }
+
+    /**
     public function uploadSigned(Request $request, string $skKpaHashedId): RedirectResponse
     {
         $skKpaId = Hashids::decode($skKpaHashedId)[0] ?? null;
@@ -991,6 +1033,11 @@ class SkKpaController extends Controller
             return false;
         }
 
+        // If the SK has already been acknowledged as not needing revision, skip check
+        if ($latestSk->revision_acknowledged_at !== null) {
+            return false;
+        }
+
         $referencePeriode = $this->resolveReferencePeriodeForStoredSk($latestSk, ['alokasiPetugas']);
 
         if (! $referencePeriode) {
@@ -1004,35 +1051,24 @@ class SkKpaController extends Controller
             return false;
         }
 
-        // Get personnel from the last periode before/at SK creation
-        $referencePersonnel = $referencePeriode->alokasiPetugas
-            ->pluck('petugas_id')
-            ->sort()
-            ->values()
-            ->toArray();
+        // Reference team = all petugas listed on the SK (regardless of satuan).
+        // They are part of the team even if they have 0 work in a specific period.
+        $referenceTeam = $referencePeriode->alokasiPetugas->pluck('petugas_id')->flip();
 
-        // Check each periode after SK to see if personnel changed
-        // We compare each with the PREVIOUS periode to detect changes
-        $previousPersonnel = $referencePersonnel;
-
+        // Flag only if a post-SK period introduces a NEW active petugas not on the original SK.
+        // Petugas with jumlah_satuan = 0 are "not needed this period" — not a team change.
         foreach ($periodsAfterSk as $period) {
-            $currentPersonnel = $period->alokasiPetugas
-                ->pluck('petugas_id')
-                ->sort()
-                ->values()
-                ->toArray();
+            $activePostSkPetugas = $period->alokasiPetugas
+                ->filter(fn ($ap) => ($ap->jumlah_satuan ?? 0) > 0 || ($ap->jumlah_satuan_listing ?? 0) > 0)
+                ->pluck('petugas_id');
 
-            // Compare arrays using serialize to ensure proper comparison
-            // or check if arrays have different values
-            if (serialize($currentPersonnel) !== serialize($previousPersonnel)) {
-                return true;
+            foreach ($activePostSkPetugas as $petugasId) {
+                if (! $referenceTeam->has($petugasId)) {
+                    return true;
+                }
             }
-
-            // Update previous for next iteration
-            $previousPersonnel = $currentPersonnel;
         }
 
-        // No changes found - all periods after SK have same personnel
         return false;
     }
 

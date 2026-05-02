@@ -504,6 +504,9 @@ export default function Dashboard({
                                         <Clock className="size-3" />
                                     ) : item.key === 'spk_missing' ? (
                                         <ScrollText className="size-3" />
+                                    ) : item.key === 'sk_kpa_missing' ||
+                                      item.key === 'sk_kpa_perlu_perubahan' ? (
+                                        <FileText className="size-3" />
                                     ) : (
                                         <AlertCircle className="size-3" />
                                     )}
@@ -1614,10 +1617,11 @@ export default function Dashboard({
                                             marginBottom: '4px',
                                         }}
                                         itemStyle={{ fontSize: '12px' }}
-                                        formatter={(
-                                            value: number | undefined,
-                                            name: string | undefined,
-                                        ) => {
+                                        formatter={(rawValue, name) => {
+                                            const value =
+                                                typeof rawValue === 'number'
+                                                    ? rawValue
+                                                    : undefined;
                                             if (name === 'Koef. Variasi (%)') {
                                                 return (
                                                     (value?.toFixed(2) ?? '0') +

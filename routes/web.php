@@ -592,6 +592,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::put('sk-kpa/{skKpa}', [SkKpaController::class, 'update'])->name('sk-kpa.update');
         Route::patch('sk-kpa/{skKpa}', [SkKpaController::class, 'update']);
         Route::delete('sk-kpa/{skKpa}', [SkKpaController::class, 'destroy'])->name('sk-kpa.destroy');
+        Route::post('sk-kpa/{skKpaHashedId}/acknowledge-revision', [SkKpaController::class, 'acknowledgeRevision'])->name('sk-kpa.acknowledge-revision');
     });
 
     // SPK Routes - Admin, Approver can generate/manage SPK

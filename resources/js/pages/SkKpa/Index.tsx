@@ -24,6 +24,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    CheckCircle,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
@@ -46,6 +47,7 @@ interface LatestSk {
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
     signed_file_path: string | null;
+    revision_acknowledged_at: string | null;
 }
 
 interface KegiatanItem {
@@ -105,6 +107,14 @@ export default function Index({ kegiatan, summary }: IndexProps) {
 
     const [search, setSearch] = useState('');
     const [jenisKegiatan, setJenisKegiatan] = useState('all');
+    const [skStatusFilter, setSkStatusFilter] = useState<
+        'all' | 'not_created' | 'needs_revision'
+    >(() => {
+        const hash = window.location.hash;
+        if (hash === '#filter=not_created') return 'not_created';
+        if (hash === '#filter=needs_revision') return 'needs_revision';
+        return 'all';
+    });
     const [sortField, setSortField] = useState<
         'nama_kegiatan' | 'jenis_kegiatan' | 'tahun_anggaran' | 'sk_count'
     >('nama_kegiatan');
@@ -181,8 +191,27 @@ export default function Index({ kegiatan, summary }: IndexProps) {
             return 0;
         });
 
+        // Filter by SK status (from dashboard attention item)
+        if (skStatusFilter === 'not_created') {
+            result = result.filter((item: KegiatanItem) => item.sk_count === 0);
+        } else if (skStatusFilter === 'needs_revision') {
+            result = result.filter(
+                (item: KegiatanItem) =>
+                    item.has_personnel_changes &&
+                    item.sk_count > 0 &&
+                    !item.latest_sk?.revision_acknowledged_at,
+            );
+        }
+
         return result;
-    }, [allKegiatan, search, jenisKegiatan, sortField, sortDirection]);
+    }, [
+        allKegiatan,
+        search,
+        jenisKegiatan,
+        skStatusFilter,
+        sortField,
+        sortDirection,
+    ]);
 
     const totalPages = Math.ceil(filteredAndSortedKegiatan.length / perPage);
     const effectiveCurrentPage =
@@ -242,7 +271,16 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const handleReset = () => {
         setSearch('');
         setJenisKegiatan('all');
+        setSkStatusFilter('all');
         setCurrentPage(1);
+        // Remove hash so filter is cleared visually
+        if (window.location.hash) {
+            history.replaceState(
+                null,
+                '',
+                window.location.pathname + window.location.search,
+            );
+        }
     };
 
     const openSummaryModal = (type: SummaryModalType) => {
@@ -492,6 +530,25 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     </div>
                 </ContentCard>
 
+                {/* Active SK status filter indicator */}
+                {skStatusFilter !== 'all' && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm dark:border-amber-800/50 dark:bg-amber-900/20">
+                        <FileText className="size-4 text-amber-600 dark:text-amber-400" />
+                        <span className="text-amber-800 dark:text-amber-300">
+                            {skStatusFilter === 'not_created'
+                                ? 'Menampilkan kegiatan yang belum memiliki SK KPA'
+                                : 'Menampilkan kegiatan yang perlu pembaruan SK KPA'}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            className="ml-auto text-amber-600 underline hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
+                        >
+                            Hapus filter
+                        </button>
+                    </div>
+                )}
+
                 {/* Table */}
                 <ContentCard padding="none">
                     <div className="flex items-center justify-between px-6 pt-4 pb-2">
@@ -661,19 +718,40 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                                             )}
 
                                                             {keg.sk_count > 0 &&
-                                                                keg.has_personnel_changes && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        asChild
-                                                                        title="SK Perubahan"
-                                                                    >
-                                                                        <Link
-                                                                            href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
+                                                                keg.has_personnel_changes &&
+                                                                !keg.latest_sk
+                                                                    ?.revision_acknowledged_at && (
+                                                                    <>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            asChild
+                                                                            title="Buat SK Perubahan"
                                                                         >
-                                                                            <Plus className="h-3.5 w-3.5" />
-                                                                        </Link>
-                                                                    </Button>
+                                                                            <Link
+                                                                                href={`/sk-kpa/kegiatan/${keg.hashed_id}/create`}
+                                                                            >
+                                                                                <Plus className="h-3.5 w-3.5" />
+                                                                            </Link>
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            title="Tandai tidak perlu revisi SK"
+                                                                            onClick={() =>
+                                                                                keg.latest_sk &&
+                                                                                router.post(
+                                                                                    `/sk-kpa/${keg.latest_sk.hashed_id}/acknowledge-revision`,
+                                                                                    {},
+                                                                                    {
+                                                                                        preserveScroll: true,
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                                                                        </Button>
+                                                                    </>
                                                                 )}
                                                         </>
                                                     )}
