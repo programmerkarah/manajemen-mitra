@@ -1,4 +1,13 @@
+import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useSsoFormPreserve } from '@/hooks/use-sso-form-preserve';
 import AppLayout from '@/layouts/app-layout';
 import {
@@ -482,7 +491,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
 
             <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                <ContentCard padding="none">
                     <div className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
@@ -516,15 +525,14 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     kombinasi rate honor aktif
                                 </p>
                             </div>
-                            <Link
-                                href={`/kegiatan/${kegiatan.hashed_id}`}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
-                            >
-                                Kembali
-                            </Link>
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                                    Kembali
+                                </Link>
+                            </Button>
                         </div>
                     </div>
-                </div>
+                </ContentCard>
 
                 {/* Info Alert */}
                 <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
@@ -562,7 +570,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                 </div>
 
                 {/* Kode CoA (Beban Anggaran) */}
-                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                <ContentCard padding="none">
                     <div className="p-6">
                         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
                             Kode CoA (Beban Anggaran)
@@ -575,7 +583,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 </span>
                             </label>
                             <div className="flex rounded-md shadow-sm">
-                                <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 select-none dark:border-gray-600 dark:bg-gray-600 dark:text-gray-300">
+                                <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 select-none dark:border-neutral-700/30 dark:bg-neutral-800/80 dark:text-neutral-300">
                                     {COA_PREFIX}
                                 </span>
                                 <input
@@ -589,7 +597,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         )
                                     }
                                     placeholder="2905.BMA.004.005.A.521211"
-                                    className="block min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                                    className="block min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-neutral-700/30 dark:bg-neutral-800/60 dark:text-white dark:placeholder-neutral-400"
                                 />
                             </div>
                             {errors['kode_coa'] && (
@@ -603,10 +611,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                             </p>
                         </div>
                     </div>
-                </div>
+                </ContentCard>
 
                 {/* Checkbox Jenis Penugasan */}
-                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                <ContentCard padding="none">
                     <div className="p-6">
                         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
                             Aktifkan Jenis Penugasan
@@ -634,22 +642,24 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     PML (Wajib)
                                 </span>
                             </label>
-                            <label className="flex cursor-pointer items-center space-x-3">
-                                <input
-                                    type="checkbox"
-                                    checked={enabledJenisPenugasan.koseka}
-                                    onChange={(e) =>
-                                        setEnabledJenisPenugasan({
-                                            ...enabledJenisPenugasan,
-                                            koseka: e.target.checked,
-                                        })
-                                    }
-                                    className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                                />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                    Koseka (Koordinator Sensus Kecamatan)
-                                </span>
-                            </label>
+                            {isSensus ? (
+                                <label className="flex cursor-pointer items-center space-x-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={enabledJenisPenugasan.koseka}
+                                        onChange={(e) =>
+                                            setEnabledJenisPenugasan({
+                                                ...enabledJenisPenugasan,
+                                                koseka: e.target.checked,
+                                            })
+                                        }
+                                        className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        Koseka (Koordinator Sensus Kecamatan)
+                                    </span>
+                                </label>
+                            ) : null}
                             {!isFasihOnly ? (
                                 <>
                                     <label className="flex cursor-pointer items-center space-x-3">
@@ -700,11 +710,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                             )}
                         </div>
                     </div>
-                </div>
+                </ContentCard>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                    <ContentCard className="overflow-hidden" padding="none">
                         <div className="overflow-x-auto">
                             {/* Rate Honor Listing/Updating */}
                             {kegiatan.has_listing_updating && (
@@ -725,37 +735,38 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                             />
                                         ) : (
-                                            <select
+                                            <Select
                                                 value={
                                                     formData[
                                                         'satuan_listing_id'
                                                     ] || ''
                                                 }
-                                                onChange={(e) =>
+                                                onValueChange={(val) =>
                                                     handleInputChange(
                                                         'satuan_listing_id',
-                                                        e.target.value,
+                                                        val,
                                                         true,
                                                     )
                                                 }
-                                                className="block w-56 rounded-md border-gray-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                             >
-                                                <option value="">
-                                                    Pilih satuan
-                                                </option>
-                                                {satuans.map((satuan) => (
-                                                    <option
-                                                        key={satuan.id}
-                                                        value={String(
-                                                            satuan.id,
-                                                        )}
-                                                    >
-                                                        {satuan.kode
-                                                            ? `${satuan.kode} - ${satuan.nama}`
-                                                            : satuan.nama}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger className="w-56">
+                                                    <SelectValue placeholder="Pilih satuan" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {satuans.map((satuan) => (
+                                                        <SelectItem
+                                                            key={satuan.id}
+                                                            value={String(
+                                                                satuan.id,
+                                                            )}
+                                                        >
+                                                            {satuan.kode
+                                                                ? `${satuan.kode} - ${satuan.nama}`
+                                                                : satuan.nama}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         )}
                                     </div>
                                     {errors['satuan_listing_id'] && (
@@ -784,7 +795,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     )}
                                     <table className="w-full border-collapse">
                                         <thead>
-                                            <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
+                                            <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
                                                 <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
                                                     No
                                                 </th>
@@ -802,7 +813,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                                        <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
                                             {combinations
                                                 .filter((combo) => {
                                                     if (
@@ -922,29 +933,32 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                     />
                                 ) : (
-                                    <select
+                                    <Select
                                         value={formData['satuan_id'] || ''}
-                                        onChange={(e) =>
+                                        onValueChange={(val) =>
                                             handleInputChange(
                                                 'satuan_id',
-                                                e.target.value,
+                                                val,
                                                 true,
                                             )
                                         }
-                                        className="block w-56 rounded-md border-gray-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                     >
-                                        <option value="">Pilih satuan</option>
-                                        {satuans.map((satuan) => (
-                                            <option
-                                                key={satuan.id}
-                                                value={String(satuan.id)}
-                                            >
-                                                {satuan.kode
-                                                    ? `${satuan.kode} - ${satuan.nama}`
-                                                    : satuan.nama}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger className="w-56">
+                                            <SelectValue placeholder="Pilih satuan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {satuans.map((satuan) => (
+                                                <SelectItem
+                                                    key={satuan.id}
+                                                    value={String(satuan.id)}
+                                                >
+                                                    {satuan.kode
+                                                        ? `${satuan.kode} - ${satuan.nama}`
+                                                        : satuan.nama}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 )}
                             </div>
                             {errors['satuan_id'] && (
@@ -969,7 +983,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                             )}
                             <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
+                                    <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
                                             No
                                         </th>
@@ -987,7 +1001,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                                <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
                                     {combinations
                                         .filter((combo) => {
                                             if (
@@ -1076,11 +1090,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
-                        {/* Flash Message Error */}
-                        {(Object.keys(errors).length > 0 ||
-                            Object.keys(inertiaErrors).length > 0) && (
+                    </ContentCard>
+                    {(Object.keys(errors).length > 0 ||
+                        Object.keys(inertiaErrors).length > 0) && (
+                        <ContentCard padding="none">
                             <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
                                 <div className="flex items-start space-x-3">
                                     <svg
@@ -1117,28 +1130,23 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                     </div>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+                        </ContentCard>
+                    )}
+                    <ContentCard padding="none">
                         {/* Actions */}
-                        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-                            <Link
-                                href={`/kegiatan/${kegiatan.hashed_id}`}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800"
-                            >
-                                Batal
-                            </Link>
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-800"
-                            >
+                        <div className="flex items-center justify-end gap-3 border-t border-neutral-200/30 px-6 py-4 dark:border-neutral-700/30">
+                            <Button variant="outline" asChild>
+                                <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                                    Batal
+                                </Link>
+                            </Button>
+                            <Button type="submit" disabled={processing}>
                                 {processing
                                     ? 'Menyimpan...'
                                     : 'Simpan Rate Honor'}
-                            </button>
+                            </Button>
                         </div>
-                    </div>
+                    </ContentCard>
                 </form>
             </div>
         </AppLayout>
