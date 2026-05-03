@@ -666,6 +666,7 @@ class DashboardController extends Controller
 
         // Honor inequality analysis data
         $honorInequalityData = [];
+        $allPetugasHonorByMonth = []; // [petugas_id => [monthName => total_honor]]
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
@@ -713,6 +714,16 @@ class DashboardController extends Controller
                     $petugasHonor[$pid] = 0;
                 }
                 $petugasHonor[$pid] += $honor;
+            }
+
+            // Accumulate per-petugas monthly totals
+            foreach ($petugasHonor as $pid => $total) {
+                if ($total > 0) {
+                    if (! isset($allPetugasHonorByMonth[$pid])) {
+                        $allPetugasHonorByMonth[$pid] = [];
+                    }
+                    $allPetugasHonorByMonth[$pid][$monthName] = $total;
+                }
             }
 
             // Build honorData as collection of objects for compatibility
@@ -828,6 +839,35 @@ class DashboardController extends Controller
             ];
         }
 
+        // Build per-petugas honor per month table
+        $petugasIds = array_keys($allPetugasHonorByMonth);
+        $petugasNamaMap = Petugas::query()
+            ->whereIn('id', $petugasIds)
+            ->pluck('nama', 'id');
+
+        $monthNames = [];
+        for ($m = 1; $m <= $currentMonth; $m++) {
+            $monthNames[] = Carbon::create($currentYear, $m, 1)->format('M');
+        }
+
+        $honorPerPetugas = collect($allPetugasHonorByMonth)
+            ->map(function ($bulanData, $pid) use ($petugasNamaMap, $monthNames) {
+                $total = array_sum($bulanData);
+                $perBulan = [];
+                foreach ($monthNames as $mn) {
+                    $perBulan[$mn] = $bulanData[$mn] ?? 0;
+                }
+
+                return [
+                    'petugas_id' => $pid,
+                    'nama' => $petugasNamaMap[$pid] ?? '-',
+                    'per_bulan' => $perBulan,
+                    'total' => $total,
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
         $reviewRows = ReviewPetugas::query()
             ->with([
                 'petugas:id,nama',
@@ -889,6 +929,8 @@ class DashboardController extends Controller
             'chartData' => $chartData,
             'petugasMonitoringData' => $petugasMonitoringData,
             'honorInequalityData' => $honorInequalityData,
+            'honorPerPetugas' => $honorPerPetugas,
+            'honorMonths' => $monthNames,
             'petugasMonitoringSummary' => $petugasMonitoringSummary,
             'honorInequalitySummary' => $honorInequalitySummary,
             'mitraReviewSummary' => $mitraReviewSummary,

@@ -30,12 +30,12 @@ export default function AppSidebarLayout({
 
     return (
         <AppShell variant="sidebar">
-            <div className="flex min-h-dvh w-full overflow-x-hidden bg-gradient-to-br from-blue-50/50 via-white/30 to-indigo-50/50 dark:from-neutral-950/50 dark:via-neutral-900/30 dark:to-neutral-950/50">
+            <div className="flex h-dvh w-full overflow-hidden bg-gradient-to-br from-blue-50/50 via-white/30 to-indigo-50/50 dark:from-neutral-950/50 dark:via-neutral-900/30 dark:to-neutral-950/50">
                 {/* Sidebar */}
                 <AppSidebar />
 
                 {/* Main Content */}
-                <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {/* Sticky Header */}
                     <div className="sticky top-0 z-30 flex-shrink-0 border-b border-white/20 bg-white/60 shadow-sm transition-all dark:border-neutral-700/30 dark:bg-neutral-900/60">
                         <AppSidebarHeader breadcrumbs={breadcrumbs} />
@@ -44,7 +44,7 @@ export default function AppSidebarLayout({
                     <AppContent
                         variant="sidebar"
                         scroll-region=""
-                        className="min-h-0 flex-1 overflow-x-auto"
+                        className="min-h-0 flex-1 overflow-x-auto overflow-y-auto"
                     >
                         <div className="flex w-full min-w-0 flex-col gap-4 p-4 pb-8 md:gap-6 md:p-6 md:pb-12">
                             {children}

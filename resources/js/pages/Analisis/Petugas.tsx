@@ -257,6 +257,10 @@ export default function AnalisisPetugas({
         return data;
     }, [petugasKegiatan, kegiatanFilter, searchPetugas]);
 
+    const [searchHonorDetail, setSearchHonorDetail] = useState('');
+    const [honorDetailPage, setHonorDetailPage] = useState(1);
+    const honorDetailPageSize = 15;
+
     const filteredAlokasiDetail = useMemo(() => {
         if (!searchAlokasiDetail.trim()) {
             return petugasAlokasiDetail;
@@ -1082,6 +1086,166 @@ export default function AnalisisPetugas({
                         )}
                     </div>
                 </div>
+
+                {/* Petugas-Kegiatan Mapping */}
+                {/* Honor Per Bulan Per Petugas */}
+                {(() => {
+                    const filteredHonor = searchHonorDetail.trim()
+                        ? petugasAlokasiDetail.filter((p) =>
+                              p.petugas_nama
+                                  .toLowerCase()
+                                  .includes(searchHonorDetail.toLowerCase()),
+                          )
+                        : petugasAlokasiDetail;
+                    const sortedHonor = [...filteredHonor].sort(
+                        (a, b) => b.total_honor - a.total_honor,
+                    );
+                    const totalPages = Math.max(
+                        1,
+                        Math.ceil(sortedHonor.length / honorDetailPageSize),
+                    );
+                    const currentPage = Math.min(honorDetailPage, totalPages);
+                    const pageRows = sortedHonor.slice(
+                        (currentPage - 1) * honorDetailPageSize,
+                        currentPage * honorDetailPageSize,
+                    );
+                    const grandTotal = petugasAlokasiDetail.reduce(
+                        (s, p) => s + p.total_honor,
+                        0,
+                    );
+                    return (
+                        <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                            <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
+                                Honor per Bulan per Petugas (Jan – Des)
+                            </h3>
+                            <div className="mb-4 flex flex-wrap items-end gap-4">
+                                <div className="w-64">
+                                    <Input
+                                        placeholder="Cari nama petugas..."
+                                        value={searchHonorDetail}
+                                        onChange={(e) => {
+                                            setSearchHonorDetail(
+                                                e.target.value,
+                                            );
+                                            setHonorDetailPage(1);
+                                        }}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    {sortedHonor.length} petugas
+                                </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-white dark:bg-neutral-800">
+                                        <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                            <th className="py-2 pr-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Nama Petugas
+                                            </th>
+                                            {monthNames.map((m) => (
+                                                <th
+                                                    key={m}
+                                                    className="py-2 text-right font-medium text-neutral-600 dark:text-neutral-400"
+                                                >
+                                                    {m}
+                                                </th>
+                                            ))}
+                                            <th className="py-2 pl-2 text-right font-medium text-neutral-600 dark:text-neutral-400">
+                                                Total
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pageRows.map((item) => (
+                                            <tr
+                                                key={item.petugas_id}
+                                                className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                            >
+                                                <td className="py-1.5 pr-2 text-neutral-900 dark:text-white">
+                                                    {item.petugas_nama}
+                                                </td>
+                                                {Array.from(
+                                                    { length: 12 },
+                                                    (_, i) => i + 1,
+                                                ).map((b) => (
+                                                    <td
+                                                        key={b}
+                                                        className={`py-1.5 text-right tabular-nums ${
+                                                            item.honor[b] > 0
+                                                                ? 'font-medium text-neutral-900 dark:text-white'
+                                                                : 'text-neutral-300 dark:text-neutral-600'
+                                                        }`}
+                                                    >
+                                                        {item.honor[b] > 0
+                                                            ? formatRupiah(
+                                                                  item.honor[b],
+                                                              )
+                                                            : '—'}
+                                                    </td>
+                                                ))}
+                                                <td className="py-1.5 pl-2 text-right font-bold text-neutral-900 tabular-nums dark:text-white">
+                                                    {formatRupiah(
+                                                        item.total_honor,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 border-neutral-300 dark:border-neutral-600">
+                                            <td
+                                                colSpan={13}
+                                                className="py-2 pr-2 font-bold text-neutral-900 dark:text-white"
+                                            >
+                                                Total
+                                            </td>
+                                            <td className="py-2 pl-2 text-right font-bold text-neutral-900 tabular-nums dark:text-white">
+                                                {formatRupiah(grandTotal)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            {totalPages > 1 && (
+                                <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                    <span className="text-neutral-500 dark:text-neutral-400">
+                                        Halaman {currentPage} dari {totalPages}{' '}
+                                        &middot; {sortedHonor.length} petugas
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={currentPage <= 1}
+                                            onClick={() =>
+                                                setHonorDetailPage((p) =>
+                                                    Math.max(p - 1, 1),
+                                                )
+                                            }
+                                        >
+                                            Sebelumnya
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={currentPage >= totalPages}
+                                            onClick={() =>
+                                                setHonorDetailPage((p) =>
+                                                    Math.min(p + 1, totalPages),
+                                                )
+                                            }
+                                        >
+                                            Berikutnya
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Petugas-Kegiatan Mapping */}
                 <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">

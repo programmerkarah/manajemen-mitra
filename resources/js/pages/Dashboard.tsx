@@ -61,6 +61,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+function formatRupiah(value: number): string {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
+}
+
 interface DashboardStats {
     total_petugas: number;
     total_kegiatan: number;
@@ -250,6 +259,13 @@ interface DashboardProps {
     chartData: ChartData[];
     petugasMonitoringData: PetugasMonitoringData[];
     honorInequalityData: HonorInequalityData[];
+    honorPerPetugas: {
+        petugas_id: number;
+        nama: string;
+        per_bulan: Record<string, number>;
+        total: number;
+    }[];
+    honorMonths: string[];
     petugasMonitoringSummary: PetugasMonitoringSummary;
     honorInequalitySummary: HonorInequalitySummary;
     mitraReviewSummary: MitraReviewSummary;
@@ -282,12 +298,15 @@ export default function Dashboard({
     chartData,
     petugasMonitoringData,
     honorInequalityData,
+    honorPerPetugas,
+    honorMonths,
     petugasMonitoringSummary,
     honorInequalitySummary,
     mitraReviewSummary,
     attentionItems,
     currentMonth,
     currentYear,
+    userRole,
 }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const accessibleLinks = useMemo(() => {
@@ -321,6 +340,10 @@ export default function Dashboard({
     const canViewPetugas = accessibleLinks.has('/petugas');
     const canViewKegiatan = accessibleLinks.has('/kegiatan');
     const canViewBast = accessibleLinks.has('/bast');
+    const activeRoleName = auth.activeRole?.name ?? userRole;
+    const canViewHonorPerPetugas = ['admin', 'operator', 'pj'].includes(
+        activeRoleName ?? '',
+    );
     const [mitraInsightMode, setMitraInsightMode] = useState<
         'current_month' | 'year'
     >('current_month');
@@ -335,6 +358,8 @@ export default function Dashboard({
     >('semua');
     const [kegiatanPage, setKegiatanPage] = useState(1);
     const kegiatanPerPage = 6;
+    const [honorPerPetugasPage, setHonorPerPetugasPage] = useState(1);
+    const honorPerPetugasPageSize = 15;
 
     const kegiatanSummary = useMemo(() => {
         const butuhAlokasi = kegiatanBulanIni.filter(
@@ -1411,6 +1436,214 @@ export default function Dashboard({
                         </div>
                     </div>
 
+                    {/* Honor Per Bulan Per Petugas */}
+                    {canViewHonorPerPetugas &&
+                        (() => {
+                            const totalHonorPages = Math.max(
+                                1,
+                                Math.ceil(
+                                    honorPerPetugas.length /
+                                        honorPerPetugasPageSize,
+                                ),
+                            );
+                            const currentHonorPage = Math.min(
+                                honorPerPetugasPage,
+                                totalHonorPages,
+                            );
+                            const honorPageRows = honorPerPetugas.slice(
+                                (currentHonorPage - 1) *
+                                    honorPerPetugasPageSize,
+                                currentHonorPage * honorPerPetugasPageSize,
+                            );
+                            return (
+                                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                                    <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                                            Honor Per Petugas Per Bulan{' '}
+                                            {currentYear}
+                                        </h3>
+                                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                            Total honor survei non-organik per
+                                            bulan (honor + listing), diurutkan
+                                            dari terbesar
+                                        </p>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                                    <th className="sticky left-0 bg-white py-2 pr-3 text-left font-semibold whitespace-nowrap text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                                        Nama Petugas
+                                                    </th>
+                                                    {honorMonths.map((m) => (
+                                                        <th
+                                                            key={m}
+                                                            className="px-2 py-2 text-right font-semibold whitespace-nowrap text-neutral-700 dark:text-neutral-300"
+                                                        >
+                                                            {m}
+                                                        </th>
+                                                    ))}
+                                                    <th className="py-2 pl-3 text-right font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        Total
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {honorPageRows.length > 0 ? (
+                                                    honorPageRows.map(
+                                                        (row, idx) => (
+                                                            <tr
+                                                                key={
+                                                                    row.petugas_id
+                                                                }
+                                                                className={
+                                                                    idx % 2 ===
+                                                                    0
+                                                                        ? 'bg-neutral-50/50 dark:bg-neutral-800/30'
+                                                                        : ''
+                                                                }
+                                                            >
+                                                                <td className="sticky left-0 bg-inherit py-1.5 pr-3 font-medium whitespace-nowrap text-neutral-800 dark:text-neutral-200">
+                                                                    {row.nama}
+                                                                </td>
+                                                                {honorMonths.map(
+                                                                    (m) => (
+                                                                        <td
+                                                                            key={
+                                                                                m
+                                                                            }
+                                                                            className="px-2 py-1.5 text-right text-neutral-600 tabular-nums dark:text-neutral-400"
+                                                                        >
+                                                                            {row
+                                                                                .per_bulan[
+                                                                                m
+                                                                            ]
+                                                                                ? formatRupiah(
+                                                                                      row
+                                                                                          .per_bulan[
+                                                                                          m
+                                                                                      ],
+                                                                                  )
+                                                                                : '—'}
+                                                                        </td>
+                                                                    ),
+                                                                )}
+                                                                <td className="py-1.5 pl-3 text-right font-bold whitespace-nowrap text-neutral-900 tabular-nums dark:text-white">
+                                                                    {formatRupiah(
+                                                                        row.total,
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ),
+                                                    )
+                                                ) : (
+                                                    <tr>
+                                                        <td
+                                                            colSpan={
+                                                                honorMonths.length +
+                                                                2
+                                                            }
+                                                            className="py-8 text-center text-sm text-neutral-500 dark:text-neutral-400"
+                                                        >
+                                                            Belum ada data honor
+                                                            petugas untuk
+                                                            periode saat ini.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="border-t-2 border-neutral-300 dark:border-neutral-600">
+                                                    <td className="sticky left-0 bg-white py-2 pr-3 font-bold text-neutral-900 dark:bg-neutral-900 dark:text-white">
+                                                        Total
+                                                    </td>
+                                                    {honorMonths.map((m) => (
+                                                        <td
+                                                            key={m}
+                                                            className="px-2 py-2 text-right font-bold text-neutral-900 tabular-nums dark:text-white"
+                                                        >
+                                                            {formatRupiah(
+                                                                honorPerPetugas.reduce(
+                                                                    (sum, r) =>
+                                                                        sum +
+                                                                        (r
+                                                                            .per_bulan[
+                                                                            m
+                                                                        ] ?? 0),
+                                                                    0,
+                                                                ),
+                                                            )}
+                                                        </td>
+                                                    ))}
+                                                    <td className="py-2 pl-3 text-right font-bold text-neutral-900 tabular-nums dark:text-white">
+                                                        {formatRupiah(
+                                                            honorPerPetugas.reduce(
+                                                                (sum, r) =>
+                                                                    sum +
+                                                                    r.total,
+                                                                0,
+                                                            ),
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    {honorPerPetugas.length >
+                                        honorPerPetugasPageSize && (
+                                        <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-800">
+                                            <span className="text-neutral-500 dark:text-neutral-400">
+                                                Halaman {currentHonorPage} dari{' '}
+                                                {totalHonorPages} &middot;{' '}
+                                                {honorPerPetugas.length} petugas
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={
+                                                        currentHonorPage <= 1
+                                                    }
+                                                    onClick={() =>
+                                                        setHonorPerPetugasPage(
+                                                            (p) =>
+                                                                Math.max(
+                                                                    p - 1,
+                                                                    1,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    Sebelumnya
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={
+                                                        currentHonorPage >=
+                                                        totalHonorPages
+                                                    }
+                                                    onClick={() =>
+                                                        setHonorPerPetugasPage(
+                                                            (p) =>
+                                                                Math.min(
+                                                                    p + 1,
+                                                                    totalHonorPages,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    Berikutnya
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
                     {/* Honor Inequality Chart */}
                     <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
@@ -1583,8 +1816,7 @@ export default function Dashboard({
                                         }}
                                         tickFormatter={(value) =>
                                             new Intl.NumberFormat('id-ID', {
-                                                notation: 'compact',
-                                                compactDisplay: 'short',
+                                                maximumFractionDigits: 0,
                                             }).format(value)
                                         }
                                     />
