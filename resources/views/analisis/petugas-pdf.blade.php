@@ -9,10 +9,6 @@
     <h1>Analisis Petugas Sensus dan Survei di Lingkungan Badan Pusat Statistik Kota Sawahlunto &mdash; Tahun Anggaran {{ $currentYear }}</h1>
     <p class="meta">Dicetak: {{ $tanggalCetak }} &nbsp;|&nbsp; Total Petugas Aktif: {{ $totalPetugas }}</p>
 
-    <h2>Visualisasi Ringkas</h2>
-    <div>{!! $pieChartSvg !!}</div>
-    <div style="margin-top:8px">{!! $lineChartSvg !!}</div>
-
     {{-- Distribusi Jenis Kelamin --}}
     <h2>Distribusi Jenis Kelamin</h2>
     <table style="width:auto">
