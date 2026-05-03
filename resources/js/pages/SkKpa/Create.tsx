@@ -37,6 +37,7 @@ interface Kegiatan {
     nama_kegiatan: string;
     jenis_kegiatan: 'sensus' | 'survei';
     tahun_anggaran: number;
+    first_periode: { bulan: number; tahun: number } | null;
 }
 
 interface PeriodChange {
@@ -439,6 +440,64 @@ export default function Create({
                                         . Pastikan semua data petugas sudah
                                         lengkap dan benar sebelum generate SK.
                                     </p>
+                                    {kegiatan.first_periode && (
+                                        <div className="mt-3 flex items-center gap-2 rounded-md border border-green-300 bg-green-100 px-3 py-2 dark:border-green-700 dark:bg-green-900/40">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-4 w-4 shrink-0 text-green-700 dark:text-green-300"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <rect
+                                                    x="3"
+                                                    y="4"
+                                                    width="18"
+                                                    height="18"
+                                                    rx="2"
+                                                    ry="2"
+                                                />
+                                                <line
+                                                    x1="16"
+                                                    y1="2"
+                                                    x2="16"
+                                                    y2="6"
+                                                />
+                                                <line
+                                                    x1="8"
+                                                    y1="2"
+                                                    x2="8"
+                                                    y2="6"
+                                                />
+                                                <line
+                                                    x1="3"
+                                                    y1="10"
+                                                    x2="21"
+                                                    y2="10"
+                                                />
+                                            </svg>
+                                            <span className="text-sm text-green-800 dark:text-green-200">
+                                                Periode alokasi:{' '}
+                                                <span className="text-base font-bold text-green-900 dark:text-green-100">
+                                                    {new Date(
+                                                        kegiatan.first_periode
+                                                            .tahun,
+                                                        kegiatan.first_periode
+                                                            .bulan - 1,
+                                                    ).toLocaleString('id-ID', {
+                                                        month: 'long',
+                                                    })}{' '}
+                                                    {
+                                                        kegiatan.first_periode
+                                                            .tahun
+                                                    }
+                                                </span>
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

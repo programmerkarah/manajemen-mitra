@@ -262,6 +262,13 @@ class SkKpaController extends Controller
         // Get personnel change information for SK Perubahan
         $personnelChangeInfo = $this->getPersonnelChangeInfo($kegiatanId);
 
+        // Get the earliest eligible periode for first-SK context info
+        $firstPeriode = $this->resolveSkTargetPeriode($kegiatanId, false);
+        $firstPeriodeInfo = $firstPeriode ? [
+            'bulan' => $firstPeriode->bulan,
+            'tahun' => $firstPeriode->tahun,
+        ] : null;
+
         return Inertia::render('SkKpa/Create', [
             'kegiatan' => [
                 'id' => $kegiatan->id,
@@ -270,6 +277,7 @@ class SkKpaController extends Controller
                 'nama_kegiatan' => $kegiatan->nama_kegiatan,
                 'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                 'tahun_anggaran' => $kegiatan->tahun_anggaran,
+                'first_periode' => $firstPeriodeInfo,
             ],
             'dasarHukumList' => $dasarHukum,
             'personnelChangeInfo' => $personnelChangeInfo,
