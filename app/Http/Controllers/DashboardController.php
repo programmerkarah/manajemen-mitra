@@ -609,13 +609,14 @@ class DashboardController extends Controller
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
 
-            // Count total non-organik petugas allocated for this month
+            // Count total non-organik petugas allocated for this month (exclude honor=0)
             $totalPetugasAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
+                ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
                 ->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
@@ -636,13 +637,14 @@ class DashboardController extends Controller
                 ->where('jenis_petugas', 'non-organik')
                 ->count();
 
-            // Get all alokasi for this month with non-organik petugas only
+            // Get all alokasi for this month with non-organik petugas only (exclude honor=0)
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->where('periode_alokasi.bulan', $monthFormatted)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
+                ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
