@@ -226,6 +226,28 @@ class AnalisisController extends Controller
             ->values()
             ->all();
 
+        // Petugas yang belum pernah dialokasikan (tidak ada entri di alokasi_petugas sama sekali)
+        $petugasBelumDialokasikan = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->where('status', 'aktif')
+            ->whereNull('deleted_at')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('alokasi_petugas')
+                    ->whereColumn('alokasi_petugas.petugas_id', 'petugas.id');
+            })
+            ->select('id', 'nama', 'kecamatan', 'jenis_kelamin')
+            ->orderBy('nama')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'nama' => $p->nama,
+                'kecamatan' => $p->kecamatan,
+                'jenis_kelamin' => $p->jenis_kelamin,
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('Analisis/Petugas', [
             'distribusiJenisKelamin' => $distribusiJenisKelamin,
             'distribusiKecamatan' => $distribusiKecamatan,
@@ -236,6 +258,7 @@ class AnalisisController extends Controller
             'kegiatanList' => $kegiatanList,
             'petugasAlokasiDetail' => $petugasAlokasiDetail,
             'petugasList' => $petugasList,
+            'petugasBelumDialokasikan' => $petugasBelumDialokasikan,
             'totalPetugas' => $petugasNonOrganik->count(),
             'currentYear' => $currentYear,
         ]);

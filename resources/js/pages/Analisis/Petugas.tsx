@@ -209,6 +209,13 @@ interface PetugasListItem {
     nama: string;
 }
 
+interface PetugasBelumDialokasikanItem {
+    id: number;
+    nama: string;
+    kecamatan: string | null;
+    jenis_kelamin: string | null;
+}
+
 interface Props {
     distribusiJenisKelamin: DistribusiItem[];
     distribusiKecamatan: KecamatanItem[];
@@ -219,6 +226,7 @@ interface Props {
     kegiatanList: KegiatanListItem[];
     petugasAlokasiDetail: PetugasAlokasiDetail[];
     petugasList: PetugasListItem[];
+    petugasBelumDialokasikan: PetugasBelumDialokasikanItem[];
     totalPetugas: number;
     currentYear: number;
 }
@@ -233,6 +241,7 @@ export default function AnalisisPetugas({
     kegiatanList,
     petugasAlokasiDetail,
     petugasList,
+    petugasBelumDialokasikan,
     totalPetugas,
     currentYear,
 }: Props) {
@@ -260,6 +269,8 @@ export default function AnalisisPetugas({
     const [searchHonorDetail, setSearchHonorDetail] = useState('');
     const [honorDetailPage, setHonorDetailPage] = useState(1);
     const honorDetailPageSize = 15;
+    const [belumDialokasikanPage, setBelumDialokasikanPage] = useState(1);
+    const belumDialokasikanPageSize = 10;
 
     const filteredAlokasiDetail = useMemo(() => {
         if (!searchAlokasiDetail.trim()) {
@@ -803,6 +814,132 @@ export default function AnalisisPetugas({
                         </table>
                     </div>
                 </div>
+
+                {/* Petugas Belum Pernah Dialokasikan */}
+                {petugasBelumDialokasikan.length > 0 &&
+                    (() => {
+                        const totalPagesBelum = Math.max(
+                            1,
+                            Math.ceil(
+                                petugasBelumDialokasikan.length /
+                                    belumDialokasikanPageSize,
+                            ),
+                        );
+                        const currentPageBelum = Math.min(
+                            belumDialokasikanPage,
+                            totalPagesBelum,
+                        );
+                        const pageRowsBelum = petugasBelumDialokasikan.slice(
+                            (currentPageBelum - 1) * belumDialokasikanPageSize,
+                            currentPageBelum * belumDialokasikanPageSize,
+                        );
+                        return (
+                            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5 shadow-2xl backdrop-blur-2xl dark:border-amber-700/30 dark:bg-amber-900/10">
+                                <div className="mb-4">
+                                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                        Petugas Belum Pernah Dialokasikan
+                                    </h3>
+                                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                        {petugasBelumDialokasikan.length}{' '}
+                                        petugas aktif belum pernah mendapat
+                                        alokasi kegiatan
+                                    </p>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                    No
+                                                </th>
+                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                    Nama
+                                                </th>
+                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                    Jenis Kelamin
+                                                </th>
+                                                <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                    Kecamatan
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pageRowsBelum.map((item, idx) => (
+                                                <tr
+                                                    key={item.id}
+                                                    className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                                >
+                                                    <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
+                                                        {(currentPageBelum -
+                                                            1) *
+                                                            belumDialokasikanPageSize +
+                                                            idx +
+                                                            1}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                        {item.nama}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
+                                                        {item.jenis_kelamin ??
+                                                            '—'}
+                                                    </td>
+                                                    <td className="py-1.5 text-neutral-600 dark:text-neutral-400">
+                                                        {item.kecamatan ?? '—'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {totalPagesBelum > 1 && (
+                                    <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                        <span className="text-neutral-500 dark:text-neutral-400">
+                                            Halaman {currentPageBelum} dari{' '}
+                                            {totalPagesBelum} &middot;{' '}
+                                            {petugasBelumDialokasikan.length}{' '}
+                                            petugas
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={currentPageBelum <= 1}
+                                                onClick={() =>
+                                                    setBelumDialokasikanPage(
+                                                        (p) =>
+                                                            Math.max(p - 1, 1),
+                                                    )
+                                                }
+                                            >
+                                                Sebelumnya
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={
+                                                    currentPageBelum >=
+                                                    totalPagesBelum
+                                                }
+                                                onClick={() =>
+                                                    setBelumDialokasikanPage(
+                                                        (p) =>
+                                                            Math.min(
+                                                                p + 1,
+                                                                totalPagesBelum,
+                                                            ),
+                                                    )
+                                                }
+                                            >
+                                                Berikutnya
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                 {/* Per-Petugas Chart - Dynamic Multi-select */}
                 <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">

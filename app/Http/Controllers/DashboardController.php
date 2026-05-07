@@ -793,8 +793,9 @@ class DashboardController extends Controller
             }
         }
 
-        // Calculate summary statistics - use last month data with allocations
-        // Petugas Monitoring Summary - Get from most recent month with data
+        // Calculate summary statistics
+        // Only average months that had at least one petugas allocated, to avoid
+        // inflating 'tidak_dialokasikan' from months with no alokasi activity at all.
         $petugasMonitoringSummary = [
             'tidak_dialokasikan' => 0,
             'kegiatan_1_2' => 0,
@@ -802,14 +803,15 @@ class DashboardController extends Controller
             'kegiatan_lebih_5' => 0,
         ];
 
-        // Use the last available month data
-        if (count($petugasMonitoringData) > 0) {
-            $lastMonthData = end($petugasMonitoringData);
+        $monthsWithAlokasi = collect($petugasMonitoringData)
+            ->filter(fn ($m) => ($m['kegiatan_1_2'] + $m['kegiatan_3_5'] + $m['kegiatan_lebih_5']) > 0);
+
+        if ($monthsWithAlokasi->count() > 0) {
             $petugasMonitoringSummary = [
-                'tidak_dialokasikan' => round(collect($petugasMonitoringData)->avg('tidak_dialokasikan'), 0),
-                'kegiatan_1_2' => round(collect($petugasMonitoringData)->avg('kegiatan_1_2'), 0),
-                'kegiatan_3_5' => round(collect($petugasMonitoringData)->avg('kegiatan_3_5'), 0),
-                'kegiatan_lebih_5' => round(collect($petugasMonitoringData)->avg('kegiatan_lebih_5'), 0),
+                'tidak_dialokasikan' => round($monthsWithAlokasi->avg('tidak_dialokasikan'), 0),
+                'kegiatan_1_2' => round($monthsWithAlokasi->avg('kegiatan_1_2'), 0),
+                'kegiatan_3_5' => round($monthsWithAlokasi->avg('kegiatan_3_5'), 0),
+                'kegiatan_lebih_5' => round($monthsWithAlokasi->avg('kegiatan_lebih_5'), 0),
             ];
         }
 

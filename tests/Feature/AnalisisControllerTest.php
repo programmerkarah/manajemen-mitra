@@ -38,6 +38,7 @@ class AnalisisControllerTest extends TestCase
                 ->has('petugasKegiatan')
                 ->has('petugasAlokasiDetail')
                 ->has('petugasList')
+                ->has('petugasBelumDialokasikan')
                 ->has('currentYear')
             );
     }
@@ -201,6 +202,93 @@ class AnalisisControllerTest extends TestCase
         $this->assertNotNull($januari);
         $this->assertSame(1, $januari['jumlah_petugas']);
         $this->assertSame(1, $januari['jumlah_kegiatan']);
+    }
+
+    public function test_petugas_belum_dialokasikan_appears_in_analisis_petugas(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $petugasBelum = Petugas::factory()->create([
+            'nama' => 'Petugas Belum Alokasi',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasSudah = Petugas::factory()->create([
+            'nama' => 'Petugas Sudah Alokasi',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => (int) date('Y'),
+            'status' => 'draft',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => (int) date('Y'),
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasSudah->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 100000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $belumDialokasikan = collect($props['petugasBelumDialokasikan']);
+
+        $this->assertTrue($belumDialokasikan->pluck('nama')->contains('Petugas Belum Alokasi'));
+        $this->assertFalse($belumDialokasikan->pluck('nama')->contains('Petugas Sudah Alokasi'));
+    }
+
+    public function test_petugas_belum_dialokasikan_empty_when_all_allocated(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Aktif Dialokasikan',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => (int) date('Y'),
+            'status' => 'draft',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => (int) date('Y'),
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 100000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $belumDialokasikan = collect($props['petugasBelumDialokasikan']);
+
+        $this->assertFalse($belumDialokasikan->pluck('nama')->contains('Petugas Aktif Dialokasikan'));
     }
 
     public function test_admin_can_export_all_analisis_pdf(): void
