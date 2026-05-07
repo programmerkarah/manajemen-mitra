@@ -292,7 +292,7 @@ class AnalisisController extends Controller
                     ->from('alokasi_petugas')
                     ->whereColumn('alokasi_petugas.petugas_id', 'petugas.id');
             })
-            ->select('id', 'nama', 'kecamatan', 'jenis_kelamin')
+            ->select('id', 'nama', 'kecamatan', 'jenis_kelamin', 'telepon')
             ->orderBy('nama')
             ->get()
             ->map(fn ($p) => [
@@ -300,6 +300,7 @@ class AnalisisController extends Controller
                 'nama' => $p->nama,
                 'kecamatan' => $p->kecamatan,
                 'jenis_kelamin' => $p->jenis_kelamin,
+                'telepon' => $p->telepon,
             ])
             ->values()
             ->all();

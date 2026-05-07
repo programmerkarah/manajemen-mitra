@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Download, X } from 'lucide-react';
+import { Check, Copy, Download, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     CartesianGrid,
@@ -214,6 +214,7 @@ interface PetugasBelumDialokasikanItem {
     nama: string;
     kecamatan: string | null;
     jenis_kelamin: string | null;
+    telepon: string | null;
 }
 
 interface KegiatanRutinItem {
@@ -288,6 +289,34 @@ export default function AnalisisPetugas({
     const honorDetailPageSize = 15;
     const [belumDialokasikanPage, setBelumDialokasikanPage] = useState(1);
     const belumDialokasikanPageSize = 10;
+    const [copiedBelumDialokasikanId, setCopiedBelumDialokasikanId] = useState<
+        number | 'all' | null
+    >(null);
+
+    const copyBelumDialokasikanRow = (
+        item: PetugasBelumDialokasikanItem,
+        no: number,
+    ) => {
+        const text = item.telepon
+            ? `${no}. ${item.nama} (${item.telepon})`
+            : `${no}. ${item.nama}`;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedBelumDialokasikanId(item.id);
+            setTimeout(() => setCopiedBelumDialokasikanId(null), 1500);
+        });
+    };
+
+    const copyAllBelumDialokasikan = () => {
+        const lines = petugasBelumDialokasikan.map((item, idx) =>
+            item.telepon
+                ? `${idx + 1}. ${item.nama} (${item.telepon})`
+                : `${idx + 1}. ${item.nama}`,
+        );
+        navigator.clipboard.writeText(lines.join('\n')).then(() => {
+            setCopiedBelumDialokasikanId('all');
+            setTimeout(() => setCopiedBelumDialokasikanId(null), 1500);
+        });
+    };
     const [searchPetugasRutin, setSearchPetugasRutin] = useState('');
     const [petugasRutinPage, setPetugasRutinPage] = useState(1);
     const petugasRutinPageSize = 10;
@@ -874,14 +903,32 @@ export default function AnalisisPetugas({
                 {/* Petugas Belum Pernah Dialokasikan */}
                 {petugasBelumDialokasikan.length > 0 && (
                     <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5 shadow-2xl backdrop-blur-2xl dark:border-amber-700/30 dark:bg-amber-900/10">
-                        <div className="mb-4">
-                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                                Petugas Belum Pernah Dialokasikan
-                            </h3>
-                            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                                {petugasBelumDialokasikan.length} petugas aktif
-                                belum pernah mendapat alokasi kegiatan
-                            </p>
+                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    Petugas Belum Pernah Dialokasikan
+                                </h3>
+                                <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                    {petugasBelumDialokasikan.length} petugas
+                                    aktif belum pernah mendapat alokasi kegiatan
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs"
+                                onClick={copyAllBelumDialokasikan}
+                            >
+                                {copiedBelumDialokasikanId === 'all' ? (
+                                    <Check className="h-3.5 w-3.5 text-green-500" />
+                                ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                )}
+                                {copiedBelumDialokasikanId === 'all'
+                                    ? 'Tersalin!'
+                                    : 'Salin Semua'}
+                            </Button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -896,36 +943,68 @@ export default function AnalisisPetugas({
                                         <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
                                             Jenis Kelamin
                                         </th>
-                                        <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            No HP
+                                        </th>
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
                                             Kecamatan
                                         </th>
+                                        <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {belumDialokasikanPageRows.map(
-                                        (item, idx) => (
-                                            <tr
-                                                key={item.id}
-                                                className="border-b border-neutral-100 dark:border-neutral-700/50"
-                                            >
-                                                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
-                                                    {(belumDialokasikanCurrentPage -
-                                                        1) *
-                                                        belumDialokasikanPageSize +
-                                                        idx +
-                                                        1}
-                                                </td>
-                                                <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
-                                                    {item.nama}
-                                                </td>
-                                                <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
-                                                    {item.jenis_kelamin ?? '—'}
-                                                </td>
-                                                <td className="py-1.5 text-neutral-600 dark:text-neutral-400">
-                                                    {item.kecamatan ?? '—'}
-                                                </td>
-                                            </tr>
-                                        ),
+                                        (item, idx) => {
+                                            const rowNo =
+                                                (belumDialokasikanCurrentPage -
+                                                    1) *
+                                                    belumDialokasikanPageSize +
+                                                idx +
+                                                1;
+                                            return (
+                                                <tr
+                                                    key={item.id}
+                                                    className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                                >
+                                                    <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
+                                                        {rowNo}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                        {item.nama}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
+                                                        {item.jenis_kelamin ??
+                                                            '—'}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
+                                                        {item.telepon ?? '—'}
+                                                    </td>
+                                                    <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
+                                                        {item.kecamatan ?? '—'}
+                                                    </td>
+                                                    <td className="py-1.5 text-right">
+                                                        <button
+                                                            type="button"
+                                                            title="Salin baris ini"
+                                                            onClick={() =>
+                                                                copyBelumDialokasikanRow(
+                                                                    item,
+                                                                    rowNo,
+                                                                )
+                                                            }
+                                                            className="rounded p-1 text-neutral-400 transition hover:text-neutral-700 dark:hover:text-neutral-200"
+                                                        >
+                                                            {copiedBelumDialokasikanId ===
+                                                            item.id ? (
+                                                                <Check className="h-3.5 w-3.5 text-green-500" />
+                                                            ) : (
+                                                                <Copy className="h-3.5 w-3.5" />
+                                                            )}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        },
                                     )}
                                 </tbody>
                             </table>
