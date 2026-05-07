@@ -39,6 +39,7 @@ class AnalisisControllerTest extends TestCase
                 ->has('petugasAlokasiDetail')
                 ->has('petugasList')
                 ->has('petugasBelumDialokasikan')
+                ->has('petugasRutin')
                 ->has('currentYear')
             );
     }
@@ -289,6 +290,142 @@ class AnalisisControllerTest extends TestCase
         $belumDialokasikan = collect($props['petugasBelumDialokasikan']);
 
         $this->assertFalse($belumDialokasikan->pluck('nama')->contains('Petugas Aktif Dialokasikan'));
+    }
+
+    public function test_petugas_rutin_includes_recurring_kegiatan(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Rutin Test',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $currentYear,
+            'status' => 'draft',
+            'tanggal_mulai' => $currentYear.'-01-01',
+            'tanggal_selesai' => $currentYear.'-06-30',
+        ]);
+
+        foreach (['01', '04'] as $bulan) {
+            $periode = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => $bulan,
+                'tahun' => $currentYear,
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::factory()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugas->id,
+                'status_kepegawaian' => 'non_organik',
+                'total_honor' => 100000,
+                'total_honor_listing' => 0,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $petugasRutin = collect($props['petugasRutin']);
+
+        $this->assertTrue($petugasRutin->pluck('petugas_nama')->contains('Petugas Rutin Test'));
+
+        $rutinEntry = $petugasRutin->firstWhere('petugas_nama', 'Petugas Rutin Test');
+        $this->assertSame(1, $rutinEntry['jumlah_kegiatan_rutin']);
+        $this->assertSame(2, $rutinEntry['kegiatan_rutin'][0]['jumlah_bulan']);
+    }
+
+    public function test_petugas_rutin_excludes_single_month_kegiatan(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Sekali Test',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $currentYear,
+            'status' => 'draft',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 100000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $petugasRutin = collect($props['petugasRutin']);
+
+        $this->assertFalse($petugasRutin->pluck('petugas_nama')->contains('Petugas Sekali Test'));
+    }
+
+    public function test_petugas_rutin_excludes_short_range_kegiatan(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Kegiatan Pendek',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        // Kegiatan with range <= 2 months (only 1 month apart)
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $currentYear,
+            'status' => 'draft',
+            'tanggal_mulai' => $currentYear.'-01-01',
+            'tanggal_selesai' => $currentYear.'-02-28',
+        ]);
+
+        foreach (['01', '02'] as $bulan) {
+            $periode = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => $bulan,
+                'tahun' => $currentYear,
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::factory()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugas->id,
+                'status_kepegawaian' => 'non_organik',
+                'total_honor' => 100000,
+                'total_honor_listing' => 0,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $petugasRutin = collect($props['petugasRutin']);
+
+        $this->assertFalse($petugasRutin->pluck('petugas_nama')->contains('Petugas Kegiatan Pendek'));
     }
 
     public function test_admin_can_export_all_analisis_pdf(): void

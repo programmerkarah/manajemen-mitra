@@ -226,6 +226,62 @@ class AnalisisController extends Controller
             ->values()
             ->all();
 
+        // Petugas Rutin: kegiatan yang sama muncul di >= 2 bulan berbeda untuk petugas yang sama
+        $petugasRutinRaw = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0')
+            ->whereRaw('TIMESTAMPDIFF(MONTH, kegiatan.tanggal_mulai, kegiatan.tanggal_selesai) > 2');
+        $this->applyEffectivePeriode($petugasRutinRaw);
+        $petugasRutinRaw = $petugasRutinRaw
+            ->select(
+                'petugas.id as petugas_id',
+                'petugas.nama as petugas_nama',
+                'kegiatan.id as kegiatan_id',
+                'kegiatan.nama_kegiatan',
+                'kegiatan.kode_kegiatan',
+                'periode_alokasi.bulan',
+            )
+            ->distinct()
+            ->get();
+
+        $petugasRutin = $petugasRutinRaw
+            ->groupBy('petugas_id')
+            ->map(function ($items) {
+                $first = $items->first();
+                $kegiatanRutin = $items
+                    ->groupBy('kegiatan_id')
+                    ->filter(fn ($kegItems) => $kegItems->count() >= 2)
+                    ->map(fn ($kegItems) => [
+                        'kegiatan_id' => $kegItems->first()->kegiatan_id,
+                        'nama_kegiatan' => $kegItems->first()->nama_kegiatan,
+                        'kode_kegiatan' => $kegItems->first()->kode_kegiatan,
+                        'jumlah_bulan' => $kegItems->count(),
+                        'bulan_list' => $kegItems->pluck('bulan')->sort()->values()->all(),
+                    ])
+                    ->sortByDesc('jumlah_bulan')
+                    ->values()
+                    ->all();
+
+                if (empty($kegiatanRutin)) {
+                    return null;
+                }
+
+                return [
+                    'petugas_id' => $first->petugas_id,
+                    'petugas_nama' => $first->petugas_nama,
+                    'jumlah_kegiatan_rutin' => count($kegiatanRutin),
+                    'kegiatan_rutin' => $kegiatanRutin,
+                ];
+            })
+            ->filter(fn ($p) => $p !== null)
+            ->sortByDesc('jumlah_kegiatan_rutin')
+            ->values()
+            ->all();
+
         // Petugas yang belum pernah dialokasikan (tidak ada entri di alokasi_petugas sama sekali)
         $petugasBelumDialokasikan = Petugas::query()
             ->where('jenis_petugas', 'non-organik')
@@ -259,6 +315,7 @@ class AnalisisController extends Controller
             'petugasAlokasiDetail' => $petugasAlokasiDetail,
             'petugasList' => $petugasList,
             'petugasBelumDialokasikan' => $petugasBelumDialokasikan,
+            'petugasRutin' => $petugasRutin,
             'totalPetugas' => $petugasNonOrganik->count(),
             'currentYear' => $currentYear,
         ]);

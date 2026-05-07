@@ -216,6 +216,21 @@ interface PetugasBelumDialokasikanItem {
     jenis_kelamin: string | null;
 }
 
+interface KegiatanRutinItem {
+    kegiatan_id: number;
+    nama_kegiatan: string;
+    kode_kegiatan: string;
+    jumlah_bulan: number;
+    bulan_list: string[];
+}
+
+interface PetugasRutinItem {
+    petugas_id: number;
+    petugas_nama: string;
+    jumlah_kegiatan_rutin: number;
+    kegiatan_rutin: KegiatanRutinItem[];
+}
+
 interface Props {
     distribusiJenisKelamin: DistribusiItem[];
     distribusiKecamatan: KecamatanItem[];
@@ -227,6 +242,7 @@ interface Props {
     petugasAlokasiDetail: PetugasAlokasiDetail[];
     petugasList: PetugasListItem[];
     petugasBelumDialokasikan: PetugasBelumDialokasikanItem[];
+    petugasRutin: PetugasRutinItem[];
     totalPetugas: number;
     currentYear: number;
 }
@@ -242,6 +258,7 @@ export default function AnalisisPetugas({
     petugasAlokasiDetail,
     petugasList,
     petugasBelumDialokasikan,
+    petugasRutin,
     totalPetugas,
     currentYear,
 }: Props) {
@@ -271,6 +288,45 @@ export default function AnalisisPetugas({
     const honorDetailPageSize = 15;
     const [belumDialokasikanPage, setBelumDialokasikanPage] = useState(1);
     const belumDialokasikanPageSize = 10;
+    const [searchPetugasRutin, setSearchPetugasRutin] = useState('');
+    const [petugasRutinPage, setPetugasRutinPage] = useState(1);
+    const petugasRutinPageSize = 10;
+
+    const filteredPetugasRutin = useMemo(() => {
+        if (!searchPetugasRutin.trim()) {
+            return petugasRutin;
+        }
+        const q = searchPetugasRutin.toLowerCase();
+        return petugasRutin.filter((p) =>
+            p.petugas_nama.toLowerCase().includes(q),
+        );
+    }, [petugasRutin, searchPetugasRutin]);
+
+    const petugasRutinTotalPages = Math.max(
+        1,
+        Math.ceil(filteredPetugasRutin.length / petugasRutinPageSize),
+    );
+    const petugasRutinCurrentPage = Math.min(
+        petugasRutinPage,
+        petugasRutinTotalPages,
+    );
+    const petugasRutinPageRows = filteredPetugasRutin.slice(
+        (petugasRutinCurrentPage - 1) * petugasRutinPageSize,
+        petugasRutinCurrentPage * petugasRutinPageSize,
+    );
+
+    const belumDialokasikanTotalPages = Math.max(
+        1,
+        Math.ceil(petugasBelumDialokasikan.length / belumDialokasikanPageSize),
+    );
+    const belumDialokasikanCurrentPage = Math.min(
+        belumDialokasikanPage,
+        belumDialokasikanTotalPages,
+    );
+    const belumDialokasikanPageRows = petugasBelumDialokasikan.slice(
+        (belumDialokasikanCurrentPage - 1) * belumDialokasikanPageSize,
+        belumDialokasikanCurrentPage * belumDialokasikanPageSize,
+    );
 
     const filteredAlokasiDetail = useMemo(() => {
         if (!searchAlokasiDetail.trim()) {
@@ -816,130 +872,239 @@ export default function AnalisisPetugas({
                 </div>
 
                 {/* Petugas Belum Pernah Dialokasikan */}
-                {petugasBelumDialokasikan.length > 0 &&
-                    (() => {
-                        const totalPagesBelum = Math.max(
-                            1,
-                            Math.ceil(
-                                petugasBelumDialokasikan.length /
-                                    belumDialokasikanPageSize,
-                            ),
-                        );
-                        const currentPageBelum = Math.min(
-                            belumDialokasikanPage,
-                            totalPagesBelum,
-                        );
-                        const pageRowsBelum = petugasBelumDialokasikan.slice(
-                            (currentPageBelum - 1) * belumDialokasikanPageSize,
-                            currentPageBelum * belumDialokasikanPageSize,
-                        );
-                        return (
-                            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5 shadow-2xl backdrop-blur-2xl dark:border-amber-700/30 dark:bg-amber-900/10">
-                                <div className="mb-4">
-                                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                                        Petugas Belum Pernah Dialokasikan
-                                    </h3>
-                                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                                        {petugasBelumDialokasikan.length}{' '}
-                                        petugas aktif belum pernah mendapat
-                                        alokasi kegiatan
-                                    </p>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                                    No
-                                                </th>
-                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                                    Nama
-                                                </th>
-                                                <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                                    Jenis Kelamin
-                                                </th>
-                                                <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
-                                                    Kecamatan
-                                                </th>
+                {petugasBelumDialokasikan.length > 0 && (
+                    <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-5 shadow-2xl backdrop-blur-2xl dark:border-amber-700/30 dark:bg-amber-900/10">
+                        <div className="mb-4">
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                Petugas Belum Pernah Dialokasikan
+                            </h3>
+                            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                {petugasBelumDialokasikan.length} petugas aktif
+                                belum pernah mendapat alokasi kegiatan
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            No
+                                        </th>
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            Nama
+                                        </th>
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            Jenis Kelamin
+                                        </th>
+                                        <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            Kecamatan
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {belumDialokasikanPageRows.map(
+                                        (item, idx) => (
+                                            <tr
+                                                key={item.id}
+                                                className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                            >
+                                                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
+                                                    {(belumDialokasikanCurrentPage -
+                                                        1) *
+                                                        belumDialokasikanPageSize +
+                                                        idx +
+                                                        1}
+                                                </td>
+                                                <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                    {item.nama}
+                                                </td>
+                                                <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
+                                                    {item.jenis_kelamin ?? '—'}
+                                                </td>
+                                                <td className="py-1.5 text-neutral-600 dark:text-neutral-400">
+                                                    {item.kecamatan ?? '—'}
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {pageRowsBelum.map((item, idx) => (
-                                                <tr
-                                                    key={item.id}
-                                                    className="border-b border-neutral-100 dark:border-neutral-700/50"
-                                                >
-                                                    <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
-                                                        {(currentPageBelum -
-                                                            1) *
-                                                            belumDialokasikanPageSize +
-                                                            idx +
-                                                            1}
-                                                    </td>
-                                                    <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
-                                                        {item.nama}
-                                                    </td>
-                                                    <td className="py-1.5 pr-3 text-neutral-600 dark:text-neutral-400">
-                                                        {item.jenis_kelamin ??
-                                                            '—'}
-                                                    </td>
-                                                    <td className="py-1.5 text-neutral-600 dark:text-neutral-400">
-                                                        {item.kecamatan ?? '—'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                        ),
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {belumDialokasikanTotalPages > 1 && (
+                            <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                <span className="text-neutral-500 dark:text-neutral-400">
+                                    Halaman {belumDialokasikanCurrentPage} dari{' '}
+                                    {belumDialokasikanTotalPages} &middot;{' '}
+                                    {petugasBelumDialokasikan.length} petugas
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={
+                                            belumDialokasikanCurrentPage <= 1
+                                        }
+                                        onClick={() =>
+                                            setBelumDialokasikanPage((p) =>
+                                                Math.max(p - 1, 1),
+                                            )
+                                        }
+                                    >
+                                        Sebelumnya
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={
+                                            belumDialokasikanCurrentPage >=
+                                            belumDialokasikanTotalPages
+                                        }
+                                        onClick={() =>
+                                            setBelumDialokasikanPage((p) =>
+                                                Math.min(
+                                                    p + 1,
+                                                    belumDialokasikanTotalPages,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        Berikutnya
+                                    </Button>
                                 </div>
-                                {totalPagesBelum > 1 && (
-                                    <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
-                                        <span className="text-neutral-500 dark:text-neutral-400">
-                                            Halaman {currentPageBelum} dari{' '}
-                                            {totalPagesBelum} &middot;{' '}
-                                            {petugasBelumDialokasikan.length}{' '}
-                                            petugas
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={currentPageBelum <= 1}
-                                                onClick={() =>
-                                                    setBelumDialokasikanPage(
-                                                        (p) =>
-                                                            Math.max(p - 1, 1),
-                                                    )
-                                                }
-                                            >
-                                                Sebelumnya
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={
-                                                    currentPageBelum >=
-                                                    totalPagesBelum
-                                                }
-                                                onClick={() =>
-                                                    setBelumDialokasikanPage(
-                                                        (p) =>
-                                                            Math.min(
-                                                                p + 1,
-                                                                totalPagesBelum,
-                                                            ),
-                                                    )
-                                                }
-                                            >
-                                                Berikutnya
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-                        );
-                    })()}
+                        )}
+                    </div>
+                )}
+
+                {/* Petugas dengan Kegiatan Rutin */}
+                {petugasRutin.length > 0 && (
+                    <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="mb-4 flex flex-wrap items-end gap-4">
+                            <div className="flex-1">
+                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    Petugas dengan Kegiatan Rutin
+                                </h3>
+                                <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                    Petugas yang mengikuti kegiatan yang sama di
+                                    minimal 2 bulan berbeda ·{' '}
+                                    {filteredPetugasRutin.length} petugas
+                                </p>
+                            </div>
+                            <div className="w-64">
+                                <Input
+                                    placeholder="Cari nama petugas..."
+                                    value={searchPetugasRutin}
+                                    onChange={(e) => {
+                                        setSearchPetugasRutin(e.target.value);
+                                        setPetugasRutinPage(1);
+                                    }}
+                                    className="h-9"
+                                />
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                        <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            Nama Petugas
+                                        </th>
+                                        <th className="py-2 pr-3 text-center font-medium text-neutral-600 dark:text-neutral-400">
+                                            Jml Rutin
+                                        </th>
+                                        <th className="py-2 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                            Kegiatan Rutin (jumlah bulan)
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {petugasRutinPageRows.map((item) => (
+                                        <tr
+                                            key={item.petugas_id}
+                                            className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                        >
+                                            <td className="py-2 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                {item.petugas_nama}
+                                            </td>
+                                            <td className="py-2 pr-3 text-center font-bold text-neutral-900 dark:text-white">
+                                                {item.jumlah_kegiatan_rutin}
+                                            </td>
+                                            <td className="py-2">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {item.kegiatan_rutin.map(
+                                                        (k) => (
+                                                            <span
+                                                                key={
+                                                                    k.kegiatan_id
+                                                                }
+                                                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${kegiatanChipStyle(k.kegiatan_id)}`}
+                                                            >
+                                                                {
+                                                                    k.nama_kegiatan
+                                                                }
+                                                                <span className="rounded-full bg-black/10 px-1 py-px font-semibold dark:bg-white/15">
+                                                                    {
+                                                                        k.jumlah_bulan
+                                                                    }
+                                                                    ×
+                                                                </span>
+                                                            </span>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {petugasRutinTotalPages > 1 && (
+                            <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                <span className="text-neutral-500 dark:text-neutral-400">
+                                    Halaman {petugasRutinCurrentPage} dari{' '}
+                                    {petugasRutinTotalPages} &middot;{' '}
+                                    {filteredPetugasRutin.length} petugas
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={petugasRutinCurrentPage <= 1}
+                                        onClick={() =>
+                                            setPetugasRutinPage((p) =>
+                                                Math.max(p - 1, 1),
+                                            )
+                                        }
+                                    >
+                                        Sebelumnya
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={
+                                            petugasRutinCurrentPage >=
+                                            petugasRutinTotalPages
+                                        }
+                                        onClick={() =>
+                                            setPetugasRutinPage((p) =>
+                                                Math.min(
+                                                    p + 1,
+                                                    petugasRutinTotalPages,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        Berikutnya
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Per-Petugas Chart - Dynamic Multi-select */}
                 <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
