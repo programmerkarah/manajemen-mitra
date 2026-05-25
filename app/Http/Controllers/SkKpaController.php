@@ -430,6 +430,8 @@ class SkKpaController extends Controller
     }
 
     /**
+     * Upload signed SK document.
+     */
     public function uploadSigned(Request $request, string $skKpaHashedId): RedirectResponse
     {
         $skKpaId = Hashids::decode($skKpaHashedId)[0] ?? null;
@@ -440,7 +442,7 @@ class SkKpaController extends Controller
 
         $skKpa = SkKpa::findOrFail($skKpaId);
 
-        $validated = $request->validate([
+        $request->validate([
             'signed_file' => ['required', 'file', 'mimes:pdf', 'max:10240'], // 10MB
         ]);
 

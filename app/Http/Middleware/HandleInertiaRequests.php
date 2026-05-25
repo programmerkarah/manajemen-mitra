@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\ActiveYearService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -59,7 +60,14 @@ class HandleInertiaRequests extends Middleware
             $displayUser->load(['roles']);
         }
 
+        $ssoSyncSetting = Cache::get('settings:sso_sync_enabled');
+
+        if (! is_bool($ssoSyncSetting)) {
+            $ssoSyncSetting = (bool) config('services.sso.sync_enabled', true);
+        }
+
         $ssoSyncEnabled = (bool) config('services.sso.active', true)
+            && $ssoSyncSetting
             && filled(config('services.sso.base_url'))
             && filled(config('services.sso.client_id'))
             && $displayUser !== null;

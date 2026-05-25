@@ -26,6 +26,8 @@ class SystemSettingsController
 {
     use EncryptsFilterParams;
 
+    private const SSO_SYNC_CACHE_KEY = 'settings:sso_sync_enabled';
+
     public function __construct(
         private DatabaseBackupService $backupService
     ) {}
@@ -36,10 +38,44 @@ class SystemSettingsController
         $message = Storage::exists('framework/maintenance-message.txt')
             ? Storage::get('framework/maintenance-message.txt')
             : Config::get('app.maintenance_message');
+        $ssoSyncEnabled = Cache::get(self::SSO_SYNC_CACHE_KEY);
+
+        if (! is_bool($ssoSyncEnabled)) {
+            $ssoSyncEnabled = (bool) config('services.sso.sync_enabled', true);
+        }
 
         return Inertia::render('Admin/SystemSettings', [
             'maintenance' => $maintenance,
             'message' => $message,
+            'sso_sync_enabled' => $ssoSyncEnabled,
+            'session_lifetime' => (int) config('session.lifetime', 120),
+        ]);
+    }
+
+    public function updateSsoSync(Request $request)
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $enabled = (bool) $validated['enabled'];
+
+        Cache::forever(self::SSO_SYNC_CACHE_KEY, $enabled);
+
+        ActivityLog::logSystem(
+            'Pengaturan SSO Sync Diperbarui',
+            'Sinkronisasi sesi SSO '.($enabled ? 'diaktifkan' : 'dinonaktifkan').'.',
+            'info',
+            [
+                'enabled' => $enabled,
+                'user_id' => Auth::id(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'enabled' => $enabled,
+            'session_lifetime' => (int) config('session.lifetime', 120),
         ]);
     }
 

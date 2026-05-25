@@ -38,6 +38,8 @@ interface RateHonorPayload {
     satuan_id: number | null;
     kode_coa: string | null;
     satuan_listing_id?: number | null;
+    satuan_pengolahan_pencacahan_id?: number | null;
+    satuan_pengolahan_listing_id?: number | null;
 }
 
 interface Props {
@@ -287,6 +289,9 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     });
 
     const combinations = getCombinations(kegiatan.jenis_kegiatan);
+    const hasPengolahanPenugasanEnabled =
+        enabledJenisPenugasan.pengolahan ||
+        enabledJenisPenugasan.pengawas_pengolahan;
 
     // Initialize form data dengan rate honors yang sudah ada atau nilai kosong
     const [formData, setFormData] = useState(() => {
@@ -382,6 +387,18 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         const selectedListingSatuanId = isSensus
             ? obSatuanId
             : Number.parseInt(formData['satuan_listing_id'] || '', 10);
+        const selectedPengolahanPencacahanSatuanId = isSensus
+            ? obSatuanId
+            : Number.parseInt(
+                  formData['satuan_pengolahan_pencacahan_id'] || '',
+                  10,
+              );
+        const selectedPengolahanListingSatuanId = isSensus
+            ? obSatuanId
+            : Number.parseInt(
+                  formData['satuan_pengolahan_listing_id'] || '',
+                  10,
+              );
 
         if (isSensus && obSatuanId === null) {
             newErrors['satuan_id'] =
@@ -397,6 +414,23 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         ) {
             newErrors['satuan_listing_id'] =
                 'Satuan listing/updating wajib dipilih.';
+        }
+        if (
+            hasPengolahanPenugasanEnabled &&
+            !isSensus &&
+            Number.isNaN(selectedPengolahanPencacahanSatuanId)
+        ) {
+            newErrors['satuan_pengolahan_pencacahan_id'] =
+                'Satuan pengolahan dokumen pencacahan wajib dipilih.';
+        }
+        if (
+            hasPengolahanPenugasanEnabled &&
+            kegiatan.has_listing_updating &&
+            !isSensus &&
+            Number.isNaN(selectedPengolahanListingSatuanId)
+        ) {
+            newErrors['satuan_pengolahan_listing_id'] =
+                'Satuan pengolahan dokumen listing/updating wajib dipilih.';
         }
         if (Object.keys(newErrors).length > 0) {
             setProcessing(false);
@@ -424,10 +458,21 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                     jenis_penugasan: combo.jenis_penugasan,
                     rate: isNaN(rateValue) ? 0 : rateValue,
                     satuan_id:
-                        selectedPencacahanSatuanId === null ||
-                        isNaN(selectedPencacahanSatuanId)
+                        (combo.jenis_penugasan === 'pengolahan' ||
+                        combo.jenis_penugasan === 'pengawas_pengolahan'
+                            ? selectedPengolahanPencacahanSatuanId
+                            : selectedPencacahanSatuanId) === null ||
+                        isNaN(
+                            combo.jenis_penugasan === 'pengolahan' ||
+                                combo.jenis_penugasan === 'pengawas_pengolahan'
+                                ? selectedPengolahanPencacahanSatuanId
+                                : selectedPencacahanSatuanId,
+                        )
                             ? null
-                            : selectedPencacahanSatuanId,
+                            : combo.jenis_penugasan === 'pengolahan' ||
+                                combo.jenis_penugasan === 'pengawas_pengolahan'
+                              ? selectedPengolahanPencacahanSatuanId
+                              : selectedPencacahanSatuanId,
                 };
 
                 if (kegiatan.has_listing_updating) {
@@ -439,10 +484,21 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                         ? 0
                         : rateListingValue;
                     entry.satuan_listing_id =
-                        selectedListingSatuanId === null ||
-                        isNaN(selectedListingSatuanId)
+                        (combo.jenis_penugasan === 'pengolahan' ||
+                        combo.jenis_penugasan === 'pengawas_pengolahan'
+                            ? selectedPengolahanListingSatuanId
+                            : selectedListingSatuanId) === null ||
+                        isNaN(
+                            combo.jenis_penugasan === 'pengolahan' ||
+                                combo.jenis_penugasan === 'pengawas_pengolahan'
+                                ? selectedPengolahanListingSatuanId
+                                : selectedListingSatuanId,
+                        )
                             ? null
-                            : selectedListingSatuanId;
+                            : combo.jenis_penugasan === 'pengolahan' ||
+                                combo.jenis_penugasan === 'pengawas_pengolahan'
+                              ? selectedPengolahanListingSatuanId
+                              : selectedListingSatuanId;
                 }
 
                 return entry;
@@ -466,6 +522,20 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                 isNaN(selectedListingSatuanId)
                     ? null
                     : selectedListingSatuanId;
+        }
+
+        payload.satuan_pengolahan_pencacahan_id =
+            selectedPengolahanPencacahanSatuanId === null ||
+            isNaN(selectedPengolahanPencacahanSatuanId)
+                ? null
+                : selectedPengolahanPencacahanSatuanId;
+
+        if (kegiatan.has_listing_updating) {
+            payload.satuan_pengolahan_listing_id =
+                selectedPengolahanListingSatuanId === null ||
+                isNaN(selectedPengolahanListingSatuanId)
+                    ? null
+                    : selectedPengolahanListingSatuanId;
         }
 
         router.post(
@@ -779,17 +849,67 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         </div>
                                     )}
                                     {/* Dropdown satuan global untuk listing/updating */}
-                                    {enabledJenisPenugasan.pengolahan && (
+                                    {hasPengolahanPenugasanEnabled && (
                                         <div className="flex items-center gap-2 px-6 pt-4 pb-2">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                                 Satuan Pengolahan Dokumen
                                                 Listing/Updating
                                             </label>
-                                            <input
-                                                type="text"
-                                                value={obSatuanLabel}
-                                                disabled
-                                                className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                            {isSensus ? (
+                                                <input
+                                                    type="text"
+                                                    value={obSatuanLabel}
+                                                    disabled
+                                                    className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                />
+                                            ) : (
+                                                <Select
+                                                    value={
+                                                        formData[
+                                                            'satuan_pengolahan_listing_id'
+                                                        ] || ''
+                                                    }
+                                                    onValueChange={(val) =>
+                                                        handleInputChange(
+                                                            'satuan_pengolahan_listing_id',
+                                                            val,
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-56">
+                                                        <SelectValue placeholder="Pilih satuan" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {satuans.map(
+                                                            (satuan) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        satuan.id
+                                                                    }
+                                                                    value={String(
+                                                                        satuan.id,
+                                                                    )}
+                                                                >
+                                                                    {satuan.kode
+                                                                        ? `${satuan.kode} - ${satuan.nama}`
+                                                                        : satuan.nama}
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        </div>
+                                    )}
+                                    {errors['satuan_pengolahan_listing_id'] && (
+                                        <div className="px-6 pb-2">
+                                            <InputError
+                                                message={
+                                                    errors[
+                                                        'satuan_pengolahan_listing_id'
+                                                    ]
+                                                }
                                             />
                                         </div>
                                     )}
@@ -968,16 +1088,62 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                             )}
 
                             {/* Dropdown satuan global untuk pencacahan */}
-                            {enabledJenisPenugasan.pengolahan && (
+                            {hasPengolahanPenugasanEnabled && (
                                 <div className="flex items-center gap-2 px-6 pt-4 pb-2">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                         Satuan Pengolahan Dokumen Pencacahan
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={obSatuanLabel}
-                                        disabled
-                                        className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    {isSensus ? (
+                                        <input
+                                            type="text"
+                                            value={obSatuanLabel}
+                                            disabled
+                                            className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                        />
+                                    ) : (
+                                        <Select
+                                            value={
+                                                formData[
+                                                    'satuan_pengolahan_pencacahan_id'
+                                                ] || ''
+                                            }
+                                            onValueChange={(val) =>
+                                                handleInputChange(
+                                                    'satuan_pengolahan_pencacahan_id',
+                                                    val,
+                                                    true,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger className="w-56">
+                                                <SelectValue placeholder="Pilih satuan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {satuans.map((satuan) => (
+                                                    <SelectItem
+                                                        key={satuan.id}
+                                                        value={String(
+                                                            satuan.id,
+                                                        )}
+                                                    >
+                                                        {satuan.kode
+                                                            ? `${satuan.kode} - ${satuan.nama}`
+                                                            : satuan.nama}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                </div>
+                            )}
+                            {errors['satuan_pengolahan_pencacahan_id'] && (
+                                <div className="px-6 pb-2">
+                                    <InputError
+                                        message={
+                                            errors[
+                                                'satuan_pengolahan_pencacahan_id'
+                                            ]
+                                        }
                                     />
                                 </div>
                             )}

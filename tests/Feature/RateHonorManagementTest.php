@@ -26,6 +26,8 @@ class RateHonorManagementTest extends TestCase
 
     protected Satuan $obSatuan;
 
+    protected Satuan $pengolahanSatuan;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -63,6 +65,12 @@ class RateHonorManagementTest extends TestCase
         $this->satuan = Satuan::factory()->create([
             'kode' => 'RT',
             'nama' => 'Rumah Tangga',
+            'status' => 'aktif',
+        ]);
+
+        $this->pengolahanSatuan = Satuan::factory()->create([
+            'kode' => 'DOC',
+            'nama' => 'Dokumen',
             'status' => 'aktif',
         ]);
 
@@ -300,6 +308,49 @@ class RateHonorManagementTest extends TestCase
             'jenis_penugasan' => 'koseka',
             'rate' => 275000,
             'satuan_id' => $this->obSatuan->id,
+        ]);
+    }
+
+    public function test_survei_pengolahan_uses_pengolahan_specific_satuan(): void
+    {
+        $surveiKegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => false,
+            'metode_pendataan_pencacahan' => 'PAPI',
+        ]);
+
+        $response = $this->actingAs($this->operator)
+            ->post("/kegiatan/{$surveiKegiatan->hashed_id}/rate-honor/bulk", [
+                'satuan_id' => $this->satuan->id,
+                'satuan_pengolahan_pencacahan_id' => $this->pengolahanSatuan->id,
+                'rate_honors' => [
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pcl_ppl',
+                        'rate' => 250000,
+                    ],
+                    [
+                        'status_kepegawaian' => 'non_organik',
+                        'jenis_penugasan' => 'pengolahan',
+                        'rate' => 300000,
+                    ],
+                ],
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('rate_honor', [
+            'kegiatan_id' => $surveiKegiatan->id,
+            'jenis_penugasan' => 'pcl_ppl',
+            'satuan_id' => $this->satuan->id,
+        ]);
+
+        $this->assertDatabaseHas('rate_honor', [
+            'kegiatan_id' => $surveiKegiatan->id,
+            'jenis_penugasan' => 'pengolahan',
+            'satuan_id' => $this->pengolahanSatuan->id,
         ]);
     }
 }

@@ -37,6 +37,7 @@ return [
 
     'sso' => [
         'active' => env('SSO_ACTIVE', true),
+        'sync_enabled' => env('SSO_SYNC_ENABLED', true),
         'base_url' => env('SSO_BASE_URL'),
         'client_id' => env('SSO_CLIENT_ID'),
         'client_secret' => env('SSO_CLIENT_SECRET'),

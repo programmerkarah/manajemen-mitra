@@ -198,9 +198,7 @@ export default function ActivityLog() {
             filterData.date = date;
         }
 
-        router.visit('/admin/activity-log', {
-            method: 'post',
-            data: filterData,
+        router.get('/admin/activity-log', filterData, {
             preserveState: true,
         });
     };
@@ -254,9 +252,7 @@ export default function ActivityLog() {
             filterData.date = date;
         }
 
-        router.visit('/admin/activity-log', {
-            method: 'post',
-            data: filterData,
+        router.get('/admin/activity-log', filterData, {
             preserveState: true,
             preserveScroll: false,
         });

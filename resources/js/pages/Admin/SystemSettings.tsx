@@ -35,21 +35,31 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const API_URL = '/admin/system-settings/maintenance';
+const SSO_SYNC_API_URL = '/admin/system-settings/sso-sync';
 
 interface SystemSettingsProps {
     maintenance: boolean;
     message: string;
+    sso_sync_enabled: boolean;
+    session_lifetime: number;
     [key: string]: unknown;
 }
 
 export default function SystemSettings() {
-    const { maintenance: initialMaintenance, message: initialMessage } =
-        usePage<SystemSettingsProps>().props;
+    const {
+        maintenance: initialMaintenance,
+        message: initialMessage,
+        sso_sync_enabled: initialSsoSyncEnabled,
+        session_lifetime: sessionLifetime,
+    } = usePage<SystemSettingsProps>().props;
     const [maintenance, setMaintenance] = React.useState(initialMaintenance);
     const [loading, setLoading] = React.useState(false);
     const [message, setMessage] = React.useState(initialMessage || '');
     const [editMessage, setEditMessage] = React.useState(initialMessage || '');
     const [saving, setSaving] = React.useState(false);
+    const [ssoSyncEnabled, setSsoSyncEnabled] =
+        React.useState(initialSsoSyncEnabled);
+    const [ssoSyncSaving, setSsoSyncSaving] = React.useState(false);
     const [showSaved, setShowSaved] = React.useState(false);
     const [modalAlert, setModalAlert] = React.useState<{
         open: boolean;
@@ -144,6 +154,41 @@ export default function SystemSettings() {
             setTimeout(() => setShowSaved(false), 1200);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleToggleSsoSync = async () => {
+        setSsoSyncSaving(true);
+        try {
+            const res = await fetch(SSO_SYNC_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    Accept: 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    enabled: !ssoSyncEnabled,
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            setSsoSyncEnabled(Boolean(data.enabled));
+            setShowSaved(true);
+            setTimeout(() => setShowSaved(false), 1200);
+        } catch (error) {
+            console.error('Failed to toggle SSO sync:', error);
+            showModalAlert(
+                'Aksi Gagal',
+                'Gagal memperbarui pengaturan SSO Sync. Silakan coba lagi.',
+            );
+        } finally {
+            setSsoSyncSaving(false);
         }
     };
 
@@ -321,6 +366,86 @@ export default function SystemSettings() {
                             )}
                         </Button>
                     </div>
+                </ContentCard>
+
+                {/* SSO Sync Settings Card */}
+                <ContentCard>
+                    <div className="mb-6 flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                            <div
+                                className={`flex h-14 w-14 items-center justify-center rounded-xl ${
+                                    ssoSyncEnabled
+                                        ? 'bg-blue-100 dark:bg-blue-900/30'
+                                        : 'bg-neutral-100 dark:bg-neutral-800/40'
+                                }`}
+                            >
+                                <Shield
+                                    className={`h-7 w-7 ${
+                                        ssoSyncEnabled
+                                            ? 'text-blue-600 dark:text-blue-400'
+                                            : 'text-neutral-500 dark:text-neutral-400'
+                                    }`}
+                                />
+                            </div>
+                            <div>
+                                <h2 className="flex items-center gap-2 text-xl font-bold">
+                                    Sinkronisasi SSO
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Sinkronisasi latar belakang ke server SSO
+                                </p>
+                            </div>
+                        </div>
+                        <Badge
+                            variant={ssoSyncEnabled ? 'default' : 'secondary'}
+                            className={`gap-2 px-4 py-2 text-base ${
+                                ssoSyncEnabled
+                                    ? 'bg-blue-600 hover:bg-blue-700'
+                                    : ''
+                            }`}
+                        >
+                            {ssoSyncEnabled ? 'Aktif' : 'Nonaktif'}
+                        </Badge>
+                    </div>
+
+                    <div className="mb-6 rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-900/20">
+                        <div className="flex items-start gap-3">
+                            <Info className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div className="space-y-1">
+                                <p className="font-semibold text-blue-900 dark:text-blue-200">
+                                    Lifetime sesi tetap absolut
+                                </p>
+                                <p className="text-sm text-blue-800 dark:text-blue-300">
+                                    Walaupun SSO sync aktif, sesi lokal tidak
+                                    akan diperpanjang. Setelah melewati{' '}
+                                    <span className="font-semibold">
+                                        {sessionLifetime} menit
+                                    </span>
+                                    , sinkronisasi berikutnya akan memaksa logout
+                                    ke halaman login.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={handleToggleSsoSync}
+                        disabled={ssoSyncSaving}
+                        variant={ssoSyncEnabled ? 'outline' : 'default'}
+                        size="lg"
+                        className="w-full"
+                    >
+                        {ssoSyncSaving ? (
+                            <>
+                                <Clock className="mr-2 h-4 w-4 animate-spin" />
+                                Memproses...
+                            </>
+                        ) : ssoSyncEnabled ? (
+                            <>Nonaktifkan SSO Sync</>
+                        ) : (
+                            <>Aktifkan SSO Sync</>
+                        )}
+                    </Button>
                 </ContentCard>
 
                 {/* Maintenance Message Card */}

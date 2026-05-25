@@ -231,6 +231,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         })->name('admin.dashboard');
         Route::get('system-settings', [SystemSettingsController::class, 'index'])->name('admin.system-settings');
         Route::post('system-settings/maintenance', [SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
+        Route::post('system-settings/sso-sync', [SystemSettingsController::class, 'updateSsoSync'])->name('admin.system-settings.sso-sync');
         Route::match(['get', 'post'], 'activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
         Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
         Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');

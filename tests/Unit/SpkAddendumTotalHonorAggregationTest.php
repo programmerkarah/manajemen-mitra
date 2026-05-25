@@ -59,8 +59,12 @@ class SpkAddendumTotalHonorAggregationTest extends TestCase
         string $status,
         float $totalHonor,
         float $totalHonorListing,
+        int $jumlahSatuan = 1,
+        int $jumlahSatuanListing = 0,
     ): object {
         return (object) [
+            'jumlah_satuan' => $jumlahSatuan,
+            'jumlah_satuan_listing' => $jumlahSatuanListing,
             'total_honor' => $totalHonor,
             'total_honor_listing' => $totalHonorListing,
             'periodeAlokasi' => (object) [

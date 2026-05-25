@@ -191,7 +191,7 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'status_kepegawaian' => 'non_organik',
         ]);
 
-        SkKpa::create([
+        $existingSk = SkKpa::create([
             'nomor_sk' => '003/SK/TEST',
             'kegiatan_id' => $kegiatan->id,
             'bulan' => 3,
@@ -203,9 +203,12 @@ class SkKpaIndexAndKegiatanCopyTest extends TestCase
             'file_path' => 'sk/test-existing.pdf',
             'status' => 'draft',
             'created_by' => $admin->id,
+        ]);
+
+        $existingSk->forceFill([
             'created_at' => now()->subDays(9),
             'updated_at' => now()->subDays(9),
-        ]);
+        ])->saveQuietly();
 
         $periodeRevisi = PeriodeAlokasi::factory()->create([
             'kegiatan_id' => $kegiatan->id,

@@ -593,6 +593,8 @@ class KegiatanController extends Controller
             'rate_honors.*.satuan_listing_id' => ['nullable', 'exists:satuan,id'],
             'satuan_id' => ['nullable', 'exists:satuan,id'],
             'satuan_listing_id' => ['nullable', 'exists:satuan,id'],
+            'satuan_pengolahan_pencacahan_id' => ['nullable', 'exists:satuan,id'],
+            'satuan_pengolahan_listing_id' => ['nullable', 'exists:satuan,id'],
             'rate_honors.*.rate_listing' => ['nullable', 'numeric', 'min:0'],
             'kode_coa' => ['nullable', 'string', 'max:100'],
         ]);
@@ -607,6 +609,11 @@ class KegiatanController extends Controller
 
         $selectedSatuanId = $this->resolveSubmittedSatuanId($request, 'satuan_id');
         $selectedSatuanListingId = $this->resolveSubmittedSatuanId($request, 'satuan_listing_id');
+        $selectedSatuanPengolahanPencacahanId = $this->resolveSubmittedSatuanId($request, 'satuan_pengolahan_pencacahan_id');
+        $selectedSatuanPengolahanListingId = $this->resolveSubmittedSatuanId($request, 'satuan_pengolahan_listing_id');
+        $hasPengolahanPenugasan = collect($request->input('rate_honors', []))
+            ->pluck('jenis_penugasan')
+            ->contains(fn ($jenisPenugasan) => in_array($jenisPenugasan, ['pengolahan', 'pengawas_pengolahan'], true));
 
         if (! $isSensus && $selectedSatuanId === null) {
             return back()->withErrors([
@@ -617,6 +624,23 @@ class KegiatanController extends Controller
         if ($kegiatan->has_listing_updating && ! $isSensus && $selectedSatuanListingId === null) {
             return back()->withErrors([
                 'satuan_listing_id' => 'Satuan listing/updating wajib dipilih untuk kegiatan survei.',
+            ])->withInput();
+        }
+
+        if ($hasPengolahanPenugasan && ! $isSensus && $selectedSatuanPengolahanPencacahanId === null) {
+            return back()->withErrors([
+                'satuan_pengolahan_pencacahan_id' => 'Satuan pengolahan dokumen pencacahan wajib dipilih.',
+            ])->withInput();
+        }
+
+        if (
+            $hasPengolahanPenugasan
+            && $kegiatan->has_listing_updating
+            && ! $isSensus
+            && $selectedSatuanPengolahanListingId === null
+        ) {
+            return back()->withErrors([
+                'satuan_pengolahan_listing_id' => 'Satuan pengolahan dokumen listing/updating wajib dipilih.',
             ])->withInput();
         }
 
@@ -643,10 +667,22 @@ class KegiatanController extends Controller
 
             $rateSatuanId = $isSensus
                 ? $obSatuanId
-                : $this->resolveRateHonorSatuanId($rateHonorData, 'satuan_id', $selectedSatuanId);
+                : $this->resolveRateHonorSatuanId(
+                    $rateHonorData,
+                    'satuan_id',
+                    in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)
+                        ? $selectedSatuanPengolahanPencacahanId
+                        : $selectedSatuanId
+                );
             $rateSatuanListingId = $isSensus
                 ? $obSatuanId
-                : $this->resolveRateHonorSatuanId($rateHonorData, 'satuan_listing_id', $selectedSatuanListingId);
+                : $this->resolveRateHonorSatuanId(
+                    $rateHonorData,
+                    'satuan_listing_id',
+                    in_array($rateHonorData['jenis_penugasan'], ['pengolahan', 'pengawas_pengolahan'], true)
+                        ? $selectedSatuanPengolahanListingId
+                        : $selectedSatuanListingId
+                );
 
             // Generate posisi label
             $statusLabel = $rateHonorData['status_kepegawaian'] === 'organik'
