@@ -285,11 +285,11 @@ export default function PengajuanPulsaDetail({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail Pengajuan — ${kegiatan.kode_kegiatan}`} />
+            <Head title={`Detail Pengajuan — ${kegiatan.nama_kegiatan}`} />
             <div className="space-y-4">
                 <PageHeader
                     title="Detail Pengajuan Pulsa"
-                    description={`${kegiatan.kode_kegiatan} — ${kegiatan.nama_kegiatan}`}
+                    description={`${kegiatan.nama_kegiatan}`}
                 >
                     <Button variant="outline" asChild className="gap-2">
                         <Link
@@ -304,14 +304,14 @@ export default function PengajuanPulsaDetail({
                 {/* Summary card */}
                 <ContentCard>
                     <div className="flex flex-wrap gap-6">
-                        <div>
+                        {/* <div>
                             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
                                 Kegiatan
                             </p>
                             <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                                 {kegiatan.nama_kegiatan}
                             </p>
-                        </div>
+                        </div> */}
                         <div>
                             <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
                                 Periode
@@ -669,7 +669,7 @@ export default function PengajuanPulsaDetail({
                                                                     <td className="px-3 py-2">
                                                                         <div className="flex items-center gap-1.5">
                                                                             <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100">
-                                                                                {p.kegiatan_kode ??
+                                                                                {p.kegiatan_nama ??
                                                                                     '-'}
                                                                             </span>
                                                                             {isThisItem && (
@@ -679,13 +679,6 @@ export default function PengajuanPulsaDetail({
                                                                                 </span>
                                                                             )}
                                                                         </div>
-                                                                        {p.kegiatan_nama && (
-                                                                            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                                                                                {
-                                                                                    p.kegiatan_nama
-                                                                                }
-                                                                            </p>
-                                                                        )}
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center">
                                                                         <span

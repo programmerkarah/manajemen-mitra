@@ -7,7 +7,6 @@ use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
-use App\Traits\EncryptsFilterParams;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -24,8 +23,6 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SystemSettingsController
 {
-    use EncryptsFilterParams;
-
     private const SSO_SYNC_CACHE_KEY = 'settings:sso_sync_enabled';
 
     public function __construct(
@@ -81,12 +78,31 @@ class SystemSettingsController
 
     public function activityLog(Request $request): Response
     {
+        if ($request->has('encrypted_filters')) {
+            $decrypted = decryptFilters((string) $request->input('encrypted_filters'));
+            if (! empty($decrypted)) {
+                $request->merge($decrypted);
+            }
+        }
+
         $query = ActivityLog::with('user');
         $filters = [
+            'search' => $request->input('search'),
             'status' => $request->input('status'),
             'user' => $request->input('user'),
             'date' => $request->input('date'),
         ];
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
         if ($filters['status']) {
             $query->where('status', $filters['status']);
         }
@@ -98,7 +114,7 @@ class SystemSettingsController
         }
 
         // Get page from request, default to 1
-        $page = $request->input('page', 1);
+        $page = max(1, (int) $request->input('page', 1));
 
         // Paginate with 50 items per page, sorted by latest first
         $logs = $query->orderByDesc('created_at')
@@ -121,8 +137,11 @@ class SystemSettingsController
             });
         $users = User::orderBy('name')->get(['id', 'name']);
 
-        // Encrypt filter values for frontend
-        $encryptedFilters = $this->encryptFilterParams($filters);
+        // Remove empty values for filter state
+        $cleanFilters = array_filter($filters, fn ($value) => $value !== null && $value !== '');
+
+        // Encrypt filter state for frontend
+        $encryptedFilters = encryptFilters($cleanFilters);
 
         // Encrypt logs data for secure transmission
         $encryptedLogs = encryptData($logs->items());
@@ -137,7 +156,10 @@ class SystemSettingsController
                 'from' => $logs->firstItem(),
                 'to' => $logs->lastItem(),
             ],
-            'filters' => $encryptedFilters,
+            'filters' => [
+                'encrypted' => $encryptedFilters,
+                'decrypted' => $cleanFilters,
+            ],
             'users' => $users,
         ]);
     }
@@ -148,6 +170,7 @@ class SystemSettingsController
     public function exportActivityLog(Request $request): BinaryFileResponse
     {
         $filters = [
+            'search' => $request->input('search'),
             'status' => $request->input('status'),
             'user' => $request->input('user'),
             'date' => $request->input('date'),

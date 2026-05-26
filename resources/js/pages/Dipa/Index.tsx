@@ -220,7 +220,20 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('id-ID', {
+        if (!dateString) {
+            return '-';
+        }
+
+        const normalized = dateString.includes('T')
+            ? dateString
+            : `${dateString}T00:00:00`;
+        const parsedDate = new Date(normalized);
+
+        if (Number.isNaN(parsedDate.getTime())) {
+            return '-';
+        }
+
+        return parsedDate.toLocaleDateString('id-ID', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',

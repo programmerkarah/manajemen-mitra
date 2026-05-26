@@ -695,7 +695,7 @@ class PengajuanPulsaController extends Controller
         ]);
 
         $petugasName = $pengajuanPulsa->petugas?->nama ?? 'Petugas #'.$pengajuanPulsa->petugas_id;
-        $kodeKegiatan = $pengajuanPulsa->kegiatan?->kode_kegiatan ?? 'Kegiatan #'.$pengajuanPulsa->kegiatan_id;
+        $namaKegiatan = $pengajuanPulsa->kegiatan?->nama_kegiatan ?? 'Kegiatan #'.$pengajuanPulsa->kegiatan_id;
         $bulanName = Carbon::create()->month((int) $pengajuanPulsa->bulan)->translatedFormat('F');
         $nominalFormatted = 'Rp'.number_format((float) $pengajuanPulsa->nominal, 0, ',', '.');
         $disetujuiFormatted = 'Rp'.number_format((float) $nominalDisetujui, 0, ',', '.');
@@ -706,13 +706,13 @@ class PengajuanPulsaController extends Controller
                 $isDiterima ? 'Terima Pengajuan Pulsa' : 'Tolak Pengajuan Pulsa',
                 'pengajuan_pulsa',
                 $isDiterima
-                    ? "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$kodeKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} diterima (disetujui {$disetujuiFormatted})"
-                    : "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$kodeKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} ditolak",
+                    ? "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$namaKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} diterima (disetujui {$disetujuiFormatted})"
+                    : "Pengajuan pulsa {$jenisPulsa} {$petugasName} ({$namaKegiatan}) {$bulanName} {$pengajuanPulsa->tahun} senilai {$nominalFormatted} ditolak",
                 'success',
                 [
                     'pengajuan_id' => $pengajuanPulsa->id,
                     'kegiatan_id' => $pengajuanPulsa->kegiatan_id,
-                    'kode_kegiatan' => $kodeKegiatan,
+                    'nama_kegiatan' => $namaKegiatan,
                     'petugas_id' => $pengajuanPulsa->petugas_id,
                     'petugas_nama' => $petugasName,
                     'jenis_pulsa' => $pengajuanPulsa->jenis_pulsa,

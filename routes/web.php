@@ -252,6 +252,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
+        Route::get('petugas/existing/download', [PetugasController::class, 'downloadExisting'])->name('petugas.existing');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
         Route::put('petugas/batch-update', [PetugasController::class, 'batchUpdate'])->name('petugas.batch-update');
         Route::get('petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
@@ -499,8 +500,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // Dasar Hukum
         Route::get('dasar-hukum/create', [DasarHukumController::class, 'create'])->name('dasar-hukum.create');
         Route::post('dasar-hukum/store', [DasarHukumController::class, 'store'])->name('dasar-hukum.store');
-        Route::get('dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
-        Route::match(['put', 'patch'], 'dasar-hukum/{dasarHukum}/edit', [DasarHukumController::class, 'update']);
+        Route::match(['get', 'post'], 'dasar-hukum/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
         Route::patch('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'update'])->name('dasar-hukum.update');
         Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
     });

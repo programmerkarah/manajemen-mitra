@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,6 +14,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
+import { encryptData } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Calendar,
@@ -26,6 +28,7 @@ import {
     Plus,
     RefreshCw,
     Search,
+    Sparkles,
     Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -42,6 +45,8 @@ interface DasarHukum {
     tentang: string;
     tahun: number;
     status: 'aktif' | 'nonaktif';
+    jenis: 'pertama' | 'perubahan';
+    induk_id: number | null;
     created_at: string;
     updated_at: string;
 }
@@ -80,6 +85,7 @@ export default function Index({ dasarHukum }: Props) {
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
+    const [jenis, setJenis] = useState<'all' | 'pertama' | 'perubahan'>('all');
     const [sortField, setSortField] = useState<'nomor' | 'tahun' | 'tentang'>(
         'tahun',
     );
@@ -87,7 +93,7 @@ export default function Index({ dasarHukum }: Props) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const prevFiltersRef = useRef({ search, status });
+    const prevFiltersRef = useRef({ search, status, jenis });
 
     // Client-side filtering and sorting
     const filteredAndSortedDasarHukum = useMemo(() => {
@@ -109,6 +115,10 @@ export default function Index({ dasarHukum }: Props) {
             result = result.filter(
                 (item: DasarHukum) => item.status === status,
             );
+        }
+
+        if (jenis !== 'all') {
+            result = result.filter((item: DasarHukum) => item.jenis === jenis);
         }
 
         // Sort
@@ -136,7 +146,7 @@ export default function Index({ dasarHukum }: Props) {
         });
 
         return result;
-    }, [allDasarHukum, search, status, sortField, sortDirection]);
+    }, [allDasarHukum, search, status, jenis, sortField, sortDirection]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedDasarHukum.length / perPage);
@@ -149,12 +159,80 @@ export default function Index({ dasarHukum }: Props) {
     // Reset to page 1 when filters change
     useEffect(() => {
         const prevFilters = prevFiltersRef.current;
-        if (prevFilters.search !== search || prevFilters.status !== status) {
+        if (
+            prevFilters.search !== search ||
+            prevFilters.status !== status ||
+            prevFilters.jenis !== jenis
+        ) {
             // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
             setCurrentPage(1);
-            prevFiltersRef.current = { search, status };
+            prevFiltersRef.current = { search, status, jenis };
         }
-    }, [search, status]);
+    }, [search, status, jenis]);
+
+    const stats = useMemo(() => {
+        const total = allDasarHukum.length;
+        const aktif = allDasarHukum.filter(
+            (item) => item.status === 'aktif',
+        ).length;
+        const perubahan = allDasarHukum.filter(
+            (item) => item.jenis === 'perubahan',
+        ).length;
+        const kategori = new Set(allDasarHukum.map((item) => item.kategori))
+            .size;
+
+        return { total, aktif, perubahan, kategori };
+    }, [allDasarHukum]);
+
+    const getKategoriLabel = (item: DasarHukum): string => {
+        if (item.kategori === 'undang_undang') {
+            return 'Undang-Undang';
+        }
+        if (item.kategori === 'peraturan_pemerintah') {
+            return 'Peraturan Pemerintah';
+        }
+        if (item.kategori === 'peraturan_presiden') {
+            return 'Peraturan Presiden';
+        }
+        if (item.kategori === 'peraturan_menteri_badan') {
+            return item.instansi?.toLowerCase().startsWith('badan')
+                ? `Peraturan ${item.instansi}`
+                : `Peraturan Menteri ${item.instansi}`;
+        }
+        if (item.kategori === 'keputusan_menteri_kepala_badan') {
+            return item.instansi?.toLowerCase().startsWith('badan')
+                ? `Keputusan Kepala ${item.instansi}`
+                : `Keputusan Menteri ${item.instansi}`;
+        }
+        if (item.kategori === 'peraturan_kepala_badan') {
+            return 'Peraturan Kepala Badan Pusat Statistik';
+        }
+
+        return item.kategori;
+    };
+
+    const getKategoriBadgeClass = (kategori: string): string => {
+        if (kategori === 'undang_undang') {
+            return 'border-fuchsia-300 text-fuchsia-700 dark:border-fuchsia-700 dark:text-fuchsia-300';
+        }
+        if (kategori === 'peraturan_pemerintah') {
+            return 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300';
+        }
+        if (kategori === 'peraturan_presiden') {
+            return 'border-indigo-300 text-indigo-700 dark:border-indigo-700 dark:text-indigo-300';
+        }
+        if (kategori === 'peraturan_menteri_badan') {
+            return 'border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300';
+        }
+        if (kategori === 'peraturan_kepala_badan') {
+            return 'border-cyan-300 text-cyan-700 dark:border-cyan-700 dark:text-cyan-300';
+        }
+        if (kategori === 'keputusan_menteri_kepala_badan') {
+            return 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300';
+        }
+
+        return 'border-neutral-300 text-neutral-700 dark:border-neutral-700 dark:text-neutral-300';
+    };
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -226,6 +304,57 @@ export default function Index({ dasarHukum }: Props) {
 
                 {/* Filters */}
                 <ContentCard>
+                    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setStatus('all');
+                                setJenis('all');
+                            }}
+                            className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3 text-left transition-all hover:border-neutral-300 hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/40 dark:hover:border-neutral-700"
+                        >
+                            <p className="text-xs text-neutral-500">
+                                Total Dasar Hukum
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-neutral-900 dark:text-white">
+                                {stats.total}
+                            </p>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStatus('aktif')}
+                            className="rounded-xl border border-green-200 bg-green-50/70 p-3 text-left transition-all hover:bg-green-50 dark:border-green-900 dark:bg-green-950/30"
+                        >
+                            <p className="text-xs text-green-700/80 dark:text-green-400">
+                                Status Aktif
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-green-700 dark:text-green-300">
+                                {stats.aktif}
+                            </p>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setJenis('perubahan')}
+                            className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-left transition-all hover:bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+                        >
+                            <p className="text-xs text-amber-700/80 dark:text-amber-400">
+                                Peraturan Perubahan
+                            </p>
+                            <p className="mt-1 flex items-center gap-1 text-2xl font-bold text-amber-700 dark:text-amber-300">
+                                {stats.perubahan}
+                                <Sparkles className="h-4 w-4" />
+                            </p>
+                        </button>
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+                            <p className="text-xs text-blue-700/80 dark:text-blue-400">
+                                Kategori Tersedia
+                            </p>
+                            <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">
+                                {stats.kategori}
+                            </p>
+                        </div>
+                    </div>
+
                     {/* Results Counter */}
                     <div className="mb-4 text-sm text-muted-foreground">
                         Menampilkan{' '}
@@ -246,7 +375,7 @@ export default function Index({ dasarHukum }: Props) {
                             : ''}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                         <div className="md:col-span-2">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-500" />
@@ -275,12 +404,63 @@ export default function Index({ dasarHukum }: Props) {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div>
+                            <Select
+                                value={jenis}
+                                onValueChange={(
+                                    value: 'all' | 'pertama' | 'perubahan',
+                                ) => setJenis(value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Jenis" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Semua Jenis
+                                    </SelectItem>
+                                    <SelectItem value="pertama">
+                                        Peraturan Pertama
+                                    </SelectItem>
+                                    <SelectItem value="perubahan">
+                                        Peraturan Perubahan
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <Badge
+                            variant={jenis === 'all' ? 'default' : 'outline'}
+                            className="cursor-pointer"
+                            onClick={() => setJenis('all')}
+                        >
+                            Semua Jenis
+                        </Badge>
+                        <Badge
+                            variant={
+                                jenis === 'pertama' ? 'default' : 'outline'
+                            }
+                            className="cursor-pointer"
+                            onClick={() => setJenis('pertama')}
+                        >
+                            Pertama
+                        </Badge>
+                        <Badge
+                            variant={
+                                jenis === 'perubahan' ? 'default' : 'outline'
+                            }
+                            className="cursor-pointer"
+                            onClick={() => setJenis('perubahan')}
+                        >
+                            Perubahan
+                        </Badge>
                     </div>
                 </ContentCard>
 
                 {/* Table */}
                 <ContentCard padding="none">
-                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-3">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             Menampilkan {(currentPage - 1) * perPage + 1}-
                             {Math.min(
@@ -351,61 +531,9 @@ export default function Index({ dasarHukum }: Props) {
                                     </tr>
                                 ) : (
                                     paginatedDasarHukum?.map((item) => {
-                                        // Format dengan atau tanpa instansi
-                                        const formatNamaLengkap = () => {
-                                            let kategoriLabel = '';
-
-                                            if (
-                                                item.kategori ===
-                                                'undang_undang'
-                                            ) {
-                                                kategoriLabel = 'Undang-Undang';
-                                            } else if (
-                                                item.kategori ===
-                                                'peraturan_pemerintah'
-                                            ) {
-                                                kategoriLabel =
-                                                    'Peraturan Pemerintah';
-                                            } else if (
-                                                item.kategori ===
-                                                'peraturan_presiden'
-                                            ) {
-                                                kategoriLabel =
-                                                    'Peraturan Presiden';
-                                            } else if (
-                                                item.kategori ===
-                                                'peraturan_menteri_badan'
-                                            ) {
-                                                // Deteksi apakah instansi adalah Badan atau Menteri
-                                                if (
-                                                    item.instansi &&
-                                                    item.instansi
-                                                        .toLowerCase()
-                                                        .startsWith('badan')
-                                                ) {
-                                                    kategoriLabel = `Peraturan ${item.instansi}`;
-                                                } else {
-                                                    kategoriLabel = `Peraturan Menteri ${item.instansi}`;
-                                                }
-                                            } else if (
-                                                item.kategori ===
-                                                'keputusan_menteri_kepala_badan'
-                                            ) {
-                                                // Deteksi apakah instansi adalah Badan atau Menteri
-                                                if (
-                                                    item.instansi &&
-                                                    item.instansi
-                                                        .toLowerCase()
-                                                        .startsWith('badan')
-                                                ) {
-                                                    kategoriLabel = `Keputusan Kepala ${item.instansi}`;
-                                                } else {
-                                                    kategoriLabel = `Keputusan Menteri ${item.instansi}`;
-                                                }
-                                            }
-
-                                            return `${kategoriLabel} Nomor ${item.nomor} Tahun ${item.tahun}`;
-                                        };
+                                        const kategoriLabel =
+                                            getKategoriLabel(item);
+                                        const fullLabel = `${kategoriLabel} Nomor ${item.nomor} Tahun ${item.tahun}`;
 
                                         return (
                                             <tr
@@ -415,8 +543,35 @@ export default function Index({ dasarHukum }: Props) {
                                                 <td className="px-3 py-3">
                                                     <div className="space-y-1">
                                                         <div className="font-medium text-neutral-900 dark:text-white">
-                                                            <div className="max-w-2xl">
-                                                                {formatNamaLengkap()}
+                                                            <div className="flex max-w-2xl flex-wrap items-center gap-2">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={getKategoriBadgeClass(
+                                                                        item.kategori,
+                                                                    )}
+                                                                >
+                                                                    {
+                                                                        kategoriLabel
+                                                                    }
+                                                                </Badge>
+                                                                <span className="font-semibold text-neutral-900 dark:text-white">
+                                                                    No.{' '}
+                                                                    {item.nomor}
+                                                                </span>
+                                                                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                                    Tahun{' '}
+                                                                    {item.tahun}
+                                                                </span>
+                                                                {item.jenis ===
+                                                                    'perubahan' && (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="shrink-0 border-amber-300 text-xs text-amber-600 dark:border-amber-600 dark:text-amber-400"
+                                                                    >
+                                                                        <Sparkles className="mr-1 h-3 w-3" />
+                                                                        Perubahan
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -440,18 +595,27 @@ export default function Index({ dasarHukum }: Props) {
                                                 {!isPJ && (
                                                     <td className="px-3 py-3 whitespace-nowrap">
                                                         <div className="flex items-center justify-center gap-2">
-                                                            <Link
-                                                                href={`/dasar-hukum/${item.id}/edit`}
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="gap-2"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        '/dasar-hukum/edit',
+                                                                        {
+                                                                            encrypted:
+                                                                                encryptData(
+                                                                                    {
+                                                                                        id: item.id,
+                                                                                    },
+                                                                                ),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="gap-2"
-                                                                >
-                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                    Edit
-                                                                </Button>
-                                                            </Link>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                                Edit
+                                                            </Button>
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
@@ -459,7 +623,7 @@ export default function Index({ dasarHukum }: Props) {
                                                                 onClick={() => {
                                                                     handleDelete(
                                                                         item.id,
-                                                                        formatNamaLengkap(),
+                                                                        fullLabel,
                                                                     );
                                                                 }}
                                                             >
@@ -479,18 +643,18 @@ export default function Index({ dasarHukum }: Props) {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="mt-6 flex items-center justify-between">
+                        <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Halaman{' '}
-                                <span className="font-medium">
+                                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                                     {currentPage}
                                 </span>{' '}
                                 dari{' '}
-                                <span className="font-medium">
+                                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                                     {totalPages}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
                                 <Button
                                     variant="outline"
                                     size="sm"

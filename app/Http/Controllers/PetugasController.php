@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PetugasExistingExport;
 use App\Exports\PetugasTemplateExport;
 use App\Http\Requests\BatchUpdatePetugasRequest;
 use App\Http\Requests\FilterRequest;
@@ -369,6 +370,14 @@ class PetugasController extends Controller
     public function downloadTemplate(): BinaryFileResponse
     {
         return Excel::download(new PetugasTemplateExport, 'template_petugas.xlsx');
+    }
+
+    /**
+     * Download existing petugas data for collective updates.
+     */
+    public function downloadExisting(): BinaryFileResponse
+    {
+        return Excel::download(new PetugasExistingExport, 'data_existing_petugas.xlsx');
     }
 
     /**

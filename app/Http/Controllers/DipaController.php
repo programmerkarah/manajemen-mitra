@@ -149,6 +149,8 @@ class DipaController extends Controller
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear + 5, $currentYear - 2);
 
+        $dipa->tanggal_dipa = $dipa->tanggal_dipa?->format('Y-m-d');
+
         return Inertia::render('Dipa/Edit', [
             'dipa' => $dipa,
             'tahunOptions' => $tahunOptions,

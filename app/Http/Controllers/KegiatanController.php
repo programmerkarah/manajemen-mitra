@@ -254,7 +254,7 @@ class KegiatanController extends Controller
         ActivityLog::log(
             'Tambah Kegiatan',
             'kegiatan',
-            "Berhasil menambahkan kegiatan baru: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            "Berhasil menambahkan kegiatan baru: {$kegiatan->nama_kegiatan}",
             'success',
             [
                 'kegiatan_id' => $kegiatan->id,
@@ -539,7 +539,7 @@ class KegiatanController extends Controller
         ActivityLog::log(
             'Hapus Kegiatan',
             'kegiatan',
-            "Berhasil menghapus kegiatan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            "Berhasil menghapus kegiatan: {$kegiatan->nama_kegiatan}",
             'success',
             ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan]
         );
@@ -755,7 +755,7 @@ class KegiatanController extends Controller
         ActivityLog::log(
             'Setujui Kegiatan',
             'kegiatan',
-            "Berhasil menyetujui kegiatan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            "Berhasil menyetujui kegiatan: {$kegiatan->nama_kegiatan}",
             'success',
             ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan, 'status' => 'divalidasi']
         );
@@ -830,7 +830,7 @@ class KegiatanController extends Controller
         ActivityLog::log(
             'Ajukan Kegiatan',
             'kegiatan',
-            "Berhasil mengajukan kegiatan untuk persetujuan: {$kegiatan->nama_kegiatan} (Kode: {$kegiatan->kode_kegiatan})",
+            "Berhasil mengajukan kegiatan untuk persetujuan: {$kegiatan->nama_kegiatan}",
             'success',
             ['kegiatan_id' => $kegiatan->id, 'kode_kegiatan' => $kegiatan->kode_kegiatan, 'status' => 'diajukan']
         );

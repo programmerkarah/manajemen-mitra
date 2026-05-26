@@ -1,6 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import AppLayout from '@/layouts/app-layout';
-import { decryptData } from '@/utils/encryption';
+import { decryptData, encryptFilters } from '@/utils/encryption';
 import { Head } from '@inertiajs/react';
 import React from 'react';
 
@@ -68,6 +68,7 @@ interface User {
 }
 
 interface Filters {
+    search?: string;
     user_id?: string;
     user?: string;
     action?: string;
@@ -75,6 +76,11 @@ interface Filters {
     date?: string;
     date_from?: string;
     date_to?: string;
+}
+
+interface FilterState {
+    encrypted?: string;
+    decrypted?: Filters;
 }
 
 interface PaginationData {
@@ -89,14 +95,15 @@ interface PaginationData {
 interface Props {
     logs: string | ActivityLog[]; // Can be encrypted string or array
     pagination?: PaginationData;
-    filters?: Filters;
+    filters?: FilterState;
     users?: User[];
     [key: string]: unknown;
 }
 
 export default function ActivityLog() {
     const pageProps = usePage<Props>().props;
-    const { filters = {}, users = [], pagination } = pageProps;
+    const { users = [], pagination } = pageProps;
+    const activeFilters = pageProps.filters?.decrypted ?? {};
 
     // Decrypt logs if encrypted
     const [decryptedLogs, setDecryptedLogs] = useState<ActivityLog[]>([]);
@@ -126,10 +133,10 @@ export default function ActivityLog() {
         }
     }, [pageProps.logs]);
 
-    const [status, setStatus] = useState(filters.status || 'all');
-    const [user, setUser] = useState(filters.user || 'all');
-    const [date, setDate] = useState(filters.date || '');
-    const [searchQuery, setSearchQuery] = useState('');
+    const [status, setStatus] = useState(activeFilters.status || 'all');
+    const [user, setUser] = useState(activeFilters.user || 'all');
+    const [date, setDate] = useState(activeFilters.date || '');
+    const [searchQuery, setSearchQuery] = useState(activeFilters.search || '');
     const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>([]);
     const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -141,18 +148,7 @@ export default function ActivityLog() {
 
     // Filter logs based on search query
     useEffect(() => {
-        let filtered = [...decryptedLogs];
-
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(
-                (log) =>
-                    log.user?.toLowerCase().includes(query) ||
-                    log.action?.toLowerCase().includes(query) ||
-                    log.description?.toLowerCase().includes(query) ||
-                    log.ip_address?.toLowerCase().includes(query),
-            );
-        }
+        const filtered = [...decryptedLogs];
 
         // Apply sorting
         filtered.sort((a, b) => {
@@ -180,13 +176,16 @@ export default function ActivityLog() {
         });
 
         setFilteredLogs(filtered);
-    }, [decryptedLogs, searchQuery, sortField, sortDirection]);
+    }, [decryptedLogs, sortField, sortDirection]);
 
     const handleFilter = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Prepare filter data with Laravel encrypt() helper
         const filterData: Record<string, string> = {};
+
+        if (searchQuery.trim()) {
+            filterData.search = searchQuery.trim();
+        }
 
         if (status !== 'all' && status) {
             filterData.status = status;
@@ -198,22 +197,58 @@ export default function ActivityLog() {
             filterData.date = date;
         }
 
-        router.get('/admin/activity-log', filterData, {
-            preserveState: true,
-        });
+        router.post(
+            '/admin/activity-log',
+            {
+                encrypted_filters: encryptFilters(filterData),
+            },
+            {
+                preserveState: true,
+            },
+        );
     };
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        router.reload({
-            onFinish: () => {
-                setTimeout(() => setIsRefreshing(false), 500);
+        const filterData: Record<string, string> = {
+            page: String(pagination?.current_page ?? 1),
+        };
+
+        if (searchQuery.trim()) {
+            filterData.search = searchQuery.trim();
+        }
+
+        if (status !== 'all' && status) {
+            filterData.status = status;
+        }
+
+        if (user !== 'all' && user) {
+            filterData.user = user;
+        }
+
+        if (date) {
+            filterData.date = date;
+        }
+
+        router.post(
+            '/admin/activity-log',
+            {
+                encrypted_filters: encryptFilters(filterData),
             },
-        });
+            {
+                onFinish: () => {
+                    setTimeout(() => setIsRefreshing(false), 500);
+                },
+            },
+        );
     };
 
     const handleExport = () => {
         const params = new URLSearchParams();
+
+        if (searchQuery.trim()) {
+            params.append('search', searchQuery.trim());
+        }
 
         if (status && status !== 'all') {
             params.append('status', status);
@@ -239,8 +274,11 @@ export default function ActivityLog() {
     };
 
     const handlePageChange = (page: number) => {
-        // Preserve current filters when changing pages
         const filterData: Record<string, string> = { page: page.toString() };
+
+        if (searchQuery.trim()) {
+            filterData.search = searchQuery.trim();
+        }
 
         if (status !== 'all' && status) {
             filterData.status = status;
@@ -252,10 +290,16 @@ export default function ActivityLog() {
             filterData.date = date;
         }
 
-        router.get('/admin/activity-log', filterData, {
-            preserveState: true,
-            preserveScroll: false,
-        });
+        router.post(
+            '/admin/activity-log',
+            {
+                encrypted_filters: encryptFilters(filterData),
+            },
+            {
+                preserveState: true,
+                preserveScroll: false,
+            },
+        );
     };
 
     const getStatusIcon = (status?: string) => {
@@ -456,8 +500,6 @@ export default function ActivityLog() {
                                     {pagination.total}
                                 </span>{' '}
                                 log
-                                {searchQuery &&
-                                    ` (Filtered: ${filteredLogs.length} shown)`}
                             </>
                         ) : (
                             <>

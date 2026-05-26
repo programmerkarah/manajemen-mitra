@@ -348,6 +348,17 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 <Button
                                     variant="outline"
                                     size="sm"
+                                    asChild
+                                    className="gap-2"
+                                >
+                                    <a href="/petugas/existing/download">
+                                        <Download className="h-4 w-4" />
+                                        Download Data Existing
+                                    </a>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => setShowImportModal(true)}
                                     className="gap-2"
                                 >
@@ -456,7 +467,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 filteredAndSortedPetugas.length,
                             )}{' '}
                             dari {filteredAndSortedPetugas.length} data
-                            {(search || status) &&
+                            {(search ||
+                                status !== 'all' ||
+                                jenisPetugas !== 'all') &&
                                 ` (difilter dari ${allPetugas.length} total)`}
                         </p>
                     </div>
@@ -654,7 +667,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="mt-6 flex items-center justify-between">
+                        <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4 dark:border-neutral-800">
                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Halaman{' '}
                                 <span className="font-medium">
@@ -740,6 +753,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     )}
                 </ContentCard>
             </div>
+
 
             {/* Batch Edit Modal */}
             {showBatchEdit && (

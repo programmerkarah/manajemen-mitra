@@ -321,7 +321,7 @@
             <td style="width: 120px; font-weight: bold; vertical-align: top; border: none; padding: 0;">@if($index === 0)Mengingat @endif</td>
             <td style="width: 20px; text-align: center; vertical-align: top; border: none; padding: 0;">@if($index === 0):@endif</td>
             <td style="text-align: justify; vertical-align: top; border: none; padding: 0;">
-                {{ $index + 1 }}. {{ $dh->nama_lengkap }} tentang {{ $dh->tentang }}@if($dh->lembaran), {{ $dh->lembaran }}@endif;
+                {{ $index + 1 }}. {{ $dh->teks_lengkap }};
             </td>
         </tr>
     </table>

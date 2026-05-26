@@ -1,7 +1,12 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
     Dialog,
@@ -14,10 +19,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    BookOpen,
+    ChevronDown,
+    ExternalLink,
+    FileText,
+    Loader2,
+    Save,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface DasarHukum {
@@ -73,7 +88,6 @@ interface CreateProps {
     oldInput?: {
         nomor_sk?: string;
         tanggal_sk?: string;
-        dasar_hukum_ids?: string[];
     };
 }
 
@@ -88,14 +102,18 @@ export default function Create({
     personnelChangeInfo,
     oldInput,
 }: CreateProps) {
+    const { auth } = usePage<SharedData>().props;
+    const activeRoleName = auth.activeRole?.name;
+    const canManageDasarHukum = ['admin', 'operator'].includes(
+        activeRoleName ?? '',
+    );
+
     const [formData, setFormData] = useState({
         nomor_sk: oldInput?.nomor_sk || '',
         tanggal_sk: oldInput?.tanggal_sk || '',
     });
-    const [selectedDasarHukum, setSelectedDasarHukum] = useState<number[]>(
-        oldInput?.dasar_hukum_ids?.map((id) => parseInt(id)) || [],
-    );
     const [processing, setProcessing] = useState(false);
+    const [dasarHukumOpen, setDasarHukumOpen] = useState(true);
     const [modalAlert, setModalAlert] = useState<{
         open: boolean;
         title: string;
@@ -106,35 +124,19 @@ export default function Create({
         message: '',
     });
 
-    const showModalAlert = (title: string, message: string) => {
-        setModalAlert({
-            open: true,
-            title,
-            message,
-        });
-    };
+    const isFormComplete =
+        formData.nomor_sk.trim() !== '' && formData.tanggal_sk !== '';
+    const isReady = isFormComplete && dasarHukumList.length > 0;
 
-    const handleSelectAllDasarHukum = () => {
-        if (selectedDasarHukum.length === dasarHukumList.length) {
-            setSelectedDasarHukum([]);
-        } else {
-            setSelectedDasarHukum(dasarHukumList.map((dh) => dh.id));
-        }
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({ open: true, title, message });
     };
 
     const handlePreview = async () => {
-        if (selectedDasarHukum.length === 0) {
+        if (!isFormComplete) {
             showModalAlert(
                 'Data Belum Lengkap',
-                'Pilih minimal 1 dasar hukum.',
-            );
-            return;
-        }
-
-        if (!formData.nomor_sk || !formData.tanggal_sk) {
-            showModalAlert(
-                'Data Belum Lengkap',
-                'Lengkapi form terlebih dahulu.',
+                'Lengkapi Nomor SK dan Tanggal SK terlebih dahulu.',
             );
             return;
         }
@@ -150,7 +152,6 @@ export default function Create({
                 {
                     nomor_sk: formData.nomor_sk,
                     tanggal_sk: formData.tanggal_sk,
-                    'dasar_hukum_ids[]': selectedDasarHukum,
                 },
                 `Preview_SK_${sanitizedKegiatanName}.pdf`,
             );
@@ -166,13 +167,11 @@ export default function Create({
         e.preventDefault();
         setProcessing(true);
 
-        // Create a native form and submit
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/sk-kpa/kegiatan/${kegiatan.hashed_id}/generate`;
         form.style.display = 'none';
 
-        // Add CSRF token
         const csrfToken = document
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content');
@@ -184,26 +183,16 @@ export default function Create({
             form.appendChild(csrfInput);
         }
 
-        // Add form data
-        const formDataToSubmit = {
+        const fields: Record<string, string> = {
             nomor_sk: formData.nomor_sk,
             tanggal_sk: formData.tanggal_sk,
         };
 
-        Object.entries(formDataToSubmit).forEach(([key, value]) => {
+        Object.entries(fields).forEach(([key, value]) => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = key;
             input.value = value;
-            form.appendChild(input);
-        });
-
-        // Add selected dasar hukum
-        selectedDasarHukum.forEach((id) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'dasar_hukum_ids[]';
-            input.value = id.toString();
             form.appendChild(input);
         });
 
@@ -214,38 +203,109 @@ export default function Create({
         setTimeout(() => setProcessing(false), 2000);
     };
 
-    const handleDasarHukumToggle = (id: number) => {
-        setSelectedDasarHukum((prev) =>
-            prev.includes(id)
-                ? prev.filter((item) => item !== id)
-                : [...prev, id],
+    const formatDasarHukumLabel = (dh: DasarHukum): string => {
+        if (dh.kategori === 'undang_undang') {
+            return 'Undang-Undang';
+        }
+        if (dh.kategori === 'peraturan_pemerintah') {
+            return 'Peraturan Pemerintah';
+        }
+        if (dh.kategori === 'peraturan_presiden') {
+            return 'Peraturan Presiden';
+        }
+        if (dh.kategori === 'peraturan_menteri_badan') {
+            return dh.instansi?.toLowerCase().startsWith('badan')
+                ? `Peraturan ${dh.instansi}`
+                : `Peraturan Menteri ${dh.instansi}`;
+        }
+        if (dh.kategori === 'keputusan_menteri_kepala_badan') {
+            return dh.instansi?.toLowerCase().startsWith('badan')
+                ? `Keputusan Kepala ${dh.instansi}`
+                : `Keputusan Menteri ${dh.instansi}`;
+        }
+        if (dh.kategori === 'peraturan_kepala_badan') {
+            return 'Peraturan Kepala Badan Pusat Statistik';
+        }
+        return dh.kategori;
+    };
+
+    const getCategoryOrder = (kategori: string): number => {
+        const order: Record<string, number> = {
+            undang_undang: 1,
+            peraturan_pemerintah: 2,
+            peraturan_presiden: 3,
+            peraturan_menteri_badan: 4,
+            peraturan_kepala_badan: 5,
+            keputusan_menteri_kepala_badan: 6,
+        };
+        return order[kategori] ?? 99;
+    };
+
+    const getCategoryLabel = (kategori: string): string => {
+        const labels: Record<string, string> = {
+            undang_undang: 'Undang-Undang',
+            peraturan_pemerintah: 'Peraturan Pemerintah',
+            peraturan_presiden: 'Peraturan Presiden',
+            peraturan_menteri_badan: 'Peraturan Menteri / Badan',
+            peraturan_kepala_badan: 'Peraturan Kepala Badan Pusat Statistik',
+            keputusan_menteri_kepala_badan: 'Keputusan Menteri / Kepala Badan',
+        };
+        return labels[kategori] ?? kategori;
+    };
+
+    const getCategoryColor = (
+        kategori: string,
+    ): { badge: string; dot: string } => {
+        const colors: Record<string, { badge: string; dot: string }> = {
+            undang_undang: {
+                badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                dot: 'bg-purple-500',
+            },
+            peraturan_pemerintah: {
+                badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                dot: 'bg-blue-500',
+            },
+            peraturan_presiden: {
+                badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+                dot: 'bg-indigo-500',
+            },
+            peraturan_menteri_badan: {
+                badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+                dot: 'bg-teal-500',
+            },
+            peraturan_kepala_badan: {
+                badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+                dot: 'bg-cyan-500',
+            },
+            keputusan_menteri_kepala_badan: {
+                badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+                dot: 'bg-orange-500',
+            },
+        };
+        return (
+            colors[kategori] ?? {
+                badge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+                dot: 'bg-neutral-500',
+            }
         );
     };
 
-    const formatDasarHukum = (dh: DasarHukum): string => {
-        let namaLengkap = '';
-        if (dh.kategori === 'undang_undang') {
-            namaLengkap = 'Undang-Undang';
-        } else if (dh.kategori === 'peraturan_pemerintah') {
-            namaLengkap = 'Peraturan Pemerintah';
-        } else if (dh.kategori === 'peraturan_presiden') {
-            namaLengkap = 'Peraturan Presiden';
-        } else if (dh.kategori === 'peraturan_menteri_badan') {
-            if (dh.instansi && dh.instansi.toLowerCase().startsWith('badan')) {
-                namaLengkap = `Peraturan ${dh.instansi}`;
-            } else {
-                namaLengkap = `Peraturan Menteri ${dh.instansi}`;
+    // Group dasar hukum by category, sorted
+    const groupedDasarHukum = dasarHukumList
+        .slice()
+        .sort(
+            (a, b) =>
+                getCategoryOrder(a.kategori) - getCategoryOrder(b.kategori) ||
+                a.tahun - b.tahun,
+        )
+        .reduce<Record<string, DasarHukum[]>>((acc, dh) => {
+            const key = dh.kategori;
+            if (!acc[key]) {
+                acc[key] = [];
             }
-        } else if (dh.kategori === 'keputusan_menteri_kepala_badan') {
-            if (dh.instansi && dh.instansi.toLowerCase().startsWith('badan')) {
-                namaLengkap = `Keputusan Kepala ${dh.instansi}`;
-            } else {
-                namaLengkap = `Keputusan Menteri ${dh.instansi}`;
-            }
-        }
-
-        return `${namaLengkap} Nomor ${dh.nomor} Tahun ${dh.tahun} tentang ${dh.tentang}`;
-    };
+            acc[key].push(dh);
+            return acc;
+        }, {});
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -294,7 +354,7 @@ export default function Create({
 
             <ContentCard>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Personnel Change Info for SK Perubahan */}
+                    {/* Personnel Change Info */}
                     {personnelChangeInfo ? (
                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20">
                             <div className="flex items-start gap-3">
@@ -323,8 +383,6 @@ export default function Create({
                                     <h4 className="font-semibold text-blue-900 dark:text-blue-100">
                                         Informasi SK Perubahan
                                     </h4>
-
-                                    {/* Simplified Info Cards */}
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <div className="rounded-lg border border-blue-300 bg-white p-3 dark:border-blue-800 dark:bg-blue-950/50">
                                             <div className="mb-1 text-xs text-blue-600 dark:text-blue-400">
@@ -335,7 +393,6 @@ export default function Create({
                                                 {personnelChangeInfo.sk_year}
                                             </div>
                                         </div>
-
                                         {personnelChangeInfo.estimated_sk_month && (
                                             <div className="rounded-lg border border-green-300 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/50">
                                                 <div className="mb-1 text-xs text-green-600 dark:text-green-400">
@@ -352,8 +409,6 @@ export default function Create({
                                             </div>
                                         )}
                                     </div>
-
-                                    {/* Detail Perubahan - Only if has changes */}
                                     {personnelChangeInfo.has_changes &&
                                         personnelChangeInfo.changes.length >
                                             0 && (
@@ -503,8 +558,8 @@ export default function Create({
                         </div>
                     )}
 
+                    {/* Kegiatan + Form Fields */}
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        {/* Kegiatan Info */}
                         <div className="rounded-lg bg-neutral-50 p-4 md:col-span-2 dark:bg-neutral-900">
                             <h3 className="mb-2 font-semibold text-neutral-900 dark:text-white">
                                 Informasi Kegiatan
@@ -529,7 +584,6 @@ export default function Create({
                             </div>
                         </div>
 
-                        {/* Nomor SK */}
                         <div className="space-y-2">
                             <Label htmlFor="nomor_sk">
                                 Nomor SK <span className="text-red-500">*</span>
@@ -548,7 +602,6 @@ export default function Create({
                             />
                         </div>
 
-                        {/* Tanggal SK */}
                         <div className="space-y-2">
                             <Label htmlFor="tanggal_sk">
                                 Tanggal SK{' '}
@@ -567,68 +620,172 @@ export default function Create({
                         </div>
                     </div>
 
-                    {/* Dasar Hukum Selection */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label>
-                                Pilih Dasar Hukum{' '}
-                                <span className="text-red-500">*</span>
-                            </Label>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={handleSelectAllDasarHukum}
-                                className="cursor-pointer"
-                            >
-                                {selectedDasarHukum.length ===
-                                dasarHukumList.length
-                                    ? 'Batalkan Semua'
-                                    : 'Pilih Semua'}
-                            </Button>
-                        </div>
-                        <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-                            {dasarHukumList.map((dh) => (
-                                <div
-                                    key={dh.id}
-                                    className="flex items-start gap-3"
+                    {/* Dasar Hukum – read-only, auto from active list */}
+                    <div className="rounded-lg border border-neutral-200 dark:border-neutral-800">
+                        <Collapsible
+                            open={dasarHukumOpen}
+                            onOpenChange={setDasarHukumOpen}
+                        >
+                            <CollapsibleTrigger asChild>
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                                 >
-                                    <Checkbox
-                                        id={`dh-${dh.id}`}
-                                        checked={selectedDasarHukum.includes(
-                                            dh.id,
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                                        <span className="font-medium text-neutral-900 dark:text-white">
+                                            Dasar Hukum yang Digunakan
+                                        </span>
+                                        <Badge
+                                            variant="secondary"
+                                            className="ml-1 text-xs"
+                                        >
+                                            {dasarHukumList.length} item
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {canManageDasarHukum && (
+                                            <Link
+                                                href="/dasar-hukum"
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+                                            >
+                                                <ExternalLink className="h-3 w-3" />
+                                                Kelola
+                                            </Link>
                                         )}
-                                        onCheckedChange={() =>
-                                            handleDasarHukumToggle(dh.id)
-                                        }
-                                        className="mt-0.5 flex-shrink-0"
-                                    />
-                                    <label
-                                        htmlFor={`dh-${dh.id}`}
-                                        className="flex-1 cursor-pointer text-sm break-words text-neutral-900 dark:text-white"
-                                    >
-                                        {formatDasarHukum(dh)}
-                                    </label>
+                                        <ChevronDown
+                                            className={`h-4 w-4 text-neutral-500 transition-transform duration-200 dark:text-neutral-400 ${dasarHukumOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </div>
+                                </button>
+                            </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                                <div className="border-t border-neutral-200 dark:border-neutral-800">
+                                    {dasarHukumList.length === 0 ? (
+                                        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+                                            <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-900/30">
+                                                <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-neutral-900 dark:text-white">
+                                                    Belum ada dasar hukum aktif
+                                                </p>
+                                                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                                    SK tidak dapat digenerate
+                                                    tanpa dasar hukum.
+                                                </p>
+                                            </div>
+                                            {canManageDasarHukum && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link href="/dasar-hukum">
+                                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                                        Kelola Dasar Hukum
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                                            {Object.entries(
+                                                groupedDasarHukum,
+                                            ).map(([kategori, items]) => {
+                                                const color =
+                                                    getCategoryColor(kategori);
+                                                return (
+                                                    <div
+                                                        key={kategori}
+                                                        className="px-4 py-3"
+                                                    >
+                                                        <div className="mb-2 flex items-center gap-2">
+                                                            <span
+                                                                className={`rounded px-2 py-0.5 text-xs font-semibold ${color.badge}`}
+                                                            >
+                                                                {getCategoryLabel(
+                                                                    kategori,
+                                                                )}
+                                                            </span>
+                                                            <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                                                                {items.length}{' '}
+                                                                item
+                                                            </span>
+                                                        </div>
+                                                        <ul className="space-y-2">
+                                                            {items.map((dh) => (
+                                                                <li
+                                                                    key={dh.id}
+                                                                    className="flex items-start gap-2"
+                                                                >
+                                                                    <div
+                                                                        className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`}
+                                                                    />
+                                                                    <span className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                                                                        <span className="font-medium">
+                                                                            {formatDasarHukumLabel(
+                                                                                dh,
+                                                                            )}
+                                                                        </span>{' '}
+                                                                        Nomor{' '}
+                                                                        {
+                                                                            dh.nomor
+                                                                        }{' '}
+                                                                        Tahun{' '}
+                                                                        {
+                                                                            dh.tahun
+                                                                        }{' '}
+                                                                        tentang{' '}
+                                                                        {
+                                                                            dh.tentang
+                                                                        }
+                                                                    </span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                        {selectedDasarHukum.length === 0 && (
-                            <p className="text-sm text-red-500">
-                                Pilih minimal 1 dasar hukum
-                            </p>
-                        )}
+                            </CollapsibleContent>
+                        </Collapsible>
                     </div>
 
+                    {/* No dasar hukum warning banner */}
+                    {dasarHukumList.length === 0 && (
+                        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <div className="flex-1 text-sm">
+                                <p className="font-medium text-amber-900 dark:text-amber-100">
+                                    Tidak ada dasar hukum yang diaktifkan
+                                </p>
+                                <p className="mt-0.5 text-amber-700 dark:text-amber-300">
+                                    SK tidak dapat digenerate. Hubungi admin
+                                    untuk mengaktifkan dasar hukum di menu{' '}
+                                    <strong>Master Data → Dasar Hukum</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Submit Buttons */}
-                    <div className="flex items-center justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+                    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
                         <Button
                             type="button"
                             variant="outline"
                             asChild
-                            className="min-w-[180px] gap-2"
+                            className="gap-2"
                         >
                             <Link href="/sk-kpa">
-                                <X className="h-5 w-5" />
+                                <X className="h-4 w-4" />
                                 Batal
                             </Link>
                         </Button>
@@ -636,28 +793,25 @@ export default function Create({
                             type="button"
                             variant="secondary"
                             onClick={handlePreview}
-                            disabled={
-                                processing || selectedDasarHukum.length === 0
-                            }
+                            disabled={processing || !isReady}
                             className="cursor-pointer gap-2"
                         >
+                            <FileText className="h-4 w-4" />
                             Preview SK
                         </Button>
                         <Button
                             type="submit"
-                            disabled={
-                                processing || selectedDasarHukum.length === 0
-                            }
-                            className="min-w-[180px] cursor-pointer gap-2"
+                            disabled={processing || !isReady}
+                            className="min-w-[160px] cursor-pointer gap-2"
                         >
                             {processing ? (
                                 <>
-                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                     Generating...
                                 </>
                             ) : (
                                 <>
-                                    <Save className="h-5 w-5" />
+                                    <Save className="h-4 w-4" />
                                     Generate SK
                                 </>
                             )}

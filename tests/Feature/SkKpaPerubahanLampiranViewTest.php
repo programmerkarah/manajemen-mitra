@@ -53,9 +53,7 @@ class SkKpaPerubahanLampiranViewTest extends TestCase
             'tanggalDipa' => '01-01-2026',
             'dasarHukum' => [
                 (object) [
-                    'nama_lengkap' => 'Undang-Undang Contoh',
-                    'tentang' => 'Ketentuan Contoh',
-                    'lembaran' => null,
+                    'teks_lengkap' => 'Undang-Undang Contoh tentang Ketentuan Contoh',
                 ],
             ],
             'alokasiList' => $alokasiList,

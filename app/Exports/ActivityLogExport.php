@@ -27,6 +27,18 @@ class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, Wi
     {
         $query = ActivityLog::query()->with('user');
 
+        if (! empty($this->filters['search'])) {
+            $search = $this->filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         if (! empty($this->filters['status'])) {
             $query->where('status', $this->filters['status']);
         }

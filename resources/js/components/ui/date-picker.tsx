@@ -45,17 +45,50 @@ interface DatePickerProps {
 const toDateStr = (year: number, month: number, day: number): string =>
     `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-const formatDisplay = (dateStr: string): string => {
-    const d = new Date(dateStr + 'T00:00:00');
-    return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const parseYearMonth = (dateStr?: string): { year: number; month: number } | null => {
+const normalizeDateStr = (dateStr?: string): string | null => {
     if (!dateStr) {
         return null;
     }
 
-    const parsed = new Date(dateStr + 'T00:00:00');
+    const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match?.[1]) {
+        return match[1];
+    }
+
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    return toDateStr(
+        parsed.getFullYear(),
+        parsed.getMonth() + 1,
+        parsed.getDate(),
+    );
+};
+
+const formatDisplay = (dateStr: string): string => {
+    const normalized = normalizeDateStr(dateStr);
+    if (!normalized) {
+        return '';
+    }
+
+    const d = new Date(normalized + 'T00:00:00');
+
+    if (Number.isNaN(d.getTime())) {
+        return '';
+    }
+
+    return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const parseYearMonth = (dateStr?: string): { year: number; month: number } | null => {
+    const normalized = normalizeDateStr(dateStr);
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = new Date(normalized + 'T00:00:00');
     if (Number.isNaN(parsed.getTime())) {
         return null;
     }
@@ -95,14 +128,19 @@ export function DatePicker({
 
     const isControlled = value !== undefined;
     const resolvedValue = isControlled ? value : internalValue;
+    const normalizedResolvedValue = normalizeDateStr(resolvedValue) ?? '';
 
     const today = new Date();
 
     const deriveViewDate = (dateStr: string | undefined) => {
-        if (dateStr) {
-            const d = new Date(dateStr + 'T00:00:00');
-            return { year: d.getFullYear(), month: d.getMonth() };
+        const normalized = normalizeDateStr(dateStr);
+        if (normalized) {
+            const d = new Date(normalized + 'T00:00:00');
+            if (!Number.isNaN(d.getTime())) {
+                return { year: d.getFullYear(), month: d.getMonth() };
+            }
         }
+
         return { year: today.getFullYear(), month: today.getMonth() };
     };
 
@@ -258,11 +296,11 @@ export function DatePicker({
         setYearRangeStart((s) => s + 12);
     };
 
-    const selectedYear = resolvedValue
-        ? new Date(resolvedValue + 'T00:00:00').getFullYear()
+    const selectedYear = normalizedResolvedValue
+        ? new Date(normalizedResolvedValue + 'T00:00:00').getFullYear()
         : null;
-    const selectedMonth = resolvedValue
-        ? new Date(resolvedValue + 'T00:00:00').getMonth()
+    const selectedMonth = normalizedResolvedValue
+        ? new Date(normalizedResolvedValue + 'T00:00:00').getMonth()
         : null;
 
     return (
@@ -271,7 +309,7 @@ export function DatePicker({
                 <input
                     type="hidden"
                     name={name}
-                    value={resolvedValue}
+                    value={normalizedResolvedValue}
                     required={required}
                 />
             )}
@@ -280,7 +318,7 @@ export function DatePicker({
                 onOpenChange={(o) => {
                     if (!disabled) {
                         if (o) {
-                            syncCalendarFromValue(resolvedValue);
+                            syncCalendarFromValue(normalizedResolvedValue);
                         } else {
                             setCalView('days');
                         }
@@ -308,8 +346,8 @@ export function DatePicker({
                     >
                         <CalendarIcon className="h-4 w-4 shrink-0 text-neutral-400" />
                         <span className="flex-1 truncate">
-                            {resolvedValue
-                                ? formatDisplay(resolvedValue)
+                            {normalizedResolvedValue
+                                ? formatDisplay(normalizedResolvedValue)
                                 : placeholder}
                         </span>
                     </button>

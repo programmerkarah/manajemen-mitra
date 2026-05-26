@@ -57,8 +57,9 @@ export default function SystemSettings() {
     const [message, setMessage] = React.useState(initialMessage || '');
     const [editMessage, setEditMessage] = React.useState(initialMessage || '');
     const [saving, setSaving] = React.useState(false);
-    const [ssoSyncEnabled, setSsoSyncEnabled] =
-        React.useState(initialSsoSyncEnabled);
+    const [ssoSyncEnabled, setSsoSyncEnabled] = React.useState(
+        initialSsoSyncEnabled,
+    );
     const [ssoSyncSaving, setSsoSyncSaving] = React.useState(false);
     const [showSaved, setShowSaved] = React.useState(false);
     const [modalAlert, setModalAlert] = React.useState<{
@@ -421,8 +422,8 @@ export default function SystemSettings() {
                                     <span className="font-semibold">
                                         {sessionLifetime} menit
                                     </span>
-                                    , sinkronisasi berikutnya akan memaksa logout
-                                    ke halaman login.
+                                    , sinkronisasi berikutnya akan memaksa
+                                    logout ke halaman login.
                                 </p>
                             </div>
                         </div>

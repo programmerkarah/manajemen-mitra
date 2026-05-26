@@ -384,81 +384,31 @@ export const previewFileFromPost = async (
 ): Promise<void> => {
     const hideOverlay = showPdfLoadingOverlay();
 
-    let blob: Blob;
-    let filename: string;
-
     try {
-        ({ blob, filename } = await requestFileFromPost(
+        const { blob } = await requestFileFromPost(
             url,
             payload,
             defaultFilename,
-        ));
-    } finally {
-        hideOverlay();
-    }
+        );
 
-    const blobUrl = URL.createObjectURL(blob);
-    const previewWindow = window.open('', '_blank');
+        const blobUrl = URL.createObjectURL(blob);
+        const previewWindow = window.open(blobUrl, '_blank');
 
-    if (!previewWindow) {
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-        }, 0);
-
-        return;
-    }
-
-    const safeFilename = filename
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-
-    previewWindow.document.open();
-    previewWindow.document.write(`<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title>${safeFilename}</title>
-    <style>
-        html, body { height: 100%; margin: 0; }
-        .toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-family: sans-serif; }
-        .filename { font-size: 14px; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .btn { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; background: #fff; color: #111827; cursor: pointer; }
-        iframe { width: 100%; height: calc(100% - 48px); border: 0; display: block; }
-    </style>
-</head>
-<body>
-    <div class="toolbar">
-        <div class="filename" title="${safeFilename}">${safeFilename}</div>
-        <button class="btn" id="download-btn" type="button">Download PDF</button>
-    </div>
-    <iframe src="${blobUrl}" title="Preview PDF"></iframe>
-    <script>
-        const blobUrl = ${JSON.stringify(blobUrl)};
-        const filename = ${JSON.stringify(filename)};
-        document.getElementById('download-btn')?.addEventListener('click', () => {
+        if (!previewWindow || previewWindow.closed) {
             const link = document.createElement('a');
             link.href = blobUrl;
-            link.download = filename;
+            link.download = defaultFilename;
             document.body.appendChild(link);
             link.click();
             link.remove();
-        });
-        window.addEventListener('beforeunload', () => {
-            try { URL.revokeObjectURL(blobUrl); } catch {}
-        });
-    </script>
-</body>
-</html>`);
-    previewWindow.document.close();
+        }
+
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+        }, 60000);
+    } finally {
+        hideOverlay();
+    }
 };
 
 /**

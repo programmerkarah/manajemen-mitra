@@ -343,6 +343,7 @@ class SkKpaController extends Controller
                     'peraturan_presiden' => 'Peraturan Presiden',
                     'peraturan_menteri_badan' => 'Peraturan '.($dh->instansi && stripos($dh->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$dh->instansi,
                     'keputusan_menteri_kepala_badan' => 'Keputusan '.($dh->instansi && stripos($dh->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$dh->instansi,
+                    'peraturan_kepala_badan' => 'Peraturan Kepala Badan Pusat Statistik',
                     default => $dh->kategori,
                 };
 
@@ -499,8 +500,6 @@ class SkKpaController extends Controller
         $validated = $request->validate([
             'nomor_sk' => ['required', 'string', 'max:255'],
             'tanggal_sk' => ['required', 'date'],
-            'dasar_hukum_ids' => ['required', 'array', 'min:1'],
-            'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
         ]);
 
         // Get tahun from tanggal_sk
@@ -523,43 +522,29 @@ class SkKpaController extends Controller
         $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
         $dipa = Dipa::active()->firstOrFail();
 
-        // Get dasar hukum
-        $dasarHukum = DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+        // Auto-fetch all active dasar hukum (no user selection required)
+        $dasarHukum = DasarHukum::where('status', 'aktif')
+            ->with('induk')
             ->get()
             ->sortBy(function ($item) {
-                // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
                 $categoryOrder = [
                     'undang_undang' => 1,
                     'peraturan_pemerintah' => 2,
                     'peraturan_presiden' => 3,
                     'peraturan_menteri_badan' => 4,
-                    'keputusan_menteri_kepala_badan' => 5,
+                    'peraturan_kepala_badan' => 5,
+                    'keputusan_menteri_kepala_badan' => 6,
                 ];
+                $sortYear = $item->jenis === 'perubahan' && $item->induk
+                    ? $item->induk->tahun
+                    : $item->tahun;
 
-                // Sort by category order first, then by year (oldest to newest)
-                return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
+                return [$categoryOrder[$item->kategori] ?? 99, $sortYear];
             })
             ->values()
             ->map(function ($item) {
-                $kategoriLabel = match ($item->kategori) {
-                    'undang_undang' => 'Undang-Undang',
-                    'peraturan_pemerintah' => 'Peraturan Pemerintah',
-                    'peraturan_presiden' => 'Peraturan Presiden',
-                    'peraturan_menteri_badan' => 'Peraturan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$item->instansi,
-                    'keputusan_menteri_kepala_badan' => 'Keputusan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$item->instansi,
-                    default => $item->kategori,
-                };
-
-                // Build nama lengkap
-                $namaLengkap = $kategoriLabel.' Nomor '.$item->nomor.' Tahun '.$item->tahun;
-
                 return (object) [
-                    'kategori' => $kategoriLabel,
-                    'nomor' => $item->nomor,
-                    'tentang' => $item->tentang,
-                    'tahun' => $item->tahun,
-                    'nama_lengkap' => $namaLengkap,
-                    'lembaran' => $item->lembaran,
+                    'teks_lengkap' => $item->getFormattedTeks(),
                 ];
             });
 
@@ -726,8 +711,6 @@ class SkKpaController extends Controller
         $validated = $request->validate([
             'nomor_sk' => ['required', 'string', 'max:255'],
             'tanggal_sk' => ['required', 'date'],
-            'dasar_hukum_ids' => ['required', 'array', 'min:1'],
-            'dasar_hukum_ids.*' => ['required', 'integer', 'exists:dasar_hukum,id'],
         ]);
 
         // Get tahun from tanggal_sk
@@ -750,43 +733,30 @@ class SkKpaController extends Controller
         $penandatangan = Penandatangan::active()->kepala()->firstOrFail();
         $dipa = Dipa::active()->firstOrFail();
 
-        // Get dasar hukum
-        $dasarHukum = DasarHukum::whereIn('id', $validated['dasar_hukum_ids'])
+        // Auto-fetch all active dasar hukum (no user selection required)
+        $activeDasarHukumIds = DasarHukum::where('status', 'aktif')->pluck('id')->toArray();
+        $dasarHukum = DasarHukum::where('status', 'aktif')
+            ->with('induk')
             ->get()
             ->sortBy(function ($item) {
-                // Define category order: UU, PP, Perpres, Perka/Perban, Keputusan
                 $categoryOrder = [
                     'undang_undang' => 1,
                     'peraturan_pemerintah' => 2,
                     'peraturan_presiden' => 3,
                     'peraturan_menteri_badan' => 4,
-                    'keputusan_menteri_kepala_badan' => 5,
+                    'peraturan_kepala_badan' => 5,
+                    'keputusan_menteri_kepala_badan' => 6,
                 ];
+                $sortYear = $item->jenis === 'perubahan' && $item->induk
+                    ? $item->induk->tahun
+                    : $item->tahun;
 
-                // Sort by category order first, then by year (oldest to newest)
-                return [$categoryOrder[$item->kategori] ?? 99, $item->tahun];
+                return [$categoryOrder[$item->kategori] ?? 99, $sortYear];
             })
             ->values()
             ->map(function ($item) {
-                $kategoriLabel = match ($item->kategori) {
-                    'undang_undang' => 'Undang-Undang',
-                    'peraturan_pemerintah' => 'Peraturan Pemerintah',
-                    'peraturan_presiden' => 'Peraturan Presiden',
-                    'peraturan_menteri_badan' => 'Peraturan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Badan' : 'Menteri').' '.$item->instansi,
-                    'keputusan_menteri_kepala_badan' => 'Keputusan '.($item->instansi && stripos($item->instansi, 'badan') === 0 ? 'Kepala Badan' : 'Menteri').' '.$item->instansi,
-                    default => $item->kategori,
-                };
-
-                // Build nama lengkap
-                $namaLengkap = $kategoriLabel.' Nomor '.$item->nomor.' Tahun '.$item->tahun;
-
                 return (object) [
-                    'kategori' => $kategoriLabel,
-                    'nomor' => $item->nomor,
-                    'tentang' => $item->tentang,
-                    'tahun' => $item->tahun,
-                    'nama_lengkap' => $namaLengkap,
-                    'lembaran' => $item->lembaran,
+                    'teks_lengkap' => $item->getFormattedTeks(),
                 ];
             });
 
@@ -940,7 +910,7 @@ class SkKpaController extends Controller
                 'tahun' => (int) Carbon::parse($validated['tanggal_sk'])->format('Y'),
                 'nama_kpa' => $penandatangan->nama,
                 'perihal' => 'Petugas '.$kegiatan->nama_kegiatan.' '.$kegiatan->tahun_anggaran,
-                'dasar_hukum' => json_encode($validated['dasar_hukum_ids']),
+                'dasar_hukum' => json_encode($activeDasarHukumIds),
                 'file_path' => $filePath,
                 'status' => 'draft',
                 'created_by' => Auth::id(),
