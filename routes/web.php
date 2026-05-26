@@ -361,8 +361,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
             ->name('alokasi.import-preview');
         Route::get('alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'edit'])->name('alokasi.edit');
         Route::match(['put', 'patch'], 'alokasi/{alokasi}/edit', [AlokasiPetugasController::class, 'update']);
-        Route::put('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
-        Route::patch('alokasi/{alokasi}', [AlokasiPetugasController::class, 'update']);
+        Route::match(['put', 'patch'], 'alokasi/{alokasi}', [AlokasiPetugasController::class, 'update'])->name('alokasi.update');
         Route::delete('alokasi/{alokasi}', [AlokasiPetugasController::class, 'destroy'])->name('alokasi.destroy');
 
         // Periode-based actions
