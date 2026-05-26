@@ -887,19 +887,54 @@ class DashboardController extends Controller
             return $reviewMonth === $currentMonthFormatted;
         });
 
-        $topMitra = $reviewRows
+        $reviewRowsCurrentMonthGlobalAvg = $reviewRowsCurrentMonth->isNotEmpty()
+            ? (float) $reviewRowsCurrentMonth->avg('rating')
+            : 0.0;
+
+        $bestMitraCurrentMonth = $reviewRowsCurrentMonth
             ->groupBy('petugas_id')
-            ->map(function ($group) {
+            ->map(function ($group) use ($reviewRowsCurrentMonthGlobalAvg) {
                 $first = $group->first();
+                $reviewCount = $group->count();
+                $avgRating = (float) $group->avg('rating');
+                $confidence = min(1, $reviewCount / 5);
+                $balancedScore = (($avgRating * 0.7) + ($reviewRowsCurrentMonthGlobalAvg * 0.3))
+                    * (0.6 + (0.4 * $confidence));
 
                 return [
                     'petugas_id' => $first->petugas_id,
                     'petugas_nama' => $first->petugas?->nama ?? '-',
-                    'avg_rating' => round((float) $group->avg('rating'), 2),
-                    'total_review' => $group->count(),
+                    'avg_rating' => round($avgRating, 2),
+                    'total_review' => $reviewCount,
+                    'balanced_score' => round($balancedScore, 3),
                 ];
             })
-            ->sortByDesc(fn ($item) => ($item['avg_rating'] * 1000) + $item['total_review'])
+            ->sortByDesc(fn ($item) => ($item['balanced_score'] * 1000) + $item['total_review'])
+            ->first();
+
+        $reviewRowsGlobalAvg = $reviewRows->isNotEmpty()
+            ? (float) $reviewRows->avg('rating')
+            : 0.0;
+
+        $topMitra = $reviewRows
+            ->groupBy('petugas_id')
+            ->map(function ($group) use ($reviewRowsGlobalAvg) {
+                $first = $group->first();
+                $reviewCount = $group->count();
+                $avgRating = (float) $group->avg('rating');
+                $confidence = min(1, $reviewCount / 5);
+                $balancedScore = (($avgRating * 0.7) + ($reviewRowsGlobalAvg * 0.3))
+                    * (0.6 + (0.4 * $confidence));
+
+                return [
+                    'petugas_id' => $first->petugas_id,
+                    'petugas_nama' => $first->petugas?->nama ?? '-',
+                    'avg_rating' => round($avgRating, 2),
+                    'total_review' => $reviewCount,
+                    'balanced_score' => round($balancedScore, 3),
+                ];
+            })
+            ->sortByDesc(fn ($item) => ($item['balanced_score'] * 1000) + $item['total_review'])
             ->take(3)
             ->values();
 
@@ -921,6 +956,7 @@ class DashboardController extends Controller
                     : 0,
             ],
             'top_mitra' => $topMitra,
+            'best_mitra_current_month' => $bestMitraCurrentMonth,
         ];
 
         return Inertia::render('Dashboard', [

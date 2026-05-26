@@ -170,6 +170,9 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Monitoring Penilaian Mitra
+    Route::match(['get', 'post'], 'monitoring-penilaian-mitra', [MonitoringPenilaianMitraController::class, 'index']);
+
     // Role Switching
     Route::post('switch-role', [RoleSwitchController::class, 'switch'])->name('role.switch');
 

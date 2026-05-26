@@ -9,6 +9,7 @@ use App\Models\Petugas;
 use App\Models\ReviewPetugas;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -60,12 +61,7 @@ class PetugasReviewController extends Controller
                 ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
                 ->whereIn('pa.kegiatan_id', $reviewableKegiatanIds)
                 ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
-                ->where(function ($query) {
-                    $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
-                        ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0)
-                        ->orWhere('alokasi_petugas.total_honor', '>', 0)
-                        ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
-                })
+                ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
                 ->select([
                     'p.id as petugas_id',
                     'p.nama as petugas_nama',
@@ -194,12 +190,7 @@ class PetugasReviewController extends Controller
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
-            ->where(function ($query) {
-                $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
-                    ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
-            })
+            ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
             ->select([
                 'pa.id as periode_alokasi_id',
                 'pa.bulan as periode_bulan',
@@ -222,12 +213,7 @@ class PetugasReviewController extends Controller
             ->where('pa.bulan', $targetAssignment->periode_bulan)
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
-            ->where(function ($query) {
-                $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
-                    ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
-            })
+            ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
             ->select([
                 'pa.id as periode_alokasi_id',
                 'pa.status as periode_status',
@@ -254,12 +240,7 @@ class PetugasReviewController extends Controller
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
-            ->where(function ($query) {
-                $query->where('alokasi_petugas.jumlah_satuan', '>', 0)
-                    ->orWhere('alokasi_petugas.jumlah_satuan_listing', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor', '>', 0)
-                    ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
-            })
+            ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
             ->whereRaw('((pa.tahun * 12) + pa.bulan) = ?', [$targetMonthIndex + 1])
             ->exists();
 
@@ -451,5 +432,11 @@ class PetugasReviewController extends Controller
             'dikirim' => 1,
             default => 0,
         };
+    }
+
+    private function applyReviewableHonorFilter(Builder $query): void
+    {
+        $query->where('alokasi_petugas.total_honor', '>', 0)
+            ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
     }
 }

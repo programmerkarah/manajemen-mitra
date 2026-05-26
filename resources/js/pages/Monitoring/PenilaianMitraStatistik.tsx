@@ -46,6 +46,15 @@ interface KegiatanOption {
     label: string;
 }
 
+type MonthlyBestMitraRow = {
+    month: string;
+    petugas_id: number;
+    petugas_nama: string;
+    review_count: number;
+    avg_rating: number;
+    balanced_score: number;
+};
+
 type HallOfFameTableRow = {
     petugas_id: number;
     petugas_nama: string;
@@ -95,17 +104,17 @@ interface Props {
     top_petugas: Array<{
         petugas_id: number;
         petugas_nama: string;
+        balanced_score: number;
         review_count: number;
         avg_rating: number;
-        ulasan_count: number;
         kegiatan_count: number;
     }>;
     bottom_petugas: Array<{
         petugas_id: number;
         petugas_nama: string;
+        balanced_score: number;
         review_count: number;
         avg_rating: number;
-        ulasan_count: number;
         kegiatan_count: number;
     }>;
     kegiatan_stats: Array<{
@@ -203,12 +212,79 @@ export default function PenilaianMitraStatistik({
     });
     const pageSize = 10;
 
+    const bestMitraPerMonth = useMemo<MonthlyBestMitraRow[]>(() => {
+        if (reviewRows.length === 0) {
+            return [];
+        }
+
+        const globalAverageRating =
+            reviewRows.reduce((sum, row) => sum + row.rating, 0) /
+            reviewRows.length;
+
+        const monthGroups = new Map<string, ReviewRow[]>();
+
+        reviewRows.forEach((row) => {
+            const rows = monthGroups.get(row.reviewed_month) ?? [];
+            rows.push(row);
+            monthGroups.set(row.reviewed_month, rows);
+        });
+
+        return Array.from(monthGroups.entries())
+            .map(([month, monthRows]) => {
+                const petugasGroups = new Map<number, ReviewRow[]>();
+
+                monthRows.forEach((row) => {
+                    const petugasRows = petugasGroups.get(row.petugas_id) ?? [];
+                    petugasRows.push(row);
+                    petugasGroups.set(row.petugas_id, petugasRows);
+                });
+
+                const bestMitra = Array.from(petugasGroups.entries())
+                    .map(([petugasId, petugasRows]) => {
+                        const reviewCount = petugasRows.length;
+                        const avgRating =
+                            petugasRows.reduce(
+                                (sum, row) => sum + row.rating,
+                                0,
+                            ) / reviewCount;
+                        const confidence = Math.min(1, reviewCount / 5);
+                        const balancedScore =
+                            (avgRating * 0.7 + globalAverageRating * 0.3) *
+                            (0.6 + 0.4 * confidence);
+
+                        return {
+                            petugas_id: petugasId,
+                            petugas_nama: petugasRows[0]?.petugas_nama ?? '-',
+                            review_count: reviewCount,
+                            avg_rating: Number(avgRating.toFixed(2)),
+                            balanced_score: Number(balancedScore.toFixed(3)),
+                        };
+                    })
+                    .sort((a, b) => {
+                        if (b.balanced_score !== a.balanced_score) {
+                            return b.balanced_score - a.balanced_score;
+                        }
+
+                        return b.review_count - a.review_count;
+                    })[0];
+
+                return bestMitra
+                    ? {
+                          month,
+                          ...bestMitra,
+                      }
+                    : null;
+            })
+            .filter((item): item is MonthlyBestMitraRow => item !== null)
+            .sort((a, b) => a.month.localeCompare(b.month));
+    }, [reviewRows]);
+
     const handleFilterChange = (
         bulan: string,
         kegiatanId: string,
         petugasId: string,
     ) => {
-        router.get(
+        router.post(
             '/monitoring-penilaian-mitra',
             {
                 bulan,
@@ -218,6 +294,7 @@ export default function PenilaianMitraStatistik({
             {
                 preserveScroll: true,
                 preserveState: true,
+                replace: true,
             },
         );
     };
@@ -475,6 +552,53 @@ export default function PenilaianMitraStatistik({
                     ) : (
                         <p className="mt-4 text-sm text-neutral-500">
                             Belum ada data kandidat Hall of Fame.
+                        </p>
+                    )}
+                </ContentCard>
+
+                <ContentCard>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs tracking-wide text-rose-600 uppercase dark:text-rose-400">
+                                Mitra Terbaik per Bulan
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                Ringkasan Bulanan
+                            </h3>
+                            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                Menggunakan data review yang sudah terenkripsi
+                                di backend, lalu didekripsi untuk ringkasan ini.
+                            </p>
+                        </div>
+                        <Badge variant="outline">Balanced</Badge>
+                    </div>
+
+                    {bestMitraPerMonth.length > 0 ? (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            {bestMitraPerMonth.map((item) => (
+                                <div
+                                    key={item.month}
+                                    className="rounded-lg border border-rose-200 bg-rose-50/70 p-3 dark:border-rose-900/40 dark:bg-rose-900/10"
+                                >
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                                        {MONTH_OPTIONS.find(
+                                            (option) => option.value === item.month,
+                                        )?.label ?? item.month}
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {item.petugas_nama}
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+                                        <span>{item.review_count} review</span>
+                                        <span>Rating {item.avg_rating}</span>
+                                        <span>Balanced {item.balanced_score}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="mt-4 text-sm text-neutral-500">
+                            Belum ada data review per bulan.
                         </p>
                     )}
                 </ContentCard>
@@ -929,10 +1053,15 @@ export default function PenilaianMitraStatistik({
                                         <p className="text-sm font-medium">
                                             {item.petugas_nama}
                                         </p>
-                                        <p className="text-xs text-neutral-500">
-                                            Rating {item.avg_rating} |{' '}
-                                            {item.review_count} review
-                                        </p>
+                                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-neutral-500">
+                                            <span>
+                                                Balanced {item.balanced_score}
+                                            </span>
+                                            <span>Rating {item.avg_rating}</span>
+                                            <span>
+                                                {item.review_count} review
+                                            </span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -949,10 +1078,15 @@ export default function PenilaianMitraStatistik({
                                         <p className="text-sm font-medium">
                                             {item.petugas_nama}
                                         </p>
-                                        <p className="text-xs text-neutral-500">
-                                            Rating {item.avg_rating} |{' '}
-                                            {item.review_count} review
-                                        </p>
+                                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-neutral-500">
+                                            <span>
+                                                Balanced {item.balanced_score}
+                                            </span>
+                                            <span>Rating {item.avg_rating}</span>
+                                            <span>
+                                                {item.review_count} review
+                                            </span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

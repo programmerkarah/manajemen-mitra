@@ -120,29 +120,6 @@ class MonitoringPenilaianMitraController extends Controller
             ? (float) $hallOfFameRows->avg('rating')
             : 0.0;
 
-        $hallOfFame = $hallOfFameRows
-            ->groupBy('petugas_id')
-            ->map(function ($groupRows) use ($hallOfFameGlobalAvg) {
-                $first = $groupRows->first();
-                $reviewCount = $groupRows->count();
-                $avgRating = (float) $groupRows->avg('rating');
-                $confidence = min(1, $reviewCount / 5);
-                $balancedScore = (($avgRating * 0.7) + ($hallOfFameGlobalAvg * 0.3))
-                    * (0.6 + (0.4 * $confidence));
-
-                return [
-                    'petugas_id' => $first['petugas_id'],
-                    'petugas_nama' => $first['petugas_nama'],
-                    'avg_rating' => round($avgRating, 2),
-                    'review_count' => $reviewCount,
-                    'kegiatan_count' => $groupRows->pluck('kegiatan_id')->unique()->count(),
-                    'balanced_score' => round($balancedScore, 3),
-                ];
-            })
-            ->sortByDesc(fn ($row) => ($row['balanced_score'] * 1000) + $row['review_count'])
-            ->values()
-            ->first();
-
         $hallOfFameTable = $hallOfFameRows
             ->groupBy('petugas_id')
             ->map(function ($groupRows) use ($hallOfFameGlobalAvg) {
@@ -166,6 +143,19 @@ class MonitoringPenilaianMitraController extends Controller
                 ];
             })
             ->sortByDesc(fn ($row) => ($row['balanced_score'] * 1000) + $row['review_count'])
+            ->values();
+
+        $hallOfFame = $hallOfFameTable->first();
+
+        $topBottomLimit = $selectedKegiatanId === 'all' ? 5 : 3;
+
+        $topPetugas = $hallOfFameTable
+            ->take($topBottomLimit)
+            ->values();
+
+        $bottomPetugas = $hallOfFameTable
+            ->sortBy('balanced_score')
+            ->take($topBottomLimit)
             ->values();
 
         $ratingDistribution = collect([1, 2, 3, 4, 5])->map(function (int $rating) use ($rows) {
@@ -201,36 +191,6 @@ class MonitoringPenilaianMitraController extends Controller
                 'rata_rating' => $reviewCount > 0 ? round((float) $monthRows->avg('rating'), 2) : 0,
             ];
         })->values();
-
-        $petugasStats = $rows
-            ->groupBy('petugas_id')
-            ->map(function ($groupRows) {
-                $first = $groupRows->first();
-
-                return [
-                    'petugas_id' => $first['petugas_id'],
-                    'petugas_nama' => $first['petugas_nama'],
-                    'review_count' => $groupRows->count(),
-                    'avg_rating' => round((float) $groupRows->avg('rating'), 2),
-                    'ulasan_count' => $groupRows->filter(fn ($row) => filled($row['ulasan']))->count(),
-                    'kegiatan_count' => $groupRows->pluck('kegiatan_id')->unique()->count(),
-                ];
-            })
-            ->values();
-
-        $topBottomLimit = $selectedKegiatanId === 'all' ? 5 : 3;
-
-        $topPetugas = $petugasStats
-            ->filter(fn ($row) => $row['avg_rating'] >= 3)
-            ->sortByDesc(fn ($row) => ($row['avg_rating'] * 1000) + $row['review_count'])
-            ->take($topBottomLimit)
-            ->values();
-
-        $bottomPetugas = $petugasStats
-            ->filter(fn ($row) => $row['avg_rating'] < 3)
-            ->sortBy(fn ($row) => ($row['avg_rating'] * 1000) - $row['review_count'])
-            ->take($topBottomLimit)
-            ->values();
 
         $kegiatanStats = $rows
             ->groupBy('kegiatan_id')

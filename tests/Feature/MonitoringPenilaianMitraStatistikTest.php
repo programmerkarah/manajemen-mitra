@@ -92,6 +92,65 @@ class MonitoringPenilaianMitraStatistikTest extends TestCase
         );
     }
 
+    public function test_monitoring_penilaian_mitra_filters_can_be_submitted_via_post(): void
+    {
+        $operatorRole = Role::query()->firstOrCreate(
+            ['name' => 'operator'],
+            ['display_name' => 'Operator', 'description' => 'Operator']
+        );
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $user->roles()->sync([$operatorRole->id]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => now()->year,
+            'nama_kegiatan' => 'Kegiatan POST Test',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas POST',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => now()->year,
+            'bulan' => str_pad((string) now()->month, 2, '0', STR_PAD_LEFT),
+            'status' => 'dikirim',
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugas->id,
+            'periode_alokasi_id' => $periode->id,
+            'reviewer_user_id' => $user->id,
+            'rating' => 4,
+            'ulasan' => 'Review POST',
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession([
+                'active_role_id' => $operatorRole->id,
+                'active_year' => now()->year,
+            ])
+            ->post('/monitoring-penilaian-mitra', [
+                'bulan' => 'all',
+                'kegiatan_id' => 'all',
+                'petugas_id' => 'all',
+            ]);
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Monitoring/PenilaianMitraStatistik')
+            ->where('filters.bulan', 'all')
+            ->where('filters.kegiatan_id', 'all')
+            ->where('filters.petugas_id', 'all')
+            ->where('summary.total_reviews', 1)
+        );
+    }
+
     public function test_kegiatan_options_stay_available_when_specific_kegiatan_filter_is_active(): void
     {
         $operatorRole = Role::query()->firstOrCreate(
@@ -216,15 +275,8 @@ class MonitoringPenilaianMitraStatistikTest extends TestCase
         $defaultResponse->assertOk();
         $defaultResponse->assertInertia(fn ($page) => $page
             ->component('Monitoring/PenilaianMitraStatistik')
-            ->has('top_petugas', 4)
-            ->has('bottom_petugas', 3)
-            ->where('top_petugas.0.avg_rating', fn ($value) => (float) $value >= 3.0)
-            ->where('top_petugas.1.avg_rating', fn ($value) => (float) $value >= 3.0)
-            ->where('top_petugas.2.avg_rating', fn ($value) => (float) $value >= 3.0)
-            ->where('top_petugas.3.avg_rating', fn ($value) => (float) $value >= 3.0)
-            ->where('bottom_petugas.0.avg_rating', fn ($value) => (float) $value < 3.0)
-            ->where('bottom_petugas.1.avg_rating', fn ($value) => (float) $value < 3.0)
-            ->where('bottom_petugas.2.avg_rating', fn ($value) => (float) $value < 3.0)
+            ->has('top_petugas', 5)
+            ->has('bottom_petugas', 5)
         );
 
         $filteredResponse = $this->actingAs($user)
@@ -322,6 +374,8 @@ class MonitoringPenilaianMitraStatistikTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Monitoring/PenilaianMitraStatistik')
             ->where('show_kegiatan_rank_for_petugas', false)
+            ->where('top_petugas.0.petugas_id', $petugasBalanced->id)
+            ->where('bottom_petugas.0.petugas_id', $petugasFiltered->id)
             ->where('hall_of_fame.petugas_id', $petugasBalanced->id)
             ->where('hall_of_fame.review_count', 6)
         );

@@ -7,6 +7,7 @@ use App\Models\Bast;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\ReviewPetugas;
 use App\Models\Role;
 use App\Models\SkKpa;
 use App\Models\Spk;
@@ -36,6 +37,101 @@ class DashboardTest extends TestCase
                 ->has('mitraReviewSummary')
                 ->where('mitraReviewSummary.year.total_reviews', 0)
                 ->where('mitraReviewSummary.current_month.total_reviews', 0));
+    }
+
+    public function test_dashboard_top_mitra_uses_balanced_score_ranking(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $year = Carbon::now()->year;
+        $month = str_pad((string) Carbon::now()->month, 2, '0', STR_PAD_LEFT);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'aktif',
+            'tahun_anggaran' => $year,
+            'tanggal_mulai' => Carbon::now()->copy()->startOfMonth()->toDateString(),
+            'tanggal_selesai' => Carbon::now()->copy()->endOfMonth()->toDateString(),
+        ]);
+
+        $petugasBalanced = Petugas::factory()->create([
+            'nama' => 'Petugas Balanced',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $petugasHighAverage = Petugas::factory()->create([
+            'nama' => 'Petugas High Average',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        foreach (['01', '02', '03', '04', '05', '06'] as $bulan) {
+            $periode = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'tahun' => $year,
+                'bulan' => $bulan,
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::query()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugasBalanced->id,
+                'jumlah_satuan' => 1,
+                'total_honor' => 100000,
+                'total_honor_listing' => 0,
+                'peran' => 'pml',
+                'status_kepegawaian' => 'non_organik',
+            ]);
+
+            ReviewPetugas::query()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'petugas_id' => $petugasBalanced->id,
+                'periode_alokasi_id' => $periode->id,
+                'reviewer_user_id' => $user->id,
+                'rating' => 4,
+                'ulasan' => 'Konsisten baik',
+                'reviewed_at' => now(),
+            ]);
+        }
+
+        $periodeHighAverage = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $year,
+            'bulan' => $month,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::query()->create([
+            'periode_alokasi_id' => $periodeHighAverage->id,
+            'petugas_id' => $petugasHighAverage->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 100000,
+            'total_honor_listing' => 0,
+            'peran' => 'pml',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasHighAverage->id,
+            'periode_alokasi_id' => $periodeHighAverage->id,
+            'reviewer_user_id' => $user->id,
+            'rating' => 5,
+            'ulasan' => 'Rating tunggal tinggi',
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('mitraReviewSummary.year.total_reviews', 7)
+                ->has('mitraReviewSummary.best_mitra_current_month')
+                ->where('mitraReviewSummary.top_mitra.0.petugas_id', $petugasBalanced->id)
+                ->where('mitraReviewSummary.top_mitra.0.balanced_score', fn ($value) => (float) $value > 0)
+            );
     }
 
     public function test_dashboard_kegiatan_bulan_ini_scopes_spk_count_to_each_periode(): void

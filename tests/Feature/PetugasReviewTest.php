@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class PetugasReviewTest extends TestCase
@@ -36,6 +37,89 @@ class PetugasReviewTest extends TestCase
             ->get('/petugas/review');
 
         $response->assertRedirect(route('dashboard'));
+    }
+
+    public function test_petugas_with_zero_honor_is_not_reviewable(): void
+    {
+        $operatorRole = Role::query()->firstOrCreate(
+            ['name' => 'operator'],
+            ['display_name' => 'Operator', 'description' => 'Operator']
+        );
+
+        $user = User::factory()->create([
+            'name' => 'Reviewer PML',
+            'email_verified_at' => now(),
+        ]);
+        $user->roles()->sync([$operatorRole->id]);
+
+        $reviewerPetugas = Petugas::factory()->create([
+            'nama' => 'Reviewer PML',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+        $eligibleTarget = Petugas::factory()->create([
+            'nama' => 'Target Berhonor',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+        $zeroHonorTarget = Petugas::factory()->create([
+            'nama' => 'Target Nol Honor',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tanggal_selesai' => now()->subDay()->toDateString(),
+            'tahun_anggaran' => now()->year,
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => now()->year,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $reviewerPetugas->id,
+            'peran' => 'pml',
+            'status_kepegawaian' => 'organik',
+            'jumlah_satuan' => 10,
+            'total_honor' => 100000,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $eligibleTarget->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 8,
+            'total_honor' => 90000,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $zeroHonorTarget->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'total_honor' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession([
+                'active_role_id' => $operatorRole->id,
+                'active_year' => now()->year,
+            ])
+            ->get('/petugas/review');
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Petugas/Review')
+            ->has('rows', 1)
+            ->where('rows.0.petugas_id', $eligibleTarget->id)
+            ->where('rows.0.can_review_now', true)
+        );
     }
 
     public function test_pml_user_can_submit_review_after_kegiatan_finished(): void

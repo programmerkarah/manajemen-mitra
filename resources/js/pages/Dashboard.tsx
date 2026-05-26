@@ -248,7 +248,15 @@ interface MitraReviewSummary {
         petugas_nama: string;
         avg_rating: number;
         total_review: number;
+        balanced_score: number;
     }>;
+    best_mitra_current_month: {
+        petugas_id: number;
+        petugas_nama: string;
+        avg_rating: number;
+        total_review: number;
+        balanced_score: number;
+    } | null;
 }
 
 interface DashboardProps {
@@ -1085,7 +1093,7 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                         <div className="rounded-lg bg-sky-50 p-3 dark:bg-sky-900/20">
                             <p className="text-xs text-sky-700 dark:text-sky-300">
                                 Total Review
@@ -1132,6 +1140,36 @@ export default function Dashboard({
                                 %
                             </p>
                         </div>
+                        <div className="rounded-lg bg-rose-50 p-3 dark:bg-rose-900/20">
+                            <p className="text-xs text-rose-700 dark:text-rose-300">
+                                Mitra Terbaik Bulan Ini
+                            </p>
+                            {mitraReviewSummary.best_mitra_current_month ? (
+                                <>
+                                    <p className="mt-1 truncate text-sm font-bold text-rose-900 dark:text-rose-200">
+                                        {
+                                            mitraReviewSummary.best_mitra_current_month
+                                                .petugas_nama
+                                        }
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-rose-700/80 dark:text-rose-200/80">
+                                        {
+                                            mitraReviewSummary.best_mitra_current_month
+                                                .total_review
+                                        }{' '}
+                                        review · Balanced{' '}
+                                        {
+                                            mitraReviewSummary.best_mitra_current_month
+                                                .balanced_score
+                                        }
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-200/80">
+                                    Belum ada review bulan ini
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -1146,8 +1184,9 @@ export default function Dashboard({
                                 <p className="mt-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
                                     {mitra.petugas_nama}
                                 </p>
-                                <div className="mt-2 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-300">
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600 dark:text-neutral-300">
                                     <span>{mitra.total_review} review</span>
+                                    <span>Balanced {mitra.balanced_score}</span>
                                     <span className="font-semibold text-amber-600 dark:text-amber-400">
                                         {mitra.avg_rating} / 5
                                     </span>
