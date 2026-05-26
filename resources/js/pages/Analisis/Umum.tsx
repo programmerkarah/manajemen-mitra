@@ -90,6 +90,51 @@ function formatRupiah(value: number): string {
 const glassTooltipClass =
     'rounded-xl border border-white/20 bg-white/80 p-3 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-900/80';
 
+interface PieLegendItem {
+    label: string;
+    value: number;
+    percentage: number;
+    color: string;
+}
+
+function buildPieLegendItems<T extends { count: number }>(
+    items: T[],
+    getLabel: (item: T) => string,
+    total: number,
+): PieLegendItem[] {
+    return items.map((item, index) => ({
+        label: getLabel(item),
+        value: item.count,
+        percentage: total > 0 ? (item.count / total) * 100 : 0,
+        color: COLORS[index % COLORS.length],
+    }));
+}
+
+function PieLegendList({ items }: { items: PieLegendItem[] }) {
+    return (
+        <div className="mt-4 max-h-40 space-y-2 overflow-y-auto pr-1">
+            {items.map((item) => (
+                <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/70 bg-white/70 px-3 py-2 text-xs dark:border-neutral-700/60 dark:bg-neutral-900/40"
+                >
+                    <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-200">
+                        <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium">{item.label}</span>
+                    </div>
+                    <div className="text-right text-neutral-600 dark:text-neutral-300">
+                        <div className="font-semibold">{item.value}</div>
+                        <div>{item.percentage.toFixed(1)}%</div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function AnalisisUmum({
     utilisasiAnggaran,
     distribusiBebanKerja,
@@ -103,6 +148,18 @@ export default function AnalisisUmum({
     }));
 
     const filteredUtilisasi = utilisasiAnggaran.filter((u) => u.total_pagu > 0);
+    const distribusiBebanKerjaChartData = distribusiBebanKerja.filter(
+        (item) => item.count > 0,
+    );
+    const totalDistribusiBebanKerja = distribusiBebanKerjaChartData.reduce(
+        (sum, item) => sum + item.count,
+        0,
+    );
+    const distribusiBebanKerjaLegendItems = buildPieLegendItems(
+        distribusiBebanKerjaChartData,
+        (item) => item.label,
+        totalDistribusiBebanKerja,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -146,45 +203,38 @@ export default function AnalisisUmum({
                             Total petugas berdasarkan jumlah kegiatan yang
                             ditangani sepanjang tahun
                         </p>
-                        <ResponsiveContainer width="100%" height={280}>
+                        <ResponsiveContainer width="100%" height={220}>
                             <PieChart>
                                 <Pie
-                                    data={distribusiBebanKerja.filter(
-                                        (d) => d.count > 0,
-                                    )}
+                                    data={distribusiBebanKerjaChartData}
                                     dataKey="count"
                                     nameKey="label"
                                     cx="50%"
                                     cy="50%"
-                                    outerRadius={80}
-                                    label={(
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        props: any,
-                                    ) => `${props.label}: ${props.count}`}
+                                    innerRadius={54}
+                                    outerRadius={86}
+                                    paddingAngle={2}
+                                    labelLine={false}
                                 >
-                                    {distribusiBebanKerja
-                                        .filter((d) => d.count > 0)
-                                        .map((_, index) => (
+                                    {distribusiBebanKerjaChartData.map(
+                                        (_, index) => (
                                             <Cell
-                                                key={`cell-${index}`}
+                                                key={`beban-kerja-cell-${index}`}
                                                 fill={
                                                     COLORS[
                                                         index % COLORS.length
                                                     ]
                                                 }
                                             />
-                                        ))}
+                                        ),
+                                    )}
                                 </Pie>
                                 <ChartTooltip
                                     content={({ active, payload }) => {
                                         if (!active || !payload?.length)
                                             return null;
                                         const entry = payload[0];
-                                        const total =
-                                            distribusiBebanKerja.reduce(
-                                                (s, d) => s + d.count,
-                                                0,
-                                            );
+                                        const total = totalDistribusiBebanKerja;
                                         const pct =
                                             total > 0
                                                 ? (Number(entry.value) /
@@ -211,9 +261,11 @@ export default function AnalisisUmum({
                                         );
                                     }}
                                 />
-                                <Legend />
                             </PieChart>
                         </ResponsiveContainer>
+                        <PieLegendList
+                            items={distribusiBebanKerjaLegendItems}
+                        />
                     </div>
 
                     {/* Tren Alokasi */}

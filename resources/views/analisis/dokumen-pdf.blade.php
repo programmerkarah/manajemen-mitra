@@ -14,13 +14,22 @@
 
     <div class="section-block">
         <h2>Visualisasi Ringkas</h2>
-        <div class="chart-block">
-            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Grafik Pie Analisis Dokumen">
-        </div>
-    </div>
-
-    <div class="chart-block">
-        <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($lineChartSvg) }}" alt="Grafik Tren Analisis Dokumen">
+        <table class="chart-grid chart-grid-two">
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="chart-block">
+                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Grafik Pie Analisis Dokumen">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="chart-block">
+                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($lineChartSvg) }}" alt="Grafik Tren Analisis Dokumen">
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     {{-- SK per Bulan --}}
@@ -29,7 +38,7 @@
         @php
             $bulanNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
         @endphp
-        <table>
+        <table class="striped">
             <thead>
                 <tr>
                     <th>Status</th>
@@ -75,7 +84,7 @@
     {{-- SPK per Bulan --}}
     <div class="no-break">
         <h2>Surat Perjanjian Kerja (SPK) per Bulan</h2>
-        <table>
+        <table class="striped">
             <thead>
                 <tr>
                     <th>Status</th>

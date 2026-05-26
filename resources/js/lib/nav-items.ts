@@ -101,6 +101,10 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 icon: BarChart3,
                 items: [
                     { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    {
+                        title: 'Analisis Pegawai',
+                        href: '/analisis/petugas-organik',
+                    },
                     { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
                     { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
                     { title: 'Analisis Umum', href: '/analisis/umum' },
@@ -192,6 +196,10 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 icon: BarChart3,
                 items: [
                     { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    {
+                        title: 'Analisis Petugas Organik',
+                        href: '/analisis/petugas-organik',
+                    },
                     { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
                     { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
                     { title: 'Analisis Umum', href: '/analisis/umum' },
@@ -310,6 +318,10 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                 icon: BarChart3,
                 items: [
                     { title: 'Analisis Petugas', href: '/analisis/petugas' },
+                    {
+                        title: 'Analisis Petugas Organik',
+                        href: '/analisis/petugas-organik',
+                    },
                     { title: 'Analisis Pulsa', href: '/analisis/pulsa' },
                     { title: 'Analisis Dokumen', href: '/analisis/dokumen' },
                     { title: 'Analisis Umum', href: '/analisis/umum' },

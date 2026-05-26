@@ -243,6 +243,56 @@ class PetugasController extends Controller
 
         $petugas->setRelation('alokasi', $effectiveAlokasi);
 
+        $riwayatAlokasiRingkas = $effectiveAlokasi
+            ->groupBy(fn ($alok) => $alok->kegiatan->kode_kegiatan.'|'.$alok->kegiatan->nama_kegiatan)
+            ->map(function ($group) {
+                $first = $group->first();
+                $details = $group
+                    ->sortByDesc(fn ($item) => sprintf('%04d%02d', (int) $item->tahun, (int) $item->bulan))
+                    ->values()
+                    ->map(function ($item) {
+                        $tahapan = [];
+                        if ((int) ($item->jumlah_satuan ?? 0) > 0) {
+                            $tahapan[] = 'Pendataan';
+                        }
+                        if ((int) ($item->jumlah_satuan_listing ?? 0) > 0) {
+                            $tahapan[] = 'Listing';
+                        }
+
+                        return [
+                            'id' => $item->id,
+                            'posisi' => $item->rate_honor['posisi'] ?? '-',
+                            'periode' => [
+                                'bulan' => (int) $item->bulan,
+                                'tahun' => (int) $item->tahun,
+                            ],
+                            'tahapan' => $tahapan,
+                            'jumlah_satuan' => (int) ($item->jumlah_satuan ?? 0),
+                            'jumlah_satuan_listing' => (int) ($item->jumlah_satuan_listing ?? 0),
+                            'satuan' => $item->rate_honor['satuan']['nama'] ?? '-',
+                            'total_honor' => (float) (
+                                (float) ($item->total_honor ?? 0)
+                                + (float) ($item->total_honor_listing ?? 0)
+                            ),
+                            'status' => $item->status,
+                        ];
+                    })
+                    ->values();
+
+                return [
+                    'kegiatan' => [
+                        'kode_kegiatan' => $first->kegiatan->kode_kegiatan,
+                        'nama_kegiatan' => $first->kegiatan->nama_kegiatan,
+                    ],
+                    'jumlah_periode' => $details->count(),
+                    'total_honor' => (float) $details->sum('total_honor'),
+                    'details' => $details->toArray(),
+                ];
+            })
+            ->sortBy(fn ($item) => $item['kegiatan']['nama_kegiatan'])
+            ->values()
+            ->all();
+
         // Build monthly trend data for the active year (Jan–Des).
         $activeYear = (int) date('Y');
         $trenAlokasi = [];
@@ -267,6 +317,7 @@ class PetugasController extends Controller
             'petugas' => $petugas,
             'tren_alokasi' => $trenAlokasi,
             'active_year' => $activeYear,
+            'riwayat_alokasi_ringkas' => $riwayatAlokasiRingkas,
         ]);
     }
 

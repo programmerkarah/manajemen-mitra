@@ -85,6 +85,55 @@ function formatRupiah(value: number): string {
 const glassTooltipClass =
     'rounded-xl border border-white/20 bg-white/80 p-3 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-900/80';
 
+interface PieLegendItem {
+    label: string;
+    value: number;
+    formattedValue: string;
+    percentage: number;
+    color: string;
+}
+
+function buildPieLegendItems<T extends { total: number }>(
+    items: T[],
+    getLabel: (item: T) => string,
+    total: number,
+): PieLegendItem[] {
+    return items.map((item, index) => ({
+        label: getLabel(item),
+        value: item.total,
+        formattedValue: formatRupiah(item.total),
+        percentage: total > 0 ? (item.total / total) * 100 : 0,
+        color: COLORS[index % COLORS.length],
+    }));
+}
+
+function PieLegendList({ items }: { items: PieLegendItem[] }) {
+    return (
+        <div className="mt-4 max-h-40 space-y-2 overflow-y-auto pr-1">
+            {items.map((item) => (
+                <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/70 bg-white/70 px-3 py-2 text-xs dark:border-neutral-700/60 dark:bg-neutral-900/40"
+                >
+                    <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-200">
+                        <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium">{item.label}</span>
+                    </div>
+                    <div className="text-right text-neutral-600 dark:text-neutral-300">
+                        <div className="font-semibold">
+                            {item.formattedValue}
+                        </div>
+                        <div>{item.percentage.toFixed(1)}%</div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function GlassTooltipContent({
     active,
     payload,
@@ -173,6 +222,18 @@ export default function AnalisisPulsa({
     const totalNominal = pulsaPerBulan.reduce(
         (sum, item) => sum + item.total_nominal,
         0,
+    );
+    const distribusiJenisPulsaChartData = distribusiJenisPulsa.filter(
+        (item) => item.total > 0,
+    );
+    const totalDistribusiJenisPulsa = distribusiJenisPulsaChartData.reduce(
+        (sum, item) => sum + item.total,
+        0,
+    );
+    const distribusiJenisPulsaLegendItems = buildPieLegendItems(
+        distribusiJenisPulsaChartData,
+        (item) => item.jenis,
+        totalDistribusiJenisPulsa,
     );
 
     return (
@@ -271,82 +332,83 @@ export default function AnalisisPulsa({
                             Distribusi per Jenis Pulsa
                         </h3>
                         {distribusiJenisPulsa.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={280}>
-                                <PieChart>
-                                    <Pie
-                                        data={distribusiJenisPulsa}
-                                        dataKey="total"
-                                        nameKey="jenis"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label={(
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            props: any,
-                                        ) => `${props.jenis}: ${props.count}`}
-                                    >
-                                        {distribusiJenisPulsa.map(
-                                            (_, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={
-                                                        COLORS[
-                                                            index %
-                                                                COLORS.length
-                                                        ]
-                                                    }
-                                                />
-                                            ),
-                                        )}
-                                    </Pie>
-                                    <ChartTooltip
-                                        content={({ active, payload }) => {
-                                            if (!active || !payload?.length)
-                                                return null;
-                                            const entry = payload[0];
-                                            const total =
-                                                distribusiJenisPulsa.reduce(
-                                                    (s, d) => s + d.total,
-                                                    0,
+                            <>
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={distribusiJenisPulsaChartData}
+                                            dataKey="total"
+                                            nameKey="jenis"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={54}
+                                            outerRadius={86}
+                                            paddingAngle={2}
+                                            labelLine={false}
+                                        >
+                                            {distribusiJenisPulsaChartData.map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`jenis-pulsa-cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={({ active, payload }) => {
+                                                if (!active || !payload?.length)
+                                                    return null;
+                                                const entry = payload[0];
+                                                const total =
+                                                    totalDistribusiJenisPulsa;
+                                                const pct =
+                                                    total > 0
+                                                        ? (Number(entry.value) /
+                                                              total) *
+                                                          100
+                                                        : 0;
+                                                const pctLabel =
+                                                    Number.isInteger(pct)
+                                                        ? pct.toFixed(0)
+                                                        : pct.toFixed(1);
+                                                return (
+                                                    <div
+                                                        className={
+                                                            glassTooltipClass
+                                                        }
+                                                    >
+                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                            <span
+                                                                style={{
+                                                                    color: entry.color,
+                                                                }}
+                                                            >
+                                                                ●
+                                                            </span>{' '}
+                                                            {entry.name}:{' '}
+                                                            {formatRupiah(
+                                                                Number(
+                                                                    entry.value,
+                                                                ),
+                                                            )}{' '}
+                                                            ({pctLabel}%)
+                                                        </p>
+                                                    </div>
                                                 );
-                                            const pct =
-                                                total > 0
-                                                    ? (Number(entry.value) /
-                                                          total) *
-                                                      100
-                                                    : 0;
-                                            const pctLabel = Number.isInteger(
-                                                pct,
-                                            )
-                                                ? pct.toFixed(0)
-                                                : pct.toFixed(1);
-                                            return (
-                                                <div
-                                                    className={
-                                                        glassTooltipClass
-                                                    }
-                                                >
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                        <span
-                                                            style={{
-                                                                color: entry.color,
-                                                            }}
-                                                        >
-                                                            ●
-                                                        </span>{' '}
-                                                        {entry.name}:{' '}
-                                                        {formatRupiah(
-                                                            Number(entry.value),
-                                                        )}{' '}
-                                                        ({pctLabel}%)
-                                                    </p>
-                                                </div>
-                                            );
-                                        }}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                                            }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieLegendList
+                                    items={distribusiJenisPulsaLegendItems}
+                                />
+                            </>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Belum ada data pengajuan pulsa

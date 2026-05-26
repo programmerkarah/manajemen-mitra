@@ -33,6 +33,8 @@ class AnalisisControllerTest extends TestCase
                 ->component('Analisis/Petugas')
                 ->has('distribusiJenisKelamin')
                 ->has('distribusiKecamatan')
+                ->has('distribusiDesaKelurahan')
+                ->has('distribusiTugasDesaKelurahan')
                 ->has('distribusiUsia')
                 ->has('alokasiPerBulan')
                 ->has('petugasKegiatan')
@@ -42,6 +44,66 @@ class AnalisisControllerTest extends TestCase
                 ->has('petugasRutin')
                 ->has('currentYear')
             );
+    }
+
+    public function test_admin_can_access_analisis_petugas_organik(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $this->actingAs($user)
+            ->get(route('analisis.petugas-organik'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Analisis/PetugasOrganik')
+                ->has('ringkasan')
+                ->has('distribusiBebanKerja')
+                ->has('trenBebanKerja')
+                ->has('bebanKerjaDetail')
+                ->has('currentYear')
+            );
+    }
+
+    public function test_analisis_petugas_organik_counts_draft_allocations(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Pegawai Organik Uji',
+            'jenis_petugas' => 'organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $currentYear,
+            'status' => 'draft',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '02',
+            'tahun' => $currentYear,
+            'status' => 'draft',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'organik',
+            'total_honor' => 150000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas-organik'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $detail = collect($props['bebanKerjaDetail'])->firstWhere('petugas_nama', 'Pegawai Organik Uji');
+
+        $this->assertNotNull($detail);
+        $this->assertSame(1, $detail['jumlah_kegiatan']);
+        $this->assertSame(1, $detail['jumlah_alokasi']);
     }
 
     public function test_admin_can_access_analisis_pulsa(): void
@@ -435,6 +497,7 @@ class AnalisisControllerTest extends TestCase
         foreach ([
             'analisis.umum.export-pdf',
             'analisis.petugas.export-pdf',
+            'analisis.petugas-organik.export-pdf',
             'analisis.pulsa.export-pdf',
             'analisis.dokumen.export-pdf',
         ] as $routeName) {

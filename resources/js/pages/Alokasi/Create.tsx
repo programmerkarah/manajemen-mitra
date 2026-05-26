@@ -60,6 +60,7 @@ interface Petugas {
     jenis_petugas: 'organik' | 'non-organik';
     peran?: string;
     jabatan?: string | null;
+    desa_kelurahan?: string | null;
 }
 
 interface RateHonor {
@@ -157,6 +158,19 @@ interface AlokasiCreateProps {
         total_honor_listing: number;
         total_honor_combined: number;
     }>;
+    petugas_suggestions?: Record<
+        number,
+        {
+            previous_allocations: Array<{
+                petugas_id: number;
+                bulan: number;
+                tahun: number;
+            }>;
+            smallest_allocation_petugas_ids: number[];
+        }
+    >;
+    petugas_unique_kegiatan_counts?: Record<number, number>;
+    petugas_allocation_counts?: Record<number, number>;
     isEditMode?: boolean;
     isRevisiMode?: boolean;
     isViewMode?: boolean;
@@ -174,6 +188,9 @@ export default function Create({
     budget_info,
     used_months_info,
     existing_allocations,
+    petugas_suggestions = {},
+    petugas_unique_kegiatan_counts = {},
+    petugas_allocation_counts = {},
     isEditMode = false,
     isRevisiMode = false,
     isViewMode = false,
@@ -578,6 +595,89 @@ export default function Create({
         }
     }, [selectedKegiatan, selectedKegiatanId, used_months_info]);
 
+    const selectedKegiatanSuggestion = useMemo(() => {
+        if (!selectedKegiatan || !selectedKegiatanId) {
+            return null;
+        }
+
+        return petugas_suggestions[Number(selectedKegiatan.id)] || null;
+    }, [petugas_suggestions, selectedKegiatan, selectedKegiatanId]);
+
+    const previousPeriodPetugasIds = useMemo(() => {
+        if (!selectedKegiatanSuggestion) {
+            return [] as string[];
+        }
+
+        const selectedMonth = Number(bulan);
+        const allocations =
+            selectedKegiatanSuggestion.previous_allocations || [];
+
+        const sortedAllocations = [...allocations].sort((a, b) => {
+            if (a.tahun !== b.tahun) {
+                return b.tahun - a.tahun;
+            }
+
+            return b.bulan - a.bulan;
+        });
+
+        const previousOnlyAllocations = sortedAllocations.filter(
+            (allocation) => {
+                if (allocation.tahun !== Number(active_year)) {
+                    return allocation.tahun < Number(active_year);
+                }
+
+                return allocation.bulan < selectedMonth;
+            },
+        );
+
+        const sourceAllocations =
+            previousOnlyAllocations.length > 0
+                ? previousOnlyAllocations
+                : sortedAllocations;
+
+        return Array.from(
+            new Set(
+                sourceAllocations.map((allocation) =>
+                    String(allocation.petugas_id),
+                ),
+            ),
+        );
+    }, [selectedKegiatanSuggestion, bulan, active_year]);
+
+    const suggestedPetugasOrder = useMemo(() => {
+        const zeroKegiatanPetugasOrder = [...petugas]
+            .filter(
+                (petugasItem) =>
+                    (petugas_allocation_counts[Number(petugasItem.id)] || 0) ===
+                    0,
+            )
+            .sort((a, b) => a.nama.localeCompare(b.nama))
+            .map((petugasItem) => String(petugasItem.id));
+
+        const smallestAllocationOrder = (
+            selectedKegiatanSuggestion?.smallest_allocation_petugas_ids || []
+        ).map((petugasId) => String(petugasId));
+
+        const orderedSuggestionIds = [
+            ...previousPeriodPetugasIds,
+            ...zeroKegiatanPetugasOrder.filter(
+                (petugasId) => !previousPeriodPetugasIds.includes(petugasId),
+            ),
+            ...smallestAllocationOrder.filter(
+                (petugasId) =>
+                    !previousPeriodPetugasIds.includes(petugasId) &&
+                    !zeroKegiatanPetugasOrder.includes(petugasId),
+            ),
+        ];
+
+        return Array.from(new Set(orderedSuggestionIds));
+    }, [
+        selectedKegiatanSuggestion,
+        previousPeriodPetugasIds,
+        petugas,
+        petugas_allocation_counts,
+    ]);
+
     // Initialize with copied data if available
     useEffect(() => {
         if (copiedAlokasi && copiedAlokasi.length > 0) {
@@ -591,6 +691,7 @@ export default function Create({
                 estimasi_honor_listing:
                     parseFloat(String(alokasi.total_honor_listing ?? 0)) || 0,
             }));
+
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setOriginalAlokasiValues(originalValues);
 
@@ -955,6 +1056,7 @@ export default function Create({
 
         // Update jenis kegiatan from selected kegiatan
         const newJenisKegiatan = selectedKegiatan.jenis_kegiatan;
+
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setJenisKegiatan(newJenisKegiatan);
 
@@ -1868,7 +1970,6 @@ export default function Create({
             }
         } else if (filteredMonths.length > 0) {
             // If all months are used, use the first month from filteredMonths
-
             setBulan(filteredMonths[0].value);
         }
     }, [
@@ -1909,170 +2010,6 @@ export default function Create({
                     </Link>
                 </Button>
             </PageHeader>
-
-            <ContentCard>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label className="text-base font-semibold">
-                            Template Impor Alokasi
-                        </Label>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            {isEditMode || isRevisiMode
-                                ? 'Download template berisi data alokasi periode ini untuk diedit massal.'
-                                : selectedKegiatan
-                                  ? 'Download template yang menyesuaikan jenis kegiatan yang dipilih.'
-                                  : 'Pilih kegiatan terlebih dahulu untuk mengunduh template yang sesuai.'}
-                        </p>
-                        <Button
-                            variant="outline"
-                            asChild
-                            className="gap-2"
-                            disabled={!exportTemplateUrl}
-                        >
-                            <a href={exportTemplateUrl ?? '#'}>
-                                <Download className="h-4 w-4" />
-                                Download Template
-                            </a>
-                        </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label
-                            htmlFor="alokasi_import_file"
-                            className="cursor-pointer text-base font-semibold"
-                        >
-                            Impor File Alokasi
-                        </Label>
-                        <Input
-                            id="alokasi_import_file"
-                            type="file"
-                            accept=".xlsx,.xls,.csv"
-                            onChange={(e) =>
-                                setImportFile(e.target.files?.[0] ?? null)
-                            }
-                            disabled={isViewMode}
-                        />
-                        {allErrors.file && (
-                            <p className="text-sm text-red-500">
-                                {allErrors.file}
-                            </p>
-                        )}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="cursor-pointergap-2"
-                            onClick={handleImportAlokasi}
-                            disabled={importProcessing || isViewMode}
-                        >
-                            {importProcessing ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileUp className="h-4 w-4" />
-                            )}
-                            Preview Data Impor
-                        </Button>
-
-                        {(importPreviewRows.length > 0 ||
-                            importPreviewErrors.length > 0) && (
-                            <div className="mt-3 space-y-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
-                                <p className="text-sm font-medium">
-                                    Preview Impor ({importPreviewRows.length}{' '}
-                                    baris valid)
-                                </p>
-
-                                {importPreviewErrors.length > 0 && (
-                                    <div className="space-y-1 rounded-md bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
-                                        {importPreviewErrors.map((error) => (
-                                            <p key={error}>{error}</p>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {importPreviewRows.length > 0 && (
-                                    <div className="max-h-40 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
-                                        <table className="w-full text-xs">
-                                            <thead className="bg-neutral-100 dark:bg-neutral-800">
-                                                <tr>
-                                                    <th className="px-2 py-1 text-left">
-                                                        NIK
-                                                    </th>
-                                                    <th className="px-2 py-1 text-left">
-                                                        Nama
-                                                    </th>
-                                                    <th className="px-2 py-1 text-left">
-                                                        Peran
-                                                    </th>
-                                                    <th className="px-2 py-1 text-right">
-                                                        Pencacahan
-                                                    </th>
-                                                    <th className="px-2 py-1 text-right">
-                                                        Listing
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {importPreviewRows.map(
-                                                    (row, index) => (
-                                                        <tr
-                                                            key={`${row.petugas_id}-${index}`}
-                                                            className="border-t border-neutral-200 dark:border-neutral-700"
-                                                        >
-                                                            <td className="px-2 py-1">
-                                                                {row.nik}
-                                                            </td>
-                                                            <td className="px-2 py-1">
-                                                                {
-                                                                    row.petugas_nama
-                                                                }
-                                                            </td>
-                                                            <td className="px-2 py-1">
-                                                                {row.peran}
-                                                            </td>
-                                                            <td className="px-2 py-1 text-right">
-                                                                {
-                                                                    row.jumlah_satuan
-                                                                }
-                                                            </td>
-                                                            <td className="px-2 py-1 text-right">
-                                                                {row.jumlah_satuan_listing ||
-                                                                    0}
-                                                            </td>
-                                                        </tr>
-                                                    ),
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={applyImportPreviewToForm}
-                                        disabled={
-                                            importPreviewRows.length === 0
-                                        }
-                                    >
-                                        Konfirmasi & Terapkan ke Form
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                            setImportPreviewRows([]);
-                                            setImportPreviewErrors([]);
-                                        }}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </ContentCard>
 
             {isRevisiMode && (
                 <div className="rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 p-4 shadow-lg backdrop-blur-xl dark:border-indigo-500/25 dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-indigo-600/15">
@@ -2717,6 +2654,172 @@ export default function Create({
                     </div>
                 </ContentCard>
 
+                <ContentCard>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="text-base font-semibold">
+                                Template Impor Alokasi
+                            </Label>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                {isEditMode || isRevisiMode
+                                    ? 'Download template berisi data alokasi periode ini untuk diedit massal.'
+                                    : selectedKegiatan
+                                      ? 'Download template yang menyesuaikan jenis kegiatan yang dipilih.'
+                                      : 'Pilih kegiatan terlebih dahulu untuk mengunduh template yang sesuai.'}
+                            </p>
+                            <Button
+                                variant="outline"
+                                asChild
+                                className="gap-2"
+                                disabled={!exportTemplateUrl}
+                            >
+                                <a href={exportTemplateUrl ?? '#'}>
+                                    <Download className="h-4 w-4" />
+                                    Download Template
+                                </a>
+                            </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label
+                                htmlFor="alokasi_import_file"
+                                className="cursor-pointer text-base font-semibold"
+                            >
+                                Impor File Alokasi
+                            </Label>
+                            <Input
+                                id="alokasi_import_file"
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                onChange={(e) =>
+                                    setImportFile(e.target.files?.[0] ?? null)
+                                }
+                                disabled={isViewMode}
+                            />
+                            {allErrors.file && (
+                                <p className="text-sm text-red-500">
+                                    {allErrors.file}
+                                </p>
+                            )}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="cursor-pointergap-2"
+                                onClick={handleImportAlokasi}
+                                disabled={importProcessing || isViewMode}
+                            >
+                                {importProcessing ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileUp className="h-4 w-4" />
+                                )}
+                                Preview Data Impor
+                            </Button>
+
+                            {(importPreviewRows.length > 0 ||
+                                importPreviewErrors.length > 0) && (
+                                <div className="mt-3 space-y-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                                    <p className="text-sm font-medium">
+                                        Preview Impor (
+                                        {importPreviewRows.length} baris valid)
+                                    </p>
+
+                                    {importPreviewErrors.length > 0 && (
+                                        <div className="space-y-1 rounded-md bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                                            {importPreviewErrors.map(
+                                                (error) => (
+                                                    <p key={error}>{error}</p>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {importPreviewRows.length > 0 && (
+                                        <div className="max-h-40 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
+                                            <table className="w-full text-xs">
+                                                <thead className="bg-neutral-100 dark:bg-neutral-800">
+                                                    <tr>
+                                                        <th className="px-2 py-1 text-left">
+                                                            NIK
+                                                        </th>
+                                                        <th className="px-2 py-1 text-left">
+                                                            Nama
+                                                        </th>
+                                                        <th className="px-2 py-1 text-left">
+                                                            Peran
+                                                        </th>
+                                                        <th className="px-2 py-1 text-right">
+                                                            Pencacahan
+                                                        </th>
+                                                        <th className="px-2 py-1 text-right">
+                                                            Listing
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {importPreviewRows.map(
+                                                        (row, index) => (
+                                                            <tr
+                                                                key={`${row.petugas_id}-${index}`}
+                                                                className="border-t border-neutral-200 dark:border-neutral-700"
+                                                            >
+                                                                <td className="px-2 py-1">
+                                                                    {row.nik}
+                                                                </td>
+                                                                <td className="px-2 py-1">
+                                                                    {
+                                                                        row.petugas_nama
+                                                                    }
+                                                                </td>
+                                                                <td className="px-2 py-1">
+                                                                    {row.peran}
+                                                                </td>
+                                                                <td className="px-2 py-1 text-right">
+                                                                    {
+                                                                        row.jumlah_satuan
+                                                                    }
+                                                                </td>
+                                                                <td className="px-2 py-1 text-right">
+                                                                    {row.jumlah_satuan_listing ||
+                                                                        0}
+                                                                </td>
+                                                            </tr>
+                                                        ),
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={applyImportPreviewToForm}
+                                            disabled={
+                                                importPreviewRows.length === 0
+                                            }
+                                        >
+                                            Konfirmasi & Terapkan ke Form
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setImportPreviewRows([]);
+                                                setImportPreviewErrors([]);
+                                            }}
+                                        >
+                                            Batal
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </ContentCard>
+
                 {/* Step 2: Jumlah Petugas */}
                 <ContentCard>
                     <div className="space-y-4">
@@ -2795,6 +2898,13 @@ export default function Create({
                                     Isi data setiap petugas yang akan
                                     dialokasikan
                                 </p>
+                                {previousPeriodPetugasIds.length > 0 && (
+                                    <p className="mt-1 text-sm text-emerald-600 dark:text-emerald-400">
+                                        Sugesti diutamakan dari petugas yang
+                                        pernah dialokasikan pada periode
+                                        sebelumnya untuk kegiatan ini.
+                                    </p>
+                                )}
                             </div>
 
                             {allErrors.alokasi && (
@@ -2849,35 +2959,67 @@ export default function Create({
                                                 </Label>
                                                 <SearchableSelect
                                                     options={(() => {
-                                                        // Group and sort petugas
-                                                        const organik = petugas
-                                                            .filter(
-                                                                (p) =>
-                                                                    p.jenis_petugas ===
-                                                                    'organik',
-                                                            )
-                                                            .sort((a, b) =>
-                                                                a.nama.localeCompare(
-                                                                    b.nama,
+                                                        const petugasById =
+                                                            new Map(
+                                                                petugas.map(
+                                                                    (p) => [
+                                                                        String(
+                                                                            p.id,
+                                                                        ),
+                                                                        p,
+                                                                    ],
                                                                 ),
                                                             );
-                                                        const nonOrganik =
-                                                            petugas
-                                                                .filter(
-                                                                    (p) =>
-                                                                        p.jenis_petugas ===
-                                                                        'non-organik',
+
+                                                        const sortedByName = [
+                                                            ...petugas,
+                                                        ].sort((a, b) =>
+                                                            a.nama.localeCompare(
+                                                                b.nama,
+                                                            ),
+                                                        );
+
+                                                        const suggestedPetugas =
+                                                            suggestedPetugasOrder
+                                                                .map(
+                                                                    (
+                                                                        petugasId,
+                                                                    ) =>
+                                                                        petugasById.get(
+                                                                            petugasId,
+                                                                        ),
                                                                 )
-                                                                .sort((a, b) =>
-                                                                    a.nama.localeCompare(
-                                                                        b.nama,
-                                                                    ),
+                                                                .filter(
+                                                                    (
+                                                                        item,
+                                                                    ): item is Petugas =>
+                                                                        Boolean(
+                                                                            item,
+                                                                        ),
                                                                 );
 
-                                                        const sortedPetugas = [
-                                                            ...organik,
-                                                            ...nonOrganik,
-                                                        ];
+                                                        const suggestedPetugasIds =
+                                                            new Set(
+                                                                suggestedPetugas.map(
+                                                                    (p) =>
+                                                                        String(
+                                                                            p.id,
+                                                                        ),
+                                                                ),
+                                                            );
+
+                                                        const suggestedOrderedPetugas =
+                                                            [
+                                                                ...suggestedPetugas,
+                                                                ...sortedByName.filter(
+                                                                    (p) =>
+                                                                        !suggestedPetugasIds.has(
+                                                                            String(
+                                                                                p.id,
+                                                                            ),
+                                                                        ),
+                                                                ),
+                                                            ];
 
                                                         // Separate selected and unselected
                                                         const selectedIds =
@@ -2891,7 +3033,7 @@ export default function Create({
                                                                     Boolean,
                                                                 );
                                                         const selectedPetugas =
-                                                            sortedPetugas.filter(
+                                                            suggestedOrderedPetugas.filter(
                                                                 (p) =>
                                                                     selectedIds.includes(
                                                                         String(
@@ -2900,7 +3042,7 @@ export default function Create({
                                                                     ),
                                                             );
                                                         const unselectedPetugas =
-                                                            sortedPetugas.filter(
+                                                            suggestedOrderedPetugas.filter(
                                                                 (p) =>
                                                                     !selectedIds.includes(
                                                                         String(
@@ -2939,15 +3081,33 @@ export default function Create({
                                                                     'organik'
                                                                         ? 'Organik'
                                                                         : 'Non-Organik';
-                                                                const jabatanLabel =
-                                                                    p.jabatan ||
+                                                                const desaKelurahanLabel =
+                                                                    p.desa_kelurahan ||
                                                                     '-';
+                                                                const jumlahAlokasi =
+                                                                    petugas_allocation_counts[
+                                                                        Number(
+                                                                            p.id,
+                                                                        )
+                                                                    ] || 0;
+                                                                const jumlahKegiatan =
+                                                                    petugas_unique_kegiatan_counts[
+                                                                        Number(
+                                                                            p.id,
+                                                                        )
+                                                                    ] || 0;
+
+                                                                const helperLabel =
+                                                                    p.jenis_petugas ===
+                                                                    'organik'
+                                                                        ? `${p.nama} - ${jenisPetugasLabel} - ${jumlahKegiatan} kegiatan`
+                                                                        : `${p.nama} - ${jenisPetugasLabel} - ${desaKelurahanLabel} - ${jumlahAlokasi} kegiatan`;
 
                                                                 return {
                                                                     value: String(
                                                                         p.id,
                                                                     ),
-                                                                    label: `${p.nama} - ${jenisPetugasLabel} - ${jabatanLabel}`,
+                                                                    label: helperLabel,
                                                                     displayLabel:
                                                                         p.nama,
                                                                     disabled:

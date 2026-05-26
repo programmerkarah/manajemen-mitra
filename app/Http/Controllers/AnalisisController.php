@@ -49,6 +49,34 @@ class AnalisisController extends Controller
                 'count' => $group->count(),
             ])->sortByDesc('count')->values()->all();
 
+        // Distribusi Desa/Kelurahan
+        $distribusiDesaKelurahan = $petugasNonOrganik->groupBy(fn ($p) => $p->desa_kelurahan ?: 'Belum Diisi')
+            ->map(fn ($group, $key) => [
+                'desa_kelurahan' => $key,
+                'count' => $group->count(),
+            ])->sortByDesc('count')->values()->all();
+
+        // Distribusi petugas per Kecamatan & Desa/Kelurahan
+        $distribusiTugasDesaKelurahan = $petugasNonOrganik
+            ->groupBy(function ($petugas) {
+                $kecamatan = trim((string) ($petugas->kecamatan ?? ''));
+                $desaKelurahan = trim((string) ($petugas->desa_kelurahan ?? ''));
+
+                return ($kecamatan !== '' ? $kecamatan : 'Belum Diisi').'|'.($desaKelurahan !== '' ? $desaKelurahan : 'Belum Diisi');
+            })
+            ->map(function ($group, $key) {
+                [$kecamatan, $desaKelurahan] = explode('|', (string) $key, 2);
+
+                return [
+                    'kecamatan' => $kecamatan,
+                    'desa_kelurahan' => $desaKelurahan,
+                    'jumlah_petugas' => $group->count(),
+                ];
+            })
+            ->sortByDesc('jumlah_petugas')
+            ->values()
+            ->all();
+
         // Distribusi Usia
         $distribusiUsia = [];
         $usiaRanges = [
@@ -308,6 +336,8 @@ class AnalisisController extends Controller
         return Inertia::render('Analisis/Petugas', [
             'distribusiJenisKelamin' => $distribusiJenisKelamin,
             'distribusiKecamatan' => $distribusiKecamatan,
+            'distribusiDesaKelurahan' => $distribusiDesaKelurahan,
+            'distribusiTugasDesaKelurahan' => $distribusiTugasDesaKelurahan,
             'distribusiUsia' => $distribusiUsia,
             'distribusiPendidikan' => $distribusiPendidikan,
             'alokasiPerBulan' => $alokasiPerBulan,
@@ -318,6 +348,121 @@ class AnalisisController extends Controller
             'petugasBelumDialokasikan' => $petugasBelumDialokasikan,
             'petugasRutin' => $petugasRutin,
             'totalPetugas' => $petugasNonOrganik->count(),
+            'currentYear' => $currentYear,
+        ]);
+    }
+
+    /**
+     * Analisis Beban Kerja Petugas Organik.
+     */
+    public function petugasOrganik(): Response
+    {
+        $currentYear = (int) date('Y');
+        $currentMonth = (int) now()->month;
+        $activeStatuses = ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'];
+
+        $petugasOrganikAktif = Petugas::query()
+            ->where('jenis_petugas', 'organik')
+            ->where('status', 'aktif')
+            ->whereNull('deleted_at')
+            ->select('id', 'nama', 'jabatan')
+            ->orderBy('nama')
+            ->get();
+
+        $alokasiPerPetugasQuery = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) <= ?', [$currentMonth])
+            ->whereIn('periode_alokasi.status', $activeStatuses)
+            ->where('petugas.jenis_petugas', 'organik');
+
+        $alokasiPerPetugas = $alokasiPerPetugasQuery
+            ->select('petugas.id as petugas_id')
+            ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+            ->selectRaw("COUNT(DISTINCT CONCAT(periode_alokasi.kegiatan_id, '-', CAST(periode_alokasi.bulan AS UNSIGNED))) as jumlah_alokasi")
+            ->groupBy('petugas.id')
+            ->get()
+            ->keyBy('petugas_id');
+
+        $bebanKerjaDetail = $petugasOrganikAktif
+            ->map(function ($petugas) use ($alokasiPerPetugas, $currentMonth) {
+                $stat = $alokasiPerPetugas->get($petugas->id);
+                $jumlahKegiatan = $stat ? (int) $stat->jumlah_kegiatan : 0;
+                $jumlahAlokasi = $stat ? (int) $stat->jumlah_alokasi : 0;
+                $rataRataKegiatanPerBulan = $currentMonth > 0 ? $jumlahKegiatan / $currentMonth : 0;
+
+                $performanceStatus = 'optimal';
+                $performanceLabel = 'Optimal';
+                if ($rataRataKegiatanPerBulan > 5) {
+                    $performanceStatus = 'overload';
+                    $performanceLabel = 'Overload';
+                } elseif ($rataRataKegiatanPerBulan < 2) {
+                    $performanceStatus = 'under_performance';
+                    $performanceLabel = 'Under Performance';
+                }
+
+                return [
+                    'petugas_id' => $petugas->id,
+                    'petugas_nama' => $petugas->nama,
+                    'jabatan' => $petugas->jabatan,
+                    'jumlah_alokasi' => $jumlahAlokasi,
+                    'jumlah_kegiatan' => $jumlahKegiatan,
+                    'rata_rata_kegiatan_per_bulan' => round($rataRataKegiatanPerBulan, 2),
+                    'performance_status' => $performanceStatus,
+                    'performance_label' => $performanceLabel,
+                ];
+            })
+            ->sortByDesc('jumlah_kegiatan')
+            ->values()
+            ->all();
+
+        $distribusiBebanKerja = [
+            ['label' => '0 kegiatan', 'count' => collect($bebanKerjaDetail)->where('jumlah_kegiatan', 0)->count()],
+            ['label' => '1 kegiatan', 'count' => collect($bebanKerjaDetail)->where('jumlah_kegiatan', 1)->count()],
+            ['label' => '2 kegiatan', 'count' => collect($bebanKerjaDetail)->where('jumlah_kegiatan', 2)->count()],
+            ['label' => '3 kegiatan', 'count' => collect($bebanKerjaDetail)->where('jumlah_kegiatan', 3)->count()],
+            ['label' => '4-5 kegiatan', 'count' => collect($bebanKerjaDetail)->whereBetween('jumlah_kegiatan', [4, 5])->count()],
+            ['label' => '> 5 kegiatan', 'count' => collect($bebanKerjaDetail)->where('jumlah_kegiatan', '>', 5)->count()],
+        ];
+
+        $trenBebanKerja = [];
+        for ($bulan = 1; $bulan <= $currentMonth; $bulan++) {
+            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+            $data = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->whereIn('periode_alokasi.status', $activeStatuses)
+                ->where('petugas.jenis_petugas', 'organik');
+            $data = $data
+                ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
+                ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+                ->selectRaw("COUNT(DISTINCT CONCAT(alokasi_petugas.petugas_id, '-', periode_alokasi.kegiatan_id)) as jumlah_alokasi")
+                ->first();
+
+            $trenBebanKerja[] = [
+                'bulan' => $bulan,
+                'jumlah_petugas' => (int) $data->jumlah_petugas,
+                'jumlah_kegiatan' => (int) $data->jumlah_kegiatan,
+                'jumlah_alokasi' => (int) $data->jumlah_alokasi,
+            ];
+        }
+
+        $ringkasan = [
+            'total_petugas_aktif' => $petugasOrganikAktif->count(),
+            'total_petugas_teralokasi' => collect($bebanKerjaDetail)->where('jumlah_alokasi', '>', 0)->count(),
+            'total_alokasi' => collect($bebanKerjaDetail)->sum('jumlah_alokasi'),
+        ];
+
+        return Inertia::render('Analisis/PetugasOrganik', [
+            'ringkasan' => $ringkasan,
+            'distribusiBebanKerja' => $distribusiBebanKerja,
+            'trenBebanKerja' => $trenBebanKerja,
+            'bebanKerjaDetail' => $bebanKerjaDetail,
+            'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
         ]);
     }

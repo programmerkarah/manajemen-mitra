@@ -1041,8 +1041,12 @@ class AlokasiPetugasController extends Controller
         }
 
         $petugas = Petugas::where('status', 'aktif')
-            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas', 'jabatan')
+            ->select('id', 'nama', 'nik', 'email', 'jenis_petugas', 'jabatan', 'desa_kelurahan')
             ->get();
+
+        $petugasSuggestions = $this->buildPetugasSuggestions($kegiatans, $activeYear);
+        $petugasUniqueKegiatanCounts = $this->buildPetugasUniqueKegiatanCounts($activeYear);
+        $petugasAllocationCounts = $this->buildPetugasAllocationCounts($activeYear);
 
         // Get existing allocations per petugas per bulan (for SBML toggle check)
         $existingAllocations = AlokasiPetugas::query()
@@ -1262,6 +1266,9 @@ class AlokasiPetugasController extends Controller
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
             'existing_allocations' => $existingAllocations,
+            'petugas_suggestions' => $petugasSuggestions,
+            'petugas_unique_kegiatan_counts' => $petugasUniqueKegiatanCounts,
+            'petugas_allocation_counts' => $petugasAllocationCounts,
         ]);
     }
 
@@ -1857,7 +1864,8 @@ class AlokasiPetugasController extends Controller
         }
 
         // Load all petugas
-        $petugas = Petugas::select('id', 'nama', 'jenis_petugas', 'golongan', 'jabatan')
+        $petugas = Petugas::select('id', 'nama', 'jenis_petugas', 'golongan', 'jabatan', 'desa_kelurahan')
+            ->where('status', 'aktif')
             ->orderBy('nama')
             ->get()
             ->map(function ($p) {
@@ -1866,8 +1874,13 @@ class AlokasiPetugasController extends Controller
                     'nama' => $p->nama,
                     'jenis_petugas' => $p->jenis_petugas,
                     'jabatan' => $p->jabatan,
+                    'desa_kelurahan' => $p->desa_kelurahan,
                 ];
             });
+
+        $petugasSuggestions = $this->buildPetugasSuggestions(collect([$kegiatanWithRates]), $activeYear);
+        $petugasUniqueKegiatanCounts = $this->buildPetugasUniqueKegiatanCounts($activeYear);
+        $petugasAllocationCounts = $this->buildPetugasAllocationCounts($activeYear);
 
         // Convert existing alokasi to format expected by Manage view
         $existingAlokasi = $periode->alokasiPetugas->map(function ($alok) {
@@ -1984,9 +1997,120 @@ class AlokasiPetugasController extends Controller
             'existing_allocations' => $existingAllocations,
             'budget_info' => $budgetInfo,
             'used_months_info' => $usedMonthsInfo,
+            'petugas_suggestions' => $petugasSuggestions,
+            'petugas_unique_kegiatan_counts' => $petugasUniqueKegiatanCounts,
+            'petugas_allocation_counts' => $petugasAllocationCounts,
             'isEditMode' => true,
             'isRevisiMode' => $isRevisiMode,
         ]);
+    }
+
+    /**
+     * Build unique kegiatan allocation counts per petugas in active year.
+     *
+     * @return array<int, int>
+     */
+    private function buildPetugasUniqueKegiatanCounts(int $activeYear): array
+    {
+        return AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('COUNT(DISTINCT pa.kegiatan_id) as unique_kegiatan_count')
+            ->groupBy('alokasi_petugas.petugas_id')
+            ->pluck('unique_kegiatan_count', 'alokasi_petugas.petugas_id')
+            ->mapWithKeys(fn ($count, $petugasId) => [(int) $petugasId => (int) $count])
+            ->toArray();
+    }
+
+    /**
+     * Build unique kegiatan allocation counts per petugas in active year.
+     *
+     * @return array<int, int>
+     */
+    private function buildPetugasAllocationCounts(int $activeYear): array
+    {
+        return AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('COUNT(DISTINCT pa.kegiatan_id) as allocation_count')
+            ->groupBy('alokasi_petugas.petugas_id')
+            ->pluck('allocation_count', 'alokasi_petugas.petugas_id')
+            ->mapWithKeys(fn ($count, $petugasId) => [(int) $petugasId => (int) $count])
+            ->toArray();
+    }
+
+    /**
+     * Build suggestion data for petugas ordering in allocation form.
+     *
+     * @param  Collection<int, Kegiatan>  $kegiatans
+     * @return array<int, array{previous_allocations: array<int, array{petugas_id:int, bulan:int, tahun:int}>, smallest_allocation_petugas_ids: array<int, int>}>
+     */
+    private function buildPetugasSuggestions(Collection $kegiatans, int $activeYear): array
+    {
+        $kegiatanIds = $kegiatans->pluck('id')->filter()->map(fn ($id) => (int) $id)->values()->all();
+
+        if (empty($kegiatanIds)) {
+            return [];
+        }
+
+        $activeStatuses = ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'];
+
+        $previousAllocations = AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->whereIn('pa.kegiatan_id', $kegiatanIds)
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', $activeStatuses)
+            ->selectRaw('pa.kegiatan_id')
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('CAST(pa.bulan AS UNSIGNED) as bulan')
+            ->selectRaw('pa.tahun')
+            ->groupBy('pa.kegiatan_id', 'alokasi_petugas.petugas_id', 'pa.bulan', 'pa.tahun')
+            ->orderByDesc('pa.tahun')
+            ->orderByDesc('pa.bulan')
+            ->get();
+
+        $smallestAllocationPetugasIds = AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', $activeStatuses)
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('COUNT(DISTINCT pa.kegiatan_id) as alokasi_count')
+            ->selectRaw('SUM((CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) + (CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END)) as total_honor_combined')
+            ->groupBy('alokasi_petugas.petugas_id')
+            ->orderBy('alokasi_count')
+            ->orderBy('total_honor_combined')
+            ->orderBy('alokasi_petugas.petugas_id')
+            ->pluck('alokasi_petugas.petugas_id')
+            ->map(fn ($petugasId) => (int) $petugasId)
+            ->values()
+            ->all();
+
+        $groupedPreviousAllocations = $previousAllocations
+            ->groupBy(fn ($row) => (int) $row->kegiatan_id)
+            ->map(function (Collection $rows) {
+                return $rows
+                    ->map(fn ($row) => [
+                        'petugas_id' => (int) $row->petugas_id,
+                        'bulan' => (int) $row->bulan,
+                        'tahun' => (int) $row->tahun,
+                    ])
+                    ->values()
+                    ->all();
+            });
+
+        $result = [];
+        foreach ($kegiatanIds as $kegiatanId) {
+            $result[$kegiatanId] = [
+                'previous_allocations' => $groupedPreviousAllocations->get($kegiatanId, []),
+                'smallest_allocation_petugas_ids' => $smallestAllocationPetugasIds,
+            ];
+        }
+
+        return $result;
     }
 
     /**

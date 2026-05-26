@@ -10,8 +10,10 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Fortify;
@@ -22,6 +24,13 @@ class SsoOAuthController extends Controller
 
     public function redirect(Request $request): RedirectResponse
     {
+        $isSyncRequest = $request->boolean('sync');
+        $syncReturnTo = $this->sanitizeReturnTo($request->query('return_to'));
+
+        if ($isSyncRequest && ! $this->isSsoActive()) {
+            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+        }
+
         $baseUrl = $this->baseUrl();
         $clientId = (string) config('services.sso.client_id');
         $redirectUri = $this->redirectUri();
@@ -33,8 +42,6 @@ class SsoOAuthController extends Controller
         }
 
         $state = Str::random(40);
-        $isSyncRequest = $request->boolean('sync');
-        $syncReturnTo = $this->sanitizeReturnTo($request->query('return_to'));
 
         $request->session()->put('sso_oauth_state', $state);
         $request->session()->put('sso_oauth_context', [
@@ -300,6 +307,45 @@ class SsoOAuthController extends Controller
         $endpoint = (string) config('services.sso.user_endpoint', '/api/user');
 
         return str_starts_with($endpoint, '/') ? $endpoint : '/'.$endpoint;
+    }
+
+    private function isSsoActive(): bool
+    {
+        if (! (bool) config('services.sso.active', true)) {
+            return false;
+        }
+
+        $clientId = config('services.sso.client_id');
+        $baseUrl = $this->baseUrl();
+
+        if (! $clientId || $baseUrl === '') {
+            return false;
+        }
+
+        $cacheKey = sprintf('sso:application-active:%s:%s', (string) $clientId, md5($baseUrl));
+
+        return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($baseUrl, $clientId): bool {
+            try {
+                /** @var Response $response */
+                $response = Http::timeout(5)
+                    ->acceptJson()
+                    ->get(rtrim($baseUrl, '/').'/api/application/status', [
+                        'client_id' => $clientId,
+                    ]);
+
+                if (! $response->successful()) {
+                    return false;
+                }
+
+                return (bool) $response->json('is_active', false);
+            } catch (\Throwable $exception) {
+                Log::warning('SSO status check failed before sync redirect.', [
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return false;
+            }
+        });
     }
 
     /**

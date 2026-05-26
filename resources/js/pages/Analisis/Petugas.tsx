@@ -152,6 +152,55 @@ function formatHonorAxis(value: number): string {
     return `${Math.round(value)}`;
 }
 
+interface PieLegendItem {
+    label: string;
+    count: number;
+    color: string;
+    percentage: number;
+}
+
+function buildPieLegendItems<T extends { count: number }>(
+    data: T[],
+    labelResolver: (item: T) => string,
+    total: number,
+): PieLegendItem[] {
+    return data.map((item, index) => ({
+        label: labelResolver(item),
+        count: item.count,
+        color: COLORS[index % COLORS.length],
+        percentage: total > 0 ? (item.count / total) * 100 : 0,
+    }));
+}
+
+function PieLegendList({ items }: { items: PieLegendItem[] }) {
+    return (
+        <div className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
+            {items.map((item) => (
+                <div
+                    key={`${item.label}-${item.color}`}
+                    className="flex items-center justify-between gap-3 rounded-md border border-neutral-200/70 px-2 py-1.5 text-xs dark:border-neutral-700/70"
+                >
+                    <div className="flex min-w-0 items-center gap-2">
+                        <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                        />
+                        <span
+                            className="truncate text-neutral-700 dark:text-neutral-300"
+                            title={item.label}
+                        >
+                            {item.label}
+                        </span>
+                    </div>
+                    <span className="shrink-0 font-semibold text-neutral-900 dark:text-white">
+                        {item.count} ({item.percentage.toFixed(1)}%)
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 interface DistribusiItem {
     [key: string]: unknown;
     label: string;
@@ -163,6 +212,18 @@ interface KecamatanItem {
     [key: string]: unknown;
     kecamatan: string;
     count: number;
+}
+
+interface DesaKelurahanItem {
+    [key: string]: unknown;
+    desa_kelurahan: string;
+    count: number;
+}
+
+interface DistribusiTugasDesaKelurahanItem {
+    kecamatan: string;
+    desa_kelurahan: string;
+    jumlah_petugas: number;
 }
 
 interface PendidikanItem {
@@ -235,6 +296,8 @@ interface PetugasRutinItem {
 interface Props {
     distribusiJenisKelamin: DistribusiItem[];
     distribusiKecamatan: KecamatanItem[];
+    distribusiDesaKelurahan: DesaKelurahanItem[];
+    distribusiTugasDesaKelurahan: DistribusiTugasDesaKelurahanItem[];
     distribusiUsia: DistribusiItem[];
     distribusiPendidikan: PendidikanItem[];
     alokasiPerBulan: AlokasiPerBulan[];
@@ -251,6 +314,8 @@ interface Props {
 export default function AnalisisPetugas({
     distribusiJenisKelamin,
     distribusiKecamatan,
+    distribusiDesaKelurahan,
+    distribusiTugasDesaKelurahan,
     distribusiUsia,
     distribusiPendidikan,
     alokasiPerBulan,
@@ -289,6 +354,8 @@ export default function AnalisisPetugas({
     const honorDetailPageSize = 15;
     const [belumDialokasikanPage, setBelumDialokasikanPage] = useState(1);
     const belumDialokasikanPageSize = 10;
+    const [distribusiWilayahPage, setDistribusiWilayahPage] = useState(1);
+    const distribusiWilayahPageSize = 10;
     const [copiedBelumDialokasikanId, setCopiedBelumDialokasikanId] = useState<
         number | 'all' | null
     >(null);
@@ -451,14 +518,162 @@ export default function AnalisisPetugas({
         [distribusiUsia],
     );
 
+    const distribusiJenisKelaminChartData = useMemo(
+        () => distribusiJenisKelamin.filter((item) => item.count > 0),
+        [distribusiJenisKelamin],
+    );
+
+    const totalJenisKelamin = useMemo(
+        () =>
+            distribusiJenisKelaminChartData.reduce(
+                (sum, item) => sum + item.count,
+                0,
+            ),
+        [distribusiJenisKelaminChartData],
+    );
+
+    const distribusiJenisKelaminLegendItems = useMemo(
+        () =>
+            buildPieLegendItems(
+                distribusiJenisKelaminChartData,
+                (item) => item.label,
+                totalJenisKelamin,
+            ),
+        [distribusiJenisKelaminChartData, totalJenisKelamin],
+    );
+
     const totalUsia = useMemo(
         () => usiaChartData.reduce((sum, item) => sum + item.count, 0),
         [usiaChartData],
     );
 
+    const distribusiUsiaLegendItems = useMemo(
+        () =>
+            buildPieLegendItems(usiaChartData, (item) => item.label, totalUsia),
+        [usiaChartData, totalUsia],
+    );
+
+    const distribusiKecamatanChartData = useMemo(() => {
+        if (distribusiKecamatan.length <= 8) {
+            return distribusiKecamatan;
+        }
+
+        const topItems = distribusiKecamatan.slice(0, 7);
+        const othersCount = distribusiKecamatan
+            .slice(7)
+            .reduce((sum, item) => sum + item.count, 0);
+
+        return [
+            ...topItems,
+            {
+                kecamatan: 'Lainnya',
+                count: othersCount,
+            },
+        ];
+    }, [distribusiKecamatan]);
+
+    const totalKecamatan = useMemo(
+        () => distribusiKecamatan.reduce((sum, item) => sum + item.count, 0),
+        [distribusiKecamatan],
+    );
+
+    const distribusiKecamatanLegendItems = useMemo(
+        () =>
+            buildPieLegendItems(
+                distribusiKecamatanChartData,
+                (item) => item.kecamatan,
+                totalKecamatan,
+            ),
+        [distribusiKecamatanChartData, totalKecamatan],
+    );
+
+    const distribusiDesaKelurahanChartData = useMemo(() => {
+        if (distribusiDesaKelurahan.length <= 8) {
+            return distribusiDesaKelurahan;
+        }
+
+        const topItems = distribusiDesaKelurahan.slice(0, 7);
+        const othersCount = distribusiDesaKelurahan
+            .slice(7)
+            .reduce((sum, item) => sum + item.count, 0);
+
+        return [
+            ...topItems,
+            {
+                desa_kelurahan: 'Lainnya',
+                count: othersCount,
+            },
+        ];
+    }, [distribusiDesaKelurahan]);
+
+    const totalDesaKelurahan = useMemo(
+        () =>
+            distribusiDesaKelurahan.reduce((sum, item) => sum + item.count, 0),
+        [distribusiDesaKelurahan],
+    );
+
+    const distribusiDesaKelurahanLegendItems = useMemo(
+        () =>
+            buildPieLegendItems(
+                distribusiDesaKelurahanChartData,
+                (item) => item.desa_kelurahan,
+                totalDesaKelurahan,
+            ),
+        [distribusiDesaKelurahanChartData, totalDesaKelurahan],
+    );
+
+    const distribusiPendidikanChartData = useMemo(() => {
+        const normalized = distribusiPendidikan.map((item) => ({
+            pendidikan: item.pendidikan || 'Belum Diisi',
+            count: item.count,
+        }));
+
+        if (normalized.length <= 8) {
+            return normalized;
+        }
+
+        const topItems = normalized.slice(0, 7);
+        const othersCount = normalized
+            .slice(7)
+            .reduce((sum, item) => sum + item.count, 0);
+
+        return [
+            ...topItems,
+            {
+                pendidikan: 'Lainnya',
+                count: othersCount,
+            },
+        ];
+    }, [distribusiPendidikan]);
+
     const totalPendidikan = useMemo(
         () => distribusiPendidikan.reduce((sum, item) => sum + item.count, 0),
         [distribusiPendidikan],
+    );
+
+    const distribusiPendidikanLegendItems = useMemo(
+        () =>
+            buildPieLegendItems(
+                distribusiPendidikanChartData,
+                (item) => item.pendidikan,
+                totalPendidikan,
+            ),
+        [distribusiPendidikanChartData, totalPendidikan],
+    );
+
+    const distribusiWilayahTotalPages = Math.max(
+        1,
+        Math.ceil(
+            distribusiTugasDesaKelurahan.length / distribusiWilayahPageSize,
+        ),
+    );
+    const distribusiWilayahCurrentPage = Math.min(
+        distribusiWilayahPage,
+        distribusiWilayahTotalPages,
+    );
+    const distribusiWilayahPageRows = distribusiTugasDesaKelurahan.slice(
+        (distribusiWilayahCurrentPage - 1) * distribusiWilayahPageSize,
+        distribusiWilayahCurrentPage * distribusiWilayahPageSize,
     );
 
     const totalAlokasiTahun = alokasiPerBulan.reduce(
@@ -507,81 +722,46 @@ export default function AnalisisPetugas({
                         <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
                             Distribusi Jenis Kelamin
                         </h3>
-                        {distribusiJenisKelamin.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Pie
-                                        data={distribusiJenisKelamin}
-                                        dataKey="count"
-                                        nameKey="label"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label={(
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            props: any,
-                                        ) => `${props.label}: ${props.count}`}
-                                    >
-                                        {distribusiJenisKelamin.map(
-                                            (_, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={
-                                                        COLORS[
-                                                            index %
-                                                                COLORS.length
-                                                        ]
-                                                    }
-                                                />
-                                            ),
-                                        )}
-                                    </Pie>
-                                    <ChartTooltip
-                                        content={({ active, payload }) => {
-                                            if (!active || !payload?.length)
-                                                return null;
-                                            const entry = payload[0];
-                                            const total =
-                                                distribusiJenisKelamin.reduce(
-                                                    (s, d) => s + d.count,
-                                                    0,
-                                                );
-                                            const pct =
-                                                total > 0
-                                                    ? (Number(entry.value) /
-                                                          total) *
-                                                      100
-                                                    : 0;
-                                            const pctLabel = Number.isInteger(
-                                                pct,
-                                            )
-                                                ? pct.toFixed(0)
-                                                : pct.toFixed(1);
-                                            return (
-                                                <div
-                                                    className={
-                                                        glassTooltipClass
-                                                    }
-                                                >
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                        <span
-                                                            style={{
-                                                                color: entry.color,
-                                                            }}
-                                                        >
-                                                            ●
-                                                        </span>{' '}
-                                                        {entry.name}:{' '}
-                                                        {entry.value} (
-                                                        {pctLabel}%)
-                                                    </p>
-                                                </div>
-                                            );
-                                        }}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                        {distribusiJenisKelaminChartData.length > 0 ? (
+                            <div className="space-y-4">
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={
+                                                distribusiJenisKelaminChartData
+                                            }
+                                            dataKey="count"
+                                            nameKey="label"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={35}
+                                            outerRadius={78}
+                                            label={false}
+                                            labelLine={false}
+                                        >
+                                            {distribusiJenisKelaminChartData.map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`jenis-kelamin-cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieLegendList
+                                    items={distribusiJenisKelaminLegendItems}
+                                />
+                            </div>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Data jenis kelamin belum tersedia
@@ -595,48 +775,41 @@ export default function AnalisisPetugas({
                             Distribusi Usia
                         </h3>
                         {distribusiUsia.some((d) => d.count > 0) ? (
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Pie
-                                        data={usiaChartData}
-                                        dataKey="count"
-                                        nameKey="label"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label={(
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            props: any,
-                                        ) => {
-                                            const percentage =
-                                                totalUsia > 0
-                                                    ? (
-                                                          (props.count /
-                                                              totalUsia) *
-                                                          100
-                                                      ).toFixed(1)
-                                                    : '0.0';
-
-                                            return `${props.label}: ${props.count} (${percentage}%)`;
-                                        }}
-                                    >
-                                        {usiaChartData.map((_, index) => (
-                                            <Cell
-                                                key={`usia-cell-${index}`}
-                                                fill={
-                                                    COLORS[
-                                                        index % COLORS.length
-                                                    ]
-                                                }
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <ChartTooltip
-                                        content={<GlassTooltipContent />}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div className="space-y-4">
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={usiaChartData}
+                                            dataKey="count"
+                                            nameKey="label"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={35}
+                                            outerRadius={78}
+                                            label={false}
+                                            labelLine={false}
+                                        >
+                                            {usiaChartData.map((_, index) => (
+                                                <Cell
+                                                    key={`usia-cell-${index}`}
+                                                    fill={
+                                                        COLORS[
+                                                            index %
+                                                                COLORS.length
+                                                        ]
+                                                    }
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieLegendList
+                                    items={distribusiUsiaLegendItems}
+                                />
+                            </div>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Data tanggal lahir belum tersedia
@@ -645,90 +818,112 @@ export default function AnalisisPetugas({
                     </div>
                 </div>
 
-                {/* Kecamatan & Pendidikan */}
-                <div className="grid gap-6 lg:grid-cols-2">
+                {/* Kecamatan, Desa/Kelurahan, & Pendidikan */}
+                <div className="grid gap-6 lg:grid-cols-3">
                     {/* Kecamatan - Pie Chart */}
                     <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
                         <h3 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-white">
                             Distribusi Kecamatan
                         </h3>
                         {distribusiKecamatan.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Pie
-                                        data={distribusiKecamatan}
-                                        dataKey="count"
-                                        nameKey="kecamatan"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label={(
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            props: any,
-                                        ) =>
-                                            `${props.kecamatan}: ${props.count}`
-                                        }
-                                    >
-                                        {distribusiKecamatan.map((_, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={
-                                                    COLORS[
-                                                        index % COLORS.length
-                                                    ]
-                                                }
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <ChartTooltip
-                                        content={({ active, payload }) => {
-                                            if (!active || !payload?.length)
-                                                return null;
-                                            const entry = payload[0];
-                                            const total =
-                                                distribusiKecamatan.reduce(
-                                                    (s, d) => s + d.count,
-                                                    0,
-                                                );
-                                            const pct =
-                                                total > 0
-                                                    ? (Number(entry.value) /
-                                                          total) *
-                                                      100
-                                                    : 0;
-                                            const pctLabel = Number.isInteger(
-                                                pct,
-                                            )
-                                                ? pct.toFixed(0)
-                                                : pct.toFixed(1);
-                                            return (
-                                                <div
-                                                    className={
-                                                        glassTooltipClass
-                                                    }
-                                                >
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                        <span
-                                                            style={{
-                                                                color: entry.color,
-                                                            }}
-                                                        >
-                                                            ●
-                                                        </span>{' '}
-                                                        {entry.name}:{' '}
-                                                        {entry.value} (
-                                                        {pctLabel}%)
-                                                    </p>
-                                                </div>
-                                            );
-                                        }}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div className="space-y-4">
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={distribusiKecamatanChartData}
+                                            dataKey="count"
+                                            nameKey="kecamatan"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={35}
+                                            outerRadius={78}
+                                            label={false}
+                                            labelLine={false}
+                                        >
+                                            {distribusiKecamatanChartData.map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`kecamatan-cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieLegendList
+                                    items={distribusiKecamatanLegendItems}
+                                />
+                            </div>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Data kecamatan belum tersedia
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Desa/Kelurahan */}
+                    <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                Distribusi Desa/Kelurahan
+                            </h3>
+                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                {distribusiDesaKelurahan.length} wilayah
+                            </span>
+                        </div>
+                        {distribusiDesaKelurahanChartData.length > 0 ? (
+                            <div className="space-y-4">
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={
+                                                distribusiDesaKelurahanChartData
+                                            }
+                                            dataKey="count"
+                                            nameKey="desa_kelurahan"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={35}
+                                            outerRadius={78}
+                                            label={false}
+                                            labelLine={false}
+                                        >
+                                            {distribusiDesaKelurahanChartData.map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`desa-kel-cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+
+                                <PieLegendList
+                                    items={distribusiDesaKelurahanLegendItems}
+                                />
+                            </div>
+                        ) : (
+                            <p className="py-10 text-center text-sm text-neutral-400">
+                                Data desa/kelurahan belum tersedia
                             </p>
                         )}
                     </div>
@@ -739,57 +934,174 @@ export default function AnalisisPetugas({
                             Distribusi Pendidikan
                         </h3>
                         {distribusiPendidikan.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Pie
-                                        data={distribusiPendidikan}
-                                        dataKey="count"
-                                        nameKey="pendidikan"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label={(
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            props: any,
-                                        ) => {
-                                            const percentage =
-                                                totalPendidikan > 0
-                                                    ? (
-                                                          (props.count /
-                                                              totalPendidikan) *
-                                                          100
-                                                      ).toFixed(1)
-                                                    : '0.0';
-
-                                            return `${props.pendidikan || 'Belum Diisi'}: ${props.count} (${percentage}%)`;
-                                        }}
-                                    >
-                                        {distribusiPendidikan.map(
-                                            (_, index) => (
-                                                <Cell
-                                                    key={`pendidikan-cell-${index}`}
-                                                    fill={
-                                                        COLORS[
-                                                            index %
-                                                                COLORS.length
-                                                        ]
-                                                    }
-                                                />
-                                            ),
-                                        )}
-                                    </Pie>
-                                    <ChartTooltip
-                                        content={<GlassTooltipContent />}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div className="space-y-4">
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={distribusiPendidikanChartData}
+                                            dataKey="count"
+                                            nameKey="pendidikan"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={35}
+                                            outerRadius={78}
+                                            label={false}
+                                            labelLine={false}
+                                        >
+                                            {distribusiPendidikanChartData.map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`pendidikan-cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <ChartTooltip
+                                            content={<GlassTooltipContent />}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <PieLegendList
+                                    items={distribusiPendidikanLegendItems}
+                                />
+                            </div>
                         ) : (
                             <p className="py-10 text-center text-sm text-neutral-400">
                                 Data pendidikan belum tersedia
                             </p>
                         )}
                     </div>
+                </div>
+
+                {/* Distribusi Petugas per Desa/Kelurahan */}
+                <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                            Distribusi Petugas per Desa/Kelurahan
+                        </h3>
+                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                            {distribusiTugasDesaKelurahan.length} wilayah
+                        </span>
+                    </div>
+                    {distribusiTugasDesaKelurahan.length > 0 ? (
+                        <>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                            <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                No
+                                            </th>
+                                            <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Kecamatan
+                                            </th>
+                                            <th className="py-2 pr-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Desa/Kelurahan
+                                            </th>
+                                            <th className="py-2 pr-3 text-center font-medium text-neutral-600 dark:text-neutral-400">
+                                                Petugas
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {distribusiWilayahPageRows.map(
+                                            (item, index) => {
+                                                const rowNo =
+                                                    (distribusiWilayahCurrentPage -
+                                                        1) *
+                                                        distribusiWilayahPageSize +
+                                                    index +
+                                                    1;
+
+                                                return (
+                                                    <tr
+                                                        key={`${item.desa_kelurahan}-${index}`}
+                                                        className="border-b border-neutral-100 dark:border-neutral-700/50"
+                                                    >
+                                                        <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-400">
+                                                            {rowNo}
+                                                        </td>
+                                                        <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                            {item.kecamatan}
+                                                        </td>
+                                                        <td className="py-1.5 pr-3 font-medium text-neutral-900 dark:text-white">
+                                                            {
+                                                                item.desa_kelurahan
+                                                            }
+                                                        </td>
+                                                        <td className="py-1.5 pr-3 text-center font-semibold text-sky-600 dark:text-sky-400">
+                                                            {
+                                                                item.jumlah_petugas
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            },
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {distribusiWilayahTotalPages > 1 && (
+                                <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                    <span className="text-neutral-500 dark:text-neutral-400">
+                                        Halaman {distribusiWilayahCurrentPage}{' '}
+                                        dari {distribusiWilayahTotalPages}{' '}
+                                        &middot;{' '}
+                                        {distribusiTugasDesaKelurahan.length}{' '}
+                                        wilayah
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={
+                                                distribusiWilayahCurrentPage <=
+                                                1
+                                            }
+                                            onClick={() =>
+                                                setDistribusiWilayahPage((p) =>
+                                                    Math.max(p - 1, 1),
+                                                )
+                                            }
+                                        >
+                                            Sebelumnya
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={
+                                                distribusiWilayahCurrentPage >=
+                                                distribusiWilayahTotalPages
+                                            }
+                                            onClick={() =>
+                                                setDistribusiWilayahPage((p) =>
+                                                    Math.min(
+                                                        p + 1,
+                                                        distribusiWilayahTotalPages,
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            Berikutnya
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <p className="py-10 text-center text-sm text-neutral-400">
+                            Data distribusi petugas desa/kelurahan belum
+                            tersedia
+                        </p>
+                    )}
                 </div>
 
                 {/* Alokasi Petugas per Bulan */}

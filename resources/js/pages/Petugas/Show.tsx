@@ -1,6 +1,13 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -12,6 +19,7 @@ import {
     Trash2,
     Wallet,
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import {
     Area,
     AreaChart,
@@ -71,10 +79,34 @@ interface TrenAlokasi {
     total_honor: number;
 }
 
+interface RiwayatAlokasiRingkasItem {
+    kegiatan: {
+        nama_kegiatan: string;
+        kode_kegiatan: string;
+    };
+    jumlah_periode: number;
+    total_honor: number;
+    details: Array<{
+        id: number;
+        posisi: string;
+        periode: {
+            bulan: number;
+            tahun: number;
+        };
+        tahapan: string[];
+        jumlah_satuan: number;
+        jumlah_satuan_listing: number;
+        satuan: string;
+        total_honor: number;
+        status: string;
+    }>;
+}
+
 interface ShowProps {
     petugas: Petugas;
     tren_alokasi: TrenAlokasi[];
     active_year: number;
+    riwayat_alokasi_ringkas: RiwayatAlokasiRingkasItem[];
 }
 
 const bulanNames = [
@@ -96,10 +128,10 @@ export default function Show({
     petugas,
     tren_alokasi,
     active_year,
+    riwayat_alokasi_ringkas,
 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
 
-    // Check if user can edit (not pj, administrator, or ketua_tim)
     const canEdit =
         auth.activeRole?.name !== 'pj' &&
         auth.activeRole?.name !== 'administrator' &&
@@ -140,6 +172,44 @@ export default function Show({
             (Number(a.total_honor_listing) || 0),
         0,
     );
+
+    const [riwayatPage, setRiwayatPage] = useState(1);
+    const [selectedRiwayat, setSelectedRiwayat] =
+        useState<RiwayatAlokasiRingkasItem | null>(null);
+
+    const riwayatPerPage = 10;
+    const totalRiwayatPages = Math.max(
+        1,
+        Math.ceil((riwayat_alokasi_ringkas?.length ?? 0) / riwayatPerPage),
+    );
+    const safeRiwayatPage = Math.min(riwayatPage, totalRiwayatPages);
+
+    const paginatedRiwayat = useMemo(() => {
+        const start = (safeRiwayatPage - 1) * riwayatPerPage;
+        return (riwayat_alokasi_ringkas ?? []).slice(
+            start,
+            start + riwayatPerPage,
+        );
+    }, [riwayat_alokasi_ringkas, safeRiwayatPage]);
+
+    const getStatusBadgeClass = (status: string) => {
+        if (status === 'disetujui') {
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        }
+        if (status === 'dikirim' || status === 'diajukan') {
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+        }
+        if (status === 'ditolak') {
+            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        }
+        if (status === 'perubahan') {
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        }
+        if (status === 'direvisi') {
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+        }
+        return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200';
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -189,7 +259,6 @@ export default function Show({
                     )}
                 </PageHeader>
 
-                {/* Informasi Dasar */}
                 <ContentCard>
                     <h2 className="mb-4 text-lg font-semibold">
                         Informasi Dasar
@@ -266,10 +335,10 @@ export default function Show({
                     </div>
                 </ContentCard>
 
-                {/* Data Bank */}
                 {(petugas.npwp_masked ||
                     petugas.bank ||
-                    petugas.no_rekening_masked) && (
+                    petugas.no_rekening_masked ||
+                    petugas.nama_rekening) && (
                     <ContentCard>
                         <h2 className="mb-4 text-lg font-semibold">
                             Data Bank
@@ -298,7 +367,7 @@ export default function Show({
                             {petugas.no_rekening_masked && (
                                 <div>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Nomor Rekening
+                                        No Rekening
                                     </p>
                                     <p className="font-medium">
                                         {petugas.no_rekening_masked}
@@ -319,80 +388,66 @@ export default function Show({
                     </ContentCard>
                 )}
 
-                {/* Ringkasan Alokasi */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-3">
                     <ContentCard>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <div className="shrink-0 rounded-xl bg-blue-100 p-3 dark:bg-blue-900/30">
                                 <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                            <div>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                     Kegiatan Dialokasikan
                                 </p>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                <p className="text-xl font-bold">
                                     {jumlahKegiatan}
-                                </p>
-                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
-                                    kegiatan
                                 </p>
                             </div>
                         </div>
                     </ContentCard>
+
                     <ContentCard>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <div className="shrink-0 rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
                                 <CalendarDays className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                            <div>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                     Bulan Dialokasikan
                                 </p>
-                                <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                <p className="text-xl font-bold">
                                     {jumlahBulan}
-                                </p>
-                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
-                                    periode
                                 </p>
                             </div>
                         </div>
                     </ContentCard>
+
                     <ContentCard>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <div className="shrink-0 rounded-xl bg-emerald-100 p-3 dark:bg-emerald-900/30">
                                 <Wallet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                                    Total Honor Diterima
+                            <div>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Total Honor
                                 </p>
-                                <p className="text-xl font-bold text-neutral-900 dark:text-white">
+                                <p className="text-xl font-bold">
                                     {formatRupiah(totalHonor)}
-                                </p>
-                                <p className="text-xs text-neutral-400 dark:text-neutral-500">
-                                    dari seluruh alokasi
                                 </p>
                             </div>
                         </div>
                     </ContentCard>
                 </div>
 
-                {/* Grafik Tren Alokasi */}
                 <ContentCard>
-                    <h2 className="mb-1 text-lg font-semibold">
+                    <h2 className="mb-4 text-lg font-semibold">
                         Tren Alokasi {active_year}
                     </h2>
-                    <p className="mb-5 text-xs text-neutral-500 dark:text-neutral-400">
-                        Jumlah kegiatan dan total honor per bulan sepanjang
-                        tahun {active_year}
-                    </p>
-                    <ResponsiveContainer width="100%" height={260}>
+                    <ResponsiveContainer width="100%" height={300}>
                         <AreaChart
                             data={tren_alokasi.map((d) => ({
                                 ...d,
-                                total_honor_juta: +d.total_honor.toFixed(2),
+                                bulan_label: bulanNames[Number(d.bulan) - 1],
                             }))}
-                            margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
                         >
                             <defs>
                                 <linearGradient
@@ -439,83 +494,39 @@ export default function Show({
                                 opacity={0.4}
                             />
                             <XAxis
-                                dataKey="bulan"
-                                tickFormatter={(v) =>
-                                    [
-                                        'Jan',
-                                        'Feb',
-                                        'Mar',
-                                        'Apr',
-                                        'Mei',
-                                        'Jun',
-                                        'Jul',
-                                        'Agu',
-                                        'Sep',
-                                        'Okt',
-                                        'Nov',
-                                        'Des',
-                                    ][parseInt(v) - 1]
-                                }
+                                dataKey="bulan_label"
                                 tick={{ fontSize: 12 }}
-                                tickLine={false}
                                 axisLine={false}
-                                stroke="currentColor"
-                                className="text-neutral-500 dark:text-neutral-400"
+                                tickLine={false}
                             />
                             <YAxis
                                 yAxisId="kegiatan"
                                 orientation="left"
-                                allowDecimals={false}
                                 tick={{ fontSize: 12 }}
-                                tickLine={false}
                                 axisLine={false}
-                                stroke="currentColor"
-                                className="text-neutral-500 dark:text-neutral-400"
-                                width={28}
+                                tickLine={false}
+                                allowDecimals={false}
                             />
                             <YAxis
                                 yAxisId="honor"
                                 orientation="right"
                                 tick={{ fontSize: 12 }}
-                                tickLine={false}
                                 axisLine={false}
-                                stroke="currentColor"
-                                className="text-neutral-500 dark:text-neutral-400"
-                                tickFormatter={(v) =>
-                                    `Rp ${v.toLocaleString('id-ID')}`
+                                tickLine={false}
+                                tickFormatter={(value) =>
+                                    `${Math.round(value / 1000000)} jt`
                                 }
-                                width={44}
                             />
                             <ChartTooltip
-                                contentStyle={{
-                                    borderRadius: '8px',
-                                    fontSize: '13px',
-                                    border: '1px solid rgba(0,0,0,0.08)',
+                                formatter={(value, name) => {
+                                    if (name === 'Honor (rupiah)') {
+                                        return [
+                                            formatRupiah(Number(value) || 0),
+                                            String(name),
+                                        ];
+                                    }
+                                    return [Number(value) || 0, String(name)];
                                 }}
-                                formatter={(value, name) =>
-                                    name === 'Honor (rupiah)'
-                                        ? [
-                                              `Rp ${Number(value).toLocaleString('id-ID')}`,
-                                              name,
-                                          ]
-                                        : [value, name]
-                                }
-                                labelFormatter={(label) =>
-                                    [
-                                        'Januari',
-                                        'Februari',
-                                        'Maret',
-                                        'April',
-                                        'Mei',
-                                        'Juni',
-                                        'Juli',
-                                        'Agustus',
-                                        'September',
-                                        'Oktober',
-                                        'November',
-                                        'Desember',
-                                    ][parseInt(label) - 1]
-                                }
                             />
                             <Legend
                                 iconType="circle"
@@ -551,12 +562,12 @@ export default function Show({
                     </ResponsiveContainer>
                 </ContentCard>
 
-                {/* Riwayat Alokasi */}
                 <ContentCard>
                     <h2 className="mb-4 text-lg font-semibold">
                         Riwayat Alokasi
                     </h2>
-                    {petugas.alokasi && petugas.alokasi.length > 0 ? (
+                    {riwayat_alokasi_ringkas &&
+                    riwayat_alokasi_ringkas.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
                                 <thead>
@@ -565,145 +576,96 @@ export default function Show({
                                             Kegiatan
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Posisi
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Tahapan
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Periode
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Jumlah Penugasan
+                                            Jumlah Periode
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                                             Total Honor
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                                            Status
+                                            Aksi
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-                                    {petugas.alokasi.map((alokasi) => (
+                                    {paginatedRiwayat.map((riwayat) => (
                                         <tr
-                                            key={alokasi.id}
+                                            key={`${riwayat.kegiatan.kode_kegiatan}-${riwayat.kegiatan.nama_kegiatan}`}
                                             className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
                                         >
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="font-medium">
                                                     {
-                                                        alokasi.kegiatan
+                                                        riwayat.kegiatan
                                                             .nama_kegiatan
                                                     }
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm">
-                                                {alokasi.rate_honor.posisi}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(alokasi.jumlah_satuan ??
-                                                        0) > 0 && (
-                                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                                                            Pendataan
-                                                        </span>
-                                                    )}
-                                                    {(alokasi.jumlah_satuan_listing ??
-                                                        0) > 0 && (
-                                                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
-                                                            Listing
-                                                        </span>
-                                                    )}
-                                                    {!(
-                                                        (alokasi.jumlah_satuan ??
-                                                            0) > 0
-                                                    ) &&
-                                                        !(
-                                                            (alokasi.jumlah_satuan_listing ??
-                                                                0) > 0
-                                                        ) && (
-                                                            <span className="text-neutral-400">
-                                                                -
-                                                            </span>
-                                                        )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm">
-                                                {bulanNames[alokasi.bulan - 1]}{' '}
-                                                {alokasi.tahun}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm">
-                                                <div className="space-y-1">
-                                                    {(alokasi.jumlah_satuan ??
-                                                        0) > 0 && (
-                                                        <div>
-                                                            {
-                                                                alokasi.jumlah_satuan
-                                                            }{' '}
-                                                            {
-                                                                alokasi
-                                                                    .rate_honor
-                                                                    .satuan.nama
-                                                            }
-                                                        </div>
-                                                    )}
-                                                    {(alokasi.jumlah_satuan_listing ??
-                                                        0) > 0 && (
-                                                        <div>
-                                                            {
-                                                                alokasi.jumlah_satuan_listing
-                                                            }{' '}
-                                                            {
-                                                                alokasi
-                                                                    .rate_honor
-                                                                    .satuan.nama
-                                                            }
-                                                        </div>
-                                                    )}
-                                                    {!(
-                                                        (alokasi.jumlah_satuan ??
-                                                            0) > 0
-                                                    ) &&
-                                                        !(
-                                                            (alokasi.jumlah_satuan_listing ??
-                                                                0) > 0
-                                                        ) &&
-                                                        '-'}
-                                                </div>
+                                                {riwayat.jumlah_periode}
                                             </td>
                                             <td className="px-6 py-4 text-sm font-medium">
                                                 {formatRupiah(
-                                                    (Number(
-                                                        alokasi.total_honor,
-                                                    ) || 0) +
-                                                        (Number(
-                                                            alokasi.total_honor_listing,
-                                                        ) || 0),
+                                                    riwayat.total_honor,
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span
-                                                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                                        alokasi.status ===
-                                                        'disetujui'
-                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                            : alokasi.status ===
-                                                                'diajukan'
-                                                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                                                              : alokasi.status ===
-                                                                  'ditolak'
-                                                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                                                : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200'
-                                                    }`}
+                                            <td className="px-6 py-4 text-sm">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setSelectedRiwayat(
+                                                            riwayat,
+                                                        )
+                                                    }
                                                 >
-                                                    {alokasi.status}
-                                                </span>
+                                                    Lihat Detail
+                                                </Button>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+
+                            <div className="mt-4 flex items-center justify-between gap-3">
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {safeRiwayatPage} dari{' '}
+                                    {totalRiwayatPages}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setRiwayatPage((prev) =>
+                                                Math.max(1, prev - 1),
+                                            )
+                                        }
+                                        disabled={safeRiwayatPage <= 1}
+                                    >
+                                        Sebelumnya
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setRiwayatPage((prev) =>
+                                                Math.min(
+                                                    totalRiwayatPages,
+                                                    prev + 1,
+                                                ),
+                                            )
+                                        }
+                                        disabled={
+                                            safeRiwayatPage >= totalRiwayatPages
+                                        }
+                                    >
+                                        Berikutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <p className="text-neutral-600 dark:text-neutral-400">
@@ -711,6 +673,153 @@ export default function Show({
                         </p>
                     )}
                 </ContentCard>
+
+                <Dialog
+                    open={Boolean(selectedRiwayat)}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setSelectedRiwayat(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="sm:max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>
+                                Detail Riwayat Alokasi Kegiatan
+                            </DialogTitle>
+                            <DialogDescription>
+                                {selectedRiwayat
+                                    ? `${selectedRiwayat.kegiatan.nama_kegiatan}`
+                                    : ''}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {selectedRiwayat && (
+                            <div className="max-h-[60vh] overflow-auto">
+                                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                                    <thead>
+                                        <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Periode
+                                            </th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Posisi
+                                            </th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Tahapan
+                                            </th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Jumlah Penugasan
+                                            </th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Total Honor
+                                            </th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium tracking-wider uppercase">
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                                        {selectedRiwayat.details.map(
+                                            (detail) => (
+                                                <tr
+                                                    key={detail.id}
+                                                    className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                                >
+                                                    <td className="px-4 py-3 text-sm">
+                                                        {
+                                                            bulanNames[
+                                                                detail.periode
+                                                                    .bulan - 1
+                                                            ]
+                                                        }{' '}
+                                                        {detail.periode.tahun}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        {detail.posisi}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {detail.tahapan
+                                                                .length > 0 ? (
+                                                                detail.tahapan.map(
+                                                                    (
+                                                                        tahapan,
+                                                                    ) => (
+                                                                        <span
+                                                                            key={`${detail.id}-${tahapan}`}
+                                                                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                                tahapan ===
+                                                                                'Pendataan'
+                                                                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                                                                                    : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'
+                                                                            }`}
+                                                                        >
+                                                                            {
+                                                                                tahapan
+                                                                            }
+                                                                        </span>
+                                                                    ),
+                                                                )
+                                                            ) : (
+                                                                <span className="text-neutral-400">
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="space-y-1">
+                                                            {detail.jumlah_satuan >
+                                                                0 && (
+                                                                <div>
+                                                                    {
+                                                                        detail.jumlah_satuan
+                                                                    }{' '}
+                                                                    {
+                                                                        detail.satuan
+                                                                    }
+                                                                </div>
+                                                            )}
+                                                            {detail.jumlah_satuan_listing >
+                                                                0 && (
+                                                                <div>
+                                                                    {
+                                                                        detail.jumlah_satuan_listing
+                                                                    }{' '}
+                                                                    {
+                                                                        detail.satuan
+                                                                    }
+                                                                </div>
+                                                            )}
+                                                            {detail.jumlah_satuan <=
+                                                                0 &&
+                                                                detail.jumlah_satuan_listing <=
+                                                                    0 &&
+                                                                '-'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-medium">
+                                                        {formatRupiah(
+                                                            detail.total_honor,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <span
+                                                            className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(detail.status)}`}
+                                                        >
+                                                            {detail.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ),
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

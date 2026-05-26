@@ -521,12 +521,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     // Analisis (Admin, Operator, PJ can view)
     Route::middleware(['active.role:admin,operator,pj'])->group(function () {
         Route::get('analisis/petugas', [AnalisisController::class, 'petugas'])->name('analisis.petugas');
+        Route::get('analisis/petugas-organik', [AnalisisController::class, 'petugasOrganik'])->name('analisis.petugas-organik');
         Route::get('analisis/pulsa', [AnalisisController::class, 'pulsa'])->name('analisis.pulsa');
         Route::get('analisis/dokumen', [AnalisisController::class, 'dokumen'])->name('analisis.dokumen');
         Route::get('analisis/umum', [AnalisisController::class, 'umum'])->name('analisis.umum');
 
         Route::get('analisis/umum/export-pdf', [AnalisisExportController::class, 'umum'])->name('analisis.umum.export-pdf');
         Route::get('analisis/petugas/export-pdf', [AnalisisExportController::class, 'petugas'])->name('analisis.petugas.export-pdf');
+        Route::get('analisis/petugas-organik/export-pdf', [AnalisisExportController::class, 'petugasOrganik'])->name('analisis.petugas-organik.export-pdf');
         Route::get('analisis/pulsa/export-pdf', [AnalisisExportController::class, 'pulsa'])->name('analisis.pulsa.export-pdf');
         Route::get('analisis/dokumen/export-pdf', [AnalisisExportController::class, 'dokumen'])->name('analisis.dokumen.export-pdf');
     });

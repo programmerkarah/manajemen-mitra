@@ -65,8 +65,15 @@ class SsoOAuthTest extends TestCase
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
         config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.active', true);
         config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
         config()->set('services.sso.prompt', 'consent');
+
+        Http::fake([
+            'http://localhost:8000/api/application/status*' => Http::response([
+                'is_active' => true,
+            ], 200),
+        ]);
 
         $user = User::factory()->withoutTwoFactor()->create();
 
@@ -81,6 +88,31 @@ class SsoOAuthTest extends TestCase
         $this->assertStringContainsString('prompt=none', $location);
         $this->assertSame(true, session('sso_oauth_context.sync'));
         $this->assertSame('/dashboard?from=test', session('sso_oauth_context.return_to'));
+    }
+
+    public function test_sso_redirect_sync_request_returns_back_without_hitting_oauth_when_sso_inactive(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+        config()->set('services.sso.active', true);
+        config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+
+        Http::fake([
+            'http://localhost:8000/api/application/status*' => Http::response([
+                'is_active' => false,
+            ], 200),
+        ]);
+
+        $user = User::factory()->withoutTwoFactor()->create();
+
+        $response = $this->actingAs($user)->get(route('sso.redirect', [
+            'sync' => 1,
+            'return_to' => '/dashboard?from=sync',
+        ]));
+
+        $response->assertRedirect('/dashboard?from=sync');
+        $this->assertFalse(session()->has('sso_oauth_state'));
+        $this->assertFalse(session()->has('sso_oauth_context'));
     }
 
     public function test_sso_callback_can_login_existing_local_user(): void

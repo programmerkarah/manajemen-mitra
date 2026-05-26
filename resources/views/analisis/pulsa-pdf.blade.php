@@ -11,13 +11,22 @@
 
     <div class="section-block">
         <h2>Visualisasi Ringkas</h2>
-        <div class="chart-block">
-            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Grafik Pie Analisis Pulsa">
-        </div>
-    </div>
-
-    <div class="chart-block">
-        <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($lineChartSvg) }}" alt="Grafik Tren Analisis Pulsa">
+        <table class="chart-grid chart-grid-two">
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="chart-block">
+                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Grafik Pie Analisis Pulsa">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="chart-block">
+                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($lineChartSvg) }}" alt="Grafik Tren Analisis Pulsa">
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     {{-- Distribusi Pulsa per Bulan --}}
@@ -26,7 +35,7 @@
         @php
             $bulanNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
         @endphp
-        <table>
+        <table class="striped">
             <thead>
                 <tr>
                     <th>Metrik</th>
@@ -72,7 +81,7 @@
     {{-- Distribusi Jenis Pulsa --}}
     <div class="no-break">
         <h2>Distribusi per Jenis Pulsa</h2>
-        <table style="width:auto">
+        <table class="striped" style="width:auto">
             <thead>
                 <tr>
                     <th>Jenis</th>
