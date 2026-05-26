@@ -1182,7 +1182,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
             {/* Import Modal */}
             {showImportModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <ContentCard className="w-full max-w-4xl">
+                    <ContentCard className="w-full max-w-9xl">
                         <div className="mb-6">
                             <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
                                 Import Petugas dari Excel
