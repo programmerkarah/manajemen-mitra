@@ -52,6 +52,7 @@ export function useSidebarBreadcrumbs(
                 const groupBreadcrumb: BreadcrumbItem = {
                     title: item.title,
                     href: '#',
+                    icon: item.icon ?? null,
                 };
 
                 return [groupBreadcrumb, ...breadcrumbs];

@@ -170,7 +170,7 @@ export default function Edit({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Edit SBML" />
 
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
                 <PageHeader
                     title="Edit SBML"
                     description={`Edit batas maksimal honor per bulan untuk tahun ${tahun}`}
@@ -249,7 +249,7 @@ export default function Edit({
 
                 <form onSubmit={submit} className="space-y-6">
                     <ContentCard>
-                        <div className="space-y-6">
+                        <div className="min-w-0 space-y-6">
                             {/* Tahun Anggaran - Read Only */}
                             <div>
                                 <Label htmlFor="tahun_anggaran">
@@ -273,79 +273,72 @@ export default function Edit({
                                     Batas Honor Maksimal{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="overflow-x-auto">
-                                    <div className="overflow-hidden rounded-2xl">
-                                        <table className="min-w-full divide-y divide-white/20 dark:divide-neutral-700/30">
-                                            <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                        No
-                                                    </th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                        Jenis Kegiatan
-                                                    </th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                        Status Kepegawaian
-                                                    </th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                        Jenis Penugasan
-                                                    </th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                        Honor Maksimal (Rp)
-                                                    </th>
+                                <div className="w-full max-w-full touch-pan-x overflow-x-scroll overscroll-x-contain rounded-2xl">
+                                    <table className="w-full min-w-[760px] divide-y divide-white/20 dark:divide-neutral-700/30">
+                                        <thead className="bg-white/60 backdrop-blur-md dark:bg-neutral-800/60">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                    No
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                    Jenis Kegiatan
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                    Status Kepegawaian
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                    Jenis Penugasan
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                                    Honor Maksimal (Rp)
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
+                                            {formEntries.map((entry, index) => (
+                                                <tr
+                                                    key={index}
+                                                    className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
+                                                >
+                                                    <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {getJenisKegiatanLabel(
+                                                            entry.jenis_kegiatan,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {getStatusKepegawaianLabel(
+                                                            entry.status_kepegawaian,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
+                                                        {getJenisPenugasanLabel(
+                                                            entry.jenis_penugasan,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <Input
+                                                            type="text"
+                                                            value={
+                                                                entry.honor_max
+                                                            }
+                                                            onChange={(e) =>
+                                                                handleHonorChange(
+                                                                    index,
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="0"
+                                                            className="w-full"
+                                                        />
+                                                    </td>
                                                 </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-white/10 bg-white/30 backdrop-blur-sm dark:divide-neutral-700/20 dark:bg-neutral-800/30">
-                                                {formEntries.map(
-                                                    (entry, index) => (
-                                                        <tr
-                                                            key={index}
-                                                            className="transition-colors hover:bg-white/50 dark:hover:bg-neutral-800/50"
-                                                        >
-                                                            <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                                {index + 1}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                                {getJenisKegiatanLabel(
-                                                                    entry.jenis_kegiatan,
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                                                {getStatusKepegawaianLabel(
-                                                                    entry.status_kepegawaian,
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-neutral-900 dark:text-white">
-                                                                {getJenisPenugasanLabel(
-                                                                    entry.jenis_penugasan,
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <Input
-                                                                    type="text"
-                                                                    value={
-                                                                        entry.honor_max
-                                                                    }
-                                                                    onChange={(
-                                                                        e,
-                                                                    ) =>
-                                                                        handleHonorChange(
-                                                                            index,
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    placeholder="0"
-                                                                    className="w-full"
-                                                                />
-                                                            </td>
-                                                        </tr>
-                                                    ),
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                                 {errors.entries && (
                                     <p className="mt-2 text-sm text-red-600">

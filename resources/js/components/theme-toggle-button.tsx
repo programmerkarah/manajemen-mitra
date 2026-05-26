@@ -25,11 +25,14 @@ export function ThemeToggleButton() {
                 <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="size-10 rounded-full"
+                    size="sm"
+                    className="h-9 w-9 rounded-full px-0 sm:w-auto sm:gap-2 sm:px-3"
                     aria-label="Toggle theme"
                 >
-                    <CurrentIcon className="size-5" />
+                    <CurrentIcon className="size-4" />
+                    <span className="hidden text-xs font-medium sm:inline">
+                        Tema
+                    </span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">

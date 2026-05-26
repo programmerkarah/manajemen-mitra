@@ -82,7 +82,7 @@ export default function ViewAsUserSwitcher() {
     return (
         <div className="flex items-center gap-2">
             {auth.isViewingAsUser && (
-                <div className="flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-400">
+                <div className="hidden items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 sm:flex dark:bg-amber-900/30 dark:text-amber-400">
                     <Eye className="h-3.5 w-3.5" />
                     <span>Viewing as: {auth.user?.name}</span>
                     <Button
@@ -101,14 +101,17 @@ export default function ViewAsUserSwitcher() {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="gap-2 text-xs"
+                        className="h-9 w-9 rounded-full px-0 sm:w-auto sm:gap-2 sm:rounded-md sm:px-3"
                         title="View as another user (rhmtzikri only)"
                     >
                         <User className="h-3.5 w-3.5" />
-                        View As
+                        <span className="hidden sm:inline">View As</span>
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="end">
+                <PopoverContent
+                    className="w-[calc(100vw-1rem)] max-w-[300px] p-0"
+                    align="end"
+                >
                     <Command shouldFilter={false}>
                         <CommandInput
                             placeholder="Cari user..."

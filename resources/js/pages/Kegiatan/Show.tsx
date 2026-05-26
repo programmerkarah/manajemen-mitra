@@ -187,12 +187,12 @@ export default function Show({ kegiatan, auth, can }: Props) {
                     title="Detail Kegiatan"
                     description="Informasi lengkap kegiatan dan alokasi petugas"
                 >
-                    <div className="flex gap-3">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
                             variant="outline"
                             size="sm"
                             asChild
-                            className="gap-2"
+                            className="w-full gap-2 sm:w-auto"
                         >
                             <Link href="/kegiatan">
                                 <ArrowLeft className="h-4 w-4" />
@@ -207,7 +207,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     variant="outline"
                                     size="sm"
                                     asChild={canManageFeatures}
-                                    className="gap-2"
+                                    className="w-full gap-2 sm:w-auto"
                                     disabled={!canManageFeatures}
                                     title={
                                         !canManageFeatures
@@ -229,7 +229,11 @@ export default function Show({ kegiatan, auth, can }: Props) {
                             )}
 
                         {canEdit && (
-                            <Button size="sm" asChild className="gap-2">
+                            <Button
+                                size="sm"
+                                asChild
+                                className="w-full gap-2 sm:w-auto"
+                            >
                                 <Link
                                     href={`/kegiatan/${kegiatan.hashed_id}/edit`}
                                 >

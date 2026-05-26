@@ -279,12 +279,13 @@ export default function Index({ dasarHukum }: Props) {
                     title="Dasar Hukum SK"
                     description="Kelola dasar hukum yang digunakan pada SK KPA"
                 >
-                    <div className="flex gap-2">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
+                            className="w-full sm:w-auto"
                         >
                             <RefreshCw
                                 className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -292,7 +293,11 @@ export default function Index({ dasarHukum }: Props) {
                             Refresh
                         </Button>
                         {!isPJ && (
-                            <Button size="sm" asChild className="gap-2">
+                            <Button
+                                size="sm"
+                                asChild
+                                className="w-full gap-2 sm:w-auto"
+                            >
                                 <Link href="/dasar-hukum/create">
                                     <Plus className="h-4 w-4" />
                                     Tambah Dasar Hukum

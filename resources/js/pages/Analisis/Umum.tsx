@@ -19,7 +19,6 @@ import {
 } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Analisis Umum', href: '/analisis/umum' },
 ];
 

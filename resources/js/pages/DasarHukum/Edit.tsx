@@ -377,7 +377,7 @@ export default function Edit({
                         variant="outline"
                         size="sm"
                         asChild
-                        className="gap-2"
+                        className="w-full gap-2 sm:w-auto"
                     >
                         <Link href="/dasar-hukum">
                             <ArrowLeft className="h-4 w-4" />

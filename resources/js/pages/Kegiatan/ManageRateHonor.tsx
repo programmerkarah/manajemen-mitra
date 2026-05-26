@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -292,6 +293,16 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     const hasPengolahanPenugasanEnabled =
         enabledJenisPenugasan.pengolahan ||
         enabledJenisPenugasan.pengawas_pengolahan;
+    const activeCombinationCount = combinations.filter((combo) => {
+        if (
+            combo.jenis_penugasan === 'pcl_ppl' ||
+            combo.jenis_penugasan === 'pml'
+        ) {
+            return true;
+        }
+
+        return enabledJenisPenugasan[combo.jenis_penugasan];
+    }).length;
 
     // Initialize form data dengan rate honors yang sudah ada atau nilai kosong
     const [formData, setFormData] = useState(() => {
@@ -453,26 +464,21 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             .map((combo) => {
                 const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
                 const rateValue = parseInt(formData[key], 10);
+                const isPengolahanPenugasan =
+                    combo.jenis_penugasan === 'pengolahan' ||
+                    combo.jenis_penugasan === 'pengawas_pengolahan';
+                const selectedSatuanId = isPengolahanPenugasan
+                    ? selectedPengolahanPencacahanSatuanId
+                    : selectedPencacahanSatuanId;
                 const entry: RateHonorEntry = {
                     status_kepegawaian: combo.status_kepegawaian,
                     jenis_penugasan: combo.jenis_penugasan,
                     rate: isNaN(rateValue) ? 0 : rateValue,
                     satuan_id:
-                        (combo.jenis_penugasan === 'pengolahan' ||
-                        combo.jenis_penugasan === 'pengawas_pengolahan'
-                            ? selectedPengolahanPencacahanSatuanId
-                            : selectedPencacahanSatuanId) === null ||
-                        isNaN(
-                            combo.jenis_penugasan === 'pengolahan' ||
-                                combo.jenis_penugasan === 'pengawas_pengolahan'
-                                ? selectedPengolahanPencacahanSatuanId
-                                : selectedPencacahanSatuanId,
-                        )
+                        selectedSatuanId === null ||
+                        Number.isNaN(selectedSatuanId)
                             ? null
-                            : combo.jenis_penugasan === 'pengolahan' ||
-                                combo.jenis_penugasan === 'pengawas_pengolahan'
-                              ? selectedPengolahanPencacahanSatuanId
-                              : selectedPencacahanSatuanId,
+                            : selectedSatuanId,
                 };
 
                 if (kegiatan.has_listing_updating) {
@@ -480,25 +486,17 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                         formData[`${key}_listing`],
                         10,
                     );
+                    const selectedListingSatuan = isPengolahanPenugasan
+                        ? selectedPengolahanListingSatuanId
+                        : selectedListingSatuanId;
                     entry.rate_listing = isNaN(rateListingValue)
                         ? 0
                         : rateListingValue;
                     entry.satuan_listing_id =
-                        (combo.jenis_penugasan === 'pengolahan' ||
-                        combo.jenis_penugasan === 'pengawas_pengolahan'
-                            ? selectedPengolahanListingSatuanId
-                            : selectedListingSatuanId) === null ||
-                        isNaN(
-                            combo.jenis_penugasan === 'pengolahan' ||
-                                combo.jenis_penugasan === 'pengawas_pengolahan'
-                                ? selectedPengolahanListingSatuanId
-                                : selectedListingSatuanId,
-                        )
+                        selectedListingSatuan === null ||
+                        Number.isNaN(selectedListingSatuan)
                             ? null
-                            : combo.jenis_penugasan === 'pengolahan' ||
-                                combo.jenis_penugasan === 'pengawas_pengolahan'
-                              ? selectedPengolahanListingSatuanId
-                              : selectedListingSatuanId;
+                            : selectedListingSatuan;
                 }
 
                 return entry;
@@ -559,241 +557,227 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Kelola Rate Honor - ${kegiatan.nama_kegiatan}`} />
 
-            <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                {/* Header */}
-                <ContentCard padding="none">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                                    Kelola Rate Honor
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    {kegiatan.nama_kegiatan} (
-                                    {kegiatan.kode_kegiatan})
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400">
-                                    Jenis Kegiatan:{' '}
-                                    {kegiatan.jenis_kegiatan === 'sensus'
-                                        ? 'Sensus'
-                                        : 'Survei'}
-                                    {' - '}
-                                    {
-                                        combinations.filter((combo) => {
-                                            if (
-                                                combo.jenis_penugasan ===
-                                                    'pcl_ppl' ||
-                                                combo.jenis_penugasan === 'pml'
-                                            ) {
-                                                return true;
-                                            }
-                                            return enabledJenisPenugasan[
-                                                combo.jenis_penugasan
-                                            ];
-                                        }).length
-                                    }{' '}
-                                    kombinasi rate honor aktif
-                                </p>
-                            </div>
-                            <Button variant="outline" size="sm" asChild>
-                                <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
-                                    Kembali
-                                </Link>
-                            </Button>
-                        </div>
-                    </div>
-                </ContentCard>
+            <div className="space-y-6">
+                <PageHeader
+                    title="Kelola Rate Honor"
+                    description={`${kegiatan.nama_kegiatan} (${kegiatan.kode_kegiatan}) · Jenis Kegiatan: ${kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'} · ${activeCombinationCount} kombinasi rate honor aktif`}
+                >
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="w-full sm:w-auto"
+                    >
+                        <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
+                            Kembali
+                        </Link>
+                    </Button>
+                </PageHeader>
 
-                {/* Info Alert */}
-                <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
-                    <div className="flex items-start space-x-3">
-                        <svg
-                            className="mt-0.5 size-5 flex-shrink-0 text-blue-600 dark:text-blue-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        <div>
-                            <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                                Petunjuk Pengisian
-                            </h3>
-                            <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
-                                Lengkapi rate honor untuk semua jenis penugasan
-                                sesuai dengan jenis kegiatan{' '}
-                                <span className="font-semibold">
-                                    {kegiatan.jenis_kegiatan === 'sensus'
-                                        ? 'Sensus'
-                                        : 'Survei'}
-                                </span>
-                                . Rate honor ini akan digunakan untuk menghitung
-                                honor petugas dalam kegiatan ini.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Kode CoA (Beban Anggaran) */}
-                <ContentCard padding="none">
-                    <div className="p-6">
-                        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-                            Kode CoA (Beban Anggaran)
-                        </h3>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Kode CoA
-                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                                    (Berlaku sama untuk listing dan pencacahan)
-                                </span>
-                            </label>
-                            <div className="flex rounded-md shadow-sm">
-                                <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 select-none dark:border-neutral-700/30 dark:bg-neutral-800/80 dark:text-neutral-300">
-                                    {COA_PREFIX}
-                                </span>
-                                <input
-                                    type="text"
-                                    value={formData['kode_coa'] || ''}
-                                    onChange={(e) =>
-                                        handleInputChange(
-                                            'kode_coa',
-                                            e.target.value,
-                                            true,
-                                        )
-                                    }
-                                    placeholder="2905.BMA.004.005.A.521211"
-                                    className="block min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-neutral-700/30 dark:bg-neutral-800/60 dark:text-white dark:placeholder-neutral-400"
-                                />
-                            </div>
-                            {errors['kode_coa'] && (
-                                <InputError message={errors['kode_coa']} />
-                            )}
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Kode CoA akan digunakan dalam lampiran
-                                Perjanjian Kerja. Prefix{' '}
-                                <span className="font-medium">054.01.GG.</span>{' '}
-                                sudah ditetapkan untuk honor.
-                            </p>
-                        </div>
-                    </div>
-                </ContentCard>
-
-                {/* Checkbox Jenis Penugasan */}
-                <ContentCard padding="none">
-                    <div className="p-6">
-                        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-                            Aktifkan Jenis Penugasan
-                        </h3>
-                        <div className="space-y-3">
-                            <label className="flex items-center space-x-3">
-                                <input
-                                    type="checkbox"
-                                    checked={enabledJenisPenugasan.pcl_ppl}
-                                    disabled
-                                    className="size-4 rounded border-gray-300 text-blue-600 opacity-50 dark:border-gray-600"
-                                />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                    PCL/PPL (Wajib)
-                                </span>
-                            </label>
-                            <label className="flex items-center space-x-3">
-                                <input
-                                    type="checkbox"
-                                    checked={enabledJenisPenugasan.pml}
-                                    disabled
-                                    className="size-4 rounded border-gray-300 text-blue-600 opacity-50 dark:border-gray-600"
-                                />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                    PML (Wajib)
-                                </span>
-                            </label>
-                            {isSensus ? (
-                                <label className="flex cursor-pointer items-center space-x-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={enabledJenisPenugasan.koseka}
-                                        onChange={(e) =>
-                                            setEnabledJenisPenugasan({
-                                                ...enabledJenisPenugasan,
-                                                koseka: e.target.checked,
-                                            })
-                                        }
-                                        className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                <form onSubmit={handleSubmit} className="max-w-full min-w-0">
+                    <ContentCard
+                        className="max-w-full min-w-0 overflow-hidden"
+                        padding="none"
+                    >
+                        <div className="border-b border-neutral-200/30 bg-blue-500/10 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/30 dark:bg-blue-500/5">
+                            <div className="flex items-start gap-3">
+                                <svg
+                                    className="mt-0.5 size-5 shrink-0 text-blue-600 dark:text-blue-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                     />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                                        Koseka (Koordinator Sensus Kecamatan)
-                                    </span>
-                                </label>
-                            ) : null}
-                            {!isFasihOnly ? (
-                                <>
-                                    <label className="flex cursor-pointer items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                enabledJenisPenugasan.pengolahan
-                                            }
-                                            onChange={(e) =>
-                                                setEnabledJenisPenugasan({
-                                                    ...enabledJenisPenugasan,
-                                                    pengolahan:
-                                                        e.target.checked,
-                                                })
-                                            }
-                                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                                        />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                                            Petugas Pengolahan
+                                </svg>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                        Petunjuk Pengisian
+                                    </h3>
+                                    <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
+                                        Lengkapi rate honor untuk semua jenis
+                                        penugasan sesuai dengan jenis kegiatan{' '}
+                                        <span className="font-semibold">
+                                            {kegiatan.jenis_kegiatan ===
+                                            'sensus'
+                                                ? 'Sensus'
+                                                : 'Survei'}
                                         </span>
-                                    </label>
-                                    <label className="flex cursor-pointer items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                enabledJenisPenugasan.pengawas_pengolahan
-                                            }
-                                            onChange={(e) =>
-                                                setEnabledJenisPenugasan({
-                                                    ...enabledJenisPenugasan,
-                                                    pengawas_pengolahan:
-                                                        e.target.checked,
-                                                })
-                                            }
-                                            className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                                        />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                                            Pengawas Pengolahan
-                                        </span>
-                                    </label>
-                                </>
-                            ) : (
-                                <p className="text-sm text-amber-700 dark:text-amber-300">
-                                    Metode pendataan FASIH aktif, tidak ada
-                                    jenis penugasan pengolahan yang dapat
-                                    diaktifkan.
-                                </p>
-                            )}
+                                        . Rate honor ini akan digunakan untuk
+                                        menghitung honor petugas dalam kegiatan
+                                        ini.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </ContentCard>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit}>
-                    <ContentCard className="overflow-hidden" padding="none">
-                        <div className="overflow-x-auto">
-                            {/* Rate Honor Listing/Updating */}
+                        <div className="grid max-w-full min-w-0 gap-px border-b border-neutral-200/30 bg-neutral-200/30 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] dark:border-neutral-700/30 dark:bg-neutral-700/30">
+                            <div className="min-w-0 bg-white/30 px-4 py-4 sm:px-6 sm:py-5 dark:bg-neutral-900/30">
+                                <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+                                    Kode CoA (Beban Anggaran)
+                                </h3>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        Kode CoA
+                                        <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                                            (Berlaku sama untuk listing dan
+                                            pencacahan)
+                                        </span>
+                                    </label>
+                                    <div className="flex rounded-md shadow-sm">
+                                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 select-none dark:border-neutral-700/30 dark:bg-neutral-800/80 dark:text-neutral-300">
+                                            {COA_PREFIX}
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={formData['kode_coa'] || ''}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    'kode_coa',
+                                                    e.target.value,
+                                                    true,
+                                                )
+                                            }
+                                            placeholder="2905.BMA.004.005.A.521211"
+                                            className="block min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-neutral-700/30 dark:bg-neutral-800/60 dark:text-white dark:placeholder-neutral-400"
+                                        />
+                                    </div>
+                                    {errors['kode_coa'] && (
+                                        <InputError
+                                            message={errors['kode_coa']}
+                                        />
+                                    )}
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Kode CoA akan digunakan dalam lampiran
+                                        Perjanjian Kerja. Prefix{' '}
+                                        <span className="font-medium">
+                                            054.01.GG.
+                                        </span>{' '}
+                                        sudah ditetapkan untuk honor.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="min-w-0 bg-white/30 px-4 py-4 sm:px-6 sm:py-5 dark:bg-neutral-900/30">
+                                <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+                                    Aktifkan Jenis Penugasan
+                                </h3>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                enabledJenisPenugasan.pcl_ppl
+                                            }
+                                            disabled
+                                            className="size-4 rounded border-gray-300 text-blue-600 opacity-50 dark:border-gray-600"
+                                        />
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            PCL/PPL (Wajib)
+                                        </span>
+                                    </label>
+                                    <label className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={enabledJenisPenugasan.pml}
+                                            disabled
+                                            className="size-4 rounded border-gray-300 text-blue-600 opacity-50 dark:border-gray-600"
+                                        />
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            PML (Wajib)
+                                        </span>
+                                    </label>
+                                    {isSensus ? (
+                                        <label className="flex cursor-pointer items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    enabledJenisPenugasan.koseka
+                                                }
+                                                onChange={(e) =>
+                                                    setEnabledJenisPenugasan({
+                                                        ...enabledJenisPenugasan,
+                                                        koseka: e.target
+                                                            .checked,
+                                                    })
+                                                }
+                                                className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                            />
+                                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                Koseka (Koordinator Sensus
+                                                Kecamatan)
+                                            </span>
+                                        </label>
+                                    ) : null}
+                                    {!isFasihOnly ? (
+                                        <>
+                                            <label className="flex cursor-pointer items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        enabledJenisPenugasan.pengolahan
+                                                    }
+                                                    onChange={(e) =>
+                                                        setEnabledJenisPenugasan(
+                                                            {
+                                                                ...enabledJenisPenugasan,
+                                                                pengolahan:
+                                                                    e.target
+                                                                        .checked,
+                                                            },
+                                                        )
+                                                    }
+                                                    className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                                />
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                    Petugas Pengolahan
+                                                </span>
+                                            </label>
+                                            <label className="flex cursor-pointer items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        enabledJenisPenugasan.pengawas_pengolahan
+                                                    }
+                                                    onChange={(e) =>
+                                                        setEnabledJenisPenugasan(
+                                                            {
+                                                                ...enabledJenisPenugasan,
+                                                                pengawas_pengolahan:
+                                                                    e.target
+                                                                        .checked,
+                                                            },
+                                                        )
+                                                    }
+                                                    className="size-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                                />
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                    Pengawas Pengolahan
+                                                </span>
+                                            </label>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                                            Metode pendataan FASIH aktif, tidak
+                                            ada jenis penugasan pengolahan yang
+                                            dapat diaktifkan.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
                             {kegiatan.has_listing_updating && (
                                 <>
-                                    <h4 className="px-6 pt-8 pb-2 text-base font-semibold text-gray-900 dark:text-white">
+                                    <h4 className="text-sm font-semibold text-gray-900 sm:text-base dark:text-white">
                                         Rate Honor Listing/Updating
                                     </h4>
-                                    {/* Dropdown satuan global untuk listing/updating */}
-                                    <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                             Satuan Listing/Updating
                                         </label>
@@ -802,7 +786,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 type="text"
                                                 value={obSatuanLabel}
                                                 disabled
-                                                className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                className="block w-full max-w-xs rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                             />
                                         ) : (
                                             <Select
@@ -819,7 +803,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                     )
                                                 }
                                             >
-                                                <SelectTrigger className="w-56">
+                                                <SelectTrigger className="w-full sm:w-56">
                                                     <SelectValue placeholder="Pilih satuan" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -840,17 +824,14 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         )}
                                     </div>
                                     {errors['satuan_listing_id'] && (
-                                        <div className="px-6 pb-2">
-                                            <InputError
-                                                message={
-                                                    errors['satuan_listing_id']
-                                                }
-                                            />
-                                        </div>
+                                        <InputError
+                                            message={
+                                                errors['satuan_listing_id']
+                                            }
+                                        />
                                     )}
-                                    {/* Dropdown satuan global untuk listing/updating */}
                                     {hasPengolahanPenugasanEnabled && (
-                                        <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                                 Satuan Pengolahan Dokumen
                                                 Listing/Updating
@@ -860,7 +841,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                     type="text"
                                                     value={obSatuanLabel}
                                                     disabled
-                                                    className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                    className="block w-full max-w-xs rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                                 />
                                             ) : (
                                                 <Select
@@ -877,7 +858,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                         )
                                                     }
                                                 >
-                                                    <SelectTrigger className="w-56">
+                                                    <SelectTrigger className="w-full sm:w-56">
                                                         <SelectValue placeholder="Pilih satuan" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -903,145 +884,145 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         </div>
                                     )}
                                     {errors['satuan_pengolahan_listing_id'] && (
-                                        <div className="px-6 pb-2">
-                                            <InputError
-                                                message={
-                                                    errors[
-                                                        'satuan_pengolahan_listing_id'
-                                                    ]
-                                                }
-                                            />
-                                        </div>
+                                        <InputError
+                                            message={
+                                                errors[
+                                                    'satuan_pengolahan_listing_id'
+                                                ]
+                                            }
+                                        />
                                     )}
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
-                                                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                                    No
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                                    Status Kepegawaian
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                                    Jenis Penugasan
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                                    Rate Honor Listing (Rp){' '}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
-                                            {combinations
-                                                .filter((combo) => {
-                                                    if (
-                                                        combo.jenis_penugasan ===
-                                                            'pcl_ppl' ||
-                                                        combo.jenis_penugasan ===
-                                                            'pml'
-                                                    ) {
-                                                        return true;
-                                                    }
-                                                    return enabledJenisPenugasan[
-                                                        combo.jenis_penugasan
-                                                    ];
-                                                })
-                                                .map((combo, index) => {
-                                                    const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`;
-                                                    const statusLabel =
-                                                        combo.status_kepegawaian ===
-                                                        'organik'
-                                                            ? 'Organik (PNS/PPPK)'
-                                                            : 'Non-Organik';
-                                                    const penugasanLabels: Record<
-                                                        string,
-                                                        string
-                                                    > = {
-                                                        pcl_ppl: 'PCL/PPL',
-                                                        pml: 'PML',
-                                                        koseka: 'Koseka (Koordinator Sensus Kecamatan)',
-                                                        pengolahan:
-                                                            'Petugas Pengolahan',
-                                                        pengawas_pengolahan:
-                                                            'Pengawas Pengolahan',
-                                                    };
-                                                    const penugasanLabel =
-                                                        penugasanLabels[
-                                                            combo
-                                                                .jenis_penugasan
-                                                        ] ||
-                                                        combo.jenis_penugasan;
+                                    <div className="w-full max-w-full touch-pan-x overflow-x-auto rounded-2xl">
+                                        <table className="w-full min-w-[760px] border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
+                                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                        No
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                        Status Kepegawaian
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                        Jenis Penugasan
+                                                    </th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                        Rate Honor Listing (Rp){' '}
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
+                                                {combinations
+                                                    .filter(
+                                                        (combo) =>
+                                                            combo.jenis_penugasan ===
+                                                                'pcl_ppl' ||
+                                                            combo.jenis_penugasan ===
+                                                                'pml' ||
+                                                            enabledJenisPenugasan[
+                                                                combo
+                                                                    .jenis_penugasan
+                                                            ],
+                                                    )
+                                                    .map((combo, index) => {
+                                                        const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`;
+                                                        const statusLabel =
+                                                            combo.status_kepegawaian ===
+                                                            'organik'
+                                                                ? 'Organik (PNS/PPPK)'
+                                                                : 'Non-Organik';
+                                                        const penugasanLabels: Record<
+                                                            string,
+                                                            string
+                                                        > = {
+                                                            pcl_ppl: 'PCL/PPL',
+                                                            pml: 'PML',
+                                                            koseka: 'Koseka (Koordinator Sensus Kecamatan)',
+                                                            pengolahan:
+                                                                'Petugas Pengolahan',
+                                                            pengawas_pengolahan:
+                                                                'Pengawas Pengolahan',
+                                                        };
+                                                        const penugasanLabel =
+                                                            penugasanLabels[
+                                                                combo
+                                                                    .jenis_penugasan
+                                                            ] ||
+                                                            combo.jenis_penugasan;
 
-                                                    return (
-                                                        <tr
-                                                            key={key}
-                                                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                                        >
-                                                            <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                                {index + 1}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                                {statusLabel}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                                {penugasanLabel}
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <input
-                                                                    type="text"
-                                                                    value={
-                                                                        formData[
-                                                                            `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`
-                                                                        ]
-                                                                            ? formatCurrency(
-                                                                                  formData[
-                                                                                      `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`
-                                                                                  ],
-                                                                              )
-                                                                            : ''
+                                                        return (
+                                                            <tr
+                                                                key={key}
+                                                                className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                            >
+                                                                <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                                    {index + 1}
+                                                                </td>
+                                                                <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                                    {
+                                                                        statusLabel
                                                                     }
-                                                                    onChange={(
-                                                                        e,
-                                                                    ) =>
-                                                                        handleInputChange(
-                                                                            `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`,
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        )
+                                                                </td>
+                                                                <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                                    {
+                                                                        penugasanLabel
                                                                     }
-                                                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                                    placeholder="0"
-                                                                />
-                                                                {errors[
-                                                                    `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`
-                                                                ] && (
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[
-                                                                                `${combo.status_kepegawaian}_${combo.jenis_penugasan}_listing`
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            formData[
+                                                                                key
                                                                             ]
+                                                                                ? formatCurrency(
+                                                                                      formData[
+                                                                                          key
+                                                                                      ],
+                                                                                  )
+                                                                                : ''
                                                                         }
-                                                                        className="mt-1"
+                                                                        onChange={(
+                                                                            e,
+                                                                        ) =>
+                                                                            handleInputChange(
+                                                                                key,
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                                        placeholder="0"
                                                                     />
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                        </tbody>
-                                    </table>
+                                                                    {errors[
+                                                                        key
+                                                                    ] && (
+                                                                        <InputError
+                                                                            message={
+                                                                                errors[
+                                                                                    key
+                                                                                ]
+                                                                            }
+                                                                            className="mt-1"
+                                                                        />
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </>
                             )}
 
-                            {/* Rate Honor */}
-                            <h4 className="px-6 pt-6 pb-2 text-base font-semibold text-gray-900 dark:text-white">
+                            <h4 className="text-sm font-semibold text-gray-900 sm:text-base dark:text-white">
                                 Rate Honor
                             </h4>
-                            {/* Dropdown satuan global untuk pencacahan */}
-                            <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                     Satuan Pencacahan
                                 </label>
@@ -1050,7 +1031,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                         type="text"
                                         value={obSatuanLabel}
                                         disabled
-                                        className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                        className="block w-full max-w-xs rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                     />
                                 ) : (
                                     <Select
@@ -1063,7 +1044,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                             )
                                         }
                                     >
-                                        <SelectTrigger className="w-56">
+                                        <SelectTrigger className="w-full sm:w-56">
                                             <SelectValue placeholder="Pilih satuan" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -1082,14 +1063,11 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 )}
                             </div>
                             {errors['satuan_id'] && (
-                                <div className="px-6 pb-2">
-                                    <InputError message={errors['satuan_id']} />
-                                </div>
+                                <InputError message={errors['satuan_id']} />
                             )}
 
-                            {/* Dropdown satuan global untuk pencacahan */}
                             {hasPengolahanPenugasanEnabled && (
-                                <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                         Satuan Pengolahan Dokumen Pencacahan
                                     </label>
@@ -1098,7 +1076,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                             type="text"
                                             value={obSatuanLabel}
                                             disabled
-                                            className="block w-48 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                            className="block w-full max-w-xs rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                         />
                                     ) : (
                                         <Select
@@ -1115,7 +1093,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                                 )
                                             }
                                         >
-                                            <SelectTrigger className="w-56">
+                                            <SelectTrigger className="w-full sm:w-56">
                                                 <SelectValue placeholder="Pilih satuan" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -1137,176 +1115,185 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
                                 </div>
                             )}
                             {errors['satuan_pengolahan_pencacahan_id'] && (
-                                <div className="px-6 pb-2">
-                                    <InputError
-                                        message={
-                                            errors[
-                                                'satuan_pengolahan_pencacahan_id'
-                                            ]
-                                        }
-                                    />
-                                </div>
+                                <InputError
+                                    message={
+                                        errors[
+                                            'satuan_pengolahan_pencacahan_id'
+                                        ]
+                                    }
+                                />
                             )}
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                            No
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                            Status Kepegawaian
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                            Jenis Penugasan
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                                            Rate Honor (Rp){' '}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
-                                    {combinations
-                                        .filter((combo) => {
-                                            if (
-                                                combo.jenis_penugasan ===
-                                                    'pcl_ppl' ||
-                                                combo.jenis_penugasan === 'pml'
-                                            ) {
-                                                return true;
-                                            }
-                                            return enabledJenisPenugasan[
-                                                combo.jenis_penugasan
-                                            ];
-                                        })
-                                        .map((combo, index) => {
-                                            const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
-                                            const statusLabel =
-                                                combo.status_kepegawaian ===
-                                                'organik'
-                                                    ? 'Organik (PNS/PPPK)'
-                                                    : 'Non-Organik';
-                                            const penugasanLabels: Record<
-                                                string,
-                                                string
-                                            > = {
-                                                pcl_ppl: 'PCL/PPL',
-                                                pml: 'PML',
-                                                koseka: 'Koseka (Koordinator Sensus Kecamatan)',
-                                                pengolahan:
-                                                    'Petugas Pengolahan',
-                                                pengawas_pengolahan:
-                                                    'Pengawas Pengolahan',
-                                            };
-                                            const penugasanLabel =
-                                                penugasanLabels[
-                                                    combo.jenis_penugasan
-                                                ] || combo.jenis_penugasan;
+                            <div className="w-full max-w-full touch-pan-x overflow-x-auto rounded-2xl">
+                                <table className="w-full min-w-[760px] border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-neutral-200/20 bg-white/60 backdrop-blur-sm dark:border-neutral-700/30 dark:bg-neutral-900/60">
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                No
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                Status Kepegawaian
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                Jenis Penugasan
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                                                Rate Honor (Rp){' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200/20 bg-white/30 dark:divide-neutral-700/20 dark:bg-neutral-800/30">
+                                        {combinations
+                                            .filter(
+                                                (combo) =>
+                                                    combo.jenis_penugasan ===
+                                                        'pcl_ppl' ||
+                                                    combo.jenis_penugasan ===
+                                                        'pml' ||
+                                                    enabledJenisPenugasan[
+                                                        combo.jenis_penugasan
+                                                    ],
+                                            )
+                                            .map((combo, index) => {
+                                                const key = `${combo.status_kepegawaian}_${combo.jenis_penugasan}`;
+                                                const statusLabel =
+                                                    combo.status_kepegawaian ===
+                                                    'organik'
+                                                        ? 'Organik (PNS/PPPK)'
+                                                        : 'Non-Organik';
+                                                const penugasanLabels: Record<
+                                                    string,
+                                                    string
+                                                > = {
+                                                    pcl_ppl: 'PCL/PPL',
+                                                    pml: 'PML',
+                                                    koseka: 'Koseka (Koordinator Sensus Kecamatan)',
+                                                    pengolahan:
+                                                        'Petugas Pengolahan',
+                                                    pengawas_pengolahan:
+                                                        'Pengawas Pengolahan',
+                                                };
+                                                const penugasanLabel =
+                                                    penugasanLabels[
+                                                        combo.jenis_penugasan
+                                                    ] || combo.jenis_penugasan;
 
-                                            return (
-                                                <tr
-                                                    key={key}
-                                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                                >
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                        {index + 1}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                        {statusLabel}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                        {penugasanLabel}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                formData[key]
-                                                                    ? formatCurrency(
-                                                                          formData[
-                                                                              key
-                                                                          ],
-                                                                      )
-                                                                    : ''
-                                                            }
-                                                            onChange={(e) =>
-                                                                handleInputChange(
-                                                                    key,
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                                            placeholder="0"
-                                                        />
-                                                        {errors[key] && (
-                                                            <InputError
-                                                                message={
-                                                                    errors[key]
+                                                return (
+                                                    <tr
+                                                        key={key}
+                                                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                    >
+                                                        <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                            {index + 1}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                            {statusLabel}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                            {penugasanLabel}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    formData[
+                                                                        key
+                                                                    ]
+                                                                        ? formatCurrency(
+                                                                              formData[
+                                                                                  key
+                                                                              ],
+                                                                          )
+                                                                        : ''
                                                                 }
-                                                                className="mt-1"
+                                                                onChange={(e) =>
+                                                                    handleInputChange(
+                                                                        key,
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                                                placeholder="0"
                                                             />
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                </tbody>
-                            </table>
+                                                            {errors[key] && (
+                                                                <InputError
+                                                                    message={
+                                                                        errors[
+                                                                            key
+                                                                        ]
+                                                                    }
+                                                                    className="mt-1"
+                                                                />
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </ContentCard>
-                    {(Object.keys(errors).length > 0 ||
-                        Object.keys(inertiaErrors).length > 0) && (
-                        <ContentCard padding="none">
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
-                                <div className="flex items-start space-x-3">
-                                    <svg
-                                        className="mt-0.5 size-5 flex-shrink-0 text-red-600 dark:text-red-400"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-red-900 dark:text-red-100">
-                                            Terjadi kesalahan validasi
-                                        </h3>
-                                        <ul className="mt-1 list-inside list-disc text-sm text-red-800 dark:text-red-200">
-                                            {Object.values(errors).map(
-                                                (msg, i) => (
-                                                    <li key={i}>{msg}</li>
-                                                ),
-                                            )}
-                                            {Object.values(inertiaErrors).map(
-                                                (msg, i) => (
+
+                        {(Object.keys(errors).length > 0 ||
+                            Object.keys(inertiaErrors).length > 0) && (
+                            <div className="border-t border-neutral-200/30 px-4 py-4 sm:px-6 dark:border-neutral-700/30">
+                                <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+                                    <div className="flex items-start space-x-3">
+                                        <svg
+                                            className="mt-0.5 size-5 flex-shrink-0 text-red-600 dark:text-red-400"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-red-900 dark:text-red-100">
+                                                Terjadi kesalahan validasi
+                                            </h3>
+                                            <ul className="mt-1 list-inside list-disc text-sm text-red-800 dark:text-red-200">
+                                                {Object.values(errors).map(
+                                                    (msg, i) => (
+                                                        <li key={i}>{msg}</li>
+                                                    ),
+                                                )}
+                                                {Object.values(
+                                                    inertiaErrors,
+                                                ).map((msg, i) => (
                                                     <li key={i + 1000}>
                                                         {msg}
                                                     </li>
-                                                ),
-                                            )}
-                                        </ul>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </ContentCard>
-                    )}
-                    <ContentCard padding="none">
-                        {/* Actions */}
-                        <div className="flex items-center justify-end gap-3 border-t border-neutral-200/30 px-6 py-4 dark:border-neutral-700/30">
-                            <Button variant="outline" asChild>
+                        )}
+
+                        <div className="flex flex-col gap-3 border-t border-neutral-200/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6 dark:border-neutral-700/30">
+                            <Button
+                                variant="outline"
+                                asChild
+                                className="w-full sm:w-auto"
+                            >
                                 <Link href={`/kegiatan/${kegiatan.hashed_id}`}>
                                     Batal
                                 </Link>
                             </Button>
-                            <Button type="submit" disabled={processing}>
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="w-full sm:w-auto"
+                            >
                                 {processing
                                     ? 'Menyimpan...'
                                     : 'Simpan Rate Honor'}

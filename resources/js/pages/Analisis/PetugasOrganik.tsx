@@ -17,7 +17,6 @@ import {
 } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Analisis Petugas Organik', href: '/analisis/petugas-organik' },
 ];
 

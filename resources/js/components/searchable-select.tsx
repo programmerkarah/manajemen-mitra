@@ -41,7 +41,8 @@ export function SearchableSelect({
         top: number;
         left: number;
         width: number;
-    }>({ top: 0, left: 0, width: 0 });
+        maxHeight: number;
+    }>({ top: 0, left: 0, width: 0, maxHeight: 240 });
 
     const selectedOption = options.find((option) => option.value === value);
 
@@ -100,11 +101,38 @@ export function SearchableSelect({
             }
 
             const rect = containerRef.current.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const edgePadding = 8;
+
+            const computedWidth = Math.min(
+                rect.width,
+                viewportWidth - edgePadding * 2,
+            );
+            const computedLeft = Math.min(
+                Math.max(rect.left, edgePadding),
+                viewportWidth - computedWidth - edgePadding,
+            );
+
+            const spaceBelow = viewportHeight - rect.bottom - edgePadding;
+            const spaceAbove = rect.top - edgePadding;
+            const shouldOpenUpwards =
+                spaceBelow < 220 && spaceAbove > spaceBelow;
+            const maxHeight = Math.max(
+                160,
+                Math.min(
+                    320,
+                    shouldOpenUpwards ? spaceAbove - 8 : spaceBelow - 8,
+                ),
+            );
 
             setDropdownStyle({
-                top: rect.bottom + 4,
-                left: rect.left,
-                width: rect.width,
+                top: shouldOpenUpwards
+                    ? Math.max(edgePadding, rect.top - maxHeight - 4)
+                    : rect.bottom + 4,
+                left: computedLeft,
+                width: computedWidth,
+                maxHeight,
             });
         };
 
@@ -161,6 +189,7 @@ export function SearchableSelect({
                             top: dropdownStyle.top,
                             left: dropdownStyle.left,
                             width: dropdownStyle.width,
+                            maxHeight: dropdownStyle.maxHeight,
                         }}
                     >
                         <div className="flex items-center border-b border-neutral-200 px-3 dark:border-neutral-800">
@@ -184,7 +213,10 @@ export function SearchableSelect({
                             )}
                         </div>
 
-                        <div className="max-h-60 overflow-y-auto p-1">
+                        <div
+                            className="overflow-y-auto p-1"
+                            style={{ maxHeight: dropdownStyle.maxHeight - 48 }}
+                        >
                             {filteredOptions.length === 0 ? (
                                 <div className="py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
                                     Tidak ada hasil

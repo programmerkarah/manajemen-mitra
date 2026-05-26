@@ -99,7 +99,7 @@ interface BatchEditItem {
 
 interface ImportPreviewRow {
     row_number: number;
-    action: 'create' | 'update';
+    action: 'create' | 'update' | 'none';
     nama: string;
     nik: string;
     email: string;
@@ -145,6 +145,8 @@ interface PetugasIndexProps {
 }
 
 const PREVIEW_INLINE_ERROR_LIMIT = 6;
+const NO_CHANGE_MESSAGE =
+    'Tidak ada perubahan data, baris ini akan dilewati saat import.';
 
 const PREVIEW_COLUMNS: Array<{ key: string; label: string }> = [
     { key: 'nama', label: 'Nama' },
@@ -257,13 +259,29 @@ export default function Index({ petugas }: PetugasIndexProps) {
         return filteredAndSortedPetugas.slice(start, end);
     }, [filteredAndSortedPetugas, currentPage, perPage]);
 
-    const previewVisibleErrors = useMemo(
-        () => importPreviewErrors.slice(0, PREVIEW_INLINE_ERROR_LIMIT),
+    const previewValidationErrors = useMemo(
+        () =>
+            importPreviewErrors.filter(
+                (error) => !error.includes(NO_CHANGE_MESSAGE),
+            ),
         [importPreviewErrors],
     );
 
-    const previewHiddenErrorCount =
-        importPreviewErrors.length - previewVisibleErrors.length;
+    const previewSkippedNotices = useMemo(
+        () =>
+            importPreviewErrors.filter((error) =>
+                error.includes(NO_CHANGE_MESSAGE),
+            ),
+        [importPreviewErrors],
+    );
+
+    const previewVisibleValidationErrors = useMemo(
+        () => previewValidationErrors.slice(0, PREVIEW_INLINE_ERROR_LIMIT),
+        [previewValidationErrors],
+    );
+
+    const previewHiddenValidationErrorCount =
+        previewValidationErrors.length - previewVisibleValidationErrors.length;
 
     const hasImportablePreviewRows = useMemo(
         () => importPreviewRows.some((row) => row.valid_for_import),
@@ -461,12 +479,13 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     title="Data Petugas"
                     description="Kelola data petugas mitra yang terlibat dalam kegiatan"
                 >
-                    <div className="flex gap-2">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
+                            className="w-full sm:w-auto"
                         >
                             <RefreshCw
                                 className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -517,7 +536,11 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                         Batch Edit ({selectedIds.size})
                                     </Button>
                                 )}
-                                <Button size="sm" asChild className="gap-2">
+                                <Button
+                                    size="sm"
+                                    asChild
+                                    className="w-full gap-2 sm:w-auto"
+                                >
                                     <Link href="/petugas/create">
                                         <Plus className="h-4 w-4" />
                                         Tambah Petugas
@@ -1246,8 +1269,8 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                         importPreviewSummary.updated_count
                                                     }
                                                 </span>
-                                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                                                    Gagal:{' '}
+                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+                                                    Skipped:{' '}
                                                     {
                                                         importPreviewSummary.skipped_count
                                                     }
@@ -1256,16 +1279,16 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                         )}
                                     </div>
 
-                                    {importPreviewErrors.length > 0 && (
+                                    {previewValidationErrors.length > 0 && (
                                         <div className="space-y-2 rounded-md bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
                                             <div className="flex items-center gap-1.5 font-semibold">
                                                 <AlertTriangle className="h-4 w-4" />
                                                 Validasi preview menemukan{' '}
-                                                {importPreviewErrors.length}{' '}
+                                                {previewValidationErrors.length}{' '}
                                                 masalah
                                             </div>
                                             <div className="space-y-1">
-                                                {previewVisibleErrors.map(
+                                                {previewVisibleValidationErrors.map(
                                                     (error) => (
                                                         <p key={error}>
                                                             {error}
@@ -1273,12 +1296,13 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                     ),
                                                 )}
                                             </div>
-                                            {previewHiddenErrorCount > 0 && (
+                                            {previewHiddenValidationErrorCount >
+                                                0 && (
                                                 <div className="flex items-center justify-between gap-2 pt-1">
                                                     <p className="text-[11px] font-medium">
                                                         +
                                                         {
-                                                            previewHiddenErrorCount
+                                                            previewHiddenValidationErrorCount
                                                         }{' '}
                                                         error lainnya
                                                     </p>
@@ -1297,6 +1321,16 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                     </Button>
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {previewSkippedNotices.length > 0 && (
+                                        <div className="space-y-1 rounded-md bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                                            <p className="font-semibold">
+                                                {previewSkippedNotices.length}{' '}
+                                                baris tidak memiliki perubahan,
+                                                akan di-skip saat import.
+                                            </p>
                                         </div>
                                     )}
 
@@ -1332,94 +1366,137 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 </thead>
                                                 <tbody>
                                                     {importPreviewRows.map(
-                                                        (row) => (
-                                                            <tr
-                                                                key={`${row.row_number}-${row.nik}-${row.email}`}
-                                                                className={`border-t border-neutral-200 dark:border-neutral-700 ${
-                                                                    row.valid_for_import
-                                                                        ? ''
-                                                                        : 'bg-red-50/40 dark:bg-red-950/10'
-                                                                }`}
-                                                            >
-                                                                <td className="px-2 py-1">
-                                                                    {
-                                                                        row.row_number
-                                                                    }
-                                                                </td>
-                                                                <td className="px-2 py-1">
-                                                                    <span
-                                                                        className={`rounded-full px-2 py-0.5 font-medium ${
-                                                                            row.action ===
+                                                        (row) =>
+                                                            (() => {
+                                                                const isNoChangeRow =
+                                                                    row.action ===
+                                                                        'none' ||
+                                                                    (row.action ===
+                                                                        'update' &&
+                                                                        row
+                                                                            .changed_fields
+                                                                            .length ===
+                                                                            0 &&
+                                                                        row.warnings.some(
+                                                                            (
+                                                                                warning,
+                                                                            ) =>
+                                                                                warning.includes(
+                                                                                    NO_CHANGE_MESSAGE,
+                                                                                ),
+                                                                        ));
+
+                                                                const actionLabel =
+                                                                    isNoChangeRow
+                                                                        ? 'None'
+                                                                        : row.action ===
                                                                             'create'
-                                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                                                          ? 'Buat'
+                                                                          : 'Update';
+
+                                                                const actionClass =
+                                                                    isNoChangeRow
+                                                                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300'
+                                                                        : row.action ===
+                                                                            'create'
+                                                                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
+
+                                                                const validationLabel =
+                                                                    isNoChangeRow
+                                                                        ? 'Skipped'
+                                                                        : row
+                                                                                .warnings
+                                                                                .length >
+                                                                            0
+                                                                          ? `${row.warnings.length} warning`
+                                                                          : 'Valid';
+
+                                                                const validationClass =
+                                                                    isNoChangeRow
+                                                                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300'
+                                                                        : row
+                                                                                .warnings
+                                                                                .length >
+                                                                            0
+                                                                          ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
+                                                                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
+
+                                                                return (
+                                                                    <tr
+                                                                        key={`${row.row_number}-${row.nik}-${row.email}`}
+                                                                        className={`border-t border-neutral-200 dark:border-neutral-700 ${
+                                                                            row.valid_for_import
+                                                                                ? ''
+                                                                                : isNoChangeRow
+                                                                                  ? 'bg-slate-50/50 dark:bg-slate-900/20'
+                                                                                  : 'bg-red-50/40 dark:bg-red-950/10'
                                                                         }`}
                                                                     >
-                                                                        {row.action ===
-                                                                        'create'
-                                                                            ? 'Buat'
-                                                                            : 'Update'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-2 py-1">
-                                                                    {row
-                                                                        .warnings
-                                                                        .length >
-                                                                    0 ? (
-                                                                        <span className="rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                                                                        <td className="px-2 py-1">
                                                                             {
-                                                                                row
-                                                                                    .warnings
-                                                                                    .length
-                                                                            }{' '}
-                                                                            warning
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                                                                            Valid
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                {PREVIEW_COLUMNS.map(
-                                                                    (
-                                                                        column,
-                                                                    ) => {
-                                                                        const value =
-                                                                            row
-                                                                                .columns?.[
-                                                                                column
-                                                                                    .key
-                                                                            ] ??
-                                                                            '';
-                                                                        const isChanged =
-                                                                            row.changed_fields.includes(
-                                                                                column.key,
-                                                                            );
-
-                                                                        return (
-                                                                            <td
-                                                                                key={`${row.row_number}-${column.key}`}
-                                                                                className={`px-2 py-1 whitespace-nowrap ${
-                                                                                    isChanged
-                                                                                        ? 'bg-amber-50 font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
-                                                                                        : ''
-                                                                                }`}
+                                                                                row.row_number
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-2 py-1">
+                                                                            <span
+                                                                                className={`rounded-full px-2 py-0.5 font-medium ${actionClass}`}
                                                                             >
-                                                                                <div className="max-w-[170px] truncate">
-                                                                                    {value ||
-                                                                                        '-'}
-                                                                                </div>
-                                                                                {isChanged && (
-                                                                                    <span className="text-[10px] font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">
-                                                                                        Ubah
-                                                                                    </span>
-                                                                                )}
-                                                                            </td>
-                                                                        );
-                                                                    },
-                                                                )}
-                                                            </tr>
-                                                        ),
+                                                                                {
+                                                                                    actionLabel
+                                                                                }
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-2 py-1">
+                                                                            <span
+                                                                                className={`rounded-full px-2 py-0.5 font-medium ${validationClass}`}
+                                                                            >
+                                                                                {
+                                                                                    validationLabel
+                                                                                }
+                                                                            </span>
+                                                                        </td>
+                                                                        {PREVIEW_COLUMNS.map(
+                                                                            (
+                                                                                column,
+                                                                            ) => {
+                                                                                const value =
+                                                                                    row
+                                                                                        .columns?.[
+                                                                                        column
+                                                                                            .key
+                                                                                    ] ??
+                                                                                    '';
+                                                                                const isChanged =
+                                                                                    row.changed_fields.includes(
+                                                                                        column.key,
+                                                                                    );
+
+                                                                                return (
+                                                                                    <td
+                                                                                        key={`${row.row_number}-${column.key}`}
+                                                                                        className={`px-2 py-1 whitespace-nowrap ${
+                                                                                            isChanged
+                                                                                                ? 'bg-amber-50 font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+                                                                                                : ''
+                                                                                        }`}
+                                                                                    >
+                                                                                        <div className="max-w-[170px] truncate">
+                                                                                            {value ||
+                                                                                                '-'}
+                                                                                        </div>
+                                                                                        {isChanged && (
+                                                                                            <span className="text-[10px] font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                                                                                Ubah
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                );
+                                                                            },
+                                                                        )}
+                                                                    </tr>
+                                                                );
+                                                            })(),
                                                     )}
                                                 </tbody>
                                             </table>
@@ -1485,7 +1562,11 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             importPreviewErrors.map((error) => (
                                 <p
                                     key={error}
-                                    className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
+                                    className={`rounded px-2 py-1 ${
+                                        error.includes(NO_CHANGE_MESSAGE)
+                                            ? 'border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-300'
+                                            : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
+                                    }`}
                                 >
                                     {error}
                                 </p>

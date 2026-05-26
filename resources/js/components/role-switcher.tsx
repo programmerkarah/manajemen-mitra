@@ -73,11 +73,11 @@ export default function RoleSwitcher() {
                 <Button
                     variant="outline"
                     size="sm"
-                    className="gap-2"
+                    className="h-9 max-w-full gap-2 px-2 sm:h-auto sm:px-3"
                     disabled={switching}
                 >
                     {getRoleIcon(auth.activeRole?.name)}
-                    <span className="hidden sm:inline">
+                    <span className="hidden max-w-[8rem] truncate text-xs font-medium sm:inline sm:max-w-[10rem] sm:text-sm">
                         {auth.activeRole?.display_name || 'Pilih Role'}
                     </span>
                     <ChevronDown className="size-4" />
