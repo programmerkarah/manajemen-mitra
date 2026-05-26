@@ -580,9 +580,10 @@ export default function PenilaianMitraStatistik({
                                     key={item.month}
                                     className="rounded-lg border border-rose-200 bg-rose-50/70 p-3 dark:border-rose-900/40 dark:bg-rose-900/10"
                                 >
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                                    <p className="text-xs font-semibold tracking-wide text-rose-700 uppercase dark:text-rose-300">
                                         {MONTH_OPTIONS.find(
-                                            (option) => option.value === item.month,
+                                            (option) =>
+                                                option.value === item.month,
                                         )?.label ?? item.month}
                                     </p>
                                     <p className="mt-1 truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -591,7 +592,9 @@ export default function PenilaianMitraStatistik({
                                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-neutral-600 dark:text-neutral-300">
                                         <span>{item.review_count} review</span>
                                         <span>Rating {item.avg_rating}</span>
-                                        <span>Balanced {item.balanced_score}</span>
+                                        <span>
+                                            Balanced {item.balanced_score}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
@@ -1057,7 +1060,9 @@ export default function PenilaianMitraStatistik({
                                             <span>
                                                 Balanced {item.balanced_score}
                                             </span>
-                                            <span>Rating {item.avg_rating}</span>
+                                            <span>
+                                                Rating {item.avg_rating}
+                                            </span>
                                             <span>
                                                 {item.review_count} review
                                             </span>
@@ -1082,7 +1087,9 @@ export default function PenilaianMitraStatistik({
                                             <span>
                                                 Balanced {item.balanced_score}
                                             </span>
-                                            <span>Rating {item.avg_rating}</span>
+                                            <span>
+                                                Rating {item.avg_rating}
+                                            </span>
                                             <span>
                                                 {item.review_count} review
                                             </span>

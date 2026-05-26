@@ -1148,18 +1148,21 @@ export default function Dashboard({
                                 <>
                                     <p className="mt-1 truncate text-sm font-bold text-rose-900 dark:text-rose-200">
                                         {
-                                            mitraReviewSummary.best_mitra_current_month
+                                            mitraReviewSummary
+                                                .best_mitra_current_month
                                                 .petugas_nama
                                         }
                                     </p>
                                     <p className="mt-1 text-[11px] text-rose-700/80 dark:text-rose-200/80">
                                         {
-                                            mitraReviewSummary.best_mitra_current_month
+                                            mitraReviewSummary
+                                                .best_mitra_current_month
                                                 .total_review
                                         }{' '}
                                         review · Balanced{' '}
                                         {
-                                            mitraReviewSummary.best_mitra_current_month
+                                            mitraReviewSummary
+                                                .best_mitra_current_month
                                                 .balanced_score
                                         }
                                     </p>
