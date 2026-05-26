@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
+import { useSessionKeepAlive } from '@/hooks/use-session-keepalive';
 import { useSsoScrollRestore } from '@/hooks/use-sso-scroll-restore';
 import { useSsoSessionSync } from '@/hooks/use-sso-session-sync';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -14,7 +15,7 @@ export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
-    const { auth, ssoSync } = usePage<SharedData>().props;
+    const { auth, ssoSync, sessionConfig } = usePage<SharedData>().props;
 
     // Listen for session invalidation via WebSocket
     useSessionInvalidation(auth?.user?.id);
@@ -24,6 +25,11 @@ export default function AppSidebarLayout({
         userId: auth?.user?.id,
         focusCooldownSeconds: Number(ssoSync?.focusCooldownSeconds ?? 120),
         intervalSeconds: Number(ssoSync?.intervalSeconds ?? 600),
+    });
+
+    useSessionKeepAlive({
+        enabled: Boolean(auth?.user?.id),
+        intervalSeconds: Number(sessionConfig?.keepAliveIntervalSeconds ?? 300),
     });
 
     useSsoScrollRestore();

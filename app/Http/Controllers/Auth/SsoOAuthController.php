@@ -227,9 +227,7 @@ class SsoOAuthController extends Controller
             // doing so broadcasts SessionInvalidated via WebSocket and kicks
             // the user out through the useSessionInvalidation hook.
             if (! Auth::check()) {
-                Auth::login($localUser, true);
-                $request->session()->regenerate();
-                $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
+                return redirect()->route('login')->with('warning', 'Sesi aplikasi Anda sudah berakhir. Silakan login kembali.');
             }
 
             return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
@@ -237,6 +235,7 @@ class SsoOAuthController extends Controller
 
         Auth::login($localUser, true);
         $request->session()->regenerate();
+        $request->session()->put('last_user_activity_at', now()->timestamp);
         $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
 
         return redirect()->intended(route('dashboard'));

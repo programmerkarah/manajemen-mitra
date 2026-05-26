@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Services\SessionConcurrencyManager;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,27 +18,44 @@ class EnsureSingleActiveSession
             return $next($request);
         }
 
-        $lifetimeMinutes = (int) config('session.lifetime', 120);
-        $authStartedAt = (int) $request->session()->get('auth_started_at', 0);
+        $lifetimeMinutes = max((int) config('session.lifetime', 120), 1);
+        $lastUserActivityAt = (int) $request->session()->get('last_user_activity_at', 0);
 
-        if ($authStartedAt <= 0) {
-            $request->session()->put('auth_started_at', Carbon::now()->timestamp);
-        } elseif ($lifetimeMinutes > 0) {
-            $expiresAt = Carbon::createFromTimestamp($authStartedAt)->addMinutes($lifetimeMinutes);
+        if ($lastUserActivityAt > 0) {
+            $elapsedSeconds = now()->timestamp - $lastUserActivityAt;
 
-            if (Carbon::now()->greaterThanOrEqualTo($expiresAt)) {
-                return $this->logoutWithExpiredMessage($request, 'Sesi Anda telah kedaluwarsa. Silakan login kembali.');
+            if ($elapsedSeconds >= ($lifetimeMinutes * 60)) {
+                return $this->logoutWithExpiredMessage($request, 'Sesi Anda telah kedaluwarsa karena tidak ada aktivitas. Silakan login kembali.');
             }
         }
 
         $userId = (int) Auth::id();
         $this->sessionConcurrencyManager->ensureSessionRegistered($request, $userId);
 
-        if ($this->sessionConcurrencyManager->isCurrentSessionActive($request, $userId)) {
-            return $next($request);
+        if (! $this->sessionConcurrencyManager->isCurrentSessionActive($request, $userId)) {
+            return $this->logoutWithExpiredMessage($request, 'Sesi Anda telah berakhir karena akun digunakan pada perangkat lain.');
         }
 
-        return $this->logoutWithExpiredMessage($request, 'Sesi Anda telah berakhir karena akun digunakan pada perangkat lain.');
+        if ($this->shouldRefreshActivity($request)) {
+            $request->session()->put('last_user_activity_at', now()->timestamp);
+        }
+
+        return $next($request);
+    }
+
+    private function shouldRefreshActivity(Request $request): bool
+    {
+        if ($request->routeIs('sso.redirect') && $request->boolean('sync')) {
+            return false;
+        }
+
+        if ($request->routeIs('sso.callback')) {
+            $oauthContext = $request->session()->get('sso_oauth_context', []);
+
+            return ! (bool) data_get($oauthContext, 'sync', false);
+        }
+
+        return true;
     }
 
     private function logoutWithExpiredMessage(Request $request, string $message): Response

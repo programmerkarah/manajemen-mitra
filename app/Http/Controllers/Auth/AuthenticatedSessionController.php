@@ -107,6 +107,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->put('last_user_activity_at', now()->timestamp);
         $userId = Auth::id();
 
         if (is_int($userId)) {

@@ -156,6 +156,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('two-factor.prompt');
 });
 
+Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->post('session/heartbeat', function (Request $request) {
+    $request->session()->put('last_user_activity_at', now()->timestamp);
+    $request->session()->put('last_heartbeat_at', now()->timestamp);
+
+    return response()->noContent();
+})->name('session.heartbeat');
+
 Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->group(function () {
     // Logout
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
@@ -253,6 +260,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::middleware(['active.role:admin'])->group(function () {
         Route::get('petugas/template/download', [PetugasController::class, 'downloadTemplate'])->name('petugas.template');
         Route::get('petugas/existing/download', [PetugasController::class, 'downloadExisting'])->name('petugas.existing');
+        Route::post('petugas/import-preview', [PetugasController::class, 'importPreview'])->name('petugas.import-preview');
         Route::post('petugas/import', [PetugasController::class, 'import'])->name('petugas.import');
         Route::put('petugas/batch-update', [PetugasController::class, 'batchUpdate'])->name('petugas.batch-update');
         Route::get('petugas/create', [PetugasController::class, 'create'])->name('petugas.create');

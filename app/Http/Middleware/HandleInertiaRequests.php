@@ -109,6 +109,13 @@ class HandleInertiaRequests extends Middleware
                 'focusCooldownSeconds' => max((int) config('services.sso.sync_focus_cooldown_seconds', 120), 30),
                 'intervalSeconds' => max((int) config('services.sso.sync_interval_seconds', 600), 60),
             ],
+            'sessionConfig' => [
+                'lifetimeMinutes' => max((int) config('session.lifetime', 120), 1),
+                'keepAliveIntervalSeconds' => min(
+                    max((int) floor(max((int) config('session.lifetime', 120), 1) * 60 / 2), 60),
+                    300,
+                ),
+            ],
         ];
     }
 }

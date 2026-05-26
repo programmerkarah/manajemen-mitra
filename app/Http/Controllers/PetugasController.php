@@ -9,9 +9,12 @@ use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StorePetugasRequest;
 use App\Http\Requests\UpdatePetugasRequest;
 use App\Imports\PetugasImport;
+use App\Imports\PetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\Petugas;
+use App\Services\PetugasImportProcessor;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -381,6 +384,37 @@ class PetugasController extends Controller
     }
 
     /**
+     * Preview petugas import data from Excel without persisting to database.
+     */
+    public function importPreview(Request $request, PetugasImportProcessor $processor): JsonResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:2048'],
+        ], [
+            'file.required' => 'File harus diupload.',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV.',
+            'file.max' => 'Ukuran file maksimal 2MB.',
+        ]);
+
+        $import = new PetugasPreviewImport;
+        Excel::import($import, $validated['file']);
+
+        $result = $processor->process($import->rows(), persist: false);
+
+        return response()->json([
+            'rows' => $result['rows'],
+            'errors' => $result['errors'],
+            'summary' => [
+                'total_rows' => $result['total_rows'],
+                'success_count' => $result['success_count'],
+                'created_count' => $result['created_count'],
+                'updated_count' => $result['updated_count'],
+                'skipped_count' => $result['skipped_count'],
+            ],
+        ]);
+    }
+
+    /**
      * Import petugas dari file Excel.
      */
     public function import(Request $request): RedirectResponse
@@ -398,6 +432,8 @@ class PetugasController extends Controller
             Excel::import($import, $request->file('file'));
 
             $successCount = $import->getSuccessCount();
+            $createdCount = $import->getCreatedCount();
+            $updatedCount = $import->getUpdatedCount();
             $errors = $import->getErrors();
 
             if (count($errors) > 0) {
@@ -405,32 +441,32 @@ class PetugasController extends Controller
                     ActivityLog::log(
                         'Import Mitra',
                         'mitra',
-                        "Import mitra selesai dengan peringatan: {$successCount} berhasil, ".count($errors).' gagal',
+                        "Import mitra selesai dengan peringatan: {$createdCount} baru, {$updatedCount} diperbarui, ".count($errors).' gagal',
                         'warning',
-                        ['success_count' => $successCount, 'error_count' => count($errors)]
+                        ['success_count' => $successCount, 'created_count' => $createdCount, 'updated_count' => $updatedCount, 'error_count' => count($errors)]
                     );
                 } catch (\Exception $e) {
                     Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
                 }
 
                 return redirect()->route('petugas.index')
-                    ->with('warning', "Import selesai. {$successCount} data berhasil diimport. ".count($errors).' data gagal: '.implode(', ', array_slice($errors, 0, 3)));
+                    ->with('warning', "Import selesai. {$createdCount} data baru, {$updatedCount} data diperbarui, ".count($errors).' data gagal: '.implode(', ', array_slice($errors, 0, 3)));
             }
 
             try {
                 ActivityLog::log(
                     'Import Mitra',
                     'mitra',
-                    "Berhasil import {$successCount} data mitra",
+                    "Berhasil import mitra: {$createdCount} data baru, {$updatedCount} data diperbarui",
                     'success',
-                    ['success_count' => $successCount]
+                    ['success_count' => $successCount, 'created_count' => $createdCount, 'updated_count' => $updatedCount]
                 );
             } catch (\Exception $e) {
                 Log::warning('Failed to log activity', ['error' => $e->getMessage()]);
             }
 
             return redirect()->route('petugas.index')
-                ->with('success', "Import berhasil! {$successCount} petugas telah ditambahkan.");
+                ->with('success', "Import berhasil! {$createdCount} petugas ditambahkan dan {$updatedCount} petugas diperbarui.");
         } catch (ValidationException $e) {
             $failures = $e->failures();
             $errorMessages = [];

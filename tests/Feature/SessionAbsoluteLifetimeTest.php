@@ -12,7 +12,7 @@ class SessionAbsoluteLifetimeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authenticated_user_is_logged_out_after_absolute_session_lifetime(): void
+    public function test_authenticated_user_is_not_logged_out_by_absolute_login_age(): void
     {
         $this->withMiddleware(EnsureSingleActiveSession::class);
 
@@ -33,8 +33,7 @@ class SessionAbsoluteLifetimeTest extends TestCase
             ])
             ->get('/dashboard');
 
-        $response->assertRedirect(route('login'));
-        $response->assertSessionHasErrors('username');
-        $this->assertGuest('web');
+        $response->assertOk();
+        $this->assertAuthenticatedAs($admin, 'web');
     }
 }

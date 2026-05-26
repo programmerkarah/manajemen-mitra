@@ -62,6 +62,10 @@ export interface SharedData {
         focusCooldownSeconds: number;
         intervalSeconds: number;
     };
+    sessionConfig?: {
+        lifetimeMinutes: number;
+        keepAliveIntervalSeconds: number;
+    };
     [key: string]: unknown;
 }
 

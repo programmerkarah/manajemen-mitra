@@ -3,6 +3,12 @@ import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,6 +24,7 @@ import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     CheckCircle2,
     ChevronDown,
     ChevronLeft,
@@ -90,6 +97,29 @@ interface BatchEditItem {
     alamat: string;
 }
 
+interface ImportPreviewRow {
+    row_number: number;
+    action: 'create' | 'update';
+    nama: string;
+    nik: string;
+    email: string;
+    status: string;
+    jenis_petugas: string;
+    changes: string[];
+    columns: Record<string, string | null>;
+    changed_fields: string[];
+    warnings: string[];
+    valid_for_import: boolean;
+}
+
+interface ImportPreviewSummary {
+    total_rows: number;
+    success_count: number;
+    created_count: number;
+    updated_count: number;
+    skipped_count: number;
+}
+
 interface PetugasIndexProps {
     petugas: {
         encrypted: string;
@@ -114,6 +144,23 @@ interface PetugasIndexProps {
     };
 }
 
+const PREVIEW_INLINE_ERROR_LIMIT = 6;
+
+const PREVIEW_COLUMNS: Array<{ key: string; label: string }> = [
+    { key: 'nama', label: 'Nama' },
+    { key: 'nik', label: 'NIK' },
+    { key: 'email', label: 'Email' },
+    { key: 'telepon', label: 'Telepon' },
+    { key: 'alamat', label: 'Alamat' },
+    { key: 'pendidikan', label: 'Pendidikan' },
+    { key: 'tahun_bergabung', label: 'Thn Gabung' },
+    { key: 'status', label: 'Status' },
+    { key: 'jenis_petugas', label: 'Jenis' },
+    { key: 'tanggal_lahir', label: 'Tgl Lahir' },
+    { key: 'kecamatan', label: 'Kecamatan' },
+    { key: 'desa_kelurahan', label: 'Desa/Kel' },
+];
+
 export default function Index({ petugas }: PetugasIndexProps) {
     const { auth } = usePage<SharedData>().props;
     const isPJ =
@@ -129,6 +176,17 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [isPreviewingImport, setIsPreviewingImport] = useState(false);
+    const [importPreviewRows, setImportPreviewRows] = useState<
+        ImportPreviewRow[]
+    >([]);
+    const [importPreviewErrors, setImportPreviewErrors] = useState<string[]>(
+        [],
+    );
+    const [importPreviewSummary, setImportPreviewSummary] =
+        useState<ImportPreviewSummary | null>(null);
+    const [hasImportPreview, setHasImportPreview] = useState(false);
+    const [showImportErrorDetail, setShowImportErrorDetail] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [showBatchEdit, setShowBatchEdit] = useState(false);
     const [batchEditItems, setBatchEditItems] = useState<BatchEditItem[]>([]);
@@ -199,6 +257,19 @@ export default function Index({ petugas }: PetugasIndexProps) {
         return filteredAndSortedPetugas.slice(start, end);
     }, [filteredAndSortedPetugas, currentPage, perPage]);
 
+    const previewVisibleErrors = useMemo(
+        () => importPreviewErrors.slice(0, PREVIEW_INLINE_ERROR_LIMIT),
+        [importPreviewErrors],
+    );
+
+    const previewHiddenErrorCount =
+        importPreviewErrors.length - previewVisibleErrors.length;
+
+    const hasImportablePreviewRows = useMemo(
+        () => importPreviewRows.some((row) => row.valid_for_import),
+        [importPreviewRows],
+    );
+
     // Reset to page 1 when filters change - done via useMemo dependencies instead of setState in effect
 
     const handleRefresh = () => {
@@ -222,13 +293,20 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     const handleImport = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!data.file) return;
+        if (!data.file || !hasImportPreview || importPreviewRows.length === 0) {
+            return;
+        }
 
         post('/petugas/import', {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 setShowImportModal(false);
+                setImportPreviewRows([]);
+                setImportPreviewErrors([]);
+                setImportPreviewSummary(null);
+                setHasImportPreview(false);
+                setShowImportErrorDetail(false);
                 reset();
             },
             onError: (errors) => {
@@ -237,9 +315,72 @@ export default function Index({ petugas }: PetugasIndexProps) {
         });
     };
 
+    const handlePreviewImport = (selectedFile?: File) => {
+        const file = selectedFile ?? data.file;
+
+        if (!file) {
+            return;
+        }
+
+        setIsPreviewingImport(true);
+        setImportPreviewRows([]);
+        setImportPreviewErrors([]);
+        setImportPreviewSummary(null);
+        setHasImportPreview(false);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const csrfToken =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') || '';
+
+        fetch('/petugas/import-preview', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/json',
+            },
+            body: formData,
+        })
+            .then(async (response) => {
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const message =
+                        payload?.message ||
+                        payload?.errors?.file?.[0] ||
+                        'Gagal membaca file impor.';
+                    throw new Error(message);
+                }
+
+                setImportPreviewRows(payload.rows || []);
+                setImportPreviewErrors(payload.errors || []);
+                setImportPreviewSummary(payload.summary || null);
+                setHasImportPreview(true);
+            })
+            .catch((error: Error) => {
+                console.error('Import preview error:', error);
+                setImportPreviewErrors([error.message]);
+                setHasImportPreview(false);
+            })
+            .finally(() => {
+                setIsPreviewingImport(false);
+            });
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setData('file', e.target.files[0]);
+            const selectedFile = e.target.files[0];
+
+            setData('file', selectedFile);
+            setImportPreviewRows([]);
+            setImportPreviewErrors([]);
+            setImportPreviewSummary(null);
+            setHasImportPreview(false);
+            handlePreviewImport(selectedFile);
         }
     };
 
@@ -754,7 +895,6 @@ export default function Index({ petugas }: PetugasIndexProps) {
                 </ContentCard>
             </div>
 
-
             {/* Batch Edit Modal */}
             {showBatchEdit && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -1042,14 +1182,14 @@ export default function Index({ petugas }: PetugasIndexProps) {
             {/* Import Modal */}
             {showImportModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <ContentCard className="w-full max-w-md">
+                    <ContentCard className="w-full max-w-4xl">
                         <div className="mb-6">
                             <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
                                 Import Petugas dari Excel
                             </h3>
                             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                Upload file Excel untuk menambahkan data petugas
-                                secara bulk
+                                Upload file Excel untuk menambah data baru atau
+                                memperbarui data existing berdasarkan NIK/email
                             </p>
                         </div>
 
@@ -1073,7 +1213,220 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                                     Format: .xlsx, .xls, .csv (Maksimal: 2MB)
                                 </p>
+                                <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                    Preview akan tampil otomatis setelah file
+                                    dipilih.
+                                </p>
+                                {isPreviewingImport && (
+                                    <p className="mt-1.5 text-xs text-blue-600 dark:text-blue-400">
+                                        Membaca preview data impor...
+                                    </p>
+                                )}
                             </div>
+
+                            {(importPreviewRows.length > 0 ||
+                                importPreviewErrors.length > 0 ||
+                                importPreviewSummary) && (
+                                <div className="space-y-3 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                                        <span className="font-semibold text-foreground">
+                                            Preview Impor
+                                        </span>
+                                        {importPreviewSummary && (
+                                            <>
+                                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                    Baru:{' '}
+                                                    {
+                                                        importPreviewSummary.created_count
+                                                    }
+                                                </span>
+                                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                                                    Update:{' '}
+                                                    {
+                                                        importPreviewSummary.updated_count
+                                                    }
+                                                </span>
+                                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                                                    Gagal:{' '}
+                                                    {
+                                                        importPreviewSummary.skipped_count
+                                                    }
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {importPreviewErrors.length > 0 && (
+                                        <div className="space-y-2 rounded-md bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                                            <div className="flex items-center gap-1.5 font-semibold">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                Validasi preview menemukan{' '}
+                                                {importPreviewErrors.length}{' '}
+                                                masalah
+                                            </div>
+                                            <div className="space-y-1">
+                                                {previewVisibleErrors.map(
+                                                    (error) => (
+                                                        <p key={error}>
+                                                            {error}
+                                                        </p>
+                                                    ),
+                                                )}
+                                            </div>
+                                            {previewHiddenErrorCount > 0 && (
+                                                <div className="flex items-center justify-between gap-2 pt-1">
+                                                    <p className="text-[11px] font-medium">
+                                                        +
+                                                        {
+                                                            previewHiddenErrorCount
+                                                        }{' '}
+                                                        error lainnya
+                                                    </p>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setShowImportErrorDetail(
+                                                                true,
+                                                            )
+                                                        }
+                                                        className="h-7 text-[11px]"
+                                                    >
+                                                        Lihat detail
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {importPreviewRows.length > 0 && (
+                                        <div className="max-h-72 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
+                                            <table className="w-full text-xs">
+                                                <thead className="bg-neutral-100 dark:bg-neutral-800">
+                                                    <tr>
+                                                        <th className="px-2 py-1 text-left">
+                                                            Baris
+                                                        </th>
+                                                        <th className="px-2 py-1 text-left">
+                                                            Aksi
+                                                        </th>
+                                                        <th className="px-2 py-1 text-left">
+                                                            Validasi
+                                                        </th>
+                                                        {PREVIEW_COLUMNS.map(
+                                                            (column) => (
+                                                                <th
+                                                                    key={
+                                                                        column.key
+                                                                    }
+                                                                    className="px-2 py-1 text-left"
+                                                                >
+                                                                    {
+                                                                        column.label
+                                                                    }
+                                                                </th>
+                                                            ),
+                                                        )}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {importPreviewRows.map(
+                                                        (row) => (
+                                                            <tr
+                                                                key={`${row.row_number}-${row.nik}-${row.email}`}
+                                                                className={`border-t border-neutral-200 dark:border-neutral-700 ${
+                                                                    row.valid_for_import
+                                                                        ? ''
+                                                                        : 'bg-red-50/40 dark:bg-red-950/10'
+                                                                }`}
+                                                            >
+                                                                <td className="px-2 py-1">
+                                                                    {
+                                                                        row.row_number
+                                                                    }
+                                                                </td>
+                                                                <td className="px-2 py-1">
+                                                                    <span
+                                                                        className={`rounded-full px-2 py-0.5 font-medium ${
+                                                                            row.action ===
+                                                                            'create'
+                                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                                                        }`}
+                                                                    >
+                                                                        {row.action ===
+                                                                        'create'
+                                                                            ? 'Buat'
+                                                                            : 'Update'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-2 py-1">
+                                                                    {row
+                                                                        .warnings
+                                                                        .length >
+                                                                    0 ? (
+                                                                        <span className="rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                                                                            {
+                                                                                row
+                                                                                    .warnings
+                                                                                    .length
+                                                                            }{' '}
+                                                                            warning
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                                                                            Valid
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                {PREVIEW_COLUMNS.map(
+                                                                    (
+                                                                        column,
+                                                                    ) => {
+                                                                        const value =
+                                                                            row
+                                                                                .columns?.[
+                                                                                column
+                                                                                    .key
+                                                                            ] ??
+                                                                            '';
+                                                                        const isChanged =
+                                                                            row.changed_fields.includes(
+                                                                                column.key,
+                                                                            );
+
+                                                                        return (
+                                                                            <td
+                                                                                key={`${row.row_number}-${column.key}`}
+                                                                                className={`px-2 py-1 whitespace-nowrap ${
+                                                                                    isChanged
+                                                                                        ? 'bg-amber-50 font-medium text-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+                                                                                        : ''
+                                                                                }`}
+                                                                            >
+                                                                                <div className="max-w-[170px] truncate">
+                                                                                    {value ||
+                                                                                        '-'}
+                                                                                </div>
+                                                                                {isChanged && (
+                                                                                    <span className="text-[10px] font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                                                                        Ubah
+                                                                                    </span>
+                                                                                )}
+                                                                            </td>
+                                                                        );
+                                                                    },
+                                                                )}
+                                                            </tr>
+                                                        ),
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-2 pt-2">
                                 <Button
@@ -1081,6 +1434,11 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                     variant="outline"
                                     onClick={() => {
                                         setShowImportModal(false);
+                                        setImportPreviewRows([]);
+                                        setImportPreviewErrors([]);
+                                        setImportPreviewSummary(null);
+                                        setHasImportPreview(false);
+                                        setShowImportErrorDetail(false);
                                         reset();
                                     }}
                                 >
@@ -1088,7 +1446,12 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={processing || !data.file}
+                                    disabled={
+                                        processing ||
+                                        !data.file ||
+                                        !hasImportPreview ||
+                                        !hasImportablePreviewRows
+                                    }
                                     className="gap-2"
                                 >
                                     {processing ? (
@@ -1108,6 +1471,33 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     </ContentCard>
                 </div>
             )}
+
+            <Dialog
+                open={showImportErrorDetail}
+                onOpenChange={setShowImportErrorDetail}
+            >
+                <DialogContent className="max-h-[85vh] max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Detail Error Validasi Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[65vh] space-y-2 overflow-y-auto rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-700">
+                        {importPreviewErrors.length > 0 ? (
+                            importPreviewErrors.map((error) => (
+                                <p
+                                    key={error}
+                                    className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
+                                >
+                                    {error}
+                                </p>
+                            ))
+                        ) : (
+                            <p className="text-neutral-500 dark:text-neutral-400">
+                                Tidak ada detail error.
+                            </p>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
