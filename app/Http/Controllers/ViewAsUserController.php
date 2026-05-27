@@ -26,6 +26,7 @@ class ViewAsUserController extends Controller
         $viewAsUser = User::select('id', 'name', 'username')
             ->findOrFail($validated['user_id']);
 
+        session()->forget(['active_role_id', 'active_role_user_id']);
         session(['view_as_user_id' => $viewAsUser->id]);
 
         ActivityLog::log(
@@ -50,7 +51,7 @@ class ViewAsUserController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        session()->forget('view_as_user_id');
+        session()->forget(['view_as_user_id', 'active_role_id', 'active_role_user_id']);
 
         ActivityLog::log(
             'Clear View As User',

@@ -145,4 +145,47 @@ class UserRoleManagementTest extends TestCase
         $this->assertTrue($user->hasRole('approver'));
         $this->assertTrue($user->hasAnyRole(['operator', 'pj', 'approver']));
     }
+
+    public function test_default_active_role_uses_highest_privilege_non_guest_role(): void
+    {
+        $this->seedRoles();
+
+        $user = User::factory()->create();
+
+        $operatorRole = Role::where('name', 'operator')->firstOrFail();
+        $pjRole = Role::where('name', 'pj')->firstOrFail();
+        $user->roles()->attach([$operatorRole->id, $pjRole->id]);
+
+        session()->forget(['active_role_id', 'active_role_user_id']);
+
+        $activeRole = $user->fresh()->getActiveRole();
+
+        $this->assertNotNull($activeRole);
+        $this->assertSame('operator', $activeRole->name);
+    }
+
+    public function test_active_role_session_context_is_isolated_for_view_as_user(): void
+    {
+        $this->seedRoles();
+
+        $admin = User::factory()->create(['username' => 'rhmtzikri']);
+        $adminRole = Role::where('name', 'admin')->firstOrFail();
+        $admin->roles()->attach($adminRole->id);
+
+        $viewedUser = User::factory()->create();
+        $operatorRole = Role::where('name', 'operator')->firstOrFail();
+        $viewedUser->roles()->attach($operatorRole->id);
+
+        $this->actingAs($admin)->withSession([
+            'active_role_id' => $adminRole->id,
+            'active_role_user_id' => $admin->id,
+        ]);
+
+        $this->post(route('view-as-user.set'), ['user_id' => $viewedUser->id])->assertRedirect();
+
+        $activeRole = $viewedUser->fresh()->getActiveRole();
+
+        $this->assertNotNull($activeRole);
+        $this->assertSame('operator', $activeRole->name);
+    }
 }

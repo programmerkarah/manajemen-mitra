@@ -10,12 +10,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
+
+    /**
+     * Higher value means higher privilege when auto-selecting active role.
+     *
+     * @var array<string, int>
+     */
+    private const ROLE_PRIVILEGE_ORDER = [
+        'admin' => 100,
+        'administrator' => 100,
+        'operator' => 80,
+        'ketua_tim' => 70,
+        'pj' => 60,
+        'approver' => 50,
+        'guest' => 0,
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -187,34 +203,22 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getActiveRole(): ?Role
     {
         $activeRoleId = session('active_role_id');
+        $activeRoleUserId = session('active_role_user_id');
 
         $roles = $this->roles()->get();
-        $nonGuestRoles = $roles->filter(function ($role) {
-            return $role->name !== 'guest';
-        });
 
-        if (! $activeRoleId) {
-            // Jika hanya ada 1 role dan bukan guest, return langsung
-            if ($nonGuestRoles->count() === 1) {
-                return $nonGuestRoles->first();
-            }
-            // Jika hanya ada 1 role (apapun itu)
-            if ($roles->count() === 1) {
-                return $roles->first();
-            }
-            // Jika ada lebih dari 1 role, pilih yang bukan guest sebagai default
-            if ($nonGuestRoles->count() > 0) {
-                return $nonGuestRoles->first();
-            }
-            // Fallback ke role pertama jika semua guest
-            if ($roles->count() > 0) {
-                return $roles->first();
-            }
+        if ($activeRoleId) {
+            $belongsToCurrentUserContext = $activeRoleUserId === null || (int) $activeRoleUserId === (int) $this->id;
 
-            return null;
+            if ($belongsToCurrentUserContext) {
+                $activeRole = $roles->firstWhere('id', (int) $activeRoleId);
+                if ($activeRole) {
+                    return $activeRole;
+                }
+            }
         }
 
-        return $roles->find($activeRoleId);
+        return $this->resolveDefaultActiveRole($roles);
     }
 
     /**
@@ -234,7 +238,10 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // Verify user has this role
         if ($this->roles()->where('role_id', $roleId)->exists()) {
-            session(['active_role_id' => $roleId]);
+            session([
+                'active_role_id' => $roleId,
+                'active_role_user_id' => $this->id,
+            ]);
 
             return true;
         }
@@ -260,5 +267,31 @@ class User extends Authenticatable implements MustVerifyEmail
         $activeRole = $this->getActiveRole();
 
         return $activeRole && in_array($activeRole->name, $roleNames);
+    }
+
+    /**
+     * @param  Collection<int, Role>  $roles
+     */
+    private function resolveDefaultActiveRole($roles): ?Role
+    {
+        if ($roles->isEmpty()) {
+            return null;
+        }
+
+        $nonGuestRoles = $roles->filter(fn (Role $role) => $role->name !== 'guest');
+        $candidateRoles = $nonGuestRoles->isNotEmpty() ? $nonGuestRoles : $roles;
+
+        return $candidateRoles
+            ->sort(function (Role $left, Role $right): int {
+                $leftPriority = self::ROLE_PRIVILEGE_ORDER[$left->name] ?? 1;
+                $rightPriority = self::ROLE_PRIVILEGE_ORDER[$right->name] ?? 1;
+
+                if ($leftPriority === $rightPriority) {
+                    return $left->id <=> $right->id;
+                }
+
+                return $rightPriority <=> $leftPriority;
+            })
+            ->first();
     }
 }
