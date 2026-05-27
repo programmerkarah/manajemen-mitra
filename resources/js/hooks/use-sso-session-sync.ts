@@ -8,6 +8,7 @@ interface UseSsoSessionSyncOptions {
 }
 
 const LAST_SYNC_AT_KEY = 'sso:last-sync-at';
+const SSO_SYNC_IFRAME_ID = 'sso-sync-transport-iframe';
 
 function getLastSyncAt(): number {
     if (typeof window === 'undefined') {
@@ -193,11 +194,29 @@ export function popSavedScrollState(): SsoScrollState | null {
 function buildSyncUrl(reason: 'focus' | 'interval' | 'initial'): string {
     const params = new URLSearchParams({
         sync: '1',
+        transport: 'iframe',
         reason,
         return_to: getCurrentPathWithQueryAndHash(),
     });
 
     return `/auth/sso/redirect?${params.toString()}`;
+}
+
+function getOrCreateSyncIframe(): HTMLIFrameElement {
+    const existing = document.getElementById(SSO_SYNC_IFRAME_ID);
+
+    if (existing instanceof HTMLIFrameElement) {
+        return existing;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = SSO_SYNC_IFRAME_ID;
+    iframe.title = 'SSO Session Sync Transport';
+    iframe.style.display = 'none';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    return iframe;
 }
 
 export function useSsoSessionSync({
@@ -233,11 +252,31 @@ export function useSsoSessionSync({
             }
 
             setLastSyncAt(now);
-            saveScrollState();
-            // Give page components a chance to save their own state before
-            // the hard redirect wipes React's in-memory state.
-            window.dispatchEvent(new CustomEvent('sso:before-redirect'));
-            window.location.assign(buildSyncUrl(reason));
+            const iframe = getOrCreateSyncIframe();
+            iframe.src = `${buildSyncUrl(reason)}&t=${now}`;
+        };
+
+        const onSyncMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            const payload = event.data as
+                | { type?: string; status?: string }
+                | null;
+
+            if (payload?.type !== 'sso-sync-complete') {
+                return;
+            }
+
+            if (payload.status === 'login_required') {
+                window.location.assign(
+                    '/login?message=' +
+                        encodeURIComponent(
+                            'Sesi SSO Anda sudah berakhir. Silakan login ulang.',
+                        ),
+                );
+            }
         };
 
         const onWindowFocus = () => {
@@ -258,6 +297,7 @@ export function useSsoSessionSync({
 
         window.addEventListener('focus', onWindowFocus);
         document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('message', onSyncMessage);
 
         return () => {
             window.clearInterval(intervalId);
@@ -266,6 +306,7 @@ export function useSsoSessionSync({
                 'visibilitychange',
                 onVisibilityChange,
             );
+            window.removeEventListener('message', onSyncMessage);
         };
     }, [enabled, focusCooldownSeconds, intervalSeconds, userId]);
 }

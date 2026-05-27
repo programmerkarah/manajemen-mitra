@@ -26,9 +26,12 @@ class SsoOAuthController extends Controller
     {
         $isSyncRequest = $request->boolean('sync');
         $syncReturnTo = $this->sanitizeReturnTo($request->query('return_to'));
+        $syncTransport = $this->resolveSyncTransport($request->query('transport'));
 
         if ($isSyncRequest && ! $this->isSsoActive()) {
-            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+            return $syncTransport === 'iframe'
+                ? $this->syncCompleteRedirect(status: 'skipped')
+                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
         }
 
         $baseUrl = $this->baseUrl();
@@ -47,6 +50,7 @@ class SsoOAuthController extends Controller
         $request->session()->put('sso_oauth_context', [
             'sync' => $isSyncRequest,
             'return_to' => $syncReturnTo,
+            'transport' => $syncTransport,
         ]);
 
         $queryPayload = [
@@ -65,6 +69,10 @@ class SsoOAuthController extends Controller
             $queryPayload['prompt'] = $prompt;
         }
 
+        if ($isSyncRequest) {
+            $queryPayload['sync'] = '1';
+        }
+
         $query = http_build_query($queryPayload);
 
         return redirect()->away(rtrim($baseUrl, '/').'/oauth/authorize?'.$query);
@@ -75,13 +83,16 @@ class SsoOAuthController extends Controller
         $oauthContext = $request->session()->pull('sso_oauth_context', []);
         $isSyncRequest = (bool) data_get($oauthContext, 'sync', false);
         $syncReturnTo = $this->sanitizeReturnTo(data_get($oauthContext, 'return_to'));
+        $syncTransport = $this->resolveSyncTransport(data_get($oauthContext, 'transport'));
         $expectedState = $request->session()->pull('sso_oauth_state');
         $receivedState = $request->string('state')->toString();
 
         if (! is_string($expectedState) || $expectedState === '' || $expectedState !== $receivedState) {
             if ($isSyncRequest) {
-                return redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
-                    ->with('warning', 'Sinkronisasi sesi SSO gagal karena state tidak valid.');
+                return $syncTransport === 'iframe'
+                    ? $this->syncCompleteRedirect(status: 'failed')
+                    : redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
+                        ->with('warning', 'Sinkronisasi sesi SSO gagal karena state tidak valid.');
             }
 
             return redirect()->route('login')->withErrors([
@@ -94,11 +105,13 @@ class SsoOAuthController extends Controller
                 $oauthError = $request->string('error')->toString();
 
                 if ($this->isExpiredSsoSessionError($oauthError)) {
-                    return $this->logoutAndRedirectToLogin($request);
+                    return $this->logoutAndRedirectToLogin($request, $syncTransport);
                 }
 
-                return redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
-                    ->with('warning', 'Sinkronisasi sesi SSO belum berhasil.');
+                return $syncTransport === 'iframe'
+                    ? $this->syncCompleteRedirect(status: 'failed')
+                    : redirect()->to($this->resolveSyncReturnTo($syncReturnTo))
+                        ->with('warning', 'Sinkronisasi sesi SSO belum berhasil.');
             }
 
             $errorDescription = $request->string('error_description')->toString();
@@ -120,7 +133,15 @@ class SsoOAuthController extends Controller
         }
 
         /** @var Response $tokenResponse */
-        $tokenResponse = Http::asForm()
+        $tokenRequest = Http::asForm()->acceptJson();
+
+        if ($isSyncRequest) {
+            $tokenRequest = $tokenRequest->withHeaders([
+                'X-SSO-Sync' => '1',
+            ]);
+        }
+
+        $tokenResponse = $tokenRequest
             ->acceptJson()
             ->post(rtrim($this->baseUrl(), '/').'/oauth/token', [
                 'grant_type' => 'authorization_code',
@@ -234,10 +255,14 @@ class SsoOAuthController extends Controller
             // doing so broadcasts SessionInvalidated via WebSocket and kicks
             // the user out through the useSessionInvalidation hook.
             if (! Auth::check()) {
-                return redirect()->route('login')->with('warning', 'Sesi aplikasi Anda sudah berakhir. Silakan login kembali.');
+                return $syncTransport === 'iframe'
+                    ? $this->syncCompleteRedirect(status: 'login_required')
+                    : redirect()->route('login')->with('warning', 'Sesi aplikasi Anda sudah berakhir. Silakan login kembali.');
             }
 
-            return redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+            return $syncTransport === 'iframe'
+                ? $this->syncCompleteRedirect(status: 'ok')
+                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
         }
 
         Auth::login($localUser, true);
@@ -280,14 +305,34 @@ class SsoOAuthController extends Controller
         return in_array($oauthError, ['session_expired'], true);
     }
 
-    private function logoutAndRedirectToLogin(Request $request): RedirectResponse
+    private function logoutAndRedirectToLogin(Request $request, string $syncTransport = 'redirect'): RedirectResponse
     {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
+        if ($syncTransport === 'iframe') {
+            return $this->syncCompleteRedirect(status: 'login_required');
+        }
+
         return redirect()->route('login')
             ->with('error', 'Sesi SSO Anda sudah berakhir. Silakan login ulang.');
+    }
+
+    private function syncCompleteRedirect(string $status): RedirectResponse
+    {
+        return redirect()->route('sso.sync-complete', ['status' => $status]);
+    }
+
+    private function resolveSyncTransport(mixed $transport): string
+    {
+        if (! is_string($transport)) {
+            return 'redirect';
+        }
+
+        return in_array($transport, ['redirect', 'iframe'], true)
+            ? $transport
+            : 'redirect';
     }
 
     private function baseUrl(): string
@@ -457,7 +502,7 @@ class SsoOAuthController extends Controller
             return Carbon::parse($emailVerifiedAt);
         }
 
-        return $email !== '' ? now() : null;
+        return null;
     }
 
     private function resolveProvisionedUsername(string $username, string $email, ?int $ssoUserId): string

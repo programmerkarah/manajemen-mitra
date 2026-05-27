@@ -62,6 +62,29 @@ Route::get('/csrf-token', function (Request $request) {
 Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
 Route::get('/auth/sso/callback', [SsoOAuthController::class, 'callback'])->name('sso.callback');
 Route::get('/auth/callback', [SsoOAuthController::class, 'callback']);
+Route::get('/auth/sso/sync-complete', function (Request $request) {
+    $status = (string) $request->query('status', 'ok');
+    $allowedStatus = in_array($status, ['ok', 'failed', 'login_required', 'skipped'], true)
+        ? $status
+        : 'ok';
+
+    $payload = [
+        'type' => 'sso-sync-complete',
+        'status' => $allowedStatus,
+    ];
+
+    $payloadJson = json_encode($payload, JSON_THROW_ON_ERROR);
+
+    return response(
+        '<!doctype html><html><head><meta charset="utf-8"><title>SSO Sync</title></head><body><script>'
+        .'(function(){'
+        .'var payload='.$payloadJson.';'
+        .'try{if(window.parent&&window.parent!==window){window.parent.postMessage(payload, window.location.origin);}}catch(e){}'
+        .'if(payload.status==="login_required"){window.top.location.href="/login?message="+encodeURIComponent("Sesi SSO Anda sudah berakhir. Silakan login ulang.");}'
+        .'})();'
+        .'</script></body></html>'
+    )->header('Content-Type', 'text/html; charset=UTF-8');
+})->name('sso.sync-complete');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
