@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { request } from '@/routes/password';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { LogIn } from 'lucide-react';
-import { FormEvent } from 'react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 
 interface LoginProps {
     status?: string;
@@ -28,6 +28,8 @@ export default function Login({
     ssoLoginUrl = '/auth/sso/redirect',
     ssoRegisterUrl,
 }: LoginProps) {
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
     const loginForm = useForm({
         username: '',
         password: '',
@@ -221,25 +223,55 @@ export default function Login({
                                                         </TextLink>
                                                     )}
                                                 </div>
-                                                <Input
-                                                    id="password"
-                                                    type="password"
-                                                    name="password"
-                                                    required
-                                                    tabIndex={2}
-                                                    autoComplete="current-password"
-                                                    placeholder="Masukkan password"
-                                                    className="h-11"
-                                                    value={
-                                                        loginForm.data.password
-                                                    }
-                                                    onChange={(event) =>
-                                                        loginForm.setData(
-                                                            'password',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                />
+                                                <div className="relative">
+                                                    <Input
+                                                        id="password"
+                                                        type={
+                                                            isPasswordVisible
+                                                                ? 'text'
+                                                                : 'password'
+                                                        }
+                                                        name="password"
+                                                        required
+                                                        tabIndex={2}
+                                                        autoComplete="current-password"
+                                                        placeholder="Masukkan password"
+                                                        className="h-11 pr-12"
+                                                        value={
+                                                            loginForm.data
+                                                                .password
+                                                        }
+                                                        onChange={(event) =>
+                                                            loginForm.setData(
+                                                                'password',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setIsPasswordVisible(
+                                                                (previous) =>
+                                                                    !previous,
+                                                            )
+                                                        }
+                                                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-neutral-500 transition-colors hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-blue-600/30 focus-visible:outline-none dark:text-neutral-400 dark:hover:text-neutral-200"
+                                                        aria-label={
+                                                            isPasswordVisible
+                                                                ? 'Sembunyikan password'
+                                                                : 'Tampilkan password'
+                                                        }
+                                                        tabIndex={3}
+                                                    >
+                                                        {isPasswordVisible ? (
+                                                            <EyeOff className="h-4 w-4" />
+                                                        ) : (
+                                                            <Eye className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                </div>
                                                 <InputError
                                                     message={
                                                         loginForm.errors

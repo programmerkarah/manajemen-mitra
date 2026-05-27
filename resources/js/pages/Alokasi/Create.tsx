@@ -171,6 +171,20 @@ interface AlokasiCreateProps {
     >;
     petugas_unique_kegiatan_counts?: Record<number, number>;
     petugas_allocation_counts?: Record<number, number>;
+    petugas_total_honor?: Record<number, number>;
+    petugas_review_recommendations?: {
+        has_review_data: boolean;
+        global_avg_rating: number;
+        by_petugas: Record<
+            number,
+            {
+                review_count: number;
+                avg_rating: number;
+                balanced_score: number;
+                status: 'recommended' | 'not_recommended' | 'neutral';
+            }
+        >;
+    };
     isEditMode?: boolean;
     isRevisiMode?: boolean;
     isViewMode?: boolean;
@@ -191,6 +205,12 @@ export default function Create({
     petugas_suggestions = {},
     petugas_unique_kegiatan_counts = {},
     petugas_allocation_counts = {},
+    petugas_total_honor = {},
+    petugas_review_recommendations = {
+        has_review_data: false,
+        global_avg_rating: 0,
+        by_petugas: {},
+    },
     isEditMode = false,
     isRevisiMode = false,
     isViewMode = false,
@@ -644,38 +664,89 @@ export default function Create({
         );
     }, [selectedKegiatanSuggestion, bulan, active_year]);
 
+    const reviewRecommendationByPetugas = useMemo(
+        () => petugas_review_recommendations.by_petugas || {},
+        [petugas_review_recommendations],
+    );
+
+    const hasReviewRecommendationData =
+        petugas_review_recommendations.has_review_data;
+
     const suggestedPetugasOrder = useMemo(() => {
-        const zeroKegiatanPetugasOrder = [...petugas]
-            .filter(
-                (petugasItem) =>
-                    (petugas_allocation_counts[Number(petugasItem.id)] || 0) ===
-                    0,
-            )
-            .sort((a, b) => a.nama.localeCompare(b.nama))
+        const previousSet = new Set(previousPeriodPetugasIds);
+        const statusPriority: Record<string, number> = {
+            recommended: 0,
+            neutral: 1,
+            not_recommended: 2,
+        };
+
+        const remainingPetugasIds = [...petugas]
+            .filter((petugasItem) => !previousSet.has(String(petugasItem.id)))
+            .sort((a, b) => {
+                const aRecommendation = reviewRecommendationByPetugas[
+                    Number(a.id)
+                ] || {
+                    review_count: 0,
+                    avg_rating: 0,
+                    balanced_score: 0,
+                    status: 'neutral',
+                };
+                const bRecommendation = reviewRecommendationByPetugas[
+                    Number(b.id)
+                ] || {
+                    review_count: 0,
+                    avg_rating: 0,
+                    balanced_score: 0,
+                    status: 'neutral',
+                };
+
+                if (hasReviewRecommendationData) {
+                    const statusCompare =
+                        statusPriority[aRecommendation.status] -
+                        statusPriority[bRecommendation.status];
+                    if (statusCompare !== 0) {
+                        return statusCompare;
+                    }
+
+                    if (
+                        aRecommendation.balanced_score !==
+                        bRecommendation.balanced_score
+                    ) {
+                        return (
+                            bRecommendation.balanced_score -
+                            aRecommendation.balanced_score
+                        );
+                    }
+                }
+
+                const aAllocationCount =
+                    petugas_allocation_counts[Number(a.id)] || 0;
+                const bAllocationCount =
+                    petugas_allocation_counts[Number(b.id)] || 0;
+                if (aAllocationCount !== bAllocationCount) {
+                    return aAllocationCount - bAllocationCount;
+                }
+
+                const aTotalHonor = petugas_total_honor[Number(a.id)] || 0;
+                const bTotalHonor = petugas_total_honor[Number(b.id)] || 0;
+                if (aTotalHonor !== bTotalHonor) {
+                    return aTotalHonor - bTotalHonor;
+                }
+
+                return a.nama.localeCompare(b.nama);
+            })
             .map((petugasItem) => String(petugasItem.id));
 
-        const smallestAllocationOrder = (
-            selectedKegiatanSuggestion?.smallest_allocation_petugas_ids || []
-        ).map((petugasId) => String(petugasId));
-
-        const orderedSuggestionIds = [
-            ...previousPeriodPetugasIds,
-            ...zeroKegiatanPetugasOrder.filter(
-                (petugasId) => !previousPeriodPetugasIds.includes(petugasId),
-            ),
-            ...smallestAllocationOrder.filter(
-                (petugasId) =>
-                    !previousPeriodPetugasIds.includes(petugasId) &&
-                    !zeroKegiatanPetugasOrder.includes(petugasId),
-            ),
-        ];
-
-        return Array.from(new Set(orderedSuggestionIds));
+        return Array.from(
+            new Set([...previousPeriodPetugasIds, ...remainingPetugasIds]),
+        );
     }, [
-        selectedKegiatanSuggestion,
         previousPeriodPetugasIds,
         petugas,
+        hasReviewRecommendationData,
+        reviewRecommendationByPetugas,
         petugas_allocation_counts,
+        petugas_total_honor,
     ]);
 
     // Initialize with copied data if available
@@ -2905,6 +2976,14 @@ export default function Create({
                                         sebelumnya untuk kegiatan ini.
                                     </p>
                                 )}
+                                {hasReviewRecommendationData && (
+                                    <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">
+                                        Urutan sugesti mempertimbangkan review:
+                                        rekomendasi ditampilkan lebih awal,
+                                        tidak direkomendasikan ditampilkan di
+                                        bagian bawah.
+                                    </p>
+                                )}
                             </div>
 
                             {allErrors.alokasi && (
@@ -3103,6 +3182,46 @@ export default function Create({
                                                                         ? `${p.nama} - ${jenisPetugasLabel} - ${jumlahKegiatan} kegiatan`
                                                                         : `${p.nama} - ${jenisPetugasLabel} - ${desaKelurahanLabel} - ${jumlahAlokasi} kegiatan`;
 
+                                                                const recommendation =
+                                                                    reviewRecommendationByPetugas[
+                                                                        Number(
+                                                                            p.id,
+                                                                        )
+                                                                    ];
+
+                                                                let itemClassName =
+                                                                    '';
+                                                                let badgeLabel =
+                                                                    '';
+                                                                let badgeClassName =
+                                                                    '';
+
+                                                                if (
+                                                                    hasReviewRecommendationData &&
+                                                                    recommendation?.status ===
+                                                                        'recommended'
+                                                                ) {
+                                                                    itemClassName =
+                                                                        'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40';
+                                                                    badgeLabel =
+                                                                        'Rekomendasi';
+                                                                    badgeClassName =
+                                                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300';
+                                                                }
+
+                                                                if (
+                                                                    hasReviewRecommendationData &&
+                                                                    recommendation?.status ===
+                                                                        'not_recommended'
+                                                                ) {
+                                                                    itemClassName =
+                                                                        'bg-rose-50 text-rose-900 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/40';
+                                                                    badgeLabel =
+                                                                        'Tidak Direkomendasikan';
+                                                                    badgeClassName =
+                                                                        'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300';
+                                                                }
+
                                                                 return {
                                                                     value: String(
                                                                         p.id,
@@ -3112,6 +3231,9 @@ export default function Create({
                                                                         p.nama,
                                                                     disabled:
                                                                         isSelectedInOtherRow,
+                                                                    itemClassName,
+                                                                    badgeLabel,
+                                                                    badgeClassName,
                                                                 };
                                                             },
                                                         );

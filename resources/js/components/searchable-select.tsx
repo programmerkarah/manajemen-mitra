@@ -10,6 +10,9 @@ interface Option {
     displayLabel?: string;
     disabled?: boolean;
     searchKeywords?: string;
+    itemClassName?: string;
+    badgeLabel?: string;
+    badgeClassName?: string;
 }
 
 interface SearchableSelectProps {
@@ -233,6 +236,7 @@ export function SearchableSelect({
                                         disabled={option.disabled}
                                         className={cn(
                                             'flex w-full items-center rounded-md px-2 py-2 text-left text-sm transition-colors',
+                                            option.itemClassName,
                                             value === option.value
                                                 ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                                                 : 'hover:bg-neutral-100 dark:hover:bg-neutral-900',
@@ -243,6 +247,16 @@ export function SearchableSelect({
                                         <span className="flex-1 truncate">
                                             {option.label}
                                         </span>
+                                        {option.badgeLabel && (
+                                            <span
+                                                className={cn(
+                                                    'ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase',
+                                                    option.badgeClassName,
+                                                )}
+                                            >
+                                                {option.badgeLabel}
+                                            </span>
+                                        )}
                                         {option.disabled && (
                                             <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
                                                 (sudah dipilih)

@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\PreserveSessionLastActivityForSsoSync;
 use App\Http\Middleware\PreventMaintenanceModeRequests;
 use App\Models\ActivityLog;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -65,6 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
             LogRequests::class,
             PreventMaintenanceModeRequests::class,
             EnsureSingleActiveSession::class,
+            PreserveSessionLastActivityForSsoSync::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

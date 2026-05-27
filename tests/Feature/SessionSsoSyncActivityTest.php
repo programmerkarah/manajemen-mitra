@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureSingleActiveSession;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SessionSsoSyncActivityTest extends TestCase
@@ -39,5 +40,47 @@ class SessionSsoSyncActivityTest extends TestCase
         $response->assertRedirect(route('login'));
         $response->assertSessionHasErrors('username');
         $this->assertGuest('web');
+    }
+
+    public function test_sso_sync_request_does_not_update_session_last_activity_column(): void
+    {
+        config()->set('session.driver', 'database');
+        config()->set('services.sso.active', false);
+
+        $initialResponse = $this->withSession([
+            'seed' => true,
+        ])->get(route('sso.redirect', ['sync' => 1, 'return_to' => '/dashboard']));
+
+        $initialResponse->assertRedirect('/dashboard');
+
+        $sessionId = (string) app('session')->getId();
+        $this->assertNotSame('', $sessionId);
+
+        $forcedLastActivity = now()->subHours(8)->timestamp;
+
+        DB::table(config('session.table', 'sessions'))->updateOrInsert(
+            ['id' => $sessionId],
+            [
+                'user_id' => null,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Laravel Test',
+                'payload' => base64_encode(serialize([])),
+                'last_activity' => $forcedLastActivity,
+            ]
+        );
+
+        DB::table(config('session.table', 'sessions'))
+            ->where('id', $sessionId)
+            ->update(['last_activity' => $forcedLastActivity]);
+
+        $syncResponse = $this->get(route('sso.redirect', ['sync' => 1, 'return_to' => '/dashboard']));
+
+        $syncResponse->assertRedirect('/dashboard');
+
+        $actualLastActivity = DB::table(config('session.table', 'sessions'))
+            ->where('id', $sessionId)
+            ->value('last_activity');
+
+        $this->assertSame($forcedLastActivity, (int) $actualLastActivity);
     }
 }

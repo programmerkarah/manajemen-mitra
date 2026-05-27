@@ -7,6 +7,7 @@ use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
+use App\Models\ReviewPetugas;
 use App\Models\Role;
 use App\Models\Satuan;
 use App\Models\User;
@@ -58,6 +59,7 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
             ->has("budget_info.{$kegiatan->id}")
             ->where("budget_info.{$kegiatan->id}.pagu_pencacahan", fn ($value) => (float) $value === 1250000.0)
             ->where("budget_info.{$kegiatan->id}.pagu_listing", fn ($value) => (float) $value === 450000.0)
+            ->where('petugas_review_recommendations.has_review_data', false)
         );
     }
 
@@ -179,6 +181,115 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
             ->where("petugas_allocation_counts.{$petugasA->id}", 1)
             ->where("petugas_allocation_counts.{$petugasB->id}", 1)
             ->where("petugas_allocation_counts.{$petugasC->id}", 1)
+            ->where("petugas_total_honor.{$petugasA->id}", 1000)
+            ->where("petugas_total_honor.{$petugasB->id}", 100)
+            ->where("petugas_total_honor.{$petugasC->id}", 2)
+        );
+    }
+
+    public function test_create_alokasi_provides_review_based_petugas_recommendations_when_reviews_exist(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+        $activeYear = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'tahun_anggaran' => $activeYear,
+        ]);
+
+        $satuan = Satuan::query()->create([
+            'kode' => 'SR'.$activeYear,
+            'nama' => 'Dokumen',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor PCL',
+            'satuan_id' => $satuan->id,
+            'rate' => 100000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => $activeYear,
+            'status' => 'aktif',
+        ]);
+
+        $petugasRecommended = Petugas::factory()->create([
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $petugasNotRecommended = Petugas::factory()->create([
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $reviewer = User::factory()->create();
+        $reviewerKedua = User::factory()->create();
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $activeYear,
+            'bulan' => '01',
+            'status' => 'draft',
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasRecommended->id,
+            'periode_alokasi_id' => $periode->id,
+            'reviewer_user_id' => $reviewer->id,
+            'rating' => 5,
+            'ulasan' => 'Sangat baik',
+            'reviewed_at' => now(),
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasRecommended->id,
+            'periode_alokasi_id' => $periode->id,
+            'reviewer_user_id' => $reviewerKedua->id,
+            'rating' => 4,
+            'ulasan' => 'Baik',
+            'reviewed_at' => now(),
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasNotRecommended->id,
+            'periode_alokasi_id' => $periode->id,
+            'reviewer_user_id' => $reviewer->id,
+            'rating' => 1,
+            'ulasan' => 'Kurang',
+            'reviewed_at' => now(),
+        ]);
+
+        ReviewPetugas::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'petugas_id' => $petugasNotRecommended->id,
+            'periode_alokasi_id' => $periode->id,
+            'reviewer_user_id' => $reviewerKedua->id,
+            'rating' => 2,
+            'ulasan' => 'Perlu perbaikan',
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/create?kegiatan_id='.$kegiatan->hashed_id);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Alokasi/Create')
+            ->where('petugas_review_recommendations.has_review_data', true)
+            ->where("petugas_review_recommendations.by_petugas.{$petugasRecommended->id}.status", 'recommended')
+            ->where("petugas_review_recommendations.by_petugas.{$petugasNotRecommended->id}.status", 'not_recommended')
+            ->where("petugas_review_recommendations.by_petugas.{$petugasRecommended->id}.review_count", 2)
+            ->where("petugas_review_recommendations.by_petugas.{$petugasNotRecommended->id}.review_count", 2)
         );
     }
 }

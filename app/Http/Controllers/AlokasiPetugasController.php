@@ -15,6 +15,7 @@ use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
+use App\Models\ReviewPetugas;
 use App\Models\Sbml;
 use App\Models\Spk;
 use App\Services\ActiveYearService;
@@ -1047,6 +1048,8 @@ class AlokasiPetugasController extends Controller
         $petugasSuggestions = $this->buildPetugasSuggestions($kegiatans, $activeYear);
         $petugasUniqueKegiatanCounts = $this->buildPetugasUniqueKegiatanCounts($activeYear);
         $petugasAllocationCounts = $this->buildPetugasAllocationCounts($activeYear);
+        $petugasTotalHonor = $this->buildPetugasTotalHonorByYear($activeYear);
+        $petugasReviewRecommendations = $this->buildPetugasReviewRecommendations($activeYear);
 
         // Get existing allocations per petugas per bulan (for SBML toggle check)
         $existingAllocations = AlokasiPetugas::query()
@@ -1269,6 +1272,8 @@ class AlokasiPetugasController extends Controller
             'petugas_suggestions' => $petugasSuggestions,
             'petugas_unique_kegiatan_counts' => $petugasUniqueKegiatanCounts,
             'petugas_allocation_counts' => $petugasAllocationCounts,
+            'petugas_total_honor' => $petugasTotalHonor,
+            'petugas_review_recommendations' => $petugasReviewRecommendations,
         ]);
     }
 
@@ -1881,6 +1886,8 @@ class AlokasiPetugasController extends Controller
         $petugasSuggestions = $this->buildPetugasSuggestions(collect([$kegiatanWithRates]), $activeYear);
         $petugasUniqueKegiatanCounts = $this->buildPetugasUniqueKegiatanCounts($activeYear);
         $petugasAllocationCounts = $this->buildPetugasAllocationCounts($activeYear);
+        $petugasTotalHonor = $this->buildPetugasTotalHonorByYear($activeYear);
+        $petugasReviewRecommendations = $this->buildPetugasReviewRecommendations($activeYear);
 
         // Convert existing alokasi to format expected by Manage view
         $existingAlokasi = $periode->alokasiPetugas->map(function ($alok) {
@@ -2000,6 +2007,8 @@ class AlokasiPetugasController extends Controller
             'petugas_suggestions' => $petugasSuggestions,
             'petugas_unique_kegiatan_counts' => $petugasUniqueKegiatanCounts,
             'petugas_allocation_counts' => $petugasAllocationCounts,
+            'petugas_total_honor' => $petugasTotalHonor,
+            'petugas_review_recommendations' => $petugasReviewRecommendations,
             'isEditMode' => true,
             'isRevisiMode' => $isRevisiMode,
         ]);
@@ -2040,6 +2049,25 @@ class AlokasiPetugasController extends Controller
             ->groupBy('alokasi_petugas.petugas_id')
             ->pluck('allocation_count', 'alokasi_petugas.petugas_id')
             ->mapWithKeys(fn ($count, $petugasId) => [(int) $petugasId => (int) $count])
+            ->toArray();
+    }
+
+    /**
+     * Build total honor per petugas in active year.
+     *
+     * @return array<int, float>
+     */
+    private function buildPetugasTotalHonorByYear(int $activeYear): array
+    {
+        return AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+            ->selectRaw('alokasi_petugas.petugas_id')
+            ->selectRaw('SUM((CASE WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0) ELSE COALESCE(alokasi_petugas.total_honor, 0) END) + (CASE WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) ELSE COALESCE(alokasi_petugas.total_honor_listing, 0) END)) as total_honor_combined')
+            ->groupBy('alokasi_petugas.petugas_id')
+            ->pluck('total_honor_combined', 'alokasi_petugas.petugas_id')
+            ->mapWithKeys(fn ($total, $petugasId) => [(int) $petugasId => (float) $total])
             ->toArray();
     }
 
@@ -2111,6 +2139,72 @@ class AlokasiPetugasController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * Build review-based recommendation metadata per petugas.
+     *
+     * @return array{has_review_data: bool, global_avg_rating: float, by_petugas: array<int, array{review_count:int, avg_rating:float, balanced_score:float, status:string}>}
+     */
+    private function buildPetugasReviewRecommendations(int $activeYear): array
+    {
+        $activeStatuses = ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'];
+
+        $reviewRows = ReviewPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'review_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', $activeStatuses)
+            ->selectRaw('review_petugas.petugas_id')
+            ->selectRaw('COUNT(*) as review_count')
+            ->selectRaw('AVG(review_petugas.rating) as avg_rating')
+            ->groupBy('review_petugas.petugas_id')
+            ->get();
+
+        if ($reviewRows->isEmpty()) {
+            return [
+                'has_review_data' => false,
+                'global_avg_rating' => 0,
+                'by_petugas' => [],
+            ];
+        }
+
+        $globalAvgRating = (float) (ReviewPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'review_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', $activeStatuses)
+            ->avg('review_petugas.rating') ?? 0);
+
+        $byPetugas = $reviewRows
+            ->mapWithKeys(function ($row) use ($globalAvgRating) {
+                $reviewCount = (int) $row->review_count;
+                $avgRating = (float) $row->avg_rating;
+                $confidence = min(1, $reviewCount / 5);
+                $balancedScore = (($avgRating * 0.7) + ($globalAvgRating * 0.3)) * $confidence
+                    + ($globalAvgRating * (1 - $confidence));
+
+                $status = 'neutral';
+                if ($reviewCount >= 2 && $avgRating >= 4.0) {
+                    $status = 'recommended';
+                } elseif ($reviewCount >= 2 && $avgRating < 3.0) {
+                    $status = 'not_recommended';
+                }
+
+                return [
+                    (int) $row->petugas_id => [
+                        'review_count' => $reviewCount,
+                        'avg_rating' => round($avgRating, 2),
+                        'balanced_score' => round($balancedScore, 3),
+                        'status' => $status,
+                    ],
+                ];
+            })
+            ->toArray();
+
+        return [
+            'has_review_data' => true,
+            'global_avg_rating' => round($globalAvgRating, 2),
+            'by_petugas' => $byPetugas,
+        ];
     }
 
     /**

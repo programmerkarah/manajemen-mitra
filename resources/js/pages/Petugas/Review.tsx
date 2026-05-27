@@ -325,20 +325,21 @@ export default function Review({
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge
-                                                            variant={
-                                                                row.can_review_now
-                                                                    ? 'default'
-                                                                    : 'secondary'
-                                                            }
-                                                        >
-                                                            {row.can_review_now
-                                                                ? 'Bisa direview'
-                                                                : 'Belum bisa direview'}
-                                                        </Badge>
-                                                        {isFinal && (
+                                                        {isFinal ? (
                                                             <Badge variant="outline">
                                                                 Final
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge
+                                                                variant={
+                                                                    row.can_review_now
+                                                                        ? 'default'
+                                                                        : 'secondary'
+                                                                }
+                                                            >
+                                                                {row.can_review_now
+                                                                    ? 'Bisa direview'
+                                                                    : 'Belum bisa direview'}
                                                             </Badge>
                                                         )}
                                                         {!row.user_can_submit && (
