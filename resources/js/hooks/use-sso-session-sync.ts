@@ -251,6 +251,7 @@ export function useSsoSessionSync({
                 return;
             }
 
+            saveScrollState();
             setLastSyncAt(now);
             const iframe = getOrCreateSyncIframe();
             iframe.src = `${buildSyncUrl(reason)}&t=${now}`;
@@ -261,9 +262,10 @@ export function useSsoSessionSync({
                 return;
             }
 
-            const payload = event.data as
-                | { type?: string; status?: string }
-                | null;
+            const payload = event.data as {
+                type?: string;
+                status?: string;
+            } | null;
 
             if (payload?.type !== 'sso-sync-complete') {
                 return;
