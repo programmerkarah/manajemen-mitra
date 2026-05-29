@@ -1875,6 +1875,9 @@ class AlokasiPetugasController extends Controller
      */
     public function editPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): Response|RedirectResponse
     {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+        $bulanCandidates = array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
+
         // Check if this is revisi mode from session
         $isRevisiMode = $request->session()->get('is_revisi_mode', false);
 
@@ -1886,11 +1889,16 @@ class AlokasiPetugasController extends Controller
             // Load existing draft/perubahan periode for editing
             $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $tahun)
-                ->where('bulan', $bulan)
+                ->whereIn('bulan', $bulanCandidates)
                 ->whereIn('status', ['draft', 'perubahan'])
                 ->orderByDesc('revision_number')
                 ->with(['alokasiPetugas.petugas'])
-                ->firstOrFail();
+                ->first();
+
+            if (! $periode) {
+                return redirect()->route('alokasi.index')
+                    ->with('error', 'Periode alokasi tidak ditemukan atau tidak dapat diedit.');
+            }
         }
 
         if ($periode->alokasiPetugas->isEmpty()) {
@@ -1974,7 +1982,7 @@ class AlokasiPetugasController extends Controller
         $existingAllocations = AlokasiPetugas::query()
             ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
             ->where('pa.tahun', $tahun)
-            ->where('pa.bulan', $bulan)
+            ->whereIn('pa.bulan', $bulanCandidates)
             ->whereIn('pa.status', ['draft', 'dikirim', 'perubahan', 'direvisi'])
             ->where('pa.id', '!=', $periode->id)
             ->select('alokasi_petugas.petugas_id', 'pa.bulan', 'pa.tahun')
@@ -1998,7 +2006,7 @@ class AlokasiPetugasController extends Controller
         // Get used months for this kegiatan to prevent duplicates (exclude current month being edited)
         $usedMonths = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', '!=', $bulan)
+            ->whereNotIn('bulan', $bulanCandidates)
             ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
             ->pluck('bulan')
             ->map(fn ($b) => (int) $b)
@@ -2272,6 +2280,9 @@ class AlokasiPetugasController extends Controller
      */
     public function updatePeriode(Request $request, Kegiatan $kegiatan, string $tahun, string $bulan): RedirectResponse
     {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+        $bulanCandidates = array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
+
         // Convert tahun to int for consistency
         $tahun = (int) $tahun;
 
@@ -2481,7 +2492,7 @@ class AlokasiPetugasController extends Controller
 
                 $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                     ->where('tahun', $tahun)
-                    ->where('bulan', $bulan)
+                    ->whereIn('bulan', $bulanCandidates)
                     ->whereIn('status', ['draft', 'perubahan'])
                     ->orderByDesc('revision_number')
                     ->first();
