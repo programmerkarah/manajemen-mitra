@@ -29,7 +29,16 @@ class StoreAlokasiPetugasRequest extends FormRequest
             'rate_honor_id' => ['required', 'exists:rate_honor,id'],
             'bulan' => ['required', 'integer', 'min:1', 'max:12'],
             'tahun' => ['required', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
-            'jumlah_satuan' => ['required', 'integer', 'min:0'],
+            'jumlah_satuan' => [
+                'required',
+                'numeric',
+                'min:0',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($this->input('jenis_kegiatan') !== 'sensus' && $this->hasDecimalPart($value)) {
+                        $fail('Jumlah satuan untuk kegiatan survei harus bilangan bulat.');
+                    }
+                },
+            ],
             'jenis_kegiatan' => ['required', 'in:sensus,survei'],
             'status' => ['nullable', 'in:draft,diajukan,disetujui,ditolak'],
         ];
@@ -78,5 +87,16 @@ class StoreAlokasiPetugasRequest extends FormRequest
         if (! $this->has('status')) {
             $this->merge(['status' => 'draft']);
         }
+    }
+
+    private function hasDecimalPart(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        $numericValue = (float) $value;
+
+        return abs($numericValue - round($numericValue)) > 0.000001;
     }
 }

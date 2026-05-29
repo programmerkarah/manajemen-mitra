@@ -21,10 +21,10 @@ class AlokasiPetugas extends Model
     protected function casts(): array
     {
         return [
-            'jumlah_satuan' => 'integer',
+            'jumlah_satuan' => 'decimal:2',
             'total_honor' => 'decimal:2',
             'is_partial_payment' => 'boolean',
-            'partial_jumlah_satuan' => 'integer',
+            'partial_jumlah_satuan' => 'decimal:2',
             'estimasi_honor_partial' => 'decimal:2',
             'jumlah_satuan_listing' => 'integer',
             'total_honor_listing' => 'decimal:2',
@@ -74,13 +74,13 @@ class AlokasiPetugas extends Model
         return $this->hasMany(Spk::class);
     }
 
-    public function getEffectiveJumlahSatuan(): int
+    public function getEffectiveJumlahSatuan(): float
     {
         if ($this->is_partial_payment && $this->partial_jumlah_satuan !== null) {
-            return (int) $this->partial_jumlah_satuan;
+            return (float) $this->partial_jumlah_satuan;
         }
 
-        return (int) ($this->jumlah_satuan ?? 0);
+        return (float) ($this->jumlah_satuan ?? 0);
     }
 
     public function getEffectiveJumlahSatuanListing(): int

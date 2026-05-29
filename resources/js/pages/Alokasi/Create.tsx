@@ -35,6 +35,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tambah Alokasi', href: '/alokasi/create' },
 ];
 
+const SENSUS_EKONOMI_2026_NAME = 'sensus ekonomi 2026';
+const SENSUS_EKONOMI_2026_OB_FACTOR = 2.5;
+
 interface Kegiatan {
     pj_lainnya_id: number;
     id: string;
@@ -565,6 +568,28 @@ export default function Create({
     const selectedKegiatan = kegiatanOptions.find(
         (k) => String(k.id) === String(selectedKegiatanId),
     );
+    const isSensusEkonomi2026 = useMemo(() => {
+        if (!selectedKegiatan) {
+            return false;
+        }
+
+        return (
+            selectedKegiatan.jenis_kegiatan === 'sensus' &&
+            selectedKegiatan.nama_kegiatan.trim().toLowerCase() ===
+                SENSUS_EKONOMI_2026_NAME
+        );
+    }, [selectedKegiatan]);
+
+    const applySensusWorkloadFactor = useCallback(
+        (jumlahSatuan: number): number => {
+            if (!isSensusEkonomi2026 || jumlahSatuan <= 0) {
+                return jumlahSatuan;
+            }
+
+            return jumlahSatuan * SENSUS_EKONOMI_2026_OB_FACTOR;
+        },
+        [isSensusEkonomi2026],
+    );
 
     // Get budget info for selected kegiatan
     const currentBudget =
@@ -897,9 +922,10 @@ export default function Create({
             );
             if (!matchingRateHonor) return 0;
             const parsedJumlah = parseFloat(jumlahSatuan) || 0;
-            return matchingRateHonor.rate * parsedJumlah;
+            const effectiveJumlah = applySensusWorkloadFactor(parsedJumlah);
+            return matchingRateHonor.rate * effectiveJumlah;
         },
-        [selectedKegiatan, petugas],
+        [selectedKegiatan, petugas, applySensusWorkloadFactor],
     );
 
     // Calculate estimasi honor for listing phase
@@ -976,9 +1002,10 @@ export default function Create({
             );
             if (!matchingRateHonor) return 0;
             const parsedJumlah = parseFloat(partialJumlahSatuan) || 0;
-            return matchingRateHonor.rate * parsedJumlah;
+            const effectiveJumlah = applySensusWorkloadFactor(parsedJumlah);
+            return matchingRateHonor.rate * effectiveJumlah;
         },
-        [selectedKegiatan, petugas],
+        [selectedKegiatan, petugas, applySensusWorkloadFactor],
     );
 
     // Calculate estimasi honor for partial payment listing
@@ -3522,7 +3549,9 @@ export default function Create({
                                                             value={
                                                                 jenisKegiatan ===
                                                                 'sensus'
-                                                                    ? '1'
+                                                                    ? isSensusEkonomi2026
+                                                                        ? '2.5'
+                                                                        : '1'
                                                                     : item.jumlah_satuan
                                                             }
                                                             onChange={(e) =>
@@ -3551,8 +3580,12 @@ export default function Create({
                                                             'sensus' && (
                                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                                                 🔒 Beban tugas
-                                                                sensus otomatis
-                                                                1 (Orang/Bulan)
+                                                                sensus otomatis{' '}
+                                                                {isSensusEkonomi2026
+                                                                    ? '2,5'
+                                                                    : '1'}{' '}
+                                                                OB per
+                                                                petugas/bulan
                                                             </p>
                                                         )}
                                                     </div>

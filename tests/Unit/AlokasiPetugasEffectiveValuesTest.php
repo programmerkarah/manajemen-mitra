@@ -18,7 +18,7 @@ class AlokasiPetugasEffectiveValuesTest extends TestCase
             'is_partial_payment_listing' => false,
         ]);
 
-        $this->assertSame(8, $alokasi->getEffectiveJumlahSatuan());
+        $this->assertSame(8.0, $alokasi->getEffectiveJumlahSatuan());
         $this->assertSame(3, $alokasi->getEffectiveJumlahSatuanListing());
         $this->assertSame(40000.0, $alokasi->getEffectiveTotalHonor());
         $this->assertSame(15000.0, $alokasi->getEffectiveTotalHonorListing());
@@ -40,7 +40,7 @@ class AlokasiPetugasEffectiveValuesTest extends TestCase
             'is_partial_payment_listing' => true,
         ]);
 
-        $this->assertSame(2, $alokasi->getEffectiveJumlahSatuan());
+        $this->assertSame(2.0, $alokasi->getEffectiveJumlahSatuan());
         $this->assertSame(1, $alokasi->getEffectiveJumlahSatuanListing());
         $this->assertSame(10000.0, $alokasi->getEffectiveTotalHonor());
         $this->assertSame(5000.0, $alokasi->getEffectiveTotalHonorListing());

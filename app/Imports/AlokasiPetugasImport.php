@@ -3,7 +3,9 @@
 namespace App\Imports;
 
 use App\Models\AlokasiPetugas;
+use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use Closure;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -38,6 +40,12 @@ class AlokasiPetugasImport implements WithMultipleSheets
     public function processRows(Collection $rows): void
     {
         $rowNumber = 1;
+        $allowDecimalPencacahan = PeriodeAlokasi::query()
+            ->whereKey($this->periodeAlokasiId)
+            ->with('kegiatan:id,jenis_kegiatan')
+            ->first()
+            ?->kegiatan
+            ?->jenis_kegiatan === 'sensus';
 
         // Delete existing entries if this is an edit operation
         if (! $this->isCreate) {
@@ -65,16 +73,18 @@ class AlokasiPetugasImport implements WithMultipleSheets
             // Map display labels to database values
             $status_kepegawaian = $this->mapStatusKepegawaian($row['status_kepegawaian'] ?? '');
             $peran = $this->mapPeran((string) $this->extractPeranCellValue($row));
+            $jumlahSatuanRaw = $row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0;
+            $partialJumlahSatuanRaw = $row['jumlah_satuan_parsial'] ?? null;
 
             $data = [
                 'periode_alokasi_id' => $this->periodeAlokasiId,
                 'petugas_id' => $petugas->id,
                 'status_kepegawaian' => $status_kepegawaian,
                 'peran' => $peran,
-                'jumlah_satuan' => isset($row['jumlah_satuan_pencacahan']) ? (int) str_replace(['.', ','], ['', ''], trim((string) $row['jumlah_satuan_pencacahan'])) : 0,
+                'jumlah_satuan' => $this->parseImportSatuan($jumlahSatuanRaw),
                 'total_honor' => isset($row['honor_pencacahan']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_pencacahan'])) : 0,
                 'is_partial_payment' => strtolower(trim($row['pembayaran_parsial'] ?? 'tidak')) === 'ya',
-                'partial_jumlah_satuan' => isset($row['jumlah_satuan_parsial']) ? (int) str_replace(['.', ','], ['', ''], trim((string) $row['jumlah_satuan_parsial'])) : null,
+                'partial_jumlah_satuan' => $this->parseImportSatuan($partialJumlahSatuanRaw, true),
                 'estimasi_honor_partial' => isset($row['honor_parsial']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_parsial'])) : null,
                 'jumlah_satuan_listing' => isset($row['jumlah_satuan_listing']) ? (int) str_replace(['.', ','], ['', ''], trim((string) $row['jumlah_satuan_listing'])) : null,
                 'total_honor_listing' => isset($row['honor_listing']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_listing'])) : null,
@@ -89,10 +99,28 @@ class AlokasiPetugasImport implements WithMultipleSheets
                 'petugas_id' => ['required', 'exists:petugas,id'],
                 'status_kepegawaian' => ['required', Rule::in(['organik', 'non_organik'])],
                 'peran' => ['required', Rule::in(['pcl_ppl', 'pml', 'pengolahan', 'pengawas_pengolahan', 'koseka'])],
-                'jumlah_satuan' => ['required', 'integer', 'min:0'],
+                'jumlah_satuan' => [
+                    'required',
+                    'numeric',
+                    'min:0',
+                    function (string $attribute, mixed $value, Closure $fail) use ($allowDecimalPencacahan): void {
+                        if (! $allowDecimalPencacahan && $this->hasDecimalPart($value)) {
+                            $fail('Jumlah Satuan Pencacahan desimal hanya diperbolehkan untuk kegiatan sensus.');
+                        }
+                    },
+                ],
                 'total_honor' => ['required', 'numeric', 'min:0'],
                 'is_partial_payment' => ['boolean'],
-                'partial_jumlah_satuan' => ['nullable', 'integer', 'min:0'],
+                'partial_jumlah_satuan' => [
+                    'nullable',
+                    'numeric',
+                    'min:0',
+                    function (string $attribute, mixed $value, Closure $fail) use ($allowDecimalPencacahan): void {
+                        if (! $allowDecimalPencacahan && $this->hasDecimalPart($value)) {
+                            $fail('Jumlah Satuan Parsial desimal hanya diperbolehkan untuk kegiatan sensus.');
+                        }
+                    },
+                ],
                 'estimasi_honor_partial' => ['nullable', 'numeric', 'min:0'],
                 'jumlah_satuan_listing' => ['nullable', 'integer', 'min:0'],
                 'total_honor_listing' => ['nullable', 'numeric', 'min:0'],
@@ -282,6 +310,47 @@ class AlokasiPetugasImport implements WithMultipleSheets
         }
 
         return '';
+    }
+
+    private function parseImportSatuan(mixed $value, bool $nullable = false): ?float
+    {
+        $stringValue = trim((string) $value);
+
+        if ($stringValue === '') {
+            return $nullable ? null : 0.0;
+        }
+
+        $normalized = str_replace(' ', '', $stringValue);
+        $lastComma = strrpos($normalized, ',');
+        $lastDot = strrpos($normalized, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                $normalized = str_replace('.', '', $normalized);
+                $normalized = str_replace(',', '.', $normalized);
+            } else {
+                $normalized = str_replace(',', '', $normalized);
+            }
+        } elseif ($lastComma !== false) {
+            $normalized = str_replace(',', '.', $normalized);
+        }
+
+        if (! is_numeric($normalized)) {
+            return $nullable ? null : 0.0;
+        }
+
+        return max(0.0, (float) $normalized);
+    }
+
+    private function hasDecimalPart(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        $numericValue = (float) $value;
+
+        return abs($numericValue - round($numericValue)) > 0.000001;
     }
 }
 

@@ -350,22 +350,29 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.peran' => 'required|string|in:PCL,PML,Koseka,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
-            'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
+            'alokasi.*.jumlah_satuan' => 'required|numeric|min:0',
             'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
             'alokasi.*.is_partial_payment' => 'nullable|boolean',
-            'alokasi.*.partial_jumlah_satuan' => 'nullable|integer|min:0',
+            'alokasi.*.partial_jumlah_satuan' => 'nullable|numeric|min:0',
             'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
             'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
         ]);
 
+        $decimalValidationErrors = $this->validateDecimalSatuanRules($validated['alokasi']);
+        if (! empty($decimalValidationErrors)) {
+            return back()->withErrors([
+                'decimal_validation' => implode("\n", array_unique($decimalValidationErrors)),
+            ])->withInput();
+        }
+
         $partialValidationErrors = [];
         foreach ($validated['alokasi'] as $alokasiData) {
             $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
-            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : 0;
-            $jumlahSatuan = (int) ($alokasiData['jumlah_satuan'] ?? 0);
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (float) $alokasiData['partial_jumlah_satuan'] : 0;
+            $jumlahSatuan = (float) ($alokasiData['jumlah_satuan'] ?? 0);
 
             if ($isPartialPayment && $partialJumlahSatuan > $jumlahSatuan) {
                 $partialValidationErrors[] = 'Jumlah beban tugas parsial pencacahan tidak boleh melebihi jumlah beban tugas awal.';
@@ -532,7 +539,11 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $totalHonor = $rateHonor->rate * $alokasiData['jumlah_satuan'];
+            $pencacahanWorkload = $this->resolvePencacahanWorkload(
+                $kegiatan,
+                (float) ($alokasiData['jumlah_satuan'] ?? 0)
+            );
+            $totalHonor = $rateHonor->rate * $pencacahanWorkload;
 
             // Calculate listing honor if kegiatan has listing phase
             $totalHonorListing = 0;
@@ -545,11 +556,15 @@ class AlokasiPetugasController extends Controller
             }
 
             $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
-            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : null;
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (float) $alokasiData['partial_jumlah_satuan'] : null;
             $estimasiHonorPartial = null;
 
             if ($isPartialPayment && $partialJumlahSatuan !== null) {
-                $estimasiHonorPartial = $rateHonor->rate * $partialJumlahSatuan;
+                $partialWorkload = $this->resolvePencacahanWorkload(
+                    $kegiatan,
+                    (float) $partialJumlahSatuan
+                );
+                $estimasiHonorPartial = $rateHonor->rate * $partialWorkload;
             }
 
             $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
@@ -1288,7 +1303,11 @@ class AlokasiPetugasController extends Controller
 
         // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
-        $totalHonor = $rateHonor->rate * $data['jumlah_satuan'];
+        $pencacahanWorkload = $this->resolvePencacahanWorkload(
+            $kegiatan,
+            (float) ($data['jumlah_satuan'] ?? 0)
+        );
+        $totalHonor = $rateHonor->rate * $pencacahanWorkload;
 
         // Calculate total honor for listing if present
         $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
@@ -1397,7 +1416,11 @@ class AlokasiPetugasController extends Controller
 
         // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
-        $totalHonor = $rateHonor->rate * $data['jumlah_satuan'];
+        $pencacahanWorkload = $this->resolvePencacahanWorkload(
+            $kegiatan,
+            (float) ($data['jumlah_satuan'] ?? 0)
+        );
+        $totalHonor = $rateHonor->rate * $pencacahanWorkload;
 
         // Calculate total honor for listing if present
         $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
@@ -2239,13 +2262,13 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.peran' => 'required|string|in:PCL,PML,Koseka,Pengolahan,Petugas Pengolahan,Pengawas Pengolahan',
             'alokasi.*.bulan' => 'required|integer|min:1|max:12',
             'alokasi.*.tahun' => 'required|integer|min:2020|max:2099',
-            'alokasi.*.jumlah_satuan' => 'required|integer|min:0',
+            'alokasi.*.jumlah_satuan' => 'required|numeric|min:0',
             'alokasi.*.jumlah_satuan_listing' => 'nullable|integer|min:0',
             'alokasi.*.jenis_kegiatan' => 'required|in:sensus,survei',
             'alokasi.*.tahapan' => 'nullable|in:both,listing_only,pencacahan_only',
             'alokasi.*.catatan' => 'nullable|string',
             'alokasi.*.is_partial_payment' => 'nullable|boolean',
-            'alokasi.*.partial_jumlah_satuan' => 'nullable|integer|min:0',
+            'alokasi.*.partial_jumlah_satuan' => 'nullable|numeric|min:0',
             'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
             'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
             'tanggal_mulai' => 'nullable|date',
@@ -2262,6 +2285,13 @@ class AlokasiPetugasController extends Controller
             'jadwal_pengolahan_listing_selesai.after_or_equal' => 'Tanggal selesai pengolahan listing harus setelah atau sama dengan tanggal mulai.',
             'jadwal_pengolahan_pencacahan_selesai.after_or_equal' => 'Tanggal selesai pengolahan pencacahan harus setelah atau sama dengan tanggal mulai.',
         ]);
+
+        $decimalValidationErrors = $this->validateDecimalSatuanRules($validated['alokasi']);
+        if (! empty($decimalValidationErrors)) {
+            return redirect()->back()->withErrors([
+                'decimal_validation' => implode("\n", array_unique($decimalValidationErrors)),
+            ])->withInput();
+        }
 
         // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
         // Use the new bulan/tahun from form data (user may have changed the period)
@@ -2311,8 +2341,8 @@ class AlokasiPetugasController extends Controller
         $partialValidationErrors = [];
         foreach ($validated['alokasi'] as $alokasiData) {
             $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
-            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : 0;
-            $jumlahSatuan = (int) ($alokasiData['jumlah_satuan'] ?? 0);
+            $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (float) $alokasiData['partial_jumlah_satuan'] : 0;
+            $jumlahSatuan = (float) ($alokasiData['jumlah_satuan'] ?? 0);
 
             if ($isPartialPayment && $partialJumlahSatuan > $jumlahSatuan) {
                 $partialValidationErrors[] = 'Jumlah beban tugas parsial pencacahan tidak boleh melebihi jumlah beban tugas awal.';
@@ -2351,7 +2381,7 @@ class AlokasiPetugasController extends Controller
                     return [
                         'petugas_id' => (int) $a->petugas_id,
                         'peran' => $a->peran,
-                        'jumlah_satuan' => (int) $a->jumlah_satuan,
+                        'jumlah_satuan' => (float) $a->jumlah_satuan,
                     ];
                 })->sortBy('petugas_id')->values()->all();
 
@@ -2367,7 +2397,7 @@ class AlokasiPetugasController extends Controller
                             'Pengawas Pengolahan' => 'pengawas_pengolahan',
                             default => null,
                         },
-                        'jumlah_satuan' => (int) $a['jumlah_satuan'],
+                        'jumlah_satuan' => (float) $a['jumlah_satuan'],
                     ];
                 })->sortBy('petugas_id')->values()->all();
 
@@ -2477,7 +2507,11 @@ class AlokasiPetugasController extends Controller
                 }
 
                 // Calculate pencacahan honor (can be 0 if listing_only)
-                $totalHonor = $rateHonor->rate * $alokasiData['jumlah_satuan'];
+                $pencacahanWorkload = $this->resolvePencacahanWorkload(
+                    $kegiatan,
+                    (float) ($alokasiData['jumlah_satuan'] ?? 0)
+                );
+                $totalHonor = $rateHonor->rate * $pencacahanWorkload;
 
                 // Calculate listing honor if kegiatan has listing phase
                 $totalHonorListing = 0;
@@ -2490,11 +2524,15 @@ class AlokasiPetugasController extends Controller
                 }
 
                 $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
-                $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (int) $alokasiData['partial_jumlah_satuan'] : null;
+                $partialJumlahSatuan = isset($alokasiData['partial_jumlah_satuan']) ? (float) $alokasiData['partial_jumlah_satuan'] : null;
                 $estimasiHonorPartial = null;
 
                 if ($isPartialPayment && $partialJumlahSatuan !== null) {
-                    $estimasiHonorPartial = $rateHonor->rate * $partialJumlahSatuan;
+                    $partialWorkload = $this->resolvePencacahanWorkload(
+                        $kegiatan,
+                        (float) $partialJumlahSatuan
+                    );
+                    $estimasiHonorPartial = $rateHonor->rate * $partialWorkload;
                 }
 
                 $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
@@ -3089,6 +3127,40 @@ class AlokasiPetugasController extends Controller
         }
     }
 
+    private function validateDecimalSatuanRules(array $alokasiItems): array
+    {
+        $errors = [];
+
+        foreach ($alokasiItems as $index => $alokasiData) {
+            $jenisKegiatan = $alokasiData['jenis_kegiatan'] ?? null;
+            if ($jenisKegiatan === 'sensus') {
+                continue;
+            }
+
+            if ($this->hasDecimalPart($alokasiData['jumlah_satuan'] ?? null)) {
+                $errors[] = 'Baris alokasi #'.($index + 1).': jumlah satuan desimal hanya diperbolehkan untuk kegiatan sensus.';
+            }
+
+            $isPartialPayment = (bool) ($alokasiData['is_partial_payment'] ?? false);
+            if ($isPartialPayment && $this->hasDecimalPart($alokasiData['partial_jumlah_satuan'] ?? null)) {
+                $errors[] = 'Baris alokasi #'.($index + 1).': jumlah satuan parsial desimal hanya diperbolehkan untuk kegiatan sensus.';
+            }
+        }
+
+        return $errors;
+    }
+
+    private function hasDecimalPart(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        $numericValue = (float) $value;
+
+        return abs($numericValue - round($numericValue)) > 0.000001;
+    }
+
     /**
      * Check if total honor exceeds SBML maximum constraint
      */
@@ -3115,6 +3187,25 @@ class AlokasiPetugasController extends Controller
         }
 
         return null;
+    }
+
+    private function resolvePencacahanWorkload(Kegiatan $kegiatan, float $jumlahSatuan): float
+    {
+        if ($jumlahSatuan <= 0) {
+            return 0;
+        }
+
+        if ($this->isSensusEkonomi2026($kegiatan)) {
+            return $jumlahSatuan * 2.5;
+        }
+
+        return $jumlahSatuan;
+    }
+
+    private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
+    {
+        return $kegiatan->jenis_kegiatan === 'sensus'
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi 2026';
     }
 
     /**
@@ -3412,6 +3503,7 @@ class AlokasiPetugasController extends Controller
             ->where('status', 'aktif')
             ->get()
             ->keyBy(fn ($rate) => $rate->status_kepegawaian.'|'.$rate->jenis_penugasan);
+        $allowDecimalPencacahan = $kegiatan->jenis_kegiatan === 'sensus';
 
         // NIK is encrypted in the DB — load all petugas and build a decrypted NIK → Petugas map.
         $petugasByNik = Petugas::query()
@@ -3456,8 +3548,15 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $jumlahSatuanPencacahan = $this->parseImportInteger($row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0);
+            $jumlahSatuanRaw = $row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0;
+            $jumlahSatuanPencacahan = $this->parseImportSatuan($jumlahSatuanRaw);
             $jumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_listing'] ?? 0);
+
+            if (! $allowDecimalPencacahan && $this->hasDecimalPart($jumlahSatuanPencacahan)) {
+                $errors[] = "Baris {$rowNumber}: Jumlah satuan pencacahan desimal hanya diperbolehkan untuk kegiatan sensus.";
+
+                continue;
+            }
 
             if ($tahapan === 'listing_only') {
                 $jumlahSatuanPencacahan = 0;
@@ -3468,8 +3567,15 @@ class AlokasiPetugasController extends Controller
             }
 
             $isPartialPayment = $this->parseImportBoolean($row['pembayaran_parsial'] ?? false);
-            $partialJumlahSatuan = $this->parseImportInteger($row['jumlah_satuan_parsial_pencacahan'] ?? $row['jumlah_satuan_parsial'] ?? 0);
+            $partialJumlahSatuanRaw = $row['jumlah_satuan_parsial_pencacahan'] ?? $row['jumlah_satuan_parsial'] ?? 0;
+            $partialJumlahSatuan = $this->parseImportSatuan($partialJumlahSatuanRaw);
             $partialJumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_parsial_listing'] ?? 0);
+
+            if ($isPartialPayment && ! $allowDecimalPencacahan && $this->hasDecimalPart($partialJumlahSatuan)) {
+                $errors[] = "Baris {$rowNumber}: Jumlah satuan parsial pencacahan desimal hanya diperbolehkan untuk kegiatan sensus.";
+
+                continue;
+            }
 
             if (! $isPartialPayment) {
                 $partialJumlahSatuan = 0;
@@ -3695,6 +3801,36 @@ class AlokasiPetugasController extends Controller
         }
 
         return false;
+    }
+
+    private function parseImportSatuan(mixed $value): float
+    {
+        $stringValue = trim((string) $value);
+
+        if ($stringValue === '') {
+            return 0.0;
+        }
+
+        $normalized = str_replace(' ', '', $stringValue);
+        $lastComma = strrpos($normalized, ',');
+        $lastDot = strrpos($normalized, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                $normalized = str_replace('.', '', $normalized);
+                $normalized = str_replace(',', '.', $normalized);
+            } else {
+                $normalized = str_replace(',', '', $normalized);
+            }
+        } elseif ($lastComma !== false) {
+            $normalized = str_replace(',', '.', $normalized);
+        }
+
+        if (! is_numeric($normalized)) {
+            return 0.0;
+        }
+
+        return max(0.0, (float) $normalized);
     }
 
     private function parseImportInteger(mixed $value): int
