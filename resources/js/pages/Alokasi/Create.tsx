@@ -201,7 +201,6 @@ export default function Create({
     sourcePeriode,
     budget_info,
     used_months_info,
-    existing_allocations,
     petugas_suggestions = {},
     petugas_unique_kegiatan_counts = {},
     petugas_allocation_counts = {},
@@ -1025,100 +1024,6 @@ export default function Create({
             return matchingRateHonor.rate_listing * parsedJumlahListing;
         },
         [selectedKegiatan, petugas],
-    );
-
-    // Show partial payment toggle when full estimated honor exceeds SBML,
-    // and keep it visible after the user enables partial payment.
-    const shouldShowPartialPaymentToggle = useCallback(
-        (item: AlokasiItem, currentIndex?: number): boolean => {
-            if (!selectedKegiatan || !item.petugas_id || !item.peran) {
-                return false;
-            }
-
-            const petugas_ = petugas.find(
-                (p) => String(p.id) === String(item.petugas_id),
-            );
-            if (!petugas_) {
-                return false;
-            }
-
-            const statusKepegawaian =
-                petugas_.jenis_petugas === 'organik'
-                    ? 'organik'
-                    : 'non_organik';
-
-            // Map frontend peran to backend jenis_penugasan
-            let jenisPenugasan = '';
-            if (item.peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-            else if (item.peran === 'PML') jenisPenugasan = 'pml';
-            else if (item.peran === 'Petugas Pengolahan')
-                jenisPenugasan = 'pengolahan';
-            else if (item.peran === 'Pengawas Pengolahan')
-                jenisPenugasan = 'pengawas_pengolahan';
-            else if (item.peran === 'Koseka') jenisPenugasan = 'koseka';
-
-            if (!jenisPenugasan) {
-                return false;
-            }
-
-            const matchingRateHonor = selectedKegiatan.rate_honors?.find(
-                (r) =>
-                    r.status_kepegawaian === statusKepegawaian &&
-                    r.jenis_penugasan === jenisPenugasan,
-            );
-
-            if (!matchingRateHonor || !matchingRateHonor.sbml_limit) {
-                return false;
-            }
-
-            if (item.is_partial_payment || item.is_partial_payment_listing) {
-                return true;
-            }
-
-            const petugasIdNum = parseInt(String(item.petugas_id), 10);
-            const existingAllocation = existing_allocations.find(
-                (a) =>
-                    a.petugas_id === petugasIdNum &&
-                    a.tahun === Number(active_year) &&
-                    a.bulan === Number(bulan),
-            );
-
-            const existingHonor = existingAllocation?.total_honor_combined || 0;
-            const currentFormHonor = alokasiItems.reduce(
-                (sum, row, rowIndex) => {
-                    if (String(row.petugas_id) !== String(item.petugas_id)) {
-                        return sum;
-                    }
-
-                    const activeRow =
-                        typeof currentIndex === 'number' &&
-                        rowIndex === currentIndex
-                            ? item
-                            : row;
-
-                    const pencacahanHonor = activeRow.is_partial_payment
-                        ? Number(activeRow.estimasi_honor_partial || 0)
-                        : Number(activeRow.estimasi_honor || 0);
-                    const listingHonor = activeRow.is_partial_payment_listing
-                        ? Number(activeRow.estimasi_honor_partial_listing || 0)
-                        : Number(activeRow.estimasi_honor_listing || 0);
-
-                    return sum + pencacahanHonor + listingHonor;
-                },
-                0,
-            );
-            const totalHonor = existingHonor + currentFormHonor;
-
-            return totalHonor > matchingRateHonor.sbml_limit;
-        },
-        [
-            selectedKegiatan,
-            petugas,
-            existing_allocations,
-            active_year,
-            bulan,
-            alokasiItems,
-        ],
     );
 
     // Set jenisKegiatan from selectedKegiatan and recalculate estimasi
@@ -3462,142 +3367,134 @@ export default function Create({
                                                         </div>
 
                                                         {/* Pembayaran Parsial Listing */}
-                                                        {shouldShowPartialPaymentToggle(
-                                                            item,
-                                                            index,
-                                                        ) && (
-                                                            <>
-                                                                <div className="space-y-2 md:col-span-4">
-                                                                    <div className="flex items-center justify-between">
+                                                        <>
+                                                            <div className="space-y-2 md:col-span-4">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label
+                                                                        htmlFor={`partial_payment_listing_${index}`}
+                                                                    >
+                                                                        Pembayaran
+                                                                        Parsial
+                                                                        Listing?
+                                                                    </Label>
+                                                                    <Switch
+                                                                        id={`partial_payment_listing_${index}`}
+                                                                        checked={
+                                                                            item.is_partial_payment_listing ||
+                                                                            false
+                                                                        }
+                                                                        onCheckedChange={(
+                                                                            checked: boolean,
+                                                                        ) => {
+                                                                            updateAlokasiItem(
+                                                                                index,
+                                                                                'is_partial_payment_listing',
+                                                                                checked,
+                                                                            );
+                                                                        }}
+                                                                        disabled={
+                                                                            isViewMode
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                    Aktifkan
+                                                                    jika honor
+                                                                    listing yang
+                                                                    dibayarkan
+                                                                    berbeda dari
+                                                                    estimasi
+                                                                </p>
+                                                            </div>
+
+                                                            {item.is_partial_payment_listing && (
+                                                                <>
+                                                                    <div className="space-y-2 md:col-span-4">
                                                                         <Label
-                                                                            htmlFor={`partial_payment_listing_${index}`}
+                                                                            htmlFor={`partial_jumlah_satuan_listing_value_${index}`}
                                                                         >
-                                                                            Pembayaran
-                                                                            Parsial
-                                                                            Listing?
+                                                                            Jumlah
+                                                                            Beban
+                                                                            Tugas
+                                                                            Listing
+                                                                            Parsial{' '}
+                                                                            <span className="text-red-500">
+                                                                                *
+                                                                            </span>
                                                                         </Label>
-                                                                        <Switch
-                                                                            id={`partial_payment_listing_${index}`}
-                                                                            checked={
-                                                                                item.is_partial_payment_listing ||
-                                                                                false
+                                                                        <Input
+                                                                            type="number"
+                                                                            id={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                            value={
+                                                                                item.partial_jumlah_satuan_listing ||
+                                                                                ''
                                                                             }
-                                                                            onCheckedChange={(
-                                                                                checked: boolean,
-                                                                            ) => {
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
                                                                                 updateAlokasiItem(
                                                                                     index,
-                                                                                    'is_partial_payment_listing',
-                                                                                    checked,
-                                                                                );
-                                                                            }}
+                                                                                    'partial_jumlah_satuan_listing',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            min="0"
+                                                                            max={
+                                                                                item.jumlah_satuan_listing ||
+                                                                                undefined
+                                                                            }
+                                                                            placeholder="0"
                                                                             disabled={
                                                                                 isViewMode
                                                                             }
                                                                         />
+                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                            Maksimal:{' '}
+                                                                            {item.jumlah_satuan_listing ||
+                                                                                0}{' '}
+                                                                            (jumlah
+                                                                            beban
+                                                                            tugas
+                                                                            listing
+                                                                            awal)
+                                                                        </p>
                                                                     </div>
-                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                        Aktifkan
-                                                                        jika
-                                                                        honor
-                                                                        listing
-                                                                        yang
-                                                                        dibayarkan
-                                                                        berbeda
-                                                                        dari
-                                                                        estimasi
-                                                                    </p>
-                                                                </div>
 
-                                                                {item.is_partial_payment_listing && (
-                                                                    <>
-                                                                        <div className="space-y-2 md:col-span-4">
-                                                                            <Label
-                                                                                htmlFor={`partial_jumlah_satuan_listing_value_${index}`}
-                                                                            >
-                                                                                Jumlah
-                                                                                Beban
-                                                                                Tugas
-                                                                                Listing
-                                                                                Parsial{' '}
-                                                                                <span className="text-red-500">
-                                                                                    *
-                                                                                </span>
-                                                                            </Label>
-                                                                            <Input
-                                                                                type="number"
-                                                                                id={`partial_jumlah_satuan_listing_value_${index}`}
-                                                                                value={
-                                                                                    item.partial_jumlah_satuan_listing ||
-                                                                                    ''
-                                                                                }
-                                                                                onChange={(
-                                                                                    e,
-                                                                                ) =>
-                                                                                    updateAlokasiItem(
-                                                                                        index,
-                                                                                        'partial_jumlah_satuan_listing',
-                                                                                        e
-                                                                                            .target
-                                                                                            .value,
-                                                                                    )
-                                                                                }
-                                                                                min="0"
-                                                                                max={
-                                                                                    item.jumlah_satuan_listing ||
-                                                                                    undefined
-                                                                                }
-                                                                                placeholder="0"
-                                                                                disabled={
-                                                                                    isViewMode
-                                                                                }
-                                                                            />
-                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                                Maksimal:{' '}
-                                                                                {item.jumlah_satuan_listing ||
-                                                                                    0}{' '}
-                                                                                (jumlah
-                                                                                beban
-                                                                                tugas
-                                                                                listing
-                                                                                awal)
-                                                                            </p>
-                                                                        </div>
-
-                                                                        <div className="space-y-2 md:col-span-4">
-                                                                            <Label
-                                                                                htmlFor={`estimasi_honor_partial_listing_${index}`}
-                                                                            >
-                                                                                Estimasi
-                                                                                Honor
-                                                                                Listing
-                                                                                Parsial
-                                                                            </Label>
-                                                                            <Input
-                                                                                type="text"
-                                                                                id={`estimasi_honor_partial_listing_${index}`}
-                                                                                value={formatCurrency(
-                                                                                    item.estimasi_honor_partial_listing ||
-                                                                                        0,
-                                                                                )}
-                                                                                readOnly
-                                                                                className="bg-neutral-50 dark:bg-neutral-900"
-                                                                            />
-                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                                Dihitung
-                                                                                otomatis
-                                                                                berdasarkan
-                                                                                jumlah
-                                                                                beban
-                                                                                tugas
-                                                                                listing
-                                                                                parsial
-                                                                            </p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        )}
+                                                                    <div className="space-y-2 md:col-span-4">
+                                                                        <Label
+                                                                            htmlFor={`estimasi_honor_partial_listing_${index}`}
+                                                                        >
+                                                                            Estimasi
+                                                                            Honor
+                                                                            Listing
+                                                                            Parsial
+                                                                        </Label>
+                                                                        <Input
+                                                                            type="text"
+                                                                            id={`estimasi_honor_partial_listing_${index}`}
+                                                                            value={formatCurrency(
+                                                                                item.estimasi_honor_partial_listing ||
+                                                                                    0,
+                                                                            )}
+                                                                            readOnly
+                                                                            className="bg-neutral-50 dark:bg-neutral-900"
+                                                                        />
+                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                            Dihitung
+                                                                            otomatis
+                                                                            berdasarkan
+                                                                            jumlah
+                                                                            beban
+                                                                            tugas
+                                                                            listing
+                                                                            parsial
+                                                                        </p>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </>
                                                     </>
                                                 )}
 
@@ -3682,134 +3579,128 @@ export default function Create({
                                                     </div>
 
                                                     {/* Pembayaran Parsial Pencacahan */}
-                                                    {shouldShowPartialPaymentToggle(
-                                                        item,
-                                                        index,
-                                                    ) && (
-                                                        <>
-                                                            <div className="space-y-2 md:col-span-4">
-                                                                <div className="flex items-center justify-between">
+                                                    <>
+                                                        <div className="space-y-2 md:col-span-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label
+                                                                    htmlFor={`partial_payment_${index}`}
+                                                                >
+                                                                    Pembayaran
+                                                                    Parsial?
+                                                                </Label>
+                                                                <Switch
+                                                                    id={`partial_payment_${index}`}
+                                                                    checked={
+                                                                        item.is_partial_payment ||
+                                                                        false
+                                                                    }
+                                                                    onCheckedChange={(
+                                                                        checked: boolean,
+                                                                    ) => {
+                                                                        updateAlokasiItem(
+                                                                            index,
+                                                                            'is_partial_payment',
+                                                                            checked,
+                                                                        );
+                                                                    }}
+                                                                    disabled={
+                                                                        isViewMode
+                                                                    }
+                                                                />
+                                                            </div>
+                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                Aktifkan jika
+                                                                honor yang
+                                                                dibayarkan
+                                                                berbeda dari
+                                                                estimasi
+                                                            </p>
+                                                        </div>
+
+                                                        {item.is_partial_payment && (
+                                                            <>
+                                                                <div className="space-y-2 md:col-span-4">
                                                                     <Label
-                                                                        htmlFor={`partial_payment_${index}`}
+                                                                        htmlFor={`partial_jumlah_satuan_value_${index}`}
                                                                     >
-                                                                        Pembayaran
-                                                                        Parsial?
+                                                                        Jumlah
+                                                                        Beban
+                                                                        Tugas
+                                                                        Parsial{' '}
+                                                                        <span className="text-red-500">
+                                                                            *
+                                                                        </span>
                                                                     </Label>
-                                                                    <Switch
-                                                                        id={`partial_payment_${index}`}
-                                                                        checked={
-                                                                            item.is_partial_payment ||
-                                                                            false
+                                                                    <Input
+                                                                        type="number"
+                                                                        id={`partial_jumlah_satuan_value_${index}`}
+                                                                        value={
+                                                                            item.partial_jumlah_satuan ||
+                                                                            ''
                                                                         }
-                                                                        onCheckedChange={(
-                                                                            checked: boolean,
-                                                                        ) => {
+                                                                        onChange={(
+                                                                            e,
+                                                                        ) =>
                                                                             updateAlokasiItem(
                                                                                 index,
-                                                                                'is_partial_payment',
-                                                                                checked,
-                                                                            );
-                                                                        }}
+                                                                                'partial_jumlah_satuan',
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                        }
+                                                                        min="0"
+                                                                        max={
+                                                                            item.jumlah_satuan ||
+                                                                            undefined
+                                                                        }
+                                                                        placeholder="0"
                                                                         disabled={
                                                                             isViewMode
                                                                         }
                                                                     />
+                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Maksimal:{' '}
+                                                                        {item.jumlah_satuan ||
+                                                                            0}{' '}
+                                                                        (jumlah
+                                                                        beban
+                                                                        tugas
+                                                                        awal)
+                                                                    </p>
                                                                 </div>
-                                                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                    Aktifkan
-                                                                    jika honor
-                                                                    yang
-                                                                    dibayarkan
-                                                                    berbeda dari
-                                                                    estimasi
-                                                                </p>
-                                                            </div>
 
-                                                            {item.is_partial_payment && (
-                                                                <>
-                                                                    <div className="space-y-2 md:col-span-4">
-                                                                        <Label
-                                                                            htmlFor={`partial_jumlah_satuan_value_${index}`}
-                                                                        >
-                                                                            Jumlah
-                                                                            Beban
-                                                                            Tugas
-                                                                            Parsial{' '}
-                                                                            <span className="text-red-500">
-                                                                                *
-                                                                            </span>
-                                                                        </Label>
-                                                                        <Input
-                                                                            type="number"
-                                                                            id={`partial_jumlah_satuan_value_${index}`}
-                                                                            value={
-                                                                                item.partial_jumlah_satuan ||
-                                                                                ''
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateAlokasiItem(
-                                                                                    index,
-                                                                                    'partial_jumlah_satuan',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            min="0"
-                                                                            max={
-                                                                                item.jumlah_satuan ||
-                                                                                undefined
-                                                                            }
-                                                                            placeholder="0"
-                                                                            disabled={
-                                                                                isViewMode
-                                                                            }
-                                                                        />
-                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                            Maksimal:{' '}
-                                                                            {item.jumlah_satuan ||
-                                                                                0}{' '}
-                                                                            (jumlah
-                                                                            beban
-                                                                            tugas
-                                                                            awal)
-                                                                        </p>
-                                                                    </div>
-
-                                                                    <div className="space-y-2 md:col-span-4">
-                                                                        <Label
-                                                                            htmlFor={`estimasi_honor_partial_${index}`}
-                                                                        >
-                                                                            Estimasi
-                                                                            Honor
-                                                                            Parsial
-                                                                        </Label>
-                                                                        <Input
-                                                                            type="text"
-                                                                            id={`estimasi_honor_partial_${index}`}
-                                                                            value={formatCurrency(
-                                                                                item.estimasi_honor_partial ||
-                                                                                    0,
-                                                                            )}
-                                                                            readOnly
-                                                                            className="bg-neutral-50 dark:bg-neutral-900"
-                                                                        />
-                                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                            Dihitung
-                                                                            otomatis
-                                                                            berdasarkan
-                                                                            jumlah
-                                                                            beban
-                                                                            tugas
-                                                                            parsial
-                                                                        </p>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                        </>
-                                                    )}
+                                                                <div className="space-y-2 md:col-span-4">
+                                                                    <Label
+                                                                        htmlFor={`estimasi_honor_partial_${index}`}
+                                                                    >
+                                                                        Estimasi
+                                                                        Honor
+                                                                        Parsial
+                                                                    </Label>
+                                                                    <Input
+                                                                        type="text"
+                                                                        id={`estimasi_honor_partial_${index}`}
+                                                                        value={formatCurrency(
+                                                                            item.estimasi_honor_partial ||
+                                                                                0,
+                                                                        )}
+                                                                        readOnly
+                                                                        className="bg-neutral-50 dark:bg-neutral-900"
+                                                                    />
+                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Dihitung
+                                                                        otomatis
+                                                                        berdasarkan
+                                                                        jumlah
+                                                                        beban
+                                                                        tugas
+                                                                        parsial
+                                                                    </p>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </>
                                                 </>
                                             )}
 
