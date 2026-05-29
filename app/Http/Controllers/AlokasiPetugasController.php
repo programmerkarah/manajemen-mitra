@@ -2264,8 +2264,9 @@ class AlokasiPetugasController extends Controller
         ]);
 
         // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
-        $periodeBulan = (int) $bulan;
-        $periodeTahun = (int) $tahun;
+        // Use the new bulan/tahun from form data (user may have changed the period)
+        $periodeBulan = isset($validated['alokasi'][0]['bulan']) ? (int) $validated['alokasi'][0]['bulan'] : (int) $bulan;
+        $periodeTahun = isset($validated['alokasi'][0]['tahun']) ? (int) $validated['alokasi'][0]['tahun'] : (int) $tahun;
         $tahapan = $validated['alokasi'][0]['tahapan'] ?? 'both';
         $dateValidationErrors = [];
 
@@ -2418,9 +2419,11 @@ class AlokasiPetugasController extends Controller
                     return redirect()->back()->withErrors(['error' => 'Periode tidak ditemukan atau tidak dapat diedit.']);
                 }
 
-                // Update tahapan field
+                // Update tahapan, and also bulan/tahun if they were changed
                 $periode->update([
                     'tahapan' => $validated['alokasi'][0]['tahapan'] ?? 'both',
+                    'bulan' => $validated['alokasi'][0]['bulan'] ?? $periode->bulan,
+                    'tahun' => $validated['alokasi'][0]['tahun'] ?? $periode->tahun,
                 ]);
 
                 // Delete existing alokasi for update

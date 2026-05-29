@@ -1700,15 +1700,21 @@ export default function Create({
             const tahunValue = formData.tahun || active_year;
             const bulanValue = formData.bulan || bulan;
 
-            const tahunStr = String(tahunValue);
-            const bulanStr = String(bulanValue).padStart(2, '0');
+            // Always use the ORIGINAL sourcePeriode bulan/tahun in the URL
+            // so the backend can find the existing record, even if bulan changed.
+            const originalTahunStr = sourcePeriode
+                ? String(sourcePeriode.tahun)
+                : String(tahunValue);
+            const originalBulanStr = sourcePeriode
+                ? String(parseInt(sourcePeriode.bulan)).padStart(2, '0')
+                : String(bulanValue).padStart(2, '0');
 
             // Update formData to ensure consistent values
             formData.tahun = tahunValue;
             formData.bulan = bulanValue;
 
             router.put(
-                `/alokasi/periode/${kegiatanHashedId}/${tahunStr}/${bulanStr}`,
+                `/alokasi/periode/${kegiatanHashedId}/${originalTahunStr}/${originalBulanStr}`,
                 formData,
                 {
                     onSuccess: () => {

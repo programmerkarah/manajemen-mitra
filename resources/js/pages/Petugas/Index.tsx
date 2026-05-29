@@ -293,7 +293,6 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const handleRefresh = () => {
         setIsRefreshing(true);
         router.reload({
-            preserveScroll: true,
             onFinish: () => {
                 setTimeout(() => setIsRefreshing(false), 500);
             },
@@ -456,7 +455,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
         setBatchProcessing(true);
         router.put(
             '/petugas/batch-update',
-            { petugas: batchEditItems },
+            { petugas: batchEditItems as unknown as Record<string, string>[] },
             {
                 preserveScroll: true,
                 onSuccess: () => {
