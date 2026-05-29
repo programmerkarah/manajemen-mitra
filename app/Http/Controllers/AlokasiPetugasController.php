@@ -611,7 +611,8 @@ class AlokasiPetugasController extends Controller
                     $alokasiData['jenis_kegiatan'],
                     $rateHonor->status_kepegawaian,
                     $rateHonor->jenis_penugasan,
-                    $effectivePencacahanHonor
+                    $effectivePencacahanHonor,
+                    $kegiatan
                 );
 
                 if ($constraintError) {
@@ -632,7 +633,8 @@ class AlokasiPetugasController extends Controller
                     null,
                     $jenisPenugasan,
                     $alokasiData['jenis_kegiatan'],
-                    $statusKepegawaian
+                    $statusKepegawaian,
+                    $kegiatan
                 );
 
                 if ($petugasTotalError) {
@@ -1353,7 +1355,8 @@ class AlokasiPetugasController extends Controller
             $data['jenis_kegiatan'],
             $rateHonor->status_kepegawaian,
             $rateHonor->jenis_penugasan,
-            $totalHonor
+            $totalHonor,
+            $kegiatan
         );
         if ($constraintError) {
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
@@ -1370,7 +1373,8 @@ class AlokasiPetugasController extends Controller
                 null,
                 $rateHonor->jenis_penugasan,
                 $data['jenis_kegiatan'],
-                $rateHonor->status_kepegawaian
+                $rateHonor->status_kepegawaian,
+                $kegiatan
             );
             if ($petugasTotalError) {
                 return back()->withErrors(['sbml_constraint' => $petugasTotalError])->withInput();
@@ -1466,7 +1470,8 @@ class AlokasiPetugasController extends Controller
             $data['jenis_kegiatan'],
             $rateHonor->status_kepegawaian,
             $rateHonor->jenis_penugasan,
-            $totalHonor
+            $totalHonor,
+            $kegiatan
         );
         if ($constraintError) {
             return back()->withErrors(['sbml_constraint' => $constraintError])->withInput();
@@ -1484,7 +1489,8 @@ class AlokasiPetugasController extends Controller
                 $alokasi->periode_alokasi_id,
                 $rateHonor->jenis_penugasan,
                 $data['jenis_kegiatan'],
-                $rateHonor->status_kepegawaian
+                $rateHonor->status_kepegawaian,
+                $kegiatan
             );
             if ($petugasTotalError) {
                 return back()->withErrors(['sbml_constraint' => $petugasTotalError])->withInput();
@@ -2594,7 +2600,8 @@ class AlokasiPetugasController extends Controller
                         $kegiatan->jenis_kegiatan,
                         $petugasType,
                         $jenisPenugasan,
-                        $effectivePencacahanHonor
+                        $effectivePencacahanHonor,
+                        $kegiatan
                     );
 
                     if ($constraintError) {
@@ -2618,7 +2625,8 @@ class AlokasiPetugasController extends Controller
                         $periode->id,
                         $jenisPenugasan,
                         $kegiatan->jenis_kegiatan,
-                        $petugasType
+                        $petugasType,
+                        $kegiatan
                     );
 
                     if ($petugasTotalError) {
@@ -3206,7 +3214,8 @@ class AlokasiPetugasController extends Controller
         string $jenisKegiatan,
         string $statusKepegawaian,
         string $jenisPenugasan,
-        float $totalHonor
+        float $totalHonor,
+        ?Kegiatan $kegiatan = null
     ): ?string {
         $sbml = Sbml::where('tahun_anggaran', $tahun)
             ->where('jenis_kegiatan', $jenisKegiatan)
@@ -3219,8 +3228,11 @@ class AlokasiPetugasController extends Controller
             return 'SBML untuk kombinasi ini belum tersedia. Silakan hubungi admin untuk mengatur SBML terlebih dahulu.';
         }
 
-        if ($totalHonor > $sbml->honor_max) {
-            return 'Total honor (Rp '.number_format($totalHonor, 0, ',', '.').') melebihi batas maksimal SBML (Rp '.number_format($sbml->honor_max, 0, ',', '.').") untuk tahun {$tahun}.";
+        $limitMultiplier = $this->getSbmlLimitMultiplier($kegiatan);
+        $adjustedHonorMax = (float) $sbml->honor_max * $limitMultiplier;
+
+        if ($totalHonor > $adjustedHonorMax) {
+            return 'Total honor (Rp '.number_format($totalHonor, 0, ',', '.').') melebihi batas maksimal SBML (Rp '.number_format($adjustedHonorMax, 0, ',', '.').") untuk tahun {$tahun}.";
         }
 
         return null;
@@ -3245,6 +3257,15 @@ class AlokasiPetugasController extends Controller
             && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
     }
 
+    private function getSbmlLimitMultiplier(?Kegiatan $kegiatan): float
+    {
+        if ($kegiatan && $this->isSensusEkonomi2026($kegiatan)) {
+            return 2.5;
+        }
+
+        return 1.0;
+    }
+
     /**
      * Check if petugas total honor in a month exceeds their maximum SBML limit
      * across all their assignments (kegiatan)
@@ -3258,8 +3279,13 @@ class AlokasiPetugasController extends Controller
         ?int $excludePeriodeId = null,
         ?string $newPeran = null,
         ?string $newJenisKegiatan = null,
-        ?string $newStatusKepegawaian = null
+        ?string $newStatusKepegawaian = null,
+        ?Kegiatan $kegiatan = null
     ): ?string {
+        if ($kegiatan && $this->isSensusEkonomi2026($kegiatan)) {
+            return null;
+        }
+
         $petugas = Petugas::find($petugasId);
         if (! $petugas) {
             return 'Petugas tidak ditemukan.';
