@@ -361,6 +361,22 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
         ]);
 
+        $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
+
+        if ($isSensusKegiatan) {
+            $sensusTahun = (int) ($validated['alokasi'][0]['tahun'] ?? ActiveYearService::get());
+            $existingSensusPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+                ->where('tahun', $sensusTahun)
+                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+                ->exists();
+
+            if ($existingSensusPeriode) {
+                return back()->withErrors([
+                    'periode_sensus' => 'Untuk kegiatan sensus hanya diperbolehkan satu periode/perjanjian kerja dalam satu tahun.',
+                ])->withInput();
+            }
+        }
+
         $decimalValidationErrors = $this->validateDecimalSatuanRules($validated['alokasi']);
         if (! empty($decimalValidationErrors)) {
             return back()->withErrors([
@@ -431,40 +447,44 @@ class AlokasiPetugasController extends Controller
             }
         }
 
-        // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
-        $periodeBulan = (int) $validated['alokasi'][0]['bulan'];
-        $periodeTahun = (int) $validated['alokasi'][0]['tahun'];
         $dateValidationErrors = [];
 
-        if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
-            $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
-            $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
-            if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
-            }
-        }
+        if ($isSensusKegiatan) {
+            $dateValidationErrors = $this->validateDatesWithinKegiatanPeriod($kegiatan, $validated, $tahapan);
+        } else {
+            $periodeBulan = (int) $validated['alokasi'][0]['bulan'];
+            $periodeTahun = (int) $validated['alokasi'][0]['tahun'];
 
-        if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
-            $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
-            $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
-            if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+            if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
+                $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
+                $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
+                if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
-        }
 
-        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
-            $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
-            $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
-            if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+            if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
+                $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
+                $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
+                if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
-        }
 
-        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
-            $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
-            $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
-            if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+            if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
+                $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
+                $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
+                if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+                }
+            }
+
+            if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
+                $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
+                $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
+                if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
         }
 
@@ -484,6 +504,8 @@ class AlokasiPetugasController extends Controller
             'jadwal_pengolahan_listing_selesai.after_or_equal' => 'Tanggal selesai pengolahan listing harus setelah atau sama dengan tanggal mulai.',
             'jadwal_pengolahan_pencacahan_selesai.after_or_equal' => 'Tanggal selesai pengolahan pencacahan harus setelah atau sama dengan tanggal mulai.',
         ]);
+
+        $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
         $validated['jadwal_pengolahan_listing_mulai'] = $request->jadwal_pengolahan_listing_mulai;
         $validated['jadwal_pengolahan_listing_selesai'] = $request->jadwal_pengolahan_listing_selesai;
         $validated['jadwal_pengolahan_pencacahan_mulai'] = $request->jadwal_pengolahan_pencacahan_mulai;
@@ -1024,6 +1046,15 @@ class AlokasiPetugasController extends Controller
                 ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
                 ->select('bulan', 'tahapan')
                 ->get();
+
+            if ($kegiatan->jenis_kegiatan === 'sensus') {
+                $usedMonthsInfo[$kegiatan->id] = [
+                    'has_listing' => false,
+                    'months' => $periodeList->isNotEmpty() ? range(1, 12) : [],
+                ];
+
+                continue;
+            }
 
             if ($kegiatan->has_listing_updating) {
                 // For listing kegiatan, track tahapan per month
@@ -2286,6 +2317,8 @@ class AlokasiPetugasController extends Controller
             'jadwal_pengolahan_pencacahan_selesai.after_or_equal' => 'Tanggal selesai pengolahan pencacahan harus setelah atau sama dengan tanggal mulai.',
         ]);
 
+        $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
+
         $decimalValidationErrors = $this->validateDecimalSatuanRules($validated['alokasi']);
         if (! empty($decimalValidationErrors)) {
             return redirect()->back()->withErrors([
@@ -2293,42 +2326,46 @@ class AlokasiPetugasController extends Controller
             ])->withInput();
         }
 
-        // Validasi bahwa tanggal harus dalam bulan yang sama dengan periode bulan
-        // Use the new bulan/tahun from form data (user may have changed the period)
-        $periodeBulan = isset($validated['alokasi'][0]['bulan']) ? (int) $validated['alokasi'][0]['bulan'] : (int) $bulan;
-        $periodeTahun = isset($validated['alokasi'][0]['tahun']) ? (int) $validated['alokasi'][0]['tahun'] : (int) $tahun;
         $tahapan = $validated['alokasi'][0]['tahapan'] ?? 'both';
         $dateValidationErrors = [];
 
-        if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
-            $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
-            $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
-            if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
-            }
-        }
+        if ($isSensusKegiatan) {
+            $dateValidationErrors = $this->validateDatesWithinKegiatanPeriod($kegiatan, $validated, $tahapan);
+        } else {
+            // Use the new bulan/tahun from form data (user may have changed the period)
+            $periodeBulan = isset($validated['alokasi'][0]['bulan']) ? (int) $validated['alokasi'][0]['bulan'] : (int) $bulan;
+            $periodeTahun = isset($validated['alokasi'][0]['tahun']) ? (int) $validated['alokasi'][0]['tahun'] : (int) $tahun;
 
-        if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
-            $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
-            $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
-            if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+            if ($tahapan !== 'listing_only' && isset($validated['tanggal_mulai'])) {
+                $tanggalMulaiBulan = Carbon::parse($validated['tanggal_mulai'])->month;
+                $tanggalMulaiTahun = Carbon::parse($validated['tanggal_mulai'])->year;
+                if ($tanggalMulaiBulan !== $periodeBulan || $tanggalMulaiTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal mulai harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
-        }
 
-        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
-            $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
-            $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
-            if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+            if ($tahapan !== 'listing_only' && isset($validated['tanggal_selesai'])) {
+                $tanggalSelesaiBulan = Carbon::parse($validated['tanggal_selesai'])->month;
+                $tanggalSelesaiTahun = Carbon::parse($validated['tanggal_selesai'])->year;
+                if ($tanggalSelesaiBulan !== $periodeBulan || $tanggalSelesaiTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal selesai harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
-        }
 
-        if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
-            $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
-            $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
-            if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
-                $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+            if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_mulai_listing'])) {
+                $tanggalMulaiListingBulan = Carbon::parse($validated['tanggal_mulai_listing'])->month;
+                $tanggalMulaiListingTahun = Carbon::parse($validated['tanggal_mulai_listing'])->year;
+                if ($tanggalMulaiListingBulan !== $periodeBulan || $tanggalMulaiListingTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal mulai listing harus dalam bulan yang sama dengan periode alokasi.';
+                }
+            }
+
+            if (($tahapan === 'both' || $tahapan === 'listing_only') && isset($validated['tanggal_selesai_listing'])) {
+                $tanggalSelesaiListingBulan = Carbon::parse($validated['tanggal_selesai_listing'])->month;
+                $tanggalSelesaiListingTahun = Carbon::parse($validated['tanggal_selesai_listing'])->year;
+                if ($tanggalSelesaiListingBulan !== $periodeBulan || $tanggalSelesaiListingTahun !== $periodeTahun) {
+                    $dateValidationErrors[] = 'Tanggal selesai listing harus dalam bulan yang sama dengan periode alokasi.';
+                }
             }
         }
 
@@ -3205,7 +3242,7 @@ class AlokasiPetugasController extends Controller
     private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
     {
         return $kegiatan->jenis_kegiatan === 'sensus'
-            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi 2026';
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
     }
 
     /**
@@ -3656,15 +3693,23 @@ class AlokasiPetugasController extends Controller
             'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV',
         ]);
 
-        $existingPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+        $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
+
+        $existingPeriodeQuery = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $validated['tahun'])
-            ->where('bulan', str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT))
-            ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi'])
-            ->first();
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi']);
+
+        if (! $isSensusKegiatan) {
+            $existingPeriodeQuery->where('bulan', str_pad((string) $validated['bulan'], 2, '0', STR_PAD_LEFT));
+        }
+
+        $existingPeriode = $existingPeriodeQuery->first();
 
         if ($existingPeriode) {
             return back()->withErrors([
-                'file' => 'Periode untuk bulan/tahun tersebut sudah ada. Gunakan mode edit untuk import ulang.',
+                'file' => $isSensusKegiatan
+                    ? 'Untuk kegiatan sensus hanya diperbolehkan satu periode/perjanjian kerja dalam satu tahun. Gunakan mode edit untuk import ulang.'
+                    : 'Periode untuk bulan/tahun tersebut sudah ada. Gunakan mode edit untuk import ulang.',
             ])->withInput();
         }
 
@@ -3716,6 +3761,46 @@ class AlokasiPetugasController extends Controller
             return back()->withErrors(['file' => 'Gagal mengimport file: '.$e->getMessage()])
                 ->withInput();
         }
+    }
+
+    /**
+     * Validate schedule dates for sensus activities within kegiatan execution period.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<int, string>
+     */
+    private function validateDatesWithinKegiatanPeriod(Kegiatan $kegiatan, array $validated, string $tahapan): array
+    {
+        if (! $kegiatan->tanggal_mulai || ! $kegiatan->tanggal_selesai) {
+            return [];
+        }
+
+        $periodStart = Carbon::parse($kegiatan->tanggal_mulai)->startOfDay();
+        $periodEnd = Carbon::parse($kegiatan->tanggal_selesai)->endOfDay();
+        $errors = [];
+
+        $checkRange = static function (?string $value, string $label) use ($periodStart, $periodEnd, &$errors): void {
+            if (! $value) {
+                return;
+            }
+
+            $date = Carbon::parse($value);
+            if ($date->lt($periodStart) || $date->gt($periodEnd)) {
+                $errors[] = $label.' harus berada dalam rentang periode pelaksanaan kegiatan.';
+            }
+        };
+
+        if ($tahapan !== 'listing_only') {
+            $checkRange($validated['tanggal_mulai'] ?? null, 'Tanggal mulai');
+            $checkRange($validated['tanggal_selesai'] ?? null, 'Tanggal selesai');
+        }
+
+        if ($tahapan === 'both' || $tahapan === 'listing_only') {
+            $checkRange($validated['tanggal_mulai_listing'] ?? null, 'Tanggal mulai listing');
+            $checkRange($validated['tanggal_selesai_listing'] ?? null, 'Tanggal selesai listing');
+        }
+
+        return array_values(array_unique($errors));
     }
 
     private function parseImportNik(mixed $value): string

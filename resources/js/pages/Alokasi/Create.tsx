@@ -35,7 +35,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tambah Alokasi', href: '/alokasi/create' },
 ];
 
-const SENSUS_EKONOMI_2026_NAME = 'sensus ekonomi 2026';
+const SENSUS_EKONOMI_2026_NAME = 'sensus ekonomi';
 const SENSUS_EKONOMI_2026_OB_FACTOR = 2.5;
 
 interface Kegiatan {
@@ -425,6 +425,17 @@ export default function Create({
                 // If no used info, kegiatan is available
                 if (!usedInfo) return true;
 
+                if (k.jenis_kegiatan === 'sensus') {
+                    if (usedInfo.has_listing) {
+                        return (
+                            Object.values(usedInfo.periods || {}).flat()
+                                .length === 0
+                        );
+                    }
+
+                    return (usedInfo.months || []).length === 0;
+                }
+
                 // If kegiatan has listing (has_listing_updating = true), it can have up to 24 periods (12 * 2 tahapan)
                 // If no listing, max 12 periods (1 per month)
                 const maxPeriods = k.has_listing_updating ? 24 : 12;
@@ -495,6 +506,10 @@ export default function Create({
                 // If no months in range, hide kegiatan
                 if (availableMonthsInRange.length === 0) {
                     return false;
+                }
+
+                if (k.jenis_kegiatan === 'sensus') {
+                    return true;
                 }
 
                 // Check if any months are actually available (not all used)
@@ -568,6 +583,14 @@ export default function Create({
     const selectedKegiatan = kegiatanOptions.find(
         (k) => String(k.id) === String(selectedKegiatanId),
     );
+    const isSensusKegiatan = selectedKegiatan?.jenis_kegiatan === 'sensus';
+    const sensusFixedMonth = selectedKegiatan?.tanggal_mulai
+        ? new Date(selectedKegiatan.tanggal_mulai).getMonth() + 1
+        : sourcePeriode
+          ? parseInt(sourcePeriode.bulan)
+          : 1;
+    const effectiveBulan = isSensusKegiatan ? sensusFixedMonth : bulan;
+
     const isSensusEkonomi2026 = useMemo(() => {
         if (!selectedKegiatan) {
             return false;
@@ -1524,7 +1547,7 @@ export default function Create({
         // Prepare data
         const formData = {
             tahun: active_year,
-            bulan: bulan,
+            bulan: effectiveBulan,
             jenis_perubahan_revisi: isRevisiMode
                 ? jenisPerubahanRevisi
                 : undefined,
@@ -1556,7 +1579,7 @@ export default function Create({
                 const base = {
                     petugas_id: item.petugas_id,
                     peran: item.peran,
-                    bulan,
+                    bulan: effectiveBulan,
                     tahun: active_year,
                     jenis_kegiatan: jenisKegiatan,
                     catatan: item.catatan || '',
@@ -1876,6 +1899,10 @@ export default function Create({
 
     // Filter months by tahapan availability for listing kegiatan
     const availableMonthsForTahapan = useMemo(() => {
+        if (isSensusKegiatan) {
+            return months.filter((month) => month.value === sensusFixedMonth);
+        }
+
         if (!selectedKegiatan || !selectedKegiatan.has_listing_updating) {
             // For non-listing kegiatan: filter out fully used months
             return filteredMonths.filter(
@@ -1910,6 +1937,9 @@ export default function Create({
         });
     }, [
         selectedKegiatan,
+        isSensusKegiatan,
+        sensusFixedMonth,
+        months,
         filteredMonths,
         usedMonths,
         tahapan,
@@ -1917,22 +1947,30 @@ export default function Create({
     ]);
 
     const selectedPeriodeMinDate = useMemo(() => {
-        if (!bulan) {
+        if (isSensusKegiatan) {
+            return selectedKegiatan?.tanggal_mulai || undefined;
+        }
+
+        if (!effectiveBulan) {
             return undefined;
         }
 
-        return `${active_year}-${String(bulan).padStart(2, '0')}-01`;
-    }, [active_year, bulan]);
+        return `${active_year}-${String(effectiveBulan).padStart(2, '0')}-01`;
+    }, [active_year, effectiveBulan, isSensusKegiatan, selectedKegiatan]);
 
     const selectedPeriodeMaxDate = useMemo(() => {
-        if (!bulan) {
+        if (isSensusKegiatan) {
+            return selectedKegiatan?.tanggal_selesai || undefined;
+        }
+
+        if (!effectiveBulan) {
             return undefined;
         }
 
-        const lastDay = new Date(active_year, bulan, 0).getDate();
+        const lastDay = new Date(active_year, effectiveBulan, 0).getDate();
 
-        return `${active_year}-${String(bulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    }, [active_year, bulan]);
+        return `${active_year}-${String(effectiveBulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }, [active_year, effectiveBulan, isSensusKegiatan, selectedKegiatan]);
 
     const mergeDateMin = useCallback(
         (dynamicMin?: string) => {
@@ -2259,29 +2297,52 @@ export default function Create({
                                     Bulan{' '}
                                     <span className="text-red-500">*</span>
                                 </Label>
-                                <Select
-                                    value={bulan.toString()}
-                                    onValueChange={(value) =>
-                                        setBulan(parseInt(value))
-                                    }
-                                    disabled={isRevisiMode || isViewMode}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableMonthsForTahapan.map(
-                                            (month) => (
-                                                <SelectItem
-                                                    key={month.value}
-                                                    value={month.value.toString()}
-                                                >
-                                                    {month.label}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                {isSensusKegiatan ? (
+                                    <>
+                                        <Input
+                                            id="bulan"
+                                            value={
+                                                months.find(
+                                                    (m) =>
+                                                        m.value ===
+                                                        effectiveBulan,
+                                                )?.label || '-'
+                                            }
+                                            disabled
+                                            className="cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
+                                        />
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Untuk kegiatan sensus, periode
+                                            alokasi menggunakan satu perjanjian
+                                            kerja untuk seluruh masa
+                                            pelaksanaan.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <Select
+                                        value={bulan.toString()}
+                                        onValueChange={(value) =>
+                                            setBulan(parseInt(value))
+                                        }
+                                        disabled={isRevisiMode || isViewMode}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableMonthsForTahapan.map(
+                                                (month) => (
+                                                    <SelectItem
+                                                        key={month.value}
+                                                        value={month.value.toString()}
+                                                    >
+                                                        {month.label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
 
                             {/* Tahun (from Active Year) */}
