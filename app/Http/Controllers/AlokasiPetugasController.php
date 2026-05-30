@@ -376,6 +376,42 @@ class AlokasiPetugasController extends Controller
         return array_values(array_unique($filterBulans));
     }
 
+    private function resolveKegiatanFromPeriodeRoute(string $kegiatanRouteKey, int $tahun, string $bulan): Kegiatan
+    {
+        $resolvedKegiatan = $this->resolveKegiatanRouteBinding($kegiatanRouteKey);
+
+        if ($resolvedKegiatan instanceof Kegiatan) {
+            return $resolvedKegiatan;
+        }
+
+        $resolvedPeriode = $this->resolvePeriodeRouteBinding($kegiatanRouteKey);
+        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        if (
+            $resolvedPeriode instanceof PeriodeAlokasi
+            && (int) $resolvedPeriode->tahun === $tahun
+            && str_pad((string) $resolvedPeriode->bulan, 2, '0', STR_PAD_LEFT) === $bulanFormatted
+        ) {
+            if ($resolvedPeriode->relationLoaded('kegiatan') && $resolvedPeriode->kegiatan instanceof Kegiatan) {
+                return $resolvedPeriode->kegiatan;
+            }
+
+            return $resolvedPeriode->kegiatan()->firstOrFail();
+        }
+
+        abort(404);
+    }
+
+    protected function resolveKegiatanRouteBinding(string $kegiatanRouteKey): ?Kegiatan
+    {
+        return (new Kegiatan)->resolveRouteBinding($kegiatanRouteKey);
+    }
+
+    protected function resolvePeriodeRouteBinding(string $kegiatanRouteKey): ?PeriodeAlokasi
+    {
+        return (new PeriodeAlokasi)->resolveRouteBinding($kegiatanRouteKey);
+    }
+
     /**
      * Store multiple alokasi for a kegiatan.
      */
@@ -1681,8 +1717,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Submit all alokasi in a periode (kegiatan + bulan)
      */
-    public function submitPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    public function submitPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         // Allow submitting 'draft' or re-submitting 'perubahan'
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
@@ -1726,9 +1764,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Show detail of a specific periode with all its alokasi
      */
-    public function showPeriode(Kegiatan $kegiatan, string $tahun, string $bulan): Response
+    public function showPeriode(string $kegiatanRouteKey, string $tahun, string $bulan): Response
     {
         $tahun = (int) $tahun;
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
 
         // Get the latest periode
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -1927,8 +1966,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Edit all alokasi in a periode
      */
-    public function editPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): Response|RedirectResponse
+    public function editPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): Response|RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
         $bulanCandidates = array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
 
@@ -2332,8 +2373,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Update alokasi periode - replaces all alokasi for the periode
      */
-    public function updatePeriode(Request $request, Kegiatan $kegiatan, string $tahun, string $bulan): RedirectResponse
+    public function updatePeriode(Request $request, string $kegiatanRouteKey, string $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, (int) $tahun, $bulan);
+
         $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
         $bulanCandidates = array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
 
@@ -2939,8 +2982,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Mark periode as deleted (status = dihapus)
      */
-    public function destroyPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    public function destroyPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
             abort(403, 'Hanya admin atau operator yang dapat membatalkan alokasi periode.');
@@ -3020,8 +3065,10 @@ class AlokasiPetugasController extends Controller
      * Revert a submitted (dikirim) periode back to draft status.
      * Allowed only when at least one officer's Perjanjian Kerja has not been printed.
      */
-    public function kembalikanKeDraft(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    public function kembalikanKeDraft(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
             abort(403, 'Hanya admin atau operator yang dapat mengembalikan periode ke draft.');
@@ -3099,8 +3146,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Revisi: Prepare revision data in session without creating database records
      */
-    public function revisiPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    public function revisiPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         // Get existing periode (could be original 'dikirim' or previous 'perubahan')
         $oldPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
@@ -3128,8 +3177,10 @@ class AlokasiPetugasController extends Controller
     /**
      * Batalkan revisi periode yang sudah dikirim (status perubahan) - admin only.
      */
-    public function batalkanRevisiPeriode(Request $request, Kegiatan $kegiatan, int $tahun, string $bulan): RedirectResponse
+    public function batalkanRevisiPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! $effectiveUser->hasActiveRole('admin')) {
             abort(403, 'Hanya admin yang dapat membatalkan revisi periode.');
