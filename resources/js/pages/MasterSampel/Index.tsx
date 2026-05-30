@@ -51,7 +51,9 @@ export default function Index({ frames, units }: Props) {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <ContentCard>
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Master Frame Sampel</h3>
+                        <h3 className="text-lg font-semibold">
+                            Master Frame Sampel
+                        </h3>
                         <div className="grid grid-cols-1 gap-3">
                             <div className="space-y-2">
                                 <Label>Nama</Label>
@@ -91,14 +93,18 @@ export default function Index({ frames, units }: Props) {
                             </div>
                             <Button
                                 onClick={() =>
-                                    router.post('/master-sampel/frame', frameForm, {
-                                        onSuccess: () =>
-                                            setFrameForm({
-                                                nama: '',
-                                                kode: '',
-                                                deskripsi: '',
-                                            }),
-                                    })
+                                    router.post(
+                                        '/master-sampel/frame',
+                                        frameForm,
+                                        {
+                                            onSuccess: () =>
+                                                setFrameForm({
+                                                    nama: '',
+                                                    kode: '',
+                                                    deskripsi: '',
+                                                }),
+                                        },
+                                    )
                                 }
                             >
                                 Simpan Frame
@@ -112,7 +118,9 @@ export default function Index({ frames, units }: Props) {
                                     className="flex items-center justify-between rounded border p-3"
                                 >
                                     <div>
-                                        <p className="font-medium">{item.nama}</p>
+                                        <p className="font-medium">
+                                            {item.nama}
+                                        </p>
                                         <p className="text-xs text-neutral-500">
                                             {item.kode}
                                             {item.deskripsi
@@ -139,7 +147,9 @@ export default function Index({ frames, units }: Props) {
 
                 <ContentCard>
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Master Unit Sampel</h3>
+                        <h3 className="text-lg font-semibold">
+                            Master Unit Sampel
+                        </h3>
                         <div className="grid grid-cols-1 gap-3">
                             <div className="space-y-2">
                                 <Label>Nama</Label>
@@ -179,14 +189,18 @@ export default function Index({ frames, units }: Props) {
                             </div>
                             <Button
                                 onClick={() =>
-                                    router.post('/master-sampel/unit', unitForm, {
-                                        onSuccess: () =>
-                                            setUnitForm({
-                                                nama: '',
-                                                kode: '',
-                                                deskripsi: '',
-                                            }),
-                                    })
+                                    router.post(
+                                        '/master-sampel/unit',
+                                        unitForm,
+                                        {
+                                            onSuccess: () =>
+                                                setUnitForm({
+                                                    nama: '',
+                                                    kode: '',
+                                                    deskripsi: '',
+                                                }),
+                                        },
+                                    )
                                 }
                             >
                                 Simpan Unit
@@ -200,7 +214,9 @@ export default function Index({ frames, units }: Props) {
                                     className="flex items-center justify-between rounded border p-3"
                                 >
                                     <div>
-                                        <p className="font-medium">{item.nama}</p>
+                                        <p className="font-medium">
+                                            {item.nama}
+                                        </p>
                                         <p className="text-xs text-neutral-500">
                                             {item.kode}
                                             {item.deskripsi

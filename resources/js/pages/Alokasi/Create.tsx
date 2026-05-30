@@ -79,7 +79,9 @@ const formatMetadataLabel = (key: string): string => {
         .replace(/\b\w/g, (match) => match.toUpperCase());
 };
 
-const formatMetadataValue = (value: string | number | null | undefined): string => {
+const formatMetadataValue = (
+    value: string | number | null | undefined,
+): string => {
     if (value === null || value === undefined) {
         return '-';
     }
@@ -102,7 +104,11 @@ const buildFrameMetadataDetails = (
                 return false;
             }
 
-            return value !== null && value !== undefined && String(value).trim() !== '';
+            return (
+                value !== null &&
+                value !== undefined &&
+                String(value).trim() !== ''
+            );
         })
         .map(([key, value]) => {
             const pairedLabel = metadata[`${key}_label`];
@@ -536,8 +542,10 @@ export default function Create({
     const [importPreviewRows, setImportPreviewRows] = useState<
         ImportPreviewRow[]
     >([]);
-    const [importPreviewFrameMetadataColumns, setImportPreviewFrameMetadataColumns] =
-        useState<FrameMetadataColumn[]>([]);
+    const [
+        importPreviewFrameMetadataColumns,
+        setImportPreviewFrameMetadataColumns,
+    ] = useState<FrameMetadataColumn[]>([]);
     const [importPreviewErrors, setImportPreviewErrors] = useState<string[]>(
         [],
     );
@@ -838,11 +846,14 @@ export default function Create({
         [isSensusEkonomi2026],
     );
 
-    const getFrameSampelLabel = useCallback((frameSampel: FrameSampelOption) => {
-        const primaryLabel = getFramePrimaryIdentity(frameSampel).title;
+    const getFrameSampelLabel = useCallback(
+        (frameSampel: FrameSampelOption) => {
+            const primaryLabel = getFramePrimaryIdentity(frameSampel).title;
 
-        return `${primaryLabel} (${frameSampel.tahapan})`;
-    }, []);
+            return `${primaryLabel} (${frameSampel.tahapan})`;
+        },
+        [],
+    );
 
     const getSelectedFrameSampelDetails = useCallback(
         (frameIds?: string[]) => {
@@ -1162,7 +1173,9 @@ export default function Create({
                         ? estimasiHonorPartialListing
                         : 0,
                     frame_sampel_ids: frameSampelIds,
-                    jumlah_unit_sampel: String(alokasi.jumlah_unit_sampel || ''),
+                    jumlah_unit_sampel: String(
+                        alokasi.jumlah_unit_sampel || '',
+                    ),
                 };
             });
 
@@ -1504,13 +1517,16 @@ export default function Create({
                 const derivedWorkload = String(
                     Math.max(
                         0,
-                        calculateTargetFromFrameSelections(item.frame_sampel_ids),
+                        calculateTargetFromFrameSelections(
+                            item.frame_sampel_ids,
+                        ),
                     ),
                 );
                 const nextJumlahSatuan = derivedWorkload;
-                const nextJumlahSatuanListing = selectedKegiatan?.has_listing_updating
-                    ? derivedWorkload
-                    : item.jumlah_satuan_listing || '';
+                const nextJumlahSatuanListing =
+                    selectedKegiatan?.has_listing_updating
+                        ? derivedWorkload
+                        : item.jumlah_satuan_listing || '';
                 const nextJumlahUnitSampel = derivedWorkload;
 
                 const nextPartialPencacahan = item.is_partial_payment
@@ -1537,13 +1553,14 @@ export default function Create({
                     item.peran,
                     nextJumlahSatuan,
                 );
-                const nextEstimasiListing = selectedKegiatan?.has_listing_updating
-                    ? calculateEstimasiListing(
-                          item.petugas_id,
-                          item.peran,
-                          nextJumlahSatuanListing,
-                      )
-                    : item.estimasi_honor_listing || 0;
+                const nextEstimasiListing =
+                    selectedKegiatan?.has_listing_updating
+                        ? calculateEstimasiListing(
+                              item.petugas_id,
+                              item.peran,
+                              nextJumlahSatuanListing,
+                          )
+                        : item.estimasi_honor_listing || 0;
                 const nextEstimasiPartial = item.is_partial_payment
                     ? calculateEstimasiPartial(
                           item.petugas_id,
@@ -1822,7 +1839,9 @@ export default function Create({
         let nextValue = value;
 
         if (field === 'partial_jumlah_satuan') {
-            const maxPencacahan = toIntegerWorkload(newItems[index].jumlah_satuan);
+            const maxPencacahan = toIntegerWorkload(
+                newItems[index].jumlah_satuan,
+            );
             nextValue = clampPartialValue(value, maxPencacahan);
         }
 
@@ -1836,7 +1855,9 @@ export default function Create({
         newItems[index] = { ...newItems[index], [field]: nextValue };
 
         if (field === 'jumlah_satuan') {
-            const maxPencacahan = toIntegerWorkload(newItems[index].jumlah_satuan);
+            const maxPencacahan = toIntegerWorkload(
+                newItems[index].jumlah_satuan,
+            );
             newItems[index].partial_jumlah_satuan = clampPartialValue(
                 newItems[index].partial_jumlah_satuan,
                 maxPencacahan,
@@ -1871,7 +1892,10 @@ export default function Create({
                     ? nextValue.map((frameId) => String(frameId))
                     : [];
             const derivedWorkload = String(
-                Math.max(0, calculateTargetFromFrameSelections(selectedFrameIds)),
+                Math.max(
+                    0,
+                    calculateTargetFromFrameSelections(selectedFrameIds),
+                ),
             );
 
             newItems[index].jumlah_satuan = derivedWorkload;
@@ -1893,13 +1917,19 @@ export default function Create({
                         Number(derivedWorkload),
                     );
             }
-        } else if (field === 'frame_sampel_ids' && isSensusEkonomiWithFramePool) {
+        } else if (
+            field === 'frame_sampel_ids' &&
+            isSensusEkonomiWithFramePool
+        ) {
             const selectedFrameIds =
                 Array.isArray(nextValue) && nextValue.length > 0
                     ? nextValue.map((frameId) => String(frameId))
                     : [];
             const derivedUnitSampel = String(
-                Math.max(0, calculateTargetFromFrameSelections(selectedFrameIds)),
+                Math.max(
+                    0,
+                    calculateTargetFromFrameSelections(selectedFrameIds),
+                ),
             );
 
             newItems[index].jumlah_unit_sampel = derivedUnitSampel;
@@ -2025,10 +2055,9 @@ export default function Create({
             return new Set<string>();
         }
 
-        const activeRole =
-            (alokasiItems[frameSampelDialogIndex]?.peran || '')
-                .trim()
-                .toLowerCase();
+        const activeRole = (alokasiItems[frameSampelDialogIndex]?.peran || '')
+            .trim()
+            .toLowerCase();
 
         if (activeRole === '') {
             return new Set<string>();
@@ -2308,7 +2337,6 @@ export default function Create({
                             estimasi_honor_listing: 0,
                         };
                     }
-
                 }
 
                 return {
@@ -2514,7 +2542,8 @@ export default function Create({
             );
 
             const nextJumlahSatuan = String(
-                Number(current.jumlah_satuan || 0) + Number(row.jumlah_satuan || 0),
+                Number(current.jumlah_satuan || 0) +
+                    Number(row.jumlah_satuan || 0),
             );
             const nextJumlahSatuanListing = String(
                 Number(current.jumlah_satuan_listing || 0) +
@@ -3058,10 +3087,9 @@ export default function Create({
                                                 />
                                                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                                     Untuk kegiatan sensus,
-                                                    periode alokasi
-                                                    menggunakan satu perjanjian
-                                                    kerja untuk seluruh masa
-                                                    pelaksanaan.
+                                                    periode alokasi menggunakan
+                                                    satu perjanjian kerja untuk
+                                                    seluruh masa pelaksanaan.
                                                 </p>
                                             </>
                                         ) : (
@@ -3567,61 +3595,65 @@ export default function Create({
 
                                     {importPreviewRows.length > 0 &&
                                         !isFrameSampelImportMode && (
-                                        <div className="max-h-40 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
-                                            <table className="w-full text-xs">
-                                                <thead className="bg-neutral-100 dark:bg-neutral-800">
-                                                    <tr>
-                                                        <th className="px-2 py-1 text-left">
-                                                            NIK
-                                                        </th>
-                                                        <th className="px-2 py-1 text-left">
-                                                            Nama
-                                                        </th>
-                                                        <th className="px-2 py-1 text-left">
-                                                            Peran
-                                                        </th>
-                                                        <th className="px-2 py-1 text-right">
-                                                            Pencacahan
-                                                        </th>
-                                                        <th className="px-2 py-1 text-right">
-                                                            Listing
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {importPreviewRows.map(
-                                                        (row, index) => (
-                                                            <tr
-                                                                key={`${row.petugas_id}-${index}`}
-                                                                className="border-t border-neutral-200 dark:border-neutral-700"
-                                                            >
-                                                                <td className="px-2 py-1">
-                                                                    {row.nik}
-                                                                </td>
-                                                                <td className="px-2 py-1">
-                                                                    {
-                                                                        row.petugas_nama
-                                                                    }
-                                                                </td>
-                                                                <td className="px-2 py-1">
-                                                                    {row.peran}
-                                                                </td>
-                                                                <td className="px-2 py-1 text-right">
-                                                                    {
-                                                                        row.jumlah_satuan
-                                                                    }
-                                                                </td>
-                                                                <td className="px-2 py-1 text-right">
-                                                                    {row.jumlah_satuan_listing ||
-                                                                        0}
-                                                                </td>
-                                                            </tr>
-                                                        ),
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
+                                            <div className="max-h-40 overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700">
+                                                <table className="w-full text-xs">
+                                                    <thead className="bg-neutral-100 dark:bg-neutral-800">
+                                                        <tr>
+                                                            <th className="px-2 py-1 text-left">
+                                                                NIK
+                                                            </th>
+                                                            <th className="px-2 py-1 text-left">
+                                                                Nama
+                                                            </th>
+                                                            <th className="px-2 py-1 text-left">
+                                                                Peran
+                                                            </th>
+                                                            <th className="px-2 py-1 text-right">
+                                                                Pencacahan
+                                                            </th>
+                                                            <th className="px-2 py-1 text-right">
+                                                                Listing
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {importPreviewRows.map(
+                                                            (row, index) => (
+                                                                <tr
+                                                                    key={`${row.petugas_id}-${index}`}
+                                                                    className="border-t border-neutral-200 dark:border-neutral-700"
+                                                                >
+                                                                    <td className="px-2 py-1">
+                                                                        {
+                                                                            row.nik
+                                                                        }
+                                                                    </td>
+                                                                    <td className="px-2 py-1">
+                                                                        {
+                                                                            row.petugas_nama
+                                                                        }
+                                                                    </td>
+                                                                    <td className="px-2 py-1">
+                                                                        {
+                                                                            row.peran
+                                                                        }
+                                                                    </td>
+                                                                    <td className="px-2 py-1 text-right">
+                                                                        {
+                                                                            row.jumlah_satuan
+                                                                        }
+                                                                    </td>
+                                                                    <td className="px-2 py-1 text-right">
+                                                                        {row.jumlah_satuan_listing ||
+                                                                            0}
+                                                                    </td>
+                                                                </tr>
+                                                            ),
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
 
                                     {importPreviewRows.length > 0 &&
                                         isFrameSampelImportMode && (
@@ -3644,7 +3676,9 @@ export default function Create({
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                onClick={applyImportPreviewToForm}
+                                                onClick={
+                                                    applyImportPreviewToForm
+                                                }
                                                 disabled={
                                                     importPreviewRows.length ===
                                                     0
@@ -3681,7 +3715,9 @@ export default function Create({
                     >
                         <DialogContent className="max-h-[90vh] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-[95vw] lg:max-w-7xl">
                             <DialogHeader>
-                                <DialogTitle>Preview Data Impor Alokasi</DialogTitle>
+                                <DialogTitle>
+                                    Preview Data Impor Alokasi
+                                </DialogTitle>
                                 <DialogDescription>
                                     Tinjau hasil import sebelum diterapkan ke
                                     form alokasi.
@@ -4318,53 +4354,55 @@ export default function Create({
                                             </div>
 
                                             {isFrameSampelSelectionEnabled && (
-                                                    <>
-                                                        <div className="space-y-2 md:col-span-2">
-                                                            <Label>
-                                                                Pilih Sampel{' '}
-                                                                <span className="text-red-500">
-                                                                    *
-                                                                </span>
-                                                            </Label>
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setFrameSampelDialogIndex(
-                                                                        index,
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    isRevisiLockedMode ||
-                                                                    isViewMode ||
-                                                                    filteredFrameSampelOptions.length ===
-                                                                        0
-                                                                }
-                                                                className="w-full justify-between"
-                                                            >
-                                                                <span>
-                                                                    Pilih Sampel
-                                                                </span>
-                                                                <span className="text-xs text-neutral-500">
-                                                                    {getSelectedFrameSampelDetails(
+                                                <>
+                                                    <div className="space-y-2 md:col-span-2">
+                                                        <Label>
+                                                            Pilih Sampel{' '}
+                                                            <span className="text-red-500">
+                                                                *
+                                                            </span>
+                                                        </Label>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setFrameSampelDialogIndex(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isRevisiLockedMode ||
+                                                                isViewMode ||
+                                                                filteredFrameSampelOptions.length ===
+                                                                    0
+                                                            }
+                                                            className="w-full justify-between"
+                                                        >
+                                                            <span>
+                                                                Pilih Sampel
+                                                            </span>
+                                                            <span className="text-xs text-neutral-500">
+                                                                {
+                                                                    getSelectedFrameSampelDetails(
                                                                         item.frame_sampel_ids,
-                                                                    ).length}{' '}
-                                                                    dipilih
-                                                                </span>
-                                                            </Button>
-                                                            <div className="rounded-md border border-dashed border-neutral-300 bg-neutral-50/70 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
-                                                                {getSelectedFrameSampelSummary(
-                                                                    item.frame_sampel_ids,
-                                                                )}
-                                                            </div>
-                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                {isSensusEkonomiWithFramePool
-                                                                    ? 'Jumlah unit sampel mengikuti sampel terpilih. Estimasi honor tetap 2,5 x rate honor.'
-                                                                    : 'Jumlah unit sampel mengikuti jumlah beban tugas.'}
-                                                            </p>
+                                                                    ).length
+                                                                }{' '}
+                                                                dipilih
+                                                            </span>
+                                                        </Button>
+                                                        <div className="rounded-md border border-dashed border-neutral-300 bg-neutral-50/70 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
+                                                            {getSelectedFrameSampelSummary(
+                                                                item.frame_sampel_ids,
+                                                            )}
                                                         </div>
-                                                    </>
-                                                )}
+                                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                            {isSensusEkonomiWithFramePool
+                                                                ? 'Jumlah unit sampel mengikuti sampel terpilih. Estimasi honor tetap 2,5 x rate honor.'
+                                                                : 'Jumlah unit sampel mengikuti jumlah beban tugas.'}
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            )}
 
                                             {/* Dual-phase: Listing fields */}
                                             {selectedKegiatan?.has_listing_updating &&
@@ -5307,7 +5345,8 @@ export default function Create({
 
                     {filteredFrameSampelOptions.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-neutral-300 px-4 py-6 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
-                            Belum ada frame sampel yang tersedia untuk tahapan ini.
+                            Belum ada frame sampel yang tersedia untuk tahapan
+                            ini.
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -5325,8 +5364,10 @@ export default function Create({
                                 const primaryIdentity =
                                     getFramePrimaryIdentity(frameSampel);
                                 const primaryTitle = primaryIdentity.title;
-                                const primaryDetailLabel = primaryIdentity.label;
-                                const primaryDetailValue = primaryIdentity.value;
+                                const primaryDetailLabel =
+                                    primaryIdentity.label;
+                                const primaryDetailValue =
+                                    primaryIdentity.value;
 
                                 return (
                                     <label
@@ -5341,7 +5382,8 @@ export default function Create({
                                             checked={isChecked}
                                             onCheckedChange={(checked) => {
                                                 if (
-                                                    frameSampelDialogIndex === null ||
+                                                    frameSampelDialogIndex ===
+                                                        null ||
                                                     isBlockedForOtherPetugas
                                                 ) {
                                                     return;
@@ -5370,11 +5412,12 @@ export default function Create({
                                                 </span>
                                                 {isBlockedForOtherPetugas && (
                                                     <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                                                        Sudah dialokasikan ke petugas lain
+                                                        Sudah dialokasikan ke
+                                                        petugas lain
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="grid gap-2 text-sm text-neutral-600 dark:text-neutral-300 sm:grid-cols-2">
+                                            <div className="grid gap-2 text-sm text-neutral-600 sm:grid-cols-2 dark:text-neutral-300">
                                                 <div>
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">
                                                         {primaryDetailLabel}:
@@ -5385,13 +5428,15 @@ export default function Create({
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">
                                                         Target Unit Sampel:
                                                     </span>{' '}
-                                                    {frameSampel.target_unit_sampel}
+                                                    {
+                                                        frameSampel.target_unit_sampel
+                                                    }
                                                 </div>
                                             </div>
                                             {buildFrameMetadataDetails(
                                                 frameSampel.identitas_tambahan,
                                             ).length > 0 && (
-                                                <div className="grid gap-2 border-t border-dashed border-neutral-200 pt-3 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300 sm:grid-cols-2">
+                                                <div className="grid gap-2 border-t border-dashed border-neutral-200 pt-3 text-sm text-neutral-600 sm:grid-cols-2 dark:border-neutral-700 dark:text-neutral-300">
                                                     {buildFrameMetadataDetails(
                                                         frameSampel.identitas_tambahan,
                                                     ).map((detail) => (
@@ -5399,7 +5444,7 @@ export default function Create({
                                                             key={`${frameSampel.id}-${detail.label}`}
                                                             className="rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800/70"
                                                         >
-                                                            <div className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                                                            <div className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
                                                                 {detail.label}
                                                             </div>
                                                             <div className="mt-1 font-medium text-neutral-900 dark:text-neutral-100">

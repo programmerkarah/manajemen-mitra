@@ -73,7 +73,11 @@ const DEFAULT_METADATA_COLUMNS: MetadataColumn[] = [
         label: 'Desa/Kelurahan',
         description: 'Kode wilayah desa atau kelurahan.',
     },
-    { code: 'kdsls', label: 'SLS', description: 'Kode satuan lingkungan setempat.' },
+    {
+        code: 'kdsls',
+        label: 'SLS',
+        description: 'Kode satuan lingkungan setempat.',
+    },
     {
         code: 'kdsubsls',
         label: 'Sub SLS',
@@ -172,9 +176,7 @@ const buildMetadataColumnsFromRows = (
         });
     });
 
-    return columns.length > 0
-        ? columns
-        : DEFAULT_METADATA_COLUMNS.slice(0, 4);
+    return columns.length > 0 ? columns : DEFAULT_METADATA_COLUMNS.slice(0, 4);
 };
 
 interface KegiatanCreateProps {
@@ -225,9 +227,8 @@ export default function Create({
         ? 'Buat kegiatan baru dari kegiatan yang disalin'
         : 'Buat kegiatan baru dengan informasi lengkap';
 
-    const initialMetadataColumns = buildMetadataColumnsFromRows(
-        kegiatanFrameSampel,
-    );
+    const initialMetadataColumns =
+        buildMetadataColumnsFromRows(kegiatanFrameSampel);
     const initialFrameTahapan: 'listing' | 'pencacahan' =
         kegiatanFrameSampel.some((row) => row.tahapan === 'listing')
             ? 'listing'
@@ -302,9 +303,8 @@ export default function Create({
     const isSensus = data.jenis_kegiatan === 'sensus';
     const [isMetadataSaved, setIsMetadataSaved] =
         useState(initialMetadataSaved);
-    const [isEditingMetadata, setIsEditingMetadata] = useState(
-        !initialMetadataSaved,
-    );
+    const [isEditingMetadata, setIsEditingMetadata] =
+        useState(!initialMetadataSaved);
     const [metadataActionError, setMetadataActionError] = useState('');
     const [frameImportFile, setFrameImportFile] = useState<File | null>(null);
     const [frameImportProcessing, setFrameImportProcessing] = useState(false);
@@ -321,7 +321,9 @@ export default function Create({
         );
     const canManageDetailFrame = isMetadataSaved && !isEditingMetadata;
     const activeUnitSampelId =
-        data.frame_tahapan === 'listing' && !isSensus && data.has_listing_updating
+        data.frame_tahapan === 'listing' &&
+        !isSensus &&
+        data.has_listing_updating
             ? data.unit_sampel_listing_id
             : data.unit_sampel_pencacahan_id;
     const activeUnitSampelName =
@@ -478,7 +480,11 @@ export default function Create({
         setData('frame_metadata_columns', nextColumns);
         setMetadataActionError('');
 
-        if (key !== 'code' || previousCode.trim() === '' || previousCode === value) {
+        if (
+            key !== 'code' ||
+            previousCode.trim() === '' ||
+            previousCode === value
+        ) {
             return;
         }
 
@@ -499,12 +505,15 @@ export default function Create({
     };
 
     const removeMetadataColumn = (columnIndex: number) => {
-        const removedCode = data.frame_metadata_columns[columnIndex]?.code ?? '';
+        const removedCode =
+            data.frame_metadata_columns[columnIndex]?.code ?? '';
         setMetadataActionError('');
 
         setData(
             'frame_metadata_columns',
-            data.frame_metadata_columns.filter((_, index) => index !== columnIndex),
+            data.frame_metadata_columns.filter(
+                (_, index) => index !== columnIndex,
+            ),
         );
 
         if (!removedCode.trim()) {
@@ -589,7 +598,9 @@ export default function Create({
     const removeFrameSampelRow = (index: number) => {
         setData(
             'kegiatan_frame_sampel',
-            data.kegiatan_frame_sampel.filter((_, rowIndex) => rowIndex !== index),
+            data.kegiatan_frame_sampel.filter(
+                (_, rowIndex) => rowIndex !== index,
+            ),
         );
     };
 
@@ -647,21 +658,16 @@ export default function Create({
                 data.frame_metadata_columns,
             );
 
-            setData(
-                'kegiatan_frame_sampel',
-                [
-                    ...data.kegiatan_frame_sampel.filter(
-                        (row) => row.tahapan !== data.frame_tahapan,
-                    ),
-                    ...payload.rows.map((row) => ({
-                        tahapan: data.frame_tahapan,
-                        target_unit_sampel: row.target_unit_sampel,
-                        metadata_items: buildMetadataItems(
-                            row.identitas_tambahan,
-                        ),
-                    })),
-                ],
-            );
+            setData('kegiatan_frame_sampel', [
+                ...data.kegiatan_frame_sampel.filter(
+                    (row) => row.tahapan !== data.frame_tahapan,
+                ),
+                ...payload.rows.map((row) => ({
+                    tahapan: data.frame_tahapan,
+                    target_unit_sampel: row.target_unit_sampel,
+                    metadata_items: buildMetadataItems(row.identitas_tambahan),
+                })),
+            ]);
 
             setFrameImportMessage(
                 `Berhasil memuat ${payload.summary.valid_rows} baris dari file Excel.`,
@@ -706,14 +712,18 @@ export default function Create({
                 ? Number(data.bulan_pelatihan)
                 : null,
             frame_sampel_listing_id:
-                !isSensus && data.has_listing_updating && data.frame_sampel_listing_id
+                !isSensus &&
+                data.has_listing_updating &&
+                data.frame_sampel_listing_id
                     ? Number(data.frame_sampel_listing_id)
                     : null,
             frame_sampel_pencacahan_id: data.frame_sampel_pencacahan_id
                 ? Number(data.frame_sampel_pencacahan_id)
                 : null,
             unit_sampel_listing_id:
-                !isSensus && data.has_listing_updating && data.unit_sampel_listing_id
+                !isSensus &&
+                data.has_listing_updating &&
+                data.unit_sampel_listing_id
                     ? Number(data.unit_sampel_listing_id)
                     : null,
             unit_sampel_pencacahan_id: data.unit_sampel_pencacahan_id
@@ -1159,10 +1169,12 @@ export default function Create({
                                                 value: '',
                                                 label: 'Pilih Frame Sampel Pencacahan',
                                             },
-                                            ...masterFrameSampel.map((item) => ({
-                                                value: String(item.id),
-                                                label: `${item.nama} (${item.kode})`,
-                                            })),
+                                            ...masterFrameSampel.map(
+                                                (item) => ({
+                                                    value: String(item.id),
+                                                    label: `${item.nama} (${item.kode})`,
+                                                }),
+                                            ),
                                         ]}
                                         value={data.frame_sampel_pencacahan_id}
                                         onValueChange={(value) =>
@@ -1176,7 +1188,9 @@ export default function Create({
                                         className="mt-2"
                                     />
                                     <InputError
-                                        message={errors.frame_sampel_pencacahan_id}
+                                        message={
+                                            errors.frame_sampel_pencacahan_id
+                                        }
                                         className="mt-2"
                                     />
                                 </div>
@@ -1208,7 +1222,9 @@ export default function Create({
                                         className="mt-2"
                                     />
                                     <InputError
-                                        message={errors.unit_sampel_pencacahan_id}
+                                        message={
+                                            errors.unit_sampel_pencacahan_id
+                                        }
                                         className="mt-2"
                                     />
                                 </div>
@@ -1225,12 +1241,18 @@ export default function Create({
                                                         value: '',
                                                         label: 'Pilih Frame Sampel Listing',
                                                     },
-                                                    ...masterFrameSampel.map((item) => ({
-                                                        value: String(item.id),
-                                                        label: `${item.nama} (${item.kode})`,
-                                                    })),
+                                                    ...masterFrameSampel.map(
+                                                        (item) => ({
+                                                            value: String(
+                                                                item.id,
+                                                            ),
+                                                            label: `${item.nama} (${item.kode})`,
+                                                        }),
+                                                    ),
                                                 ]}
-                                                value={data.frame_sampel_listing_id}
+                                                value={
+                                                    data.frame_sampel_listing_id
+                                                }
                                                 onValueChange={(value) =>
                                                     setData(
                                                         'frame_sampel_listing_id',
@@ -1242,7 +1264,9 @@ export default function Create({
                                                 className="mt-2"
                                             />
                                             <InputError
-                                                message={errors.frame_sampel_listing_id}
+                                                message={
+                                                    errors.frame_sampel_listing_id
+                                                }
                                                 className="mt-2"
                                             />
                                         </div>
@@ -1257,12 +1281,18 @@ export default function Create({
                                                         value: '',
                                                         label: 'Pilih Unit Sampel Listing',
                                                     },
-                                                    ...masterUnitSampel.map((item) => ({
-                                                        value: String(item.id),
-                                                        label: `${item.nama} (${item.kode})`,
-                                                    })),
+                                                    ...masterUnitSampel.map(
+                                                        (item) => ({
+                                                            value: String(
+                                                                item.id,
+                                                            ),
+                                                            label: `${item.nama} (${item.kode})`,
+                                                        }),
+                                                    ),
                                                 ]}
-                                                value={data.unit_sampel_listing_id}
+                                                value={
+                                                    data.unit_sampel_listing_id
+                                                }
                                                 onValueChange={(value) =>
                                                     setData(
                                                         'unit_sampel_listing_id',
@@ -1274,7 +1304,9 @@ export default function Create({
                                                 className="mt-2"
                                             />
                                             <InputError
-                                                message={errors.unit_sampel_listing_id}
+                                                message={
+                                                    errors.unit_sampel_listing_id
+                                                }
                                                 className="mt-2"
                                             />
                                         </div>
@@ -1292,7 +1324,8 @@ export default function Create({
                                         value={data.frame_tahapan}
                                         onValueChange={updateFrameTahapan}
                                         allowListing={
-                                            !isSensus && data.has_listing_updating
+                                            !isSensus &&
+                                            data.has_listing_updating
                                         }
                                         className="w-full md:w-auto"
                                     />
@@ -1300,7 +1333,8 @@ export default function Create({
                                     <div className="space-y-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-700">
                                         <div className="flex items-center justify-between">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Metadata Frame (isi nama kolom dulu)
+                                                Metadata Frame (isi nama kolom
+                                                dulu)
                                             </label>
                                             {!canManageDetailFrame && (
                                                 <Button
@@ -1314,7 +1348,8 @@ export default function Create({
                                             )}
                                         </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            Susun berurutan dari tingkat tertinggi ke rendah.
+                                            Susun berurutan dari tingkat
+                                            tertinggi ke rendah.
                                         </p>
                                         <div className="space-y-2">
                                             {data.frame_metadata_columns.map(
@@ -1326,7 +1361,9 @@ export default function Create({
                                                         <input
                                                             type="text"
                                                             value={column.code}
-                                                            disabled={canManageDetailFrame}
+                                                            disabled={
+                                                                canManageDetailFrame
+                                                            }
                                                             onChange={(e) =>
                                                                 updateMetadataColumn(
                                                                     columnIndex,
@@ -1341,7 +1378,9 @@ export default function Create({
                                                         <input
                                                             type="text"
                                                             value={column.label}
-                                                            disabled={canManageDetailFrame}
+                                                            disabled={
+                                                                canManageDetailFrame
+                                                            }
                                                             onChange={(e) =>
                                                                 updateMetadataColumn(
                                                                     columnIndex,
@@ -1358,7 +1397,9 @@ export default function Create({
                                                             value={
                                                                 column.description
                                                             }
-                                                            disabled={canManageDetailFrame}
+                                                            disabled={
+                                                                canManageDetailFrame
+                                                            }
                                                             onChange={(e) =>
                                                                 updateMetadataColumn(
                                                                     columnIndex,
@@ -1374,7 +1415,9 @@ export default function Create({
                                                             type="button"
                                                             size="sm"
                                                             variant="destructive"
-                                                            disabled={canManageDetailFrame}
+                                                            disabled={
+                                                                canManageDetailFrame
+                                                            }
                                                             onClick={() =>
                                                                 removeMetadataColumn(
                                                                     columnIndex,
@@ -1398,7 +1441,9 @@ export default function Create({
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={enableMetadataEditing}
+                                                    onClick={
+                                                        enableMetadataEditing
+                                                    }
                                                 >
                                                     Ubah Metadata
                                                 </Button>
@@ -1406,8 +1451,12 @@ export default function Create({
                                                 <Button
                                                     type="button"
                                                     size="sm"
-                                                    onClick={saveMetadataColumns}
-                                                    disabled={!isMetadataComplete}
+                                                    onClick={
+                                                        saveMetadataColumns
+                                                    }
+                                                    disabled={
+                                                        !isMetadataComplete
+                                                    }
                                                 >
                                                     Simpan Metadata
                                                 </Button>
@@ -1426,7 +1475,9 @@ export default function Create({
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={handleGenerateFrameTemplate}
+                                                        onClick={
+                                                            handleGenerateFrameTemplate
+                                                        }
                                                     >
                                                         Generate Excel
                                                     </Button>
@@ -1446,7 +1497,9 @@ export default function Create({
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={handleImportFrameSampel}
+                                                        onClick={
+                                                            handleImportFrameSampel
+                                                        }
                                                         disabled={
                                                             frameImportProcessing ||
                                                             !frameImportFile
@@ -1460,7 +1513,9 @@ export default function Create({
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={addFrameSampelRow}
+                                                        onClick={
+                                                            addFrameSampelRow
+                                                        }
                                                     >
                                                         Tambah Frame
                                                     </Button>
@@ -1482,133 +1537,153 @@ export default function Create({
 
                                 {!canManageDetailFrame && (
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Simpan metadata terlebih dahulu sebelum mengisi detail frame sampel, generate template, atau import Excel.
+                                        Simpan metadata terlebih dahulu sebelum
+                                        mengisi detail frame sampel, generate
+                                        template, atau import Excel.
                                     </p>
                                 )}
 
                                 {canManageDetailFrame &&
                                     activeFrameRows.length === 0 && (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Belum ada data frame sampel.
-                                    </p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Belum ada data frame sampel.
+                                        </p>
                                     )}
 
                                 {canManageDetailFrame && (
-                                <div className="space-y-3">
-                                    {activeFrameRows.map(({ row, index }) => (
-                                        <div
-                                            key={`frame-row-${row.tahapan}-${index}`}
-                                            className="space-y-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-700"
-                                        >
-                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                {data.frame_metadata_columns.map(
-                                                    (column, columnIndex) => (
-                                                        <div
-                                                            key={`frame-${index}-col-${columnIndex}`}
-                                                        >
-                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                                {column.label ||
-                                                                    `Kolom ${columnIndex + 1}`}
-                                                            </label>
-                                                            <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
-                                                                <input
-                                                                    type="text"
-                                                                    value={getFrameMetadataValue(
-                                                                        row,
-                                                                        column.code,
-                                                                        'codeValue',
-                                                                    )}
-                                                                    onChange={(e) =>
-                                                                        updateFrameMetadataValue(
-                                                                            index,
-                                                                            column.code,
-                                                                            'codeValue',
-                                                                            e.target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                    placeholder={`Kode ${column.label || 'metadata'}`}
-                                                                />
-                                                                <input
-                                                                    type="text"
-                                                                    value={getFrameMetadataValue(
-                                                                        row,
-                                                                        column.code,
-                                                                        'labelValue',
-                                                                    )}
-                                                                    onChange={(e) =>
-                                                                        updateFrameMetadataValue(
-                                                                            index,
-                                                                            column.code,
-                                                                            'labelValue',
-                                                                            e.target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                    placeholder={
-                                                                        column.label ||
-                                                                        'metadata'
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                                {column.code}
-                                                                {column.description
-                                                                    ? ` - ${column.description}`
-                                                                    : ''}
-                                                            </p>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-end justify-between gap-3">
-                                                <div className="w-full max-w-xs">
-                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        {targetUnitLabel}
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min={1}
-                                                        value={row.target_unit_sampel}
-                                                        onChange={(e) =>
-                                                            updateFrameSampelRow(
-                                                                index,
-                                                                'target_unit_sampel',
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                        className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                        placeholder="Contoh: 2"
-                                                    />
-                                                    <InputError
-                                                        message={
-                                                            errors[
-                                                                `kegiatan_frame_sampel.${index}.target_unit_sampel`
-                                                            ]
-                                                        }
-                                                        className="mt-1"
-                                                    />
-                                                </div>
-
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        removeFrameSampelRow(
-                                                            index,
-                                                        )
-                                                    }
+                                    <div className="space-y-3">
+                                        {activeFrameRows.map(
+                                            ({ row, index }) => (
+                                                <div
+                                                    key={`frame-row-${row.tahapan}-${index}`}
+                                                    className="space-y-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-700"
                                                 >
-                                                    Hapus
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                        {data.frame_metadata_columns.map(
+                                                            (
+                                                                column,
+                                                                columnIndex,
+                                                            ) => (
+                                                                <div
+                                                                    key={`frame-${index}-col-${columnIndex}`}
+                                                                >
+                                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                        {column.label ||
+                                                                            `Kolom ${columnIndex + 1}`}
+                                                                    </label>
+                                                                    <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={getFrameMetadataValue(
+                                                                                row,
+                                                                                column.code,
+                                                                                'codeValue',
+                                                                            )}
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateFrameMetadataValue(
+                                                                                    index,
+                                                                                    column.code,
+                                                                                    'codeValue',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                            placeholder={`Kode ${column.label || 'metadata'}`}
+                                                                        />
+                                                                        <input
+                                                                            type="text"
+                                                                            value={getFrameMetadataValue(
+                                                                                row,
+                                                                                column.code,
+                                                                                'labelValue',
+                                                                            )}
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateFrameMetadataValue(
+                                                                                    index,
+                                                                                    column.code,
+                                                                                    'labelValue',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                            placeholder={
+                                                                                column.label ||
+                                                                                'metadata'
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                                        {
+                                                                            column.code
+                                                                        }
+                                                                        {column.description
+                                                                            ? ` - ${column.description}`
+                                                                            : ''}
+                                                                    </p>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-end justify-between gap-3">
+                                                        <div className="w-full max-w-xs">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                {
+                                                                    targetUnitLabel
+                                                                }
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min={1}
+                                                                value={
+                                                                    row.target_unit_sampel
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateFrameSampelRow(
+                                                                        index,
+                                                                        'target_unit_sampel',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                placeholder="Contoh: 2"
+                                                            />
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `kegiatan_frame_sampel.${index}.target_unit_sampel`
+                                                                    ]
+                                                                }
+                                                                className="mt-1"
+                                                            />
+                                                        </div>
+
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                removeFrameSampelRow(
+                                                                    index,
+                                                                )
+                                                            }
+                                                        >
+                                                            Hapus
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
                                 )}
                             </div>
 

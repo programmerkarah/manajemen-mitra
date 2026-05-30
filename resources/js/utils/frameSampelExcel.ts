@@ -78,10 +78,11 @@ export const importFrameSampelPreview = async (
         body: formData,
     });
 
-    const payload = (await response.json()) as Partial<FrameSampelImportPreviewResponse> & {
-        message?: string;
-        errors?: Record<string, string[]> | string[];
-    };
+    const payload =
+        (await response.json()) as Partial<FrameSampelImportPreviewResponse> & {
+            message?: string;
+            errors?: Record<string, string[]> | string[];
+        };
 
     if (!response.ok) {
         const message = Array.isArray(payload.errors)

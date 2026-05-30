@@ -154,7 +154,7 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
                                     }
                                 />
                             </div>
-                            <div className="space-y-2 col-span-2">
+                            <div className="col-span-2 space-y-2">
                                 <Label>Kode Segmen</Label>
                                 <Input
                                     value={form.kode_segmen}
@@ -198,7 +198,9 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
 
                 <ContentCard className="lg:col-span-2">
                     <div className="space-y-3">
-                        <h3 className="text-lg font-semibold">Daftar Frame Sampel</h3>
+                        <h3 className="text-lg font-semibold">
+                            Daftar Frame Sampel
+                        </h3>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             Total target unit sampel: {totalTarget}
                         </p>
@@ -211,17 +213,19 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
                                 >
                                     <div>
                                         <p className="font-medium">
-                                            {frame.nama_frame || '-'} ({frame.tahapan})
+                                            {frame.nama_frame || '-'} (
+                                            {frame.tahapan})
                                         </p>
                                         <p className="text-xs text-neutral-500">
-                                            Kec: {frame.kode_kecamatan || '-'} | Desa:{' '}
-                                            {frame.kode_desa || '-'} | SLS:{' '}
-                                            {frame.kode_sls || '-'} | Sub SLS:{' '}
-                                            {frame.kode_sub_sls || '-'} | Segmen:{' '}
-                                            {frame.kode_segmen || '-'}
+                                            Kec: {frame.kode_kecamatan || '-'} |
+                                            Desa: {frame.kode_desa || '-'} |
+                                            SLS: {frame.kode_sls || '-'} | Sub
+                                            SLS: {frame.kode_sub_sls || '-'} |
+                                            Segmen: {frame.kode_segmen || '-'}
                                         </p>
                                         <p className="text-xs text-neutral-500">
-                                            Target unit: {frame.target_unit_sampel}
+                                            Target unit:{' '}
+                                            {frame.target_unit_sampel}
                                         </p>
                                     </div>
                                     <Button
