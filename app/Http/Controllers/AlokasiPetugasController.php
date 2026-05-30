@@ -403,6 +403,16 @@ class AlokasiPetugasController extends Controller
         abort(404);
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function resolveBulanCandidates(string $bulan): array
+    {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
+    }
+
     protected function resolveKegiatanRouteBinding(string $kegiatanRouteKey): ?Kegiatan
     {
         return (new Kegiatan)->resolveRouteBinding($kegiatanRouteKey);
@@ -1721,12 +1731,14 @@ class AlokasiPetugasController extends Controller
     public function submitPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         // Allow submitting 'draft' or re-submitting 'perubahan'
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->whereIn('status', ['draft', 'perubahan'])
+            ->orderByDesc('revision_number')
             ->firstOrFail();
 
         // If this is a revision (has parent_periode_id), keep status as 'perubahan'
@@ -1769,11 +1781,12 @@ class AlokasiPetugasController extends Controller
     {
         $tahun = (int) $tahun;
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         // Get the latest periode
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
             ->orderByDesc('revision_number')
             ->with([
@@ -2986,6 +2999,7 @@ class AlokasiPetugasController extends Controller
     public function destroyPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
@@ -2995,8 +3009,9 @@ class AlokasiPetugasController extends Controller
         // Only allow canceling draft (dikirim can be reverted to draft via kembalikanKeDraft)
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('status', 'draft')
+            ->orderByDesc('revision_number')
             ->first();
 
         if (! $periode) {
@@ -3069,6 +3084,7 @@ class AlokasiPetugasController extends Controller
     public function kembalikanKeDraft(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! ($effectiveUser->hasActiveRole('admin') || $effectiveUser->hasActiveRole('operator'))) {
@@ -3077,8 +3093,9 @@ class AlokasiPetugasController extends Controller
 
         $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('status', 'dikirim')
+            ->orderByDesc('revision_number')
             ->first();
 
         if (! $periode) {
@@ -3150,12 +3167,14 @@ class AlokasiPetugasController extends Controller
     public function revisiPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         // Get existing periode (could be original 'dikirim' or previous 'perubahan')
         $oldPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->whereIn('status', ['dikirim', 'perubahan'])
+            ->orderByDesc('revision_number')
             ->with('alokasiPetugas')
             ->first();
 
@@ -3181,6 +3200,7 @@ class AlokasiPetugasController extends Controller
     public function batalkanRevisiPeriode(Request $request, string $kegiatanRouteKey, int $tahun, string $bulan): RedirectResponse
     {
         $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+        $bulanCandidates = $this->resolveBulanCandidates($bulan);
 
         $effectiveUser = effectiveUser($request);
         if (! $effectiveUser || ! $effectiveUser->hasActiveRole('admin')) {
@@ -3189,7 +3209,7 @@ class AlokasiPetugasController extends Controller
 
         $periodePerubahan = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
             ->where('tahun', $tahun)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('status', 'perubahan')
             ->orderByDesc('revision_number')
             ->with('alokasiPetugas:id,periode_alokasi_id,petugas_id')
