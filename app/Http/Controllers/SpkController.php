@@ -55,11 +55,14 @@ class SpkController extends Controller
 
         $periodes = $query->latest()->get();
 
-        // Group by month and year
+        // Group by month for regular activities, but keep Sensus Ekonomi period-based.
         $groupedByMonth = $periodes->groupBy(function ($periode) {
-            return $periode->tahun.'-'.$periode->bulan;
-        })->map(function ($monthPeriodes, $key) {
-            [$tahun, $bulan] = explode('-', $key);
+            return $this->resolveSpkIndexGroupKey($periode);
+        })->map(function ($monthPeriodes) {
+            $primaryPeriode = $monthPeriodes->first();
+            $tahun = (int) $primaryPeriode->tahun;
+            $bulan = (int) $primaryPeriode->bulan;
+            $isPeriodBased = $this->usesPeriodBasedSpkFlow($primaryPeriode);
 
             // Count unique non-organik petugas across all kegiatan in this month
             // Only count petugas with honor > 0
@@ -196,10 +199,14 @@ class SpkController extends Controller
             });
 
             // Check for new kegiatan/petugas after SPK was generated
-            $hasNewKegiatanAfterSpk = $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
+            $hasNewKegiatanAfterSpk = $isPeriodBased
+                ? false
+                : $this->hasNewKegiatanAfterSpk($tahun, $bulan, $monthPeriodes);
 
             // Check for new revisions after addendum was generated
-            $hasNewRevisionAfterAddendum = $this->hasNewRevisionAfterAddendum($tahun, $bulan, $monthPeriodes);
+            $hasNewRevisionAfterAddendum = $isPeriodBased
+                ? false
+                : $this->hasNewRevisionAfterAddendum($tahun, $bulan, $monthPeriodes);
 
             // Check if SPK has been regenerated (regeneration_count > 0)
             $hasBeenRegenerated = $monthPeriodes->flatMap(function ($periode) {
@@ -209,12 +216,20 @@ class SpkController extends Controller
             });
 
             // Check for incomplete addendum (some petugas with revision don't have addendum yet)
-            $hasIncompleteAddendum = $this->hasIncompleteAddendum($tahun, $bulan, $monthPeriodes);
+            $hasIncompleteAddendum = $isPeriodBased
+                ? false
+                : $this->hasIncompleteAddendum($tahun, $bulan, $monthPeriodes);
 
             // Check for addendum changes (petugas who already have addendum but have allocation changes)
-            $hasAddendumChanges = $this->hasAddendumChanges($tahun, $bulan, $monthPeriodes);
+            $hasAddendumChanges = $isPeriodBased
+                ? false
+                : $this->hasAddendumChanges($tahun, $bulan, $monthPeriodes);
 
             return [
+                'entry_key' => $this->resolveSpkIndexGroupKey($primaryPeriode),
+                'display_label' => $this->resolveSpkIndexDisplayLabel($primaryPeriode),
+                'is_period_based' => $isPeriodBased,
+                'primary_periode_hashed_id' => $primaryPeriode->hashed_id,
                 'tahun' => (int) $tahun,
                 'bulan' => (int) $bulan,
                 'bulan_label' => $this->getBulanLabel((int) $bulan),
@@ -1325,24 +1340,13 @@ class SpkController extends Controller
             'kegiatan',
         ])->findOrFail($periodeId);
 
-        // Check if there are any draft periode in the same month
-        $hasDraftPeriode = PeriodeAlokasi::where('bulan', $periode->bulan)
-            ->where('tahun', $periode->tahun)
-            ->where('status', 'draft')
-            ->exists();
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
+        $hasDraftPeriode = $this->hasDraftPeriodeInSpkScope($periode);
 
-        // Get all periode alokasi in the same month and year
-        // For regenerate SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
-        // For addendum: use 'perubahan' status
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
-            ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'perubahan'])
-            ->pluck('id');
-
-        // Get all unique non-organik petugas from all alokasi in this month
+        // Get all unique non-organik petugas from the SPK scope.
         // Only include alokasi with total_honor > 0 (either pencacahan or listing)
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
-            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
             })
@@ -1401,10 +1405,8 @@ class SpkController extends Controller
         $nextNomorUrut = $this->getNextNomorUrut($periode->tahun);
 
         // Check if there are existing SPKs in this month (for regenerate mode)
-        $existingSpk = Spk::where('addendum_number', 0)
-            ->whereYear('tanggal_spk', $periode->tahun)
-            ->whereMonth('tanggal_spk', $periode->bulan)
-            ->first();
+        $existingSpkQuery = $this->baseSpkScopeQuery($periode);
+        $existingSpk = (clone $existingSpkQuery)->first();
 
         // If existing SPK found, use its dates and set readonly mode
         $isRegenerate = $existingSpk !== null;
@@ -1419,9 +1421,7 @@ class SpkController extends Controller
         if ($isRegenerate) {
             // Get ALL existing SPKs in this month first (not limited to current petugasList)
             // This ensures we capture all petugas who already have SPK, even if they're not in current list
-            $existingSpks = Spk::where('addendum_number', 0)
-                ->whereYear('tanggal_spk', $periode->tahun)
-                ->whereMonth('tanggal_spk', $periode->bulan)
+            $existingSpks = (clone $existingSpkQuery)
                 ->with(['alokasiPetugas.periodeAlokasi.kegiatan'])
                 ->get();
 
@@ -1435,11 +1435,7 @@ class SpkController extends Controller
 
                 $kegiatanIds = AlokasiPetugas::whereIn('id', $baselineAlokasiIds)
                     ->where('petugas_id', $spk->petugas_id)
-                    ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                        $q->where('bulan', str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT))
-                            ->where('tahun', $periode->tahun)
-                            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
-                    })
+                    ->whereIn('periode_alokasi_id', $scopePeriodeIds)
                     ->where(function ($query) {
                         $query->where('total_honor', '>', 0)
                             ->orWhere('total_honor_listing', '>', 0);
@@ -1503,10 +1499,8 @@ class SpkController extends Controller
             // Generate mode: Filter out petugas who already have SPK in this month
             // Only show petugas who DON'T have SPK yet
             $petugasIds = $petugasList->pluck('petugas.id')->unique();
-            $existingSpkPetugasIds = Spk::whereIn('petugas_id', $petugasIds)
-                ->where('addendum_number', 0)
-                ->whereYear('tanggal_spk', $periode->tahun)
-                ->whereMonth('tanggal_spk', $periode->bulan)
+            $existingSpkPetugasIds = (clone $existingSpkQuery)
+                ->whereIn('petugas_id', $petugasIds)
                 ->pluck('petugas_id')
                 ->toArray();
 
@@ -2276,6 +2270,8 @@ class SpkController extends Controller
                 'tanggal_mulai_kerja' => $parentSpk->tanggal_mulai_kerja,
                 'tanggal_selesai_kerja' => $parentSpk->tanggal_selesai_kerja,
                 'nilai_kontrak' => $totalHonor,
+                'lampiran_template' => $parentSpk->lampiran_template ?? 'default',
+                'lampiran_payload' => $parentSpk->lampiran_payload,
                 'nama_ppk' => $parentSpk->nama_ppk,
                 'nip_ppk' => $parentSpk->nip_ppk,
                 'file_path' => $filePath,
@@ -2653,6 +2649,10 @@ class SpkController extends Controller
             'pdfTitle' => $filename,
             'workType' => $this->detectWorkType($allAlokasi),
         ];
+        $data = $this->withLampiranContext($data);
+
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
 
         // Generate 2 separate PDFs and merge them (SPK Main + Lampiran only)
         $pdfMain = Pdf::loadView('spk-main', $data)
@@ -2661,8 +2661,8 @@ class SpkController extends Controller
         // Set PDF title metadata untuk main
         $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
 
-        $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
-            ->setPaper('a4', 'landscape');
+        $pdfLampiran = Pdf::loadView($lampiranView, $data)
+            ->setPaper('a4', $lampiranPaper);
 
         // Set PDF title metadata untuk lampiran
         $pdfLampiran->getDomPDF()->set_option('pdfTitle', $filename);
@@ -2990,9 +2990,13 @@ class SpkController extends Controller
             'bebanAnggaran' => $bebanAnggaran,
             'workType' => $this->detectWorkType($allAlokasi),
         ];
+        $data = $this->withLampiranContext($data);
 
-        $pdf = Pdf::loadView('spk-lampiran', $data)
-            ->setPaper('a4', 'landscape');
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
+
+        $pdf = Pdf::loadView($lampiranView, $data)
+            ->setPaper('a4', $lampiranPaper);
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
@@ -3128,6 +3132,10 @@ class SpkController extends Controller
             'bebanAnggaran' => $bebanAnggaran,
             'workType' => $this->detectWorkType($allAlokasi),
         ];
+        $data = $this->withLampiranContext($data);
+
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
 
         DB::beginTransaction();
         try {
@@ -3135,8 +3143,8 @@ class SpkController extends Controller
             $pdfMain = Pdf::loadView('spk-main', $data)
                 ->setPaper('a4', 'portrait');
 
-            $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
-                ->setPaper('a4', 'landscape');
+            $pdfLampiran = Pdf::loadView($lampiranView, $data)
+                ->setPaper('a4', $lampiranPaper);
 
             // Save temporary PDFs
             $tempPath = storage_path('app/temp');
@@ -3203,6 +3211,8 @@ class SpkController extends Controller
                 'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                 'tanggal_selesai_kerja' => Carbon::parse($calculatedSampaiTanggal),
                 'nilai_kontrak' => $totalHonor,
+                'lampiran_template' => $data['lampiranTemplate'],
+                'lampiran_payload' => $data['lampiranPayload'],
                 'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                 'nip_ppk' => $penandatangan->nip ?? null,
                 'file_path' => $filePath,
@@ -3257,6 +3267,249 @@ class SpkController extends Controller
     private function calculateTotalHonor(Kegiatan $kegiatan, AlokasiPetugas $alokasi): float
     {
         return $alokasi->getEffectiveCombinedHonor();
+    }
+
+    private function withLampiranContext(array $data): array
+    {
+        $kegiatan = $data['kegiatan'] ?? null;
+        $peran = (string) ($data['peran'] ?? '');
+
+        if (! $kegiatan instanceof Kegiatan || ! $this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
+            $data['lampiranTemplate'] = 'default';
+            $data['lampiranPayload'] = null;
+
+            return $data;
+        }
+
+        $data['lampiranTemplate'] = 'sensus_ekonomi';
+        $data['lampiranPayload'] = $this->buildSensusEkonomiLampiranPayload(
+            $data['periode'] ?? null,
+            $data['uraianTugas'] ?? [],
+            (float) ($data['totalHonor'] ?? 0),
+            $kegiatan
+        );
+
+        return $data;
+    }
+
+    private function resolveLampiranView(Kegiatan $kegiatan, string $peran): string
+    {
+        if ($this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
+            return 'spk-lampiran-sensus-ekonomi';
+        }
+
+        return 'spk-lampiran';
+    }
+
+    private function resolveLampiranPaperOrientation(Kegiatan $kegiatan, string $peran): string
+    {
+        if ($this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
+            return 'portrait';
+        }
+
+        return 'landscape';
+    }
+
+    private function usesSensusEkonomiLampiranTemplate(Kegiatan $kegiatan, string $peran): bool
+    {
+        return $this->isSensusEkonomi2026($kegiatan)
+            && in_array(mb_strtolower($peran), ['pcl_ppl', 'pcl', 'ppl'], true);
+    }
+
+    private function usesPeriodBasedSpkFlow(PeriodeAlokasi $periode): bool
+    {
+        return $this->isSensusEkonomi2026($periode->kegiatan);
+    }
+
+    private function resolveSpkScopePeriodeIds(PeriodeAlokasi $periode, array $statuses = []): Collection
+    {
+        $query = PeriodeAlokasi::query();
+
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            $query->whereKey($periode->id);
+        } else {
+            $query->where('bulan', $periode->bulan)
+                ->where('tahun', $periode->tahun);
+        }
+
+        if ($statuses !== []) {
+            $query->whereIn('status', $statuses);
+        }
+
+        return $query->pluck('id');
+    }
+
+    private function hasDraftPeriodeInSpkScope(PeriodeAlokasi $periode): bool
+    {
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            return false;
+        }
+
+        return PeriodeAlokasi::where('bulan', $periode->bulan)
+            ->where('tahun', $periode->tahun)
+            ->where('status', 'draft')
+            ->exists();
+    }
+
+    private function baseSpkScopeQuery(PeriodeAlokasi $periode)
+    {
+        $query = Spk::query()->where('addendum_number', 0);
+
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            return $query->whereHas('alokasiPetugas', function ($builder) use ($periode) {
+                $builder->where('periode_alokasi_id', $periode->id);
+            });
+        }
+
+        return $query->whereYear('tanggal_spk', $periode->tahun)
+            ->whereMonth('tanggal_spk', (int) $periode->bulan);
+    }
+
+    private function resolveSpkIndexGroupKey(PeriodeAlokasi $periode): string
+    {
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            return 'periode-'.$periode->id;
+        }
+
+        return $periode->tahun.'-'.$periode->bulan;
+    }
+
+    private function resolveSpkIndexDisplayLabel(PeriodeAlokasi $periode): string
+    {
+        if (! $this->usesPeriodBasedSpkFlow($periode)) {
+            return $this->getBulanLabel((int) $periode->bulan).' '.$periode->tahun;
+        }
+
+        if ($periode->tanggal_mulai && $periode->tanggal_selesai) {
+            $start = $periode->tanggal_mulai;
+            $end = $periode->tanggal_selesai;
+
+            if ($start->year === $end->year) {
+                if ($start->month === $end->month) {
+                    return $start->translatedFormat('d').'-'.$end->translatedFormat('d F Y');
+                }
+
+                return $start->translatedFormat('F').' - '.$end->translatedFormat('F Y');
+            }
+
+            return $start->translatedFormat('d F Y').' - '.$end->translatedFormat('d F Y');
+        }
+
+        return $this->getBulanLabel((int) $periode->bulan).' '.$periode->tahun;
+    }
+
+    private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
+    {
+        return mb_strtolower((string) $kegiatan->jenis_kegiatan) === 'sensus'
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $uraianTugas
+     * @return array<string, mixed>
+     */
+    private function buildSensusEkonomiLampiranPayload(mixed $periode, array $uraianTugas, float $totalHonor, Kegiatan $kegiatan): array
+    {
+        $positiveTask = collect($uraianTugas)->first(function ($task) {
+            return (float) ($task['jumlah'] ?? 0) > 0;
+        });
+
+        $volumeLabel = $this->formatLampiranVolumeLabel(
+            $positiveTask['volume'] ?? null,
+            $positiveTask['satuan'] ?? null
+        );
+
+        $periodeMulai = $periode?->tanggal_mulai;
+        $periodeSelesai = $periode?->tanggal_selesai;
+
+        $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
+        $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
+
+        return [
+            'groups' => [
+                [
+                    'items' => [
+                        'Melakukan pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin I',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                    ],
+                    'waktu_penyelesaian' => 'Minimal 1 bulan',
+                    'persentase' => '40%',
+                    'volume' => $volumeLabel,
+                    'nilai_perjanjian' => $terminSatuAmount,
+                ],
+                [
+                    'items' => [
+                        'Melakukan pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin II',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                    ],
+                    'waktu_penyelesaian' => $this->formatLampiranDate($periodeSelesai),
+                    'persentase' => '60%',
+                    'volume' => $volumeLabel,
+                    'nilai_perjanjian' => $terminDuaAmount,
+                ],
+            ],
+            'total' => [
+                'waktu_penyelesaian' => $this->formatLampiranDateRange($periodeMulai, $periodeSelesai),
+                'persentase' => '100%',
+                'volume' => $volumeLabel !== '-' ? 'Seluruh muatan '.$volumeLabel : '-',
+                'nilai_perjanjian' => $totalHonor,
+            ],
+        ];
+    }
+
+    private function calculateLampiranMilestoneAmount(float $totalHonor, float $ratio): float
+    {
+        return round($totalHonor * $ratio, 2);
+    }
+
+    private function formatLampiranDate(mixed $date): string
+    {
+        if (! $date) {
+            return '-';
+        }
+
+        return Carbon::parse($date)->locale('id')->translatedFormat('d F Y');
+    }
+
+    private function formatLampiranDateRange(mixed $startDate, mixed $endDate): string
+    {
+        if (! $startDate && ! $endDate) {
+            return '-';
+        }
+
+        if (! $startDate) {
+            return $this->formatLampiranDate($endDate);
+        }
+
+        if (! $endDate) {
+            return $this->formatLampiranDate($startDate);
+        }
+
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        if ($start->year === $end->year) {
+            if ($start->month === $end->month) {
+                return $start->translatedFormat('d').'-'.$end->translatedFormat('d F Y');
+            }
+
+            return $start->translatedFormat('d F').'-'.$end->translatedFormat('d F Y');
+        }
+
+        return $start->translatedFormat('d F Y').'-'.$end->translatedFormat('d F Y');
+    }
+
+    private function formatLampiranVolumeLabel(mixed $volume, ?string $unit): string
+    {
+        if ($volume === null || $volume === '' || (float) $volume <= 0) {
+            return '-';
+        }
+
+        $formattedVolume = floor((float) $volume) === (float) $volume
+            ? number_format((float) $volume, 0, ',', '.')
+            : rtrim(rtrim(number_format((float) $volume, 2, ',', '.'), '0'), ',');
+
+        return trim($formattedVolume.' '.($unit ?? ''));
     }
 
     /**
@@ -3517,18 +3770,12 @@ class SpkController extends Controller
         }
 
         $periode = PeriodeAlokasi::with(['kegiatan'])->findOrFail($periodeId);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
 
-        // Get all periode alokasi in the same month and year
-        // For SPK generation (non-addendum): use effective status 'dikirim' and 'perubahan'
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $periode->bulan)
-            ->where('tahun', $periode->tahun)
-            ->whereIn('status', ['dikirim', 'perubahan'])
-            ->pluck('id');
-
-        // Get all unique non-organik petugas from all alokasi in this month
+        // Get all unique non-organik petugas from the SPK scope.
         // Only include those with honor > 0
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
-            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
             })
@@ -3561,22 +3808,14 @@ class SpkController extends Controller
         $tahun = $periode->tahun;
         $bulan = $periode->bulan;
 
-        // Get all existing SPKs for this month (one SPK per petugas)
-        // Now we can query directly by petugas_id since SPK table has it
-        $allPeriodeIds = PeriodeAlokasi::where('bulan', $bulan)
-            ->where('tahun', $tahun)
-            ->pluck('id');
-
-        // Get unique petugas_ids that have alokasi in this month
-        $petugasIdsInMonth = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeIds)
+        $petugasIdsInMonth = AlokasiPetugas::whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->pluck('petugas_id')
             ->unique();
 
-        // Get existing SPKs for these petugas by checking tanggal_spk (the official date)
-        $existingSpks = Spk::whereIn('petugas_id', $petugasIdsInMonth)
-            ->where('addendum_number', 0)
-            ->whereYear('tanggal_spk', $tahun)
-            ->whereMonth('tanggal_spk', $bulan)
+        $existingSpkScopeQuery = $this->baseSpkScopeQuery($periode);
+
+        $existingSpks = (clone $existingSpkScopeQuery)
+            ->whereIn('petugas_id', $petugasIdsInMonth)
             ->with('petugas')
             ->get()
             ->keyBy('petugas_id');
@@ -3648,11 +3887,7 @@ class SpkController extends Controller
             // Call the same logic as generateSpk, but inline to avoid HTTP call
             // IMPORTANT: Only get alokasi from current effective periode statuses
             $allAlokasiPetugas = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-                ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                    $q->where('bulan', $periode->bulan)
-                        ->where('tahun', $periode->tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
-                })
+                ->whereIn('periode_alokasi_id', $scopePeriodeIds)
                 ->where('petugas_id', $petugasId)
                 ->get();
 
@@ -3740,14 +3975,18 @@ class SpkController extends Controller
                 'bebanAnggaran' => $bebanAnggaran,
                 'workType' => $this->detectWorkType($allAlokasiPetugas),
             ];
+            $data = $this->withLampiranContext($data);
+
+            $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+            $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
 
             // Use the same PDF/database logic as generateSpk
             DB::beginTransaction();
             try {
                 $pdfMain = Pdf::loadView('spk-main', $data)
                     ->setPaper('a4', 'portrait');
-                $pdfLampiran = Pdf::loadView('spk-lampiran', $data)
-                    ->setPaper('a4', 'landscape');
+                $pdfLampiran = Pdf::loadView($lampiranView, $data)
+                    ->setPaper('a4', $lampiranPaper);
                 $tempPath = storage_path('app/temp');
                 if (! file_exists($tempPath)) {
                     mkdir($tempPath, 0777, true);
@@ -3799,6 +4038,8 @@ class SpkController extends Controller
                         'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
+                        'lampiran_template' => $data['lampiranTemplate'],
+                        'lampiran_payload' => $data['lampiranPayload'],
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                         'nip_ppk' => $penandatangan->nip ?? null,
                         'file_path' => $filePath, // Update file_path with new regenerated SPK
@@ -3832,6 +4073,8 @@ class SpkController extends Controller
                         'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,
                         'nilai_kontrak' => $totalHonor,
+                        'lampiran_template' => $data['lampiranTemplate'],
+                        'lampiran_payload' => $data['lampiranPayload'],
                         'nama_ppk' => preg_replace('/,.*$/', '', $penandatangan->nama),
                         'nip_ppk' => $penandatangan->nip ?? null,
                         'file_path' => $filePath,
@@ -4502,22 +4745,36 @@ class SpkController extends Controller
     {
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
+        $periodeHashedId = $request->input('periode_hashed_id');
 
-        if (! $bulan || ! $tahun) {
+        $periode = null;
+        if ($periodeHashedId) {
+            $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+            if ($periodeId) {
+                $periode = PeriodeAlokasi::with('kegiatan')->find($periodeId);
+            }
+        }
+
+        if (! $periode && (! $bulan || ! $tahun)) {
             return response()->json(['error' => 'Bulan dan tahun harus diisi'], 400);
         }
 
-        // Format bulan with leading zero
-        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        if ($periode) {
+            $allPeriodeInMonth = $this->resolveSpkScopePeriodeIds(
+                $periode,
+                ['dikirim', 'disetujui', 'direvisi', 'perubahan']
+            );
+        } else {
+            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all periodes in this month
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
-            ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
-            ->whereHas('kegiatan', function ($q) use ($tahun) {
-                $q->where('tahun_anggaran', $tahun);
-            })
-            ->pluck('id');
+            $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+                ->where('tahun', $tahun)
+                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                ->whereHas('kegiatan', function ($q) use ($tahun) {
+                    $q->where('tahun_anggaran', $tahun);
+                })
+                ->pluck('id');
+        }
 
         // Get unique petugas IDs that will get SPK (non-organik with honor > 0)
         $petugasIds = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)

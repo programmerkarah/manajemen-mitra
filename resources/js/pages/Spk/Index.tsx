@@ -39,6 +39,10 @@ interface KegiatanItem {
 }
 
 interface MonthlyPeriodeItem {
+    entry_key: string;
+    display_label: string;
+    is_period_based: boolean;
+    primary_periode_hashed_id: string;
     tahun: number;
     bulan: number;
     bulan_label: string;
@@ -189,12 +193,8 @@ export default function Index({ periodeList }: IndexProps) {
         setSummaryModalOpen(true);
     };
 
-    const handleCopyPetugasNames = async (
-        bulan: number,
-        tahun: number,
-        bulanLabel: string,
-    ) => {
-        const monthKey = `${tahun}-${bulan}`;
+    const handleCopyPetugasNames = async (item: MonthlyPeriodeItem) => {
+        const monthKey = item.entry_key;
         setCopyingMonth(monthKey);
 
         try {
@@ -207,7 +207,13 @@ export default function Index({ periodeList }: IndexProps) {
                             .querySelector('meta[name="csrf-token"]')
                             ?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({ bulan, tahun }),
+                body: JSON.stringify({
+                    bulan: item.bulan,
+                    tahun: item.tahun,
+                    periode_hashed_id: item.is_period_based
+                        ? item.primary_periode_hashed_id
+                        : undefined,
+                }),
             });
 
             if (!response.ok) {
@@ -237,7 +243,7 @@ export default function Index({ periodeList }: IndexProps) {
             setModalContent({
                 type: 'success',
                 title: 'Berhasil',
-                message: `${data.count} nama petugas ${bulanLabel} ${tahun} berhasil disalin ke clipboard`,
+                message: `${data.count} nama petugas ${item.display_label} berhasil disalin ke clipboard`,
             });
             setModalOpen(true);
         } catch (error) {
@@ -260,7 +266,7 @@ export default function Index({ periodeList }: IndexProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Perjanjian Kerja"
-                    description="Kelola Perjanjian Kerja untuk petugas per bulan"
+                    description="Kelola Perjanjian Kerja untuk petugas per bulan dan periode khusus"
                 />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -391,12 +397,11 @@ export default function Index({ periodeList }: IndexProps) {
                                 ) : (
                                     decryptedPeriodeList.map((monthData) => (
                                         <tr
-                                            key={`${monthData.tahun}-${monthData.bulan}`}
+                                            key={monthData.entry_key}
                                             className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
                                         >
                                             <td className="px-4 py-4 text-center text-sm font-medium whitespace-nowrap text-neutral-900 dark:text-white">
-                                                {monthData.bulan_label}{' '}
-                                                {monthData.tahun}
+                                                {monthData.display_label}
                                             </td>
                                             <td className="px-4 py-4">
                                                 <div className="max-w-md space-y-1">
@@ -463,20 +468,18 @@ export default function Index({ periodeList }: IndexProps) {
                                                             variant="outline"
                                                             onClick={() =>
                                                                 handleCopyPetugasNames(
-                                                                    monthData.bulan,
-                                                                    monthData.tahun,
-                                                                    monthData.bulan_label,
+                                                                    monthData,
                                                                 )
                                                             }
                                                             disabled={
                                                                 copyingMonth ===
-                                                                `${monthData.tahun}-${monthData.bulan}`
+                                                                monthData.entry_key
                                                             }
                                                             className="w-full cursor-pointer justify-start gap-1"
                                                         >
                                                             <Copy className="h-3.5 w-3.5" />
                                                             {copyingMonth ===
-                                                            `${monthData.tahun}-${monthData.bulan}`
+                                                            monthData.entry_key
                                                                 ? 'Menyalin...'
                                                                 : 'Salin Nama Petugas'}
                                                         </Button>
@@ -500,7 +503,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full cursor-pointer justify-start gap-1"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate`}
                                                                 >
                                                                     <Plus className="h-3.5 w-3.5" />
                                                                     Generate
@@ -528,7 +531,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full cursor-pointer justify-start gap-1 bg-orange-600 hover:bg-orange-700"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/generate`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate`}
                                                                 >
                                                                     <Plus className="h-3.5 w-3.5" />
                                                                     Re-generate
@@ -539,30 +542,30 @@ export default function Index({ periodeList }: IndexProps) {
                                                         )}
 
                                                     {/* View SPK Details - Always show if SPK exists */}
-                                                    {monthData.total_spk >
-                                                        0 && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                router.get(
-                                                                    '/spk/month',
-                                                                    {
-                                                                        state: encryptFilters(
-                                                                            {
-                                                                                bulan: monthData.bulan,
-                                                                                tahun: monthData.tahun,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                )
-                                                            }
-                                                            className="w-full cursor-pointer justify-start gap-1"
-                                                        >
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                            Lihat Detail
-                                                        </Button>
-                                                    )}
+                                                    {monthData.total_spk > 0 &&
+                                                        !monthData.is_period_based && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    router.get(
+                                                                        '/spk/month',
+                                                                        {
+                                                                            state: encryptFilters(
+                                                                                {
+                                                                                    bulan: monthData.bulan,
+                                                                                    tahun: monthData.tahun,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    )
+                                                                }
+                                                                className="w-full cursor-pointer justify-start gap-1"
+                                                            >
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                                Lihat Detail
+                                                            </Button>
+                                                        )}
 
                                                     {/* Addendum SPK - Show if:
                                                         1. Has revisions AND
@@ -582,7 +585,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full justify-start gap-1"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=addendum`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=addendum`}
                                                                 >
                                                                     <FileEdit className="h-3.5 w-3.5" />
                                                                     Addendum
@@ -608,7 +611,7 @@ export default function Index({ periodeList }: IndexProps) {
                                                                 className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.kegiatan_list[0].periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=regenerate`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=regenerate`}
                                                                 >
                                                                     <FileEdit className="h-3.5 w-3.5" />
                                                                     Re-generate
@@ -632,7 +635,7 @@ export default function Index({ periodeList }: IndexProps) {
                                 <div className="text-sm text-neutral-700 dark:text-neutral-300">
                                     Menampilkan {periodeList.meta.from} hingga{' '}
                                     {periodeList.meta.to} dari{' '}
-                                    {periodeList.meta.total} bulan
+                                    {periodeList.meta.total} entri
                                 </div>
                                 <div className="flex gap-2">
                                     {periodeList.links.map((link, index) => {
@@ -719,18 +722,16 @@ export default function Index({ periodeList }: IndexProps) {
                             ) : (
                                 summaryModalItems.map((monthData) => {
                                     const periodeHashedId =
-                                        monthData.kegiatan_list[0]
-                                            ?.periode_hashed_id;
+                                        monthData.primary_periode_hashed_id;
 
                                     return (
                                         <div
-                                            key={`summary-${monthData.tahun}-${monthData.bulan}`}
+                                            key={`summary-${monthData.entry_key}`}
                                             className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 dark:border-neutral-800"
                                         >
                                             <div>
                                                 <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                                                    {monthData.bulan_label}{' '}
-                                                    {monthData.tahun}
+                                                    {monthData.display_label}
                                                 </p>
                                                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                                     {
@@ -756,27 +757,28 @@ export default function Index({ periodeList }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                {monthData.total_spk > 0 && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        onClick={() =>
-                                                            router.get(
-                                                                '/spk/month',
-                                                                {
-                                                                    state: encryptFilters(
-                                                                        {
-                                                                            bulan: monthData.bulan,
-                                                                            tahun: monthData.tahun,
-                                                                        },
-                                                                    ),
-                                                                },
-                                                            )
-                                                        }
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                )}
+                                                {monthData.total_spk > 0 &&
+                                                    !monthData.is_period_based && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() =>
+                                                                router.get(
+                                                                    '/spk/month',
+                                                                    {
+                                                                        state: encryptFilters(
+                                                                            {
+                                                                                bulan: monthData.bulan,
+                                                                                tahun: monthData.tahun,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    )}
 
                                                 {isNeedAddendum(monthData) &&
                                                     periodeHashedId && (

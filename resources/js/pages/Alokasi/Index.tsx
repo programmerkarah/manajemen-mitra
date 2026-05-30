@@ -952,7 +952,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             periode
                                                                                 .kegiatan
                                                                                 .nama_kegiatan,
-                                                                                        periode.display_bulan,
+                                                                            periode.display_bulan,
                                                                         )
                                                                     }
                                                                     className="cursor-pointer gap-2 text-red-600 dark:text-red-400"

@@ -621,6 +621,70 @@
 
     <!-- LAMPIRAN -->
     <div class="lampiran-section" style="width: 297mm; height: 210mm;">
+        @if(($lampiranTemplate ?? 'default') === 'sensus_ekonomi')
+        @php($specialLampiran = $lampiranPayload ?? [])
+        <div class="lampiran-header" style="margin-bottom: 12px;">
+            <div class="lampiran-title" style="margin-left: 0; text-align: center; line-height: 1.3;">
+                Lampiran<br>
+                PERJANJIAN KERJA PETUGAS LAPANGAN<br>
+                SENSUS EKONOMI 2026<br>
+                PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+                NOMOR: {{ $nomorSpk }}
+            </div>
+        </div>
+
+        <div class="lampiran-subtitle">
+            DAFTAR URAIAN PEKERJAAN, WAKTU PENYELESAIAN, TARGET PEKERJAAN DAN NILAI PERJANJIAN
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Uraian Pekerjaan</th>
+                    <th rowspan="2">Waktu Penyelesaian</th>
+                    <th colspan="2">Target Pekerjaan</th>
+                    <th rowspan="2">Nilai Perjanjian</th>
+                </tr>
+                <tr>
+                    <th>Persentase</th>
+                    <th>Volume</th>
+                </tr>
+                <tr>
+                    <th>(1)</th>
+                    <th>(2)</th>
+                    <th>(3)</th>
+                    <th>(4)</th>
+                    <th>(5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(($specialLampiran['groups'] ?? []) as $group)
+                    @foreach(($group['items'] ?? []) as $index => $item)
+                    <tr>
+                        <td class="left">{{ $index + 1 }}. {{ $item }}</td>
+                        @if($index === 0)
+                        <td rowspan="{{ count($group['items'] ?? []) }}">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
+                        <td rowspan="{{ count($group['items'] ?? []) }}">{{ $group['persentase'] ?? '-' }}</td>
+                        <td rowspan="{{ count($group['items'] ?? []) }}" class="left">{{ $group['volume'] ?? '-' }}</td>
+                        <td rowspan="{{ count($group['items'] ?? []) }}" class="right">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
+                        @endif
+                    </tr>
+                    @endforeach
+                @endforeach
+                <tr>
+                    <td class="left">Total</td>
+                    <td>{{ $specialLampiran['total']['waktu_penyelesaian'] ?? '-' }}</td>
+                    <td>{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
+                    <td class="left">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
+                    <td class="right">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="table-footer"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
+                    <td colspan="3"></td>
+                </tr>
+            </tbody>
+        </table>
+        @else
         <div class="lampiran-header">
             <div class="lampiran-title">
                 @php
@@ -692,6 +756,7 @@
                 </tr>
             </tbody>
         </table>
+        @endif
     </div>
 
 </body>

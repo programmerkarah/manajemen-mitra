@@ -26,6 +26,7 @@ class Spk extends Model
             'tanggal_mulai_kerja' => 'date:Y-m-d',
             'tanggal_selesai_kerja' => 'date:Y-m-d',
             'nilai_kontrak' => 'decimal:2',
+            'lampiran_payload' => 'array',
             'alokasi_petugas_ids' => 'array',
         ];
     }
@@ -44,6 +45,8 @@ class Spk extends Model
         'tanggal_selesai_kerja',
         'uraian_pekerjaan',
         'nilai_kontrak',
+        'lampiran_template',
+        'lampiran_payload',
         'nama_ppk',
         'nip_ppk',
         'file_path',
