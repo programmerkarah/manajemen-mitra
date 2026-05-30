@@ -4,8 +4,11 @@ namespace App\Exports;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -14,9 +17,11 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
+use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -63,45 +68,240 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return $this->kegiatan->jenis_kegiatan === 'survei';
     }
 
+    /**
+     * @return Collection<int, KegiatanFrameSampel>
+     */
+    private function frameSampelRows()
+    {
+        if ($this->kegiatan === null) {
+            return collect();
+        }
+
+        $query = $this->kegiatan->kegiatanFrameSampel()
+            ->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+            ->orderBy('tahapan')
+            ->orderBy('id');
+
+        if ($this->tahapan === 'listing_only') {
+            $query->where('tahapan', 'listing');
+        }
+
+        if ($this->tahapan === 'pencacahan_only') {
+            $query->where('tahapan', 'pencacahan');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * @return Collection<int, array{code:string,label:string}>
+     */
+    private function frameMetadataColumns(): Collection
+    {
+        $preferredOrder = ['kdkec', 'kddes', 'kdsls', 'kdsubsls', 'idsegmen', 'kdsegmen'];
+        $columns = collect();
+
+        foreach ($this->frameSampelRows() as $frameRow) {
+            $identitas = is_array($frameRow->identitas_tambahan)
+                ? $frameRow->identitas_tambahan
+                : [];
+
+            foreach ($identitas as $key => $value) {
+                if (! is_scalar($value) || Str::endsWith((string) $key, '_label')) {
+                    continue;
+                }
+
+                $code = trim((string) $key);
+                if ($code === '') {
+                    continue;
+                }
+
+                $normalizedCode = Str::lower($code);
+
+                if ($columns->contains(fn (array $column) => Str::lower($column['code']) === $normalizedCode)) {
+                    continue;
+                }
+
+                $columns->push([
+                    'code' => $code,
+                    'label' => $this->formatMetadataLabel($code),
+                ]);
+            }
+        }
+
+        return $columns
+            ->sortBy(function (array $column) use ($preferredOrder): int {
+                $normalizedCode = Str::lower($column['code']);
+                $priorityIndex = array_search($normalizedCode, $preferredOrder, true);
+
+                return $priorityIndex === false ? 999 : $priorityIndex;
+            })
+            ->values();
+    }
+
+    private function formatMetadataLabel(string $code): string
+    {
+        $normalizedCode = Str::lower(trim($code));
+
+        return match ($normalizedCode) {
+            'kdkec', 'kode_kecamatan' => 'Kecamatan',
+            'kddes', 'kode_desa' => 'Desa/Kelurahan',
+            'kdsls', 'kode_sls' => 'SLS',
+            'kdsubsls', 'kode_sub_sls' => 'Sub SLS',
+            'idsegmen', 'kdsegmen', 'kode_segmen' => 'ID Segmen',
+            default => Str::title(str_replace('_', ' ', $code)),
+        };
+    }
+
+    private function resolveFrameMetadataValue(?KegiatanFrameSampel $frameRow, string $code): string
+    {
+        if (! $frameRow || ! is_array($frameRow->identitas_tambahan)) {
+            return '';
+        }
+
+        foreach ($frameRow->identitas_tambahan as $key => $value) {
+            if (Str::lower((string) $key) === Str::lower($code) && is_scalar($value)) {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
+    }
+
+    private function toNameSafeToken(string $value): string
+    {
+        $upperValue = strtoupper(trim($value));
+        $normalized = preg_replace('/[^A-Z0-9_]/', '_', $upperValue) ?? '';
+        $normalized = trim($normalized, '_');
+
+        return $normalized !== '' ? $normalized : 'EMPTY';
+    }
+
+    private function metadataCodeToken(string $code): string
+    {
+        return 'C_'.$this->toNameSafeToken($code);
+    }
+
+    private function metadataValueToken(string $value): string
+    {
+        return 'V_'.$this->toNameSafeToken($value);
+    }
+
+    /**
+     * @param  array<int, string>  $parentValues
+     */
+    private function metadataParentToken(array $parentValues): string
+    {
+        if (empty($parentValues)) {
+            return 'ROOT';
+        }
+
+        return implode('_', array_map(fn (string $value) => $this->metadataValueToken($value), $parentValues));
+    }
+
+    private function hasFrameSampelColumn(): bool
+    {
+        if ($this->kegiatan === null) {
+            return false;
+        }
+
+        return $this->frameSampelRows()->isNotEmpty();
+    }
+
     public function array(): array
     {
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
+        $hasFrameSampelColumn = $this->hasFrameSampelColumn();
+        $frameMetadataColumns = $this->frameMetadataColumns();
         $data = [];
 
         if ($this->type === 'edit' && $this->periodeAlokasiId) {
             $entries = AlokasiPetugas::where('periode_alokasi_id', $this->periodeAlokasiId)
-                ->with(['petugas'])
+                ->with(['petugas', 'frameSampelAllocations.kegiatanFrameSampel'])
                 ->get();
 
             foreach ($entries as $entry) {
-                $row = [
+                $baseRow = [
                     $this->formatNikDropdownValue($entry->petugas?->nama, $entry->petugas?->nik),
                     $this->mapPeranCodeForTemplate($entry->peran),
                 ];
 
-                if ($hasListing) {
-                    $row[] = $entry->jumlah_satuan_listing ?? '';
+                $frameRows = $entry->frameSampelAllocations
+                    ->map(fn ($allocation) => $allocation->kegiatanFrameSampel)
+                    ->filter(fn ($frameRow) => $frameRow instanceof KegiatanFrameSampel)
+                    ->values();
+
+                if (! $hasFrameSampelColumn || $frameRows->isEmpty()) {
+                    $row = $baseRow;
+
+                    if ($hasFrameSampelColumn) {
+                        foreach ($frameMetadataColumns as $_column) {
+                            $row[] = '';
+                        }
+                    }
+
+                    if ($hasListing) {
+                        $row[] = $entry->jumlah_satuan_listing ?? '';
+                    }
+
+                    $row[] = $entry->jumlah_satuan ?? '';
+
+                    if ($hasParsial) {
+                        $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
+                    }
+
+                    if ($hasListing && $hasParsial) {
+                        $row[] = $entry->partial_jumlah_satuan_listing ?? '';
+                    }
+
+                    if ($hasParsial) {
+                        $row[] = $entry->partial_jumlah_satuan ?? '';
+                    }
+
+                    $data[] = $row;
+
+                    continue;
                 }
 
-                $row[] = $entry->jumlah_satuan ?? '';
+                foreach ($frameRows as $frameRow) {
+                    $row = $baseRow;
 
-                if ($hasParsial) {
-                    $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
+                    foreach ($frameMetadataColumns as $column) {
+                        $row[] = $this->resolveFrameMetadataValue($frameRow, $column['code']);
+                    }
+
+                    if ($hasListing) {
+                        $row[] = $entry->jumlah_satuan_listing ?? '';
+                    }
+
+                    $row[] = $entry->jumlah_satuan ?? '';
+
+                    if ($hasParsial) {
+                        $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
+                    }
+
+                    if ($hasListing && $hasParsial) {
+                        $row[] = $entry->partial_jumlah_satuan_listing ?? '';
+                    }
+
+                    if ($hasParsial) {
+                        $row[] = $entry->partial_jumlah_satuan ?? '';
+                    }
+
+                    $data[] = $row;
                 }
-
-                if ($hasListing && $hasParsial) {
-                    $row[] = $entry->partial_jumlah_satuan_listing ?? '';
-                }
-
-                if ($hasParsial) {
-                    $row[] = $entry->partial_jumlah_satuan ?? '';
-                }
-
-                $data[] = $row;
             }
         } else {
             $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
+
+            if ($hasFrameSampelColumn) {
+                $firstFrameRow = $this->frameSampelRows()->first();
+
+                foreach ($frameMetadataColumns as $column) {
+                    $sampleRow[] = $this->resolveFrameMetadataValue($firstFrameRow, $column['code']);
+                }
+            }
 
             if ($hasListing) {
                 $sampleRow[] = '5';
@@ -155,6 +355,14 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             }
         }
 
+        if ($hasFrameSampelColumn) {
+            $data[] = [''];
+            $data[] = ['Catatan Frame Sampel:'];
+            $data[] = ['- Kolom metadata frame sampel wajib diisi sesuai metadata yang tersedia pada sheet Daftar Frame Sampel.'];
+            $data[] = ['- Jika satu petugas menerima lebih dari satu frame sampel, gunakan beberapa baris (petugas yang sama dapat diulang).'];
+            $data[] = ['- Saat import, baris dengan petugas + peran yang sama akan digabung otomatis saat penyimpanan.'];
+        }
+
         return $data;
     }
 
@@ -162,8 +370,16 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
     {
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
+        $hasFrameSampelColumn = $this->hasFrameSampelColumn();
+        $frameMetadataColumns = $this->frameMetadataColumns();
 
         $columns = ['Nama - NIK', 'Kode Penugasan'];
+
+        if ($hasFrameSampelColumn) {
+            foreach ($frameMetadataColumns as $column) {
+                $columns[] = $column['label'];
+            }
+        }
 
         if ($hasListing) {
             $columns[] = 'Jumlah Satuan Listing';
@@ -190,8 +406,16 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
     {
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
+        $hasFrameSampelColumn = $this->hasFrameSampelColumn();
+        $frameMetadataColumns = $this->frameMetadataColumns();
 
         $widths = [59, 30];
+
+        if ($hasFrameSampelColumn) {
+            foreach ($frameMetadataColumns as $_column) {
+                $widths[] = 22;
+            }
+        }
 
         if ($hasListing) {
             $widths[] = 22;
@@ -231,7 +455,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         // Required: NIK, Kode, (Listing?), Pencacahan, (Parsial flag?)
-        $requiredCount = 2 + ($hasListing ? 1 : 0) + 1 + ($hasParsial ? 1 : 0);
+        $requiredCount = 2 + ($hasFrameSampelColumn ? $frameMetadataColumns->count() : 0) + ($hasListing ? 1 : 0) + 1 + ($hasParsial ? 1 : 0);
         $requiredLastCol = chr(ord('A') + $requiredCount - 1);
 
         for ($col = 'A'; $col <= $requiredLastCol; $col++) {
@@ -383,6 +607,184 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                         $mainSheet->getCell('A'.$rowNumber)->setDataValidation(clone $validation);
                         $mainSheet->getCell('B'.$rowNumber)->setDataValidation(clone $kodeValidation);
                     }
+                }
+
+                $frameRows = $this->frameSampelRows();
+
+                if ($frameRows->isNotEmpty()) {
+                    $frameMetadataColumns = $this->frameMetadataColumns();
+                    $frameSheet = new Worksheet($spreadsheet, 'Daftar Frame Sampel');
+                    $dropdownSheet = new Worksheet($spreadsheet, 'Referensi Dropdown Metadata');
+                    $spreadsheet->addSheet($frameSheet);
+                    $spreadsheet->addSheet($dropdownSheet);
+
+                    $headerColumns = ['id_frame', 'tahapan', 'nama_frame'];
+                    foreach ($frameMetadataColumns as $column) {
+                        $headerColumns[] = $column['label'];
+                    }
+                    $headerColumns[] = 'target_unit_sampel';
+
+                    $columnLetter = 'A';
+                    foreach ($headerColumns as $header) {
+                        $frameSheet->setCellValue($columnLetter.'1', $header);
+                        $frameSheet->getColumnDimension($columnLetter)->setWidth(24);
+                        $columnLetter++;
+                    }
+
+                    $lastHeaderColumn = chr(ord('A') + count($headerColumns) - 1);
+                    $frameSheet->getStyle('A1:'.$lastHeaderColumn.'1')->getFont()->setBold(true);
+                    $frameSheet->getStyle('A1:'.$lastHeaderColumn.'1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                    $frameRow = 2;
+
+                    foreach ($frameRows as $frame) {
+                        $rowValues = [
+                            (int) $frame->id,
+                            (string) $frame->tahapan,
+                            (string) ($frame->nama_frame ?: 'Frame #'.$frame->id),
+                        ];
+
+                        foreach ($frameMetadataColumns as $column) {
+                            $rowValues[] = $this->resolveFrameMetadataValue($frame, $column['code']);
+                        }
+
+                        $rowValues[] = (int) ($frame->target_unit_sampel ?? 0);
+
+                        $columnLetter = 'A';
+                        foreach ($rowValues as $rowValue) {
+                            $frameSheet->setCellValue($columnLetter.$frameRow, $rowValue);
+                            $columnLetter++;
+                        }
+
+                        $frameRow++;
+                    }
+
+                    $frameSheet->freezePane('A2');
+
+                    $dropdownSheet->setCellValue('A1', 'range_name');
+                    $dropdownSheet->setCellValue('B1', 'value');
+                    $dropdownSheet->getStyle('A1:B1')->getFont()->setBold(true);
+
+                    $metadataRows = $frameRows
+                        ->map(function (KegiatanFrameSampel $frameRow) use ($frameMetadataColumns): array {
+                            $valuesByCode = [];
+                            foreach ($frameMetadataColumns as $column) {
+                                $valuesByCode[$column['code']] = $this->resolveFrameMetadataValue($frameRow, $column['code']);
+                            }
+
+                            return $valuesByCode;
+                        })
+                        ->values();
+
+                    $rangeDefinitions = [];
+                    foreach ($frameMetadataColumns as $index => $column) {
+                        $code = (string) $column['code'];
+                        $codeToken = $this->metadataCodeToken($code);
+                        $groups = [];
+
+                        foreach ($metadataRows as $metadataRow) {
+                            $value = trim((string) ($metadataRow[$code] ?? ''));
+                            if ($value === '') {
+                                continue;
+                            }
+
+                            $parentValues = [];
+                            for ($parentIndex = 0; $parentIndex < $index; $parentIndex++) {
+                                $parentCode = (string) $frameMetadataColumns[$parentIndex]['code'];
+                                $parentValues[] = trim((string) ($metadataRow[$parentCode] ?? ''));
+                            }
+
+                            $parentToken = $this->metadataParentToken($parentValues);
+                            $groups[$parentToken] = $groups[$parentToken] ?? [];
+                            $groups[$parentToken][] = $value;
+                        }
+
+                        foreach ($groups as $parentToken => $values) {
+                            $uniqueValues = array_values(array_unique(array_filter($values, fn (string $val): bool => trim($val) !== '')));
+                            sort($uniqueValues);
+
+                            if (empty($uniqueValues)) {
+                                continue;
+                            }
+
+                            $rangeDefinitions[] = [
+                                'name' => 'DD_'.$codeToken.'_'.$parentToken,
+                                'values' => $uniqueValues,
+                            ];
+                        }
+                    }
+
+                    $rangeColumnIndex = 1;
+                    foreach ($rangeDefinitions as $definition) {
+                        $columnLetter = Coordinate::stringFromColumnIndex($rangeColumnIndex);
+                        $dropdownSheet->setCellValue($columnLetter.'1', (string) $definition['name']);
+                        $dropdownSheet->getColumnDimension($columnLetter)->setWidth(22);
+
+                        $values = $definition['values'];
+                        $currentRow = 2;
+                        foreach ($values as $value) {
+                            $dropdownSheet->setCellValueExplicit($columnLetter.$currentRow, (string) $value, DataType::TYPE_STRING);
+                            $currentRow++;
+                        }
+
+                        $lastRow = max(2, $currentRow - 1);
+                        $spreadsheet->addNamedRange(new NamedRange(
+                            (string) $definition['name'],
+                            $dropdownSheet,
+                            '$'.$columnLetter.'$2:$'.$columnLetter.'$'.$lastRow
+                        ));
+
+                        $rangeColumnIndex++;
+                    }
+
+                    $mainMetadataStartColumn = 3; // A: NIK, B: Kode Penugasan
+                    foreach ($frameMetadataColumns as $metaIndex => $column) {
+                        $mainColumnIndex = $mainMetadataStartColumn + $metaIndex;
+                        $mainColumnLetter = Coordinate::stringFromColumnIndex($mainColumnIndex);
+
+                        $mainSheet->getStyle($mainColumnLetter.':'.$mainColumnLetter)
+                            ->getNumberFormat()
+                            ->setFormatCode(NumberFormat::FORMAT_TEXT);
+
+                        $codeToken = $this->metadataCodeToken((string) $column['code']);
+                        $buildFormulaForRow = function (int $rowNumber) use ($metaIndex, $mainMetadataStartColumn, $codeToken): string {
+                            if ($metaIndex === 0) {
+                                return 'INDIRECT("DD_'.$codeToken.'_ROOT")';
+                            }
+
+                            $parentParts = [];
+                            for ($parentIndex = 0; $parentIndex < $metaIndex; $parentIndex++) {
+                                $parentColumnLetter = Coordinate::stringFromColumnIndex($mainMetadataStartColumn + $parentIndex);
+                                $parentParts[] = '"V_"&'.$parentColumnLetter.$rowNumber;
+                            }
+
+                            return 'INDIRECT("DD_'.$codeToken.'_"&'.implode('&"_"&', $parentParts).')';
+                        };
+
+                        $formula = $buildFormulaForRow(2);
+
+                        $metaValidation = $mainSheet->getCell($mainColumnLetter.'2')->getDataValidation();
+                        $metaValidation->setType(DataValidation::TYPE_LIST);
+                        $metaValidation->setErrorStyle(DataValidation::STYLE_STOP);
+                        $metaValidation->setAllowBlank(true);
+                        $metaValidation->setShowInputMessage(true);
+                        $metaValidation->setShowErrorMessage(true);
+                        $metaValidation->setShowDropDown(true);
+                        $metaValidation->setErrorTitle('Metadata frame sampel tidak valid');
+                        $metaValidation->setError('Silakan pilih nilai metadata dari dropdown yang tersedia.');
+                        $metaValidation->setPromptTitle('Pilih metadata frame sampel');
+                        $metaValidation->setPrompt('Pilihan metadata mengikuti tingkatan kolom sebelumnya.');
+                        $metaValidation->setFormula1((string) $formula);
+
+                        for ($rowNumber = 3; $rowNumber <= 100; $rowNumber++) {
+                            $validation = clone $metaValidation;
+                            $validation->setFormula1($buildFormulaForRow($rowNumber));
+                            $mainSheet->getCell($mainColumnLetter.$rowNumber)
+                                ->setDataValidation($validation);
+                        }
+                    }
+
+                    $dropdownSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
                 }
             },
         ];

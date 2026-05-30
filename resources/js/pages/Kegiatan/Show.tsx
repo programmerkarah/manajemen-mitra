@@ -51,6 +51,26 @@ interface Props {
                 satuan_listing?: Satuan;
             }
         >;
+        frame_sampel_listing?: {
+            id: number;
+            nama: string;
+            kode: string;
+        } | null;
+        frame_sampel_pencacahan?: {
+            id: number;
+            nama: string;
+            kode: string;
+        } | null;
+        unit_sampel_listing?: {
+            id: number;
+            nama: string;
+            kode: string;
+        } | null;
+        unit_sampel_pencacahan?: {
+            id: number;
+            nama: string;
+            kode: string;
+        } | null;
         alokasi: Alokasi[];
     };
     auth: {
@@ -228,6 +248,22 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 </Button>
                             )}
 
+                        {canManageFeatures && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="w-full gap-2 sm:w-auto"
+                            >
+                                <Link
+                                    href={`/kegiatan/${kegiatan.hashed_id}/frame-sampel`}
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    Kelola Frame Sampel
+                                </Link>
+                            </Button>
+                        )}
+
                         {canEdit && (
                             <Button
                                 size="sm"
@@ -259,6 +295,50 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
                                     {kegiatan.nama_kegiatan}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Frame Sampel Pencacahan
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.frame_sampel_pencacahan
+                                        ? `${kegiatan.frame_sampel_pencacahan.nama} (${kegiatan.frame_sampel_pencacahan.kode})`
+                                        : '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Unit Sampel Pencacahan
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.unit_sampel_pencacahan
+                                        ? `${kegiatan.unit_sampel_pencacahan.nama} (${kegiatan.unit_sampel_pencacahan.kode})`
+                                        : '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Frame Sampel Listing
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.frame_sampel_listing
+                                        ? `${kegiatan.frame_sampel_listing.nama} (${kegiatan.frame_sampel_listing.kode})`
+                                        : '-'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Unit Sampel Listing
+                                </label>
+                                <p className="mt-1 text-gray-900 dark:text-white">
+                                    {kegiatan.unit_sampel_listing
+                                        ? `${kegiatan.unit_sampel_listing.nama} (${kegiatan.unit_sampel_listing.kode})`
+                                        : '-'}
                                 </p>
                             </div>
                             <div>

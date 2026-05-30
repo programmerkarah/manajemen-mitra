@@ -6,7 +6,7 @@
     <title>{{ $pdfTitle ?? 'Lampiran SPK Sensus Ekonomi - ' . $petugas->nama }}</title>
     <style>
         @page {
-            size: A4 portrait;
+            size: A4 landscape;
             margin: 1.5cm 2cm;
         }
 
@@ -56,7 +56,26 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
             font-size: 10pt;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tbody {
+            display: table-row-group;
+        }
+
+        tbody.keep-together {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        tr.keep-together-row {
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         th,
@@ -80,9 +99,35 @@
             text-align: left;
         }
 
+        td.volume-cell {
+            overflow-wrap: normal;
+            word-break: normal;
+            hyphens: none;
+            line-height: 1.35;
+            font-size: 9.5pt;
+        }
+
         td.right {
             text-align: right;
             vertical-align: middle;
+        }
+
+        .money-cell {
+            white-space: nowrap;
+        }
+
+        .nilai-column {
+            width: 14%;
+        }
+
+        .volume-column {
+            width: 24%;
+        }
+
+        table.summary-table {
+            margin-top: 0;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
     </style>
 </head>
@@ -104,6 +149,13 @@
     </div>
 
     <table>
+        <colgroup>
+            <col style="width: 38%;">
+            <col style="width: 17%;">
+            <col style="width: 7%;">
+            <col class="volume-column">
+            <col class="nilai-column">
+        </colgroup>
         <thead>
             <tr>
                 <th rowspan="2">Uraian Pekerjaan</th>
@@ -123,30 +175,60 @@
                 <th>(5)</th>
             </tr>
         </thead>
-        <tbody>
-            @foreach(($specialLampiran['groups'] ?? []) as $group)
+        @foreach(($specialLampiran['groups'] ?? []) as $group)
+        <tbody class="keep-together">
                 @foreach(($group['items'] ?? []) as $index => $item)
                 <tr>
                     <td class="left">{{ $index + 1 }}. {{ $item }}</td>
                     @if($index === 0)
                     <td rowspan="{{ count($group['items'] ?? []) }}" class="center">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
                     <td rowspan="{{ count($group['items'] ?? []) }}" class="center">{{ $group['persentase'] ?? '-' }}</td>
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="left">{{ $group['volume'] ?? '-' }}</td>
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="right">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
+                    <td rowspan="{{ count($group['items'] ?? []) }}" class="left volume-cell">{{ $group['volume'] ?? '-' }}</td>
+                    <td rowspan="{{ count($group['items'] ?? []) }}" class="right money-cell">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
                     @endif
                 </tr>
                 @endforeach
-            @endforeach
+        </tbody>
+        @endforeach
+    </table>
+
+    <table class="summary-table">
+        <colgroup>
+            <col style="width: 38%;">
+            <col style="width: 17%;">
+            <col style="width: 7%;">
+            <col class="volume-column">
+            <col class="nilai-column">
+        </colgroup>
+        <thead>
             <tr>
-                <td class="left">Total</td>
-                <td class="center">{{ $specialLampiran['total']['waktu_penyelesaian'] ?? '-' }}</td>
-                <td class="center">{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
-                <td class="left">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
-                <td class="right">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
+                <th rowspan="2">Uraian Pekerjaan</th>
+                <th rowspan="2">Waktu Penyelesaian</th>
+                <th colspan="2">Target Pekerjaan</th>
+                <th rowspan="2">Nilai Perjanjian</th>
             </tr>
             <tr>
+                <th>Persentase</th>
+                <th>Volume</th>
+            </tr>
+            <tr>
+                <th>(1)</th>
+                <th>(2)</th>
+                <th>(3)</th>
+                <th>(4)</th>
+                <th>(5)</th>
+            </tr>
+        </thead>
+        <tbody class="keep-together">
+            <tr class="keep-together-row">
+                <td class="left">Total</td>
+                <td class="center">{{ $specialLampiran['total']['waktu_penyelesaian'] ?? '-' }}</td>
+                <td rowspan="2" class="center">{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
+                <td rowspan="2" class="left volume-cell">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
+                <td rowspan="2" class="right money-cell">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
+            </tr>
+            <tr class="keep-together-row">
                 <td colspan="2" class="left"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
-                <td colspan="3"></td>
             </tr>
         </tbody>
     </table>

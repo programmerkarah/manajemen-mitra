@@ -54,6 +54,10 @@ class Kegiatan extends Model
         'has_listing_updating',
         'pagu_listing',
         'pj_lainnya_id',
+        'frame_sampel_listing_id',
+        'frame_sampel_pencacahan_id',
+        'unit_sampel_listing_id',
+        'unit_sampel_pencacahan_id',
         'metode_pendataan_pencacahan',
         'metode_pendataan_listing',
         'metode_pelatihan',
@@ -78,6 +82,26 @@ class Kegiatan extends Model
     public function satuanListing(): BelongsTo
     {
         return $this->belongsTo(Satuan::class, 'satuan_listing_id');
+    }
+
+    public function frameSampelListing(): BelongsTo
+    {
+        return $this->belongsTo(MasterFrameSampel::class, 'frame_sampel_listing_id');
+    }
+
+    public function frameSampelPencacahan(): BelongsTo
+    {
+        return $this->belongsTo(MasterFrameSampel::class, 'frame_sampel_pencacahan_id');
+    }
+
+    public function unitSampelListing(): BelongsTo
+    {
+        return $this->belongsTo(MasterUnitSampel::class, 'unit_sampel_listing_id');
+    }
+
+    public function unitSampelPencacahan(): BelongsTo
+    {
+        return $this->belongsTo(MasterUnitSampel::class, 'unit_sampel_pencacahan_id');
     }
 
     // Accessor untuk pagu_anggaran (alias untuk pagu_pencacahan)
@@ -108,6 +132,11 @@ class Kegiatan extends Model
     public function skKpa(): HasMany
     {
         return $this->hasMany(SkKpa::class);
+    }
+
+    public function kegiatanFrameSampel(): HasMany
+    {
+        return $this->hasMany(KegiatanFrameSampel::class);
     }
 
     public function bast(): HasMany

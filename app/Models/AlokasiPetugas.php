@@ -33,6 +33,8 @@ class AlokasiPetugas extends Model
             'estimasi_honor_partial_listing' => 'decimal:2',
             'non_response' => 'integer',
             'non_response_listing' => 'integer',
+            'jumlah_frame_sampel' => 'integer',
+            'jumlah_unit_sampel' => 'integer',
         ];
     }
 
@@ -57,6 +59,8 @@ class AlokasiPetugas extends Model
         'catatan',
         'non_response',
         'non_response_listing',
+        'jumlah_frame_sampel',
+        'jumlah_unit_sampel',
     ];
 
     public function periodeAlokasi(): BelongsTo
@@ -72,6 +76,11 @@ class AlokasiPetugas extends Model
     public function spk(): HasMany
     {
         return $this->hasMany(Spk::class);
+    }
+
+    public function frameSampelAllocations(): HasMany
+    {
+        return $this->hasMany(AlokasiPetugasFrameSampel::class);
     }
 
     public function getEffectiveJumlahSatuan(): float

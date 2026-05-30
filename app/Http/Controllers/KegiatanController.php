@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\FrameSampelDetailTemplateExport;
 use App\Http\Requests\FilterRequest;
 use App\Http\Requests\StoreKegiatanRequest;
 use App\Http\Requests\UpdateKegiatanRequest;
 use App\Models\ActivityLog;
 use App\Models\Kegiatan;
+use App\Models\MasterFrameSampel;
+use App\Models\MasterUnitSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\RateHonor;
 use App\Models\Satuan;
@@ -14,10 +17,17 @@ use App\Models\User;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class KegiatanController extends Controller
 {
@@ -119,11 +129,24 @@ class KegiatanController extends Controller
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear - 2, $currentYear + 5);
 
+        $masterFrameSampel = MasterFrameSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
+        $masterUnitSampel = MasterUnitSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
         return Inertia::render('Kegiatan/Create', [
             'ketuaTimUsers' => $ketuaTimUsers,
             'pjLainnyaUsers' => $pjLainnyaUsers,
             'rateHonors' => $rateHonors,
             'tahunOptions' => $tahunOptions,
+            'masterFrameSampel' => $masterFrameSampel,
+            'masterUnitSampel' => $masterUnitSampel,
+            'kegiatanFrameSampel' => [],
         ]);
     }
 
@@ -173,6 +196,16 @@ class KegiatanController extends Controller
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear - 2, $currentYear + 5);
 
+        $masterFrameSampel = MasterFrameSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
+        $masterUnitSampel = MasterUnitSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
         // Prepare copy data from source kegiatan
         $copyData = [
             'nama_kegiatan' => $kegiatan->nama_kegiatan,
@@ -184,12 +217,20 @@ class KegiatanController extends Controller
             'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
         ];
 
+        $kegiatanFrameSampel = $kegiatan->kegiatanFrameSampel()
+            ->select('id', 'tahapan', 'target_unit_sampel', 'identitas_tambahan')
+            ->orderBy('id')
+            ->get();
+
         return Inertia::render('Kegiatan/Create', [
             'ketuaTimUsers' => $ketuaTimUsers,
             'pjLainnyaUsers' => $pjLainnyaUsers,
             'tahunOptions' => $tahunOptions,
             'copyData' => $copyData,
             'isCopyMode' => true,
+            'masterFrameSampel' => $masterFrameSampel,
+            'masterUnitSampel' => $masterUnitSampel,
+            'kegiatanFrameSampel' => $kegiatanFrameSampel,
         ]);
     }
 
@@ -223,6 +264,8 @@ class KegiatanController extends Controller
     public function store(StoreKegiatanRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $kegiatanFrameSampel = $data['kegiatan_frame_sampel'] ?? [];
+        unset($data['kegiatan_frame_sampel']);
 
         // If ketua_tim creates kegiatan, automatically assign themselves as ketua_tim
         $effectiveUser = effectiveUser($request);
@@ -245,11 +288,24 @@ class KegiatanController extends Controller
             $data['status'] = 'draft';
         }
 
-        // Persist optional pj_lainnya_id if provided
-        $kegiatan = Kegiatan::create($data);
-        if (isset($data['pj_lainnya_id'])) {
-            $kegiatan->update(['pj_lainnya_id' => $data['pj_lainnya_id']]);
-        }
+        $kegiatan = DB::transaction(function () use ($data, $kegiatanFrameSampel): Kegiatan {
+            $kegiatan = Kegiatan::create($data);
+
+            $this->syncKegiatanFrameSampelRows(
+                $kegiatan,
+                $kegiatanFrameSampel,
+                [
+                    'listing' => $data['frame_sampel_listing_id'] ?? null,
+                    'pencacahan' => $data['frame_sampel_pencacahan_id'] ?? null,
+                ]
+            );
+
+            if (isset($data['pj_lainnya_id'])) {
+                $kegiatan->update(['pj_lainnya_id' => $data['pj_lainnya_id']]);
+            }
+
+            return $kegiatan;
+        });
 
         ActivityLog::log(
             'Tambah Kegiatan',
@@ -278,6 +334,10 @@ class KegiatanController extends Controller
         $kegiatan->load([
             'ketuaTim',
             'pjLainnya',
+            'frameSampelListing:id,nama,kode',
+            'frameSampelPencacahan:id,nama,kode',
+            'unitSampelListing:id,nama,kode',
+            'unitSampelPencacahan:id,nama,kode',
             'rateHonors.satuan',
             'rateHonors.satuanListing',
             'periodeAlokasi.alokasiPetugas.petugas',
@@ -339,11 +399,27 @@ class KegiatanController extends Controller
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear - 2, $currentYear + 5);
 
+        $masterFrameSampel = MasterFrameSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
+        $masterUnitSampel = MasterUnitSampel::query()
+            ->where('is_active', true)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode']);
+
         return Inertia::render('Kegiatan/Edit', [
             'kegiatan' => $kegiatan,
             'ketuaTimUsers' => $ketuaTimUsers,
             'pjLainnyaUsers' => $pjLainnyaUsers,
             'tahunOptions' => $tahunOptions,
+            'masterFrameSampel' => $masterFrameSampel,
+            'masterUnitSampel' => $masterUnitSampel,
+            'kegiatanFrameSampel' => $kegiatan->kegiatanFrameSampel()
+                ->select('id', 'tahapan', 'target_unit_sampel', 'identitas_tambahan')
+                ->orderBy('id')
+                ->get(),
         ]);
     }
 
@@ -361,6 +437,8 @@ class KegiatanController extends Controller
         }
 
         $data = $request->validated();
+        $kegiatanFrameSampel = $data['kegiatan_frame_sampel'] ?? [];
+        unset($data['kegiatan_frame_sampel']);
 
         // Transform pagu_pencacahan to pagu_pencacahan (database column name)
         // Pastikan field baru ikut tersimpan
@@ -458,7 +536,18 @@ class KegiatanController extends Controller
         }
 
         $oldSnapshot = $this->buildKegiatanSnapshot($kegiatan);
-        $kegiatan->update($data);
+        DB::transaction(function () use ($kegiatan, $kegiatanFrameSampel, $data): void {
+            $kegiatan->update($data);
+
+            $this->syncKegiatanFrameSampelRows(
+                $kegiatan,
+                $kegiatanFrameSampel,
+                [
+                    'listing' => $data['frame_sampel_listing_id'] ?? $kegiatan->frame_sampel_listing_id,
+                    'pencacahan' => $data['frame_sampel_pencacahan_id'] ?? $kegiatan->frame_sampel_pencacahan_id,
+                ]
+            );
+        });
         $kegiatan->refresh();
         $logChanges = $this->computeKegiatanChanges($oldSnapshot, $this->buildKegiatanSnapshot($kegiatan));
 
@@ -516,6 +605,282 @@ class KegiatanController extends Controller
 
         return redirect()->route('kegiatan.index')
             ->with('success', 'Perubahan data kegiatan sudah berhasil disimpan.');
+    }
+
+    public function exportFrameSampelTemplate(Request $request): BinaryFileResponse
+    {
+        $metadata = $this->extractFrameSampelMetadata($request);
+
+        return Excel::download(
+            new FrameSampelDetailTemplateExport($metadata),
+            'detail-frame-sampel-template.xlsx'
+        );
+    }
+
+    public function importFrameSampelPreview(Request $request): JsonResponse
+    {
+        $metadata = $this->extractFrameSampelMetadata($request);
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ], [
+            'file.required' => 'File harus diupload.',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV.',
+        ]);
+
+        $spreadsheet = IOFactory::load($validated['file']->getRealPath());
+        $rows = $spreadsheet->getSheet(0)->toArray(null, true, true, false);
+
+        $expectedColumnCount = (count($metadata) * 2) + 1;
+        $importedRows = [];
+        $errors = [];
+
+        foreach (array_slice($rows, 1) as $rowIndex => $row) {
+            $rowNumber = $rowIndex + 2;
+            $normalizedRow = array_slice(array_pad($row, $expectedColumnCount, null), 0, $expectedColumnCount);
+
+            $targetUnit = trim((string) ($normalizedRow[$expectedColumnCount - 1] ?? ''));
+            $identitasTambahan = [];
+            $hasMetadataValue = false;
+
+            foreach ($metadata as $metadataIndex => $column) {
+                $codeKey = trim((string) $column['code']);
+                $codeValue = trim((string) ($normalizedRow[$metadataIndex * 2] ?? ''));
+                $labelValue = trim((string) ($normalizedRow[($metadataIndex * 2) + 1] ?? ''));
+
+                if ($codeValue !== '') {
+                    $identitasTambahan[$codeKey] = $codeValue;
+                    $hasMetadataValue = true;
+                }
+
+                if ($labelValue !== '') {
+                    $identitasTambahan[$codeKey.'_label'] = $labelValue;
+                    $hasMetadataValue = true;
+                }
+            }
+
+            if (! $hasMetadataValue && $targetUnit === '') {
+                continue;
+            }
+
+            if ($targetUnit === '' || ! ctype_digit($targetUnit) || (int) $targetUnit < 1) {
+                $errors[] = "Baris {$rowNumber}: Jumlah Sampel Dalam Frame harus berupa angka bulat minimal 1.";
+
+                continue;
+            }
+
+            $importedRows[] = [
+                'target_unit_sampel' => $targetUnit,
+                'identitas_tambahan' => $identitasTambahan,
+            ];
+        }
+
+        return response()->json([
+            'rows' => $importedRows,
+            'errors' => $errors,
+            'summary' => [
+                'total_rows' => max(count($rows) - 1, 0),
+                'valid_rows' => count($importedRows),
+                'error_count' => count($errors),
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{tahapan:string,target_unit_sampel:int,identitas_tambahan?:array<string,mixed>}>  $rows
+     */
+    private function syncKegiatanFrameSampelRows(
+        Kegiatan $kegiatan,
+        array $rows,
+        ?array $frameSampelByTahapanOverride = null
+    ): void {
+        $normalizedRows = collect($rows)
+            ->map(function (array $row): ?array {
+                $tahapan = $row['tahapan'] ?? null;
+                $targetUnit = isset($row['target_unit_sampel']) ? (int) $row['target_unit_sampel'] : null;
+                $identitasTambahan = isset($row['identitas_tambahan']) && is_array($row['identitas_tambahan'])
+                    ? $row['identitas_tambahan']
+                    : null;
+
+                if (! in_array($tahapan, ['listing', 'pencacahan'], true) || $targetUnit === null || $targetUnit < 1) {
+                    return null;
+                }
+
+                return [
+                    'tahapan' => $tahapan,
+                    'target_unit_sampel' => $targetUnit,
+                    'identitas_tambahan' => $identitasTambahan,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $listingEnabled = $kegiatan->jenis_kegiatan !== 'sensus' && (bool) $kegiatan->has_listing_updating;
+        if (! $listingEnabled) {
+            $normalizedRows = $normalizedRows
+                ->filter(fn (array $row) => $row['tahapan'] !== 'listing')
+                ->values();
+        }
+
+        $frameSampelByTahapan = $frameSampelByTahapanOverride ?? [
+            'listing' => $kegiatan->frame_sampel_listing_id,
+            'pencacahan' => $kegiatan->frame_sampel_pencacahan_id,
+        ];
+
+        $missingFrameSampelByTahapan = $normalizedRows
+            ->pluck('tahapan')
+            ->unique()
+            ->filter(fn (string $tahapan): bool => empty($frameSampelByTahapan[$tahapan]))
+            ->values();
+
+        if ($missingFrameSampelByTahapan->isNotEmpty()) {
+            $messages = [];
+
+            if ($missingFrameSampelByTahapan->contains('listing')) {
+                $messages['frame_sampel_listing_id'] = 'Pilih Frame Sampel Listing sebelum menyimpan detail frame untuk tahapan listing.';
+            }
+
+            if ($missingFrameSampelByTahapan->contains('pencacahan')) {
+                $messages['frame_sampel_pencacahan_id'] = 'Pilih Frame Sampel Pencacahan sebelum menyimpan detail frame untuk tahapan pencacahan.';
+            }
+
+            $messages['kegiatan_frame_sampel'] = 'Detail frame sampel belum bisa disimpan karena pilihan frame sampel per tahapan belum lengkap.';
+
+            throw ValidationException::withMessages($messages);
+        }
+
+        $payload = $normalizedRows
+            ->map(function (array $row) use ($frameSampelByTahapan): array {
+                $frameSampelId = $frameSampelByTahapan[$row['tahapan']] ?? null;
+
+                $identitasTambahan = $row['identitas_tambahan'] ?? null;
+                $namaFrame = $this->resolveIdentitasString(
+                    $identitasTambahan,
+                    ['nama_frame', 'nama', 'frame', 'kdkec_label', 'kddes_label', 'kdsegmen_label']
+                );
+
+                return [
+                    'frame_sampel_id' => $frameSampelId,
+                    'tahapan' => $row['tahapan'],
+                    'nama_frame' => $namaFrame,
+                    'target_unit_sampel' => $row['target_unit_sampel'],
+                    'kode_kecamatan' => $this->resolveIdentitasString(
+                        $identitasTambahan,
+                        ['kdkec', 'kode_kecamatan', 'kecamatan']
+                    ),
+                    'kode_desa' => $this->resolveIdentitasString(
+                        $identitasTambahan,
+                        ['kddes', 'kode_desa', 'desa', 'kelurahan']
+                    ),
+                    'kode_sls' => $this->resolveIdentitasString(
+                        $identitasTambahan,
+                        ['kdsls', 'kode_sls', 'sls']
+                    ),
+                    'kode_sub_sls' => $this->resolveIdentitasString(
+                        $identitasTambahan,
+                        ['kdsubsls', 'kd_sub_sls', 'kode_sub_sls', 'sub_sls']
+                    ),
+                    'kode_segmen' => $this->resolveIdentitasString(
+                        $identitasTambahan,
+                        ['kdsegmen', 'kode_segmen', 'segmen']
+                    ),
+                    'identitas_tambahan' => ! empty($identitasTambahan)
+                        ? $identitasTambahan
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $kegiatan->kegiatanFrameSampel()->delete();
+
+        if (! empty($payload)) {
+            $kegiatan->kegiatanFrameSampel()->createMany($payload);
+        }
+    }
+
+    /**
+     * @param  array<string,mixed>|null  $identitas
+     * @param  array<int,string>  $candidateKeys
+     */
+    private function resolveIdentitasString(?array $identitas, array $candidateKeys): ?string
+    {
+        if (! is_array($identitas) || empty($identitas)) {
+            return null;
+        }
+
+        foreach ($candidateKeys as $candidateKey) {
+            foreach ($identitas as $actualKey => $actualValue) {
+                if (! is_scalar($actualValue)) {
+                    continue;
+                }
+
+                if (mb_strtolower((string) $actualKey) === mb_strtolower($candidateKey)) {
+                    $value = trim((string) $actualValue);
+
+                    return $value === '' ? null : $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, array{code:string,label:string,description:string}>
+     */
+    private function extractFrameSampelMetadata(Request $request): array
+    {
+        $rawMetadata = $request->input('metadata', []);
+
+        if (is_string($rawMetadata)) {
+            $decodedMetadata = json_decode($rawMetadata, true);
+            $rawMetadata = is_array($decodedMetadata) ? $decodedMetadata : [];
+        }
+
+        $validator = Validator::make([
+            'metadata' => $rawMetadata,
+        ], [
+            'metadata' => ['required', 'array', 'min:1'],
+            'metadata.*.code' => ['required', 'string', 'max:100'],
+            'metadata.*.label' => ['required', 'string', 'max:255'],
+            'metadata.*.description' => ['required', 'string', 'max:255'],
+        ], [
+            'metadata.required' => 'Metadata frame sampel wajib disimpan terlebih dahulu.',
+            'metadata.array' => 'Metadata frame sampel harus berupa daftar.',
+            'metadata.min' => 'Metadata frame sampel minimal satu kolom.',
+            'metadata.*.code.required' => 'Kode metadata wajib diisi.',
+            'metadata.*.label.required' => 'Label metadata wajib diisi.',
+            'metadata.*.description.required' => 'Deskripsi metadata wajib diisi.',
+        ]);
+
+        $validated = $validator->validate();
+
+        $metadata = collect($validated['metadata'])
+            ->map(fn (array $item) => [
+                'code' => trim((string) $item['code']),
+                'label' => trim((string) $item['label']),
+                'description' => trim((string) $item['description']),
+            ])
+            ->values()
+            ->all();
+
+        $duplicateCodes = collect($metadata)
+            ->groupBy(fn (array $item) => mb_strtolower($item['code']))
+            ->filter(fn ($group) => $group->count() > 1)
+            ->keys()
+            ->all();
+
+        if (! empty($duplicateCodes)) {
+            abort(response()->json([
+                'message' => 'Kode metadata frame sampel harus unik.',
+                'errors' => [
+                    'metadata' => ['Kode metadata frame sampel harus unik.'],
+                ],
+            ], 422));
+        }
+
+        return $metadata;
     }
 
     /**

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
+use App\Models\MasterFrameSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -11,6 +13,7 @@ use App\Models\Satuan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -205,6 +208,382 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $response->assertJsonPath('summary.valid_rows', 1);
         $response->assertJsonPath('summary.error_count', 0);
         $response->assertJsonCount(1, 'rows');
+    }
+
+    public function test_import_preview_maps_frame_sampel_by_metadata_and_auto_derives_satuan_for_survei(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => false,
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Budi Frame',
+            'nik' => '1373026105980002',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $satuan = Satuan::create([
+            'kode' => 'DOC3',
+            'nama' => 'Dokumen 3',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL/PPL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate frame test',
+            'satuan_id' => $satuan->id,
+            'rate' => 10000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => 2026,
+            'status' => 'aktif',
+        ]);
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Uji',
+            'kode' => 'F-UJI',
+            'deskripsi' => 'Frame untuk uji import preview',
+            'is_active' => true,
+        ]);
+
+        $frameOne = KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'nama_frame' => 'Frame 1',
+            'target_unit_sampel' => 3,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan Utara',
+            ],
+        ]);
+
+        $frameTwo = KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'nama_frame' => 'Frame 2',
+            'target_unit_sampel' => 2,
+            'identitas_tambahan' => [
+                'kdkec' => '020',
+                'kdkec_label' => 'Kecamatan Selatan',
+            ],
+        ]);
+
+        $file = $this->makePreviewImportFile([
+            ['Nama - NIK/NIP', 'Kode Penugasan', 'kdkec', 'Jumlah Satuan Pencacahan', 'Pembayaran Parsial'],
+            [$petugas->nama.' - '.$petugas->nik, 'PCL/PPL', '010', 0, 'Tidak'],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/alokasi/kegiatan/'.$kegiatan->hashed_id.'/import-preview', [
+                'file' => $file,
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('summary.valid_rows', 1);
+        $response->assertJsonPath('summary.error_count', 0);
+        $response->assertJsonPath('rows.0.nik', $petugas->nik);
+        $response->assertJsonPath('rows.0.jumlah_satuan', '3');
+        $response->assertJsonPath('rows.0.jumlah_unit_sampel', 3);
+        $response->assertJsonPath('rows.0.frame_sampel_ids.0', $frameOne->id);
+        $response->assertJsonPath('rows.0.frame_sampel_metadata.kdkec', '010');
+        $response->assertJsonPath('frame_metadata_columns.0.code', 'kdkec');
+    }
+
+    public function test_export_template_adds_dropdown_and_text_format_for_frame_metadata_columns(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Dropdown',
+            'kode' => 'FDROP',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 1,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan',
+            ],
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 2,
+            'identitas_tambahan' => [
+                'kdkec' => '020',
+                'kdkec_label' => 'Kecamatan',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-metadata-dropdown-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+        $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());
+
+        $metadataValidation = $mainSheet->getCell('C2')->getDataValidation();
+        $this->assertSame('list', $metadataValidation->getType());
+        $this->assertSame('INDIRECT("DD_C_KDKEC_ROOT")', $metadataValidation->getFormula1());
+
+        $this->assertSame('@', (string) $mainSheet->getStyle('C:C')->getNumberFormat()->getFormatCode());
+    }
+
+    public function test_export_template_for_sensus_also_adds_frame_metadata_columns_when_rows_exist(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus',
+            'kode' => 'FSENSUS',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 5,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-sensus-metadata-dropdown-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+        $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());
+    }
+
+    public function test_import_preview_maps_frame_sampel_by_metadata_for_sensus_and_sets_pencacahan_from_frame_sample(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'nama_kegiatan' => 'Sensus Ekonomi',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Siti Sensus',
+            'nik' => '1373026105980099',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $satuan = Satuan::create([
+            'kode' => 'DOC4',
+            'nama' => 'Dokumen 4',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL/PPL',
+            'jenis_kegiatan' => 'sensus',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate sensus',
+            'satuan_id' => $satuan->id,
+            'rate' => 11000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => 2026,
+            'status' => 'aktif',
+        ]);
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Import',
+            'kode' => 'FSI',
+            'deskripsi' => 'Frame untuk uji import sensus',
+            'is_active' => true,
+        ]);
+
+        $frame = KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'nama_frame' => 'Frame Sensus 1',
+            'target_unit_sampel' => 7,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan Utara',
+            ],
+        ]);
+
+        $file = $this->makePreviewImportFile([
+            ['Nama - NIK/NIP', 'Kode Penugasan', 'kdkec', 'Jumlah Satuan Pencacahan', 'Pembayaran Parsial'],
+            [$petugas->nama.' - '.$petugas->nik, 'PCL/PPL', '010', 2.5, 'Tidak'],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/alokasi/kegiatan/'.$kegiatan->hashed_id.'/import-preview', [
+                'file' => $file,
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('summary.valid_rows', 1);
+        $response->assertJsonPath('rows.0.frame_sampel_ids.0', $frame->id);
+        $response->assertJsonPath('rows.0.jumlah_unit_sampel', 7);
+        $response->assertJsonPath('rows.0.jumlah_satuan', '7');
+        $response->assertJsonPath('rows.0.estimasi_honor', 77000);
+    }
+
+    public function test_import_preview_sensus_returns_error_when_metadata_matches_multiple_frames(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'nama_kegiatan' => 'Sensus Ekonomi',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Asep Sensus',
+            'nik' => '1373026105980011',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $satuan = Satuan::create([
+            'kode' => 'DOC5',
+            'nama' => 'Dokumen 5',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL/PPL',
+            'jenis_kegiatan' => 'sensus',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate sensus agregasi',
+            'satuan_id' => $satuan->id,
+            'rate' => 10000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => 2026,
+            'status' => 'aktif',
+        ]);
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Agregasi',
+            'kode' => 'FSA',
+            'is_active' => true,
+        ]);
+
+        $frameOne = KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 3,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kddes' => '001',
+            ],
+        ]);
+
+        $frameTwo = KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 4,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kddes' => '002',
+            ],
+        ]);
+
+        $file = $this->makePreviewImportFile([
+            ['Nama - NIK/NIP', 'Kode Penugasan', 'kdkec', 'Jumlah Satuan Pencacahan', 'Pembayaran Parsial'],
+            [$petugas->nama.' - '.$petugas->nik, 'PCL/PPL', '010', 1, 'Tidak'],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/alokasi/kegiatan/'.$kegiatan->hashed_id.'/import-preview', [
+                'file' => $file,
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('summary.valid_rows', 0);
+        $response->assertJsonPath('summary.error_count', 1);
+        $response->assertJsonPath('errors.0', 'Baris 2: Metadata frame sampel ambigu, cocok ke lebih dari satu frame. Lengkapi kolom metadata hingga unik.');
     }
 
     private function makePreviewImportFile(array $rows): UploadedFile

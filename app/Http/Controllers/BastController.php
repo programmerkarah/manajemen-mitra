@@ -478,6 +478,18 @@ class BastController extends Controller
         return $tanggalSelesai <= now()->format('Y-m-d');
     }
 
+    private function resolveLampiranCumulativeVolume(AlokasiPetugas $alokasi, string $phase): int
+    {
+        $unitSampelKumulatif = (int) ($alokasi->jumlah_unit_sampel ?? 0);
+        if ($unitSampelKumulatif > 0) {
+            return $unitSampelKumulatif;
+        }
+
+        return $phase === 'listing'
+            ? (int) ($alokasi->jumlah_satuan_listing ?? 0)
+            : (int) ($alokasi->jumlah_satuan ?? 0);
+    }
+
     /**
      * Sort lampiran by earliest tanggal_selesai and assign sequential lampiran number.
      * When tanggal_selesai is the same, use kode_kegiatan then nama_kegiatan for stable order.
@@ -1845,10 +1857,10 @@ class BastController extends Controller
                     'tanggal_selesai' => $tanggalSelesai,
                     'tanggal_selesai_label' => $tanggalSelesaiLabel,
                     'peran' => $alokasi->peran,
-                    'hasil_listing' => $alokasi->jumlah_satuan_listing,
-                    'hasil_pendataan_lapangan' => $alokasi->jumlah_satuan,
-                    'hasil_pengolahan' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $alokasi->jumlah_satuan : null,
-                    'hasil_pengolahan_listing' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $alokasi->jumlah_satuan_listing : null,
+                    'hasil_listing' => $this->resolveLampiranCumulativeVolume($alokasi, 'listing'),
+                    'hasil_pendataan_lapangan' => $this->resolveLampiranCumulativeVolume($alokasi, 'pencacahan'),
+                    'hasil_pengolahan' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $this->resolveLampiranCumulativeVolume($alokasi, 'pencacahan') : null,
+                    'hasil_pengolahan_listing' => in_array($alokasi->peran, self::PENGOLAHAN_ROLES) ? $this->resolveLampiranCumulativeVolume($alokasi, 'listing') : null,
                     'spk_id' => $spkTerkait?->id,
                 ];
             })->filter()->values();
@@ -2812,14 +2824,14 @@ class BastController extends Controller
                 'uraian_pengolahan_listing' => $uraianPengolahanListing,
                 'uraian_pengolahan_pencacahan' => $uraianPengolahanPencacahan,
                 'peran' => $alokasi->peran,
-                'hasil_listing' => ($hasListing && $isPendataanRole) ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_listing' => ($hasListing && $isPendataanRole) ? $this->resolveLampiranCumulativeVolume($alokasi, 'listing') : null,
                 'satuan_listing' => ($hasListing && $isPendataanRole) ? $rateHonor?->satuanListing?->nama : null,
                 'non_response_listing' => ($hasListing && $isPendataanRole) ? $alokasi->non_response_listing : null,
-                'hasil_pendataan_lapangan' => $isPendataanRole ? $alokasi->jumlah_satuan : null,
+                'hasil_pendataan_lapangan' => $isPendataanRole ? $this->resolveLampiranCumulativeVolume($alokasi, 'pencacahan') : null,
                 'satuan_pendataan' => $isPendataanRole ? $rateHonor?->satuan?->nama : null,
                 'non_response' => $isPendataanRole ? $alokasi->non_response : null,
-                'hasil_pengolahan' => $isPengolahanRole ? $alokasi->jumlah_satuan : null,
-                'hasil_pengolahan_listing' => $isPengolahanRole ? $alokasi->jumlah_satuan_listing : null,
+                'hasil_pengolahan' => $isPengolahanRole ? $this->resolveLampiranCumulativeVolume($alokasi, 'pencacahan') : null,
+                'hasil_pengolahan_listing' => $isPengolahanRole ? $this->resolveLampiranCumulativeVolume($alokasi, 'listing') : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
                 'keterangan' => $alokasi->catatan,

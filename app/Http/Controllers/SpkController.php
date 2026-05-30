@@ -1245,8 +1245,7 @@ class SpkController extends Controller
         $petugas = $spk->alokasiPetugas->petugas;
 
         // Extract nomor urut
-        $nomorParts = explode('/', $spk->nomor_spk);
-        $nomorUrut = $nomorParts[2] ?? '0';
+        $nomorUrut = (string) $this->extractNomorUrut((string) $spk->nomor_spk);
 
         $namaPetugas = preg_replace('/[\/\\\:*?"<>|]/', '', $petugas->nama);
         $bulanLabel = $this->getBulanLabel($periode->bulan);
@@ -1302,6 +1301,41 @@ class SpkController extends Controller
         return $lastUrut + 1;
     }
 
+    private function getNextNomorUrutForPeriode(PeriodeAlokasi $periode): int
+    {
+        if (! $this->usesPeriodBasedSpkFlow($periode)) {
+            return $this->getNextNomorUrut((int) $periode->tahun);
+        }
+
+        $lastSpk = Spk::where('addendum_number', 0)
+            ->whereYear('tanggal_spk', (int) $periode->tahun)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($periode) {
+                $query->where('kegiatan_id', $periode->kegiatan_id);
+            })
+            ->orderByDesc('nomor_urut_base')
+            ->first();
+
+        if (! $lastSpk) {
+            return 1;
+        }
+
+        $lastUrut = (int) ($lastSpk->nomor_urut_base ?? 0);
+        if ($lastUrut <= 0) {
+            $lastUrut = $this->extractNomorUrut((string) $lastSpk->nomor_spk);
+        }
+
+        return $lastUrut + 1;
+    }
+
+    private function formatNomorSpkForPeriode(PeriodeAlokasi $periode, int $nomorUrut): string
+    {
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            return sprintf('B-%03d/SPK-SE2026/1373/PL.200/%d', $nomorUrut, (int) $periode->tahun);
+        }
+
+        return 'PPIS/13730/'.$nomorUrut.'/K/'.$periode->tahun;
+    }
+
     private function generateSignedDownloadUrl(string $filename): string
     {
         // Return direct static URL untuk better CDN caching
@@ -1310,10 +1344,14 @@ class SpkController extends Controller
     }
 
     /**
-     * Extract nomor urut from SPK number (e.g., "PPIS/13730/4A/K/2025" -> 4)
+     * Extract nomor urut from SPK number.
      */
     private function extractNomorUrut(string $nomorSpk): int
     {
+        if (preg_match('/^B-(\d+)/i', $nomorSpk, $matches) === 1) {
+            return (int) ($matches[1] ?? 0);
+        }
+
         $parts = explode('/', $nomorSpk);
         if (! isset($parts[2])) {
             return 0;
@@ -1402,7 +1440,7 @@ class SpkController extends Controller
             ->values();
 
         // Get next nomor urut for this year
-        $nextNomorUrut = $this->getNextNomorUrut($periode->tahun);
+        $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
 
         // Check if there are existing SPKs in this month (for regenerate mode)
         $existingSpkQuery = $this->baseSpkScopeQuery($periode);
@@ -1818,7 +1856,10 @@ class SpkController extends Controller
 
     private function isMeaningfulAllocation(object $alokasi): bool
     {
-        $totalVolume = (int) ($alokasi->jumlah_satuan ?? 0) + (int) ($alokasi->jumlah_satuan_listing ?? 0);
+        $unitSampelVolume = (int) ($alokasi->jumlah_unit_sampel ?? 0);
+        $totalVolume = $unitSampelVolume > 0
+            ? $unitSampelVolume
+            : (int) ($alokasi->jumlah_satuan ?? 0) + (int) ($alokasi->jumlah_satuan_listing ?? 0);
         $totalHonor = (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
 
         return $totalVolume > 0 && $totalHonor > 0;
@@ -3043,9 +3084,8 @@ class SpkController extends Controller
 
         // Generate nomor_spk using next available urut for this year
         $tahun = $periode->tahun;
-        $nextNomorUrut = $this->getNextNomorUrut($tahun);
-        // Format: PPIS/13730/{urut}/K/{tahun}
-        $nomorSpk = "PPIS/13730/{$nextNomorUrut}/K/{$tahun}";
+        $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
+        $nomorSpk = $this->formatNomorSpkForPeriode($periode, $nextNomorUrut);
 
         // Get all alokasi for this petugas in the same month
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
@@ -3183,8 +3223,7 @@ class SpkController extends Controller
 
             // Save PDF file to public/spk-export
             // Extract nomor urut from nomor_spk format: PPIS/13730/4/K/2025 -> get "4"
-            $nomorParts = explode('/', $data['nomorSpk']);
-            $nomorUrut = $nomorParts[2] ?? '0'; // Index 2 is the sequential number
+            $nomorUrut = (string) $this->extractNomorUrut((string) $data['nomorSpk']);
 
             // Clean filename - remove special characters that are invalid for filenames
             $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
@@ -3286,7 +3325,9 @@ class SpkController extends Controller
             $data['periode'] ?? null,
             $data['uraianTugas'] ?? [],
             (float) ($data['totalHonor'] ?? 0),
-            $kegiatan
+            $kegiatan,
+            $data['allAlokasi'] ?? null,
+            $data['alokasi'] ?? null,
         );
 
         return $data;
@@ -3304,7 +3345,7 @@ class SpkController extends Controller
     private function resolveLampiranPaperOrientation(Kegiatan $kegiatan, string $peran): string
     {
         if ($this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
-            return 'portrait';
+            return 'landscape';
         }
 
         return 'landscape';
@@ -3408,22 +3449,48 @@ class SpkController extends Controller
      * @param  array<int, array<string, mixed>>  $uraianTugas
      * @return array<string, mixed>
      */
-    private function buildSensusEkonomiLampiranPayload(mixed $periode, array $uraianTugas, float $totalHonor, Kegiatan $kegiatan): array
-    {
+    private function buildSensusEkonomiLampiranPayload(
+        mixed $periode,
+        array $uraianTugas,
+        float $totalHonor,
+        Kegiatan $kegiatan,
+        mixed $allAlokasi = null,
+        mixed $alokasi = null,
+    ): array {
         $positiveTask = collect($uraianTugas)->first(function ($task) {
             return (float) ($task['jumlah'] ?? 0) > 0;
         });
 
-        $volumeLabel = $this->formatLampiranVolumeLabel(
+        $fallbackVolumeLabel = $this->formatLampiranVolumeLabel(
             $positiveTask['volume'] ?? null,
             $positiveTask['satuan'] ?? null
         );
+
+        $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($allAlokasi, $alokasi);
+        $selectedRows = $metrics['selected_rows'];
+        $prelistTotal = $metrics['prelist_total'];
+        $baseVolumeLabel = ($selectedRows > 0 || $prelistTotal > 0)
+            ? $this->formatSensusEkonomiVolumeNarrative($selectedRows, $prelistTotal)
+            : $fallbackVolumeLabel;
 
         $periodeMulai = $periode?->tanggal_mulai;
         $periodeSelesai = $periode?->tanggal_selesai;
 
         $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
         $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
+
+        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $prelistTotal, 40);
+        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $prelistTotal, 60);
+
+        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative(
+            $terminSatuMetrics['selected_rows'],
+            $terminSatuMetrics['prelist_total']
+        );
+        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative(
+            $terminDuaMetrics['selected_rows'],
+            $terminDuaMetrics['prelist_total']
+        );
+        $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
         return [
             'groups' => [
@@ -3434,7 +3501,7 @@ class SpkController extends Controller
                     ],
                     'waktu_penyelesaian' => 'Minimal 1 bulan',
                     'persentase' => '40%',
-                    'volume' => $volumeLabel,
+                    'volume' => $terminSatuVolume,
                     'nilai_perjanjian' => $terminSatuAmount,
                 ],
                 [
@@ -3444,17 +3511,126 @@ class SpkController extends Controller
                     ],
                     'waktu_penyelesaian' => $this->formatLampiranDate($periodeSelesai),
                     'persentase' => '60%',
-                    'volume' => $volumeLabel,
+                    'volume' => $terminDuaVolume,
                     'nilai_perjanjian' => $terminDuaAmount,
                 ],
             ],
             'total' => [
                 'waktu_penyelesaian' => $this->formatLampiranDateRange($periodeMulai, $periodeSelesai),
                 'persentase' => '100%',
-                'volume' => $volumeLabel !== '-' ? 'Seluruh muatan '.$volumeLabel : '-',
+                'volume' => $totalVolumeLabel,
                 'nilai_perjanjian' => $totalHonor,
             ],
         ];
+    }
+
+    /**
+     * @return array{selected_rows:int,prelist_total:int}
+     */
+    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, int $prelistTotal, int $percentage): array
+    {
+        $selectedRows = max(0, $selectedRows);
+        $prelistTotal = max(0, $prelistTotal);
+
+        $terminSatuSelectedRows = (int) round($selectedRows * 0.4, 0, PHP_ROUND_HALF_UP);
+        $terminSatuPrelistTotal = (int) floor($prelistTotal * 0.4);
+
+        if ($percentage === 40) {
+            return [
+                'selected_rows' => $terminSatuSelectedRows,
+                'prelist_total' => $terminSatuPrelistTotal,
+            ];
+        }
+
+        return [
+            'selected_rows' => max(0, $selectedRows - $terminSatuSelectedRows),
+            'prelist_total' => max(0, $prelistTotal - $terminSatuPrelistTotal),
+        ];
+    }
+
+    /**
+     * @return array{selected_rows:int,prelist_total:int,total_volume:int,narrative:string}
+     */
+    private function resolveSensusEkonomiFrameVolumeMetrics(mixed $allAlokasi, mixed $alokasi): array
+    {
+        $alokasiCollection = collect();
+
+        if ($allAlokasi instanceof Collection) {
+            $alokasiCollection = $allAlokasi->filter(fn (mixed $item): bool => $item instanceof AlokasiPetugas)->values();
+        }
+
+        if ($alokasiCollection->isEmpty() && $alokasi instanceof AlokasiPetugas) {
+            $alokasiCollection = collect([$alokasi]);
+        }
+
+        if ($alokasiCollection->isEmpty()) {
+            return [
+                'selected_rows' => 0,
+                'prelist_total' => 0,
+                'total_volume' => 0,
+                'narrative' => '-',
+            ];
+        }
+
+        $alokasiCollection->loadMissing('frameSampelAllocations.kegiatanFrameSampel');
+
+        $frameAllocations = $alokasiCollection
+            ->flatMap(function (AlokasiPetugas $alokasiPetugas): array {
+                return $alokasiPetugas->frameSampelAllocations->all();
+            })
+            ->filter(fn (mixed $allocation): bool => $allocation !== null)
+            ->unique('kegiatan_frame_sampel_id')
+            ->values();
+
+        $selectedRows = $frameAllocations->count();
+        $prelistTotal = (int) $frameAllocations->sum(function ($frameAllocation): int {
+            $targetUnitSampel = $frameAllocation?->kegiatanFrameSampel?->target_unit_sampel;
+
+            return max(0, (int) ($targetUnitSampel ?? 0));
+        });
+        $totalVolume = $selectedRows + $prelistTotal;
+
+        return [
+            'selected_rows' => $selectedRows,
+            'prelist_total' => $prelistTotal,
+            'total_volume' => $totalVolume,
+            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows, $prelistTotal),
+        ];
+    }
+
+    private function formatSensusEkonomiVolumeNarrative(int $selectedRows, int $prelistTotal): string
+    {
+        $parts = [];
+
+        if ($selectedRows > 0) {
+            $parts[] = number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+        }
+
+        if ($prelistTotal > 0) {
+            $parts[] = number_format($prelistTotal, 0, ',', '.').' usaha/keluarga';
+        }
+
+        if (empty($parts)) {
+            return '-';
+        }
+
+        return implode(' dan/atau ', $parts);
+    }
+
+    private function formatSensusEkonomiTotalSlsVolumeLabel(int $selectedRows): string
+    {
+        if ($selectedRows <= 0) {
+            return '-';
+        }
+
+        return 'Seluruh Muatan '.number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+    }
+
+    private function formatLampiranVolumeNumber(float|int $volume): string
+    {
+        return floor((float) $volume) === (float) $volume
+            ? number_format((float) $volume, 0, ',', '.')
+            : rtrim(rtrim(number_format((float) $volume, 2, ',', '.'), '0'), ',');
     }
 
     private function calculateLampiranMilestoneAmount(float $totalHonor, float $ratio): float
@@ -3505,9 +3681,7 @@ class SpkController extends Controller
             return '-';
         }
 
-        $formattedVolume = floor((float) $volume) === (float) $volume
-            ? number_format((float) $volume, 0, ',', '.')
-            : rtrim(rtrim(number_format((float) $volume, 2, ',', '.'), '0'), ',');
+        $formattedVolume = $this->formatLampiranVolumeNumber((float) $volume);
 
         return trim($formattedVolume.' '.($unit ?? ''));
     }
@@ -3533,6 +3707,17 @@ class SpkController extends Controller
             $effectiveListingHonor = $alokasi->getEffectiveTotalHonorListing();
             $effectivePencacahanVolume = $alokasi->getEffectiveJumlahSatuan();
             $effectivePencacahanHonor = $alokasi->getEffectiveTotalHonor();
+            $unitSampelVolume = (int) ($alokasi->jumlah_unit_sampel ?? 0);
+
+            if ($unitSampelVolume > 0) {
+                if ($effectiveListingVolume > 0) {
+                    $effectiveListingVolume = $unitSampelVolume;
+                }
+
+                if ($effectivePencacahanVolume > 0) {
+                    $effectivePencacahanVolume = $unitSampelVolume;
+                }
+            }
 
             // Add listing task if exists
             if ($effectiveListingVolume > 0 && $effectiveListingHonor > 0) {
@@ -3836,8 +4021,9 @@ class SpkController extends Controller
         }
 
         // For first time generation, get next sequential nomor
-        $nextNomorUrut = $this->getNextNomorUrut($tahun);
+        $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
         $nomorUrutCounter = 0;
+        $usesPeriodBasedNumbering = $this->usesPeriodBasedSpkFlow($periode);
 
         $nextSuffix = 'A';
         $results = [];
@@ -3855,7 +4041,17 @@ class SpkController extends Controller
                 $noUrut = $existingSpk->nomor_urut_base ?? $this->extractNomorUrut($nomorSpk);
             } else {
                 // New petugas
-                if ($isRegenerate) {
+                if ($usesPeriodBasedNumbering) {
+                    if ($isRegenerate) {
+                        $noUrut = ($lastNomorUrutBase ?? $nextNomorUrut) + 1;
+                        $lastNomorUrutBase = $noUrut;
+                    } else {
+                        $noUrut = $nextNomorUrut + $nomorUrutCounter;
+                        $nomorUrutCounter++;
+                    }
+
+                    $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
+                } elseif ($isRegenerate) {
                     // Regenerate mode: Check if next sequential number is available
                     $nextSequential = ($lastNomorUrutBase ?? $nextNomorUrut) + 1;
 
@@ -3868,18 +4064,18 @@ class SpkController extends Controller
                     if ($numberUsed) {
                         // Use suffix mode
                         $noUrut = $lastNomorUrutBase ?? $nextNomorUrut;
-                        $nomorSpk = "PPIS/13730/{$noUrut}{$nextSuffix}/K/{$tahun}";
+                        $nomorSpk = 'PPIS/13730/'.$noUrut.$nextSuffix.'/K/'.$tahun;
                     } else {
                         // Use sequential mode
                         $noUrut = $nextSequential;
-                        $nomorSpk = "PPIS/13730/{$noUrut}/K/{$tahun}";
+                        $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
                         // Update lastNomorUrutBase for next iteration
                         $lastNomorUrutBase = $noUrut;
                     }
                 } else {
                     // First time generation: use sequential numbering
                     $noUrut = $nextNomorUrut + $nomorUrutCounter;
-                    $nomorSpk = "PPIS/13730/{$noUrut}/K/{$tahun}";
+                    $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
                     $nomorUrutCounter++;
                 }
             }

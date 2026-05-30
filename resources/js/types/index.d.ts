@@ -95,6 +95,10 @@ export interface Kegiatan {
     kode_coa: string | null;
     has_listing_updating: boolean;
     pagu_listing: number | null;
+    frame_sampel_listing_id?: number | null;
+    frame_sampel_pencacahan_id?: number | null;
+    unit_sampel_listing_id?: number | null;
+    unit_sampel_pencacahan_id?: number | null;
     metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
     metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
     metode_pelatihan:

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\MasterFrameSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -60,6 +61,74 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
             ->where("budget_info.{$kegiatan->id}.pagu_pencacahan", fn ($value) => (float) $value === 1250000.0)
             ->where("budget_info.{$kegiatan->id}.pagu_listing", fn ($value) => (float) $value === 450000.0)
             ->where('petugas_review_recommendations.has_review_data', false)
+        );
+    }
+
+    public function test_create_alokasi_includes_frame_sampel_metadata_for_selected_kegiatan(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+        $activeYear = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'tahun_anggaran' => $activeYear,
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => true,
+        ]);
+
+        $satuan = Satuan::query()->create([
+            'kode' => 'FSM-'.$activeYear,
+            'nama' => 'Dokumen',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor PCL',
+            'satuan_id' => $satuan->id,
+            'rate' => 100000,
+            'rate_listing' => 50000,
+            'satuan_listing_id' => $satuan->id,
+            'tahun_berlaku' => $activeYear,
+            'status' => 'aktif',
+        ]);
+
+        $masterFrameSampel = MasterFrameSampel::query()->create([
+            'nama' => 'Frame Sampel Listing',
+            'kode' => 'FSL-'.$activeYear,
+            'deskripsi' => 'Frame sampel untuk pengujian alokasi',
+            'is_active' => true,
+        ]);
+
+        $frameSampel = $kegiatan->kegiatanFrameSampel()->create([
+            'frame_sampel_id' => $masterFrameSampel->id,
+            'tahapan' => 'listing',
+            'nama_frame' => 'Frame Blok Listing',
+            'target_unit_sampel' => 12,
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan Utara',
+                'kddes' => '020',
+                'kddes_label' => 'Desa Mekar',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/create?kegiatan_id='.$kegiatan->hashed_id);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Alokasi/Create')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.id', $frameSampel->id)
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kdkec', '010')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kdkec_label', 'Kecamatan Utara')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kddes', '020')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kddes_label', 'Desa Mekar')
         );
     }
 

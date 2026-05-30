@@ -1,4 +1,5 @@
 import { ContentCard } from '@/components/content-card';
+import { FrameSampelTahapanSelect } from '@/components/frame-sampel-tahapan-select';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
@@ -9,9 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Kegiatan, type SharedData } from '@/types';
+import {
+    downloadFrameSampelTemplate,
+    importFrameSampelPreview,
+} from '@/utils/frameSampelExcel';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const BULAN_OPTIONS = [
     { value: '1', label: 'Januari' },
@@ -39,11 +44,154 @@ interface User {
     email: string;
 }
 
+interface MasterSampelOption {
+    id: number;
+    nama: string;
+    kode: string;
+}
+
+interface KegiatanFrameSampelRow {
+    id?: number;
+    tahapan: 'listing' | 'pencacahan';
+    target_unit_sampel: number;
+    identitas_tambahan?: Record<string, string> | null;
+}
+
+interface MetadataItem {
+    code: string;
+    codeValue: string;
+    labelValue: string;
+}
+
+interface MetadataColumn {
+    code: string;
+    label: string;
+    description: string;
+}
+
+const DEFAULT_METADATA_COLUMNS: MetadataColumn[] = [
+    {
+        code: 'kdkec',
+        label: 'Kecamatan',
+        description: 'Kode wilayah kecamatan.',
+    },
+    {
+        code: 'kddes',
+        label: 'Desa/Kelurahan',
+        description: 'Kode wilayah desa atau kelurahan.',
+    },
+    { code: 'kdsls', label: 'SLS', description: 'Kode satuan lingkungan setempat.' },
+    {
+        code: 'kdsubsls',
+        label: 'Sub SLS',
+        description: 'Kode sub satuan lingkungan setempat.',
+    },
+    {
+        code: 'kdsegmen',
+        label: 'Segmen',
+        description: 'Kode segmen wilayah kerja atau sampel.',
+    },
+];
+
+const metadataLabelKey = (code: string): string => `${code}_label`;
+
+const resolveIdentitasValue = (
+    identitas: Record<string, string> | null | undefined,
+    candidateKeys: string[],
+): string => {
+    if (!identitas) {
+        return '';
+    }
+
+    for (const candidateKey of candidateKeys) {
+        const matchedEntry = Object.entries(identitas).find(
+            ([actualKey]) =>
+                actualKey.toLowerCase() === candidateKey.toLowerCase(),
+        );
+
+        if (matchedEntry) {
+            return matchedEntry[1] ?? '';
+        }
+    }
+
+    return '';
+};
+
+const buildMetadataItems = (
+    identitas: Record<string, string> | null | undefined,
+): MetadataItem[] => {
+    if (!identitas || Object.keys(identitas).length === 0) {
+        return [{ code: 'kdkec', codeValue: '', labelValue: '' }];
+    }
+
+    const keys = Object.keys(identitas);
+    const lowerKeys = keys.map((key) => key.toLowerCase());
+
+    const orderedKeys = [
+        ...DEFAULT_METADATA_COLUMNS.map((column) => column.code).filter((key) =>
+            lowerKeys.includes(key),
+        ),
+        ...keys.filter(
+            (key) =>
+                !key.toLowerCase().endsWith('_label') &&
+                !DEFAULT_METADATA_COLUMNS.map((column) => column.code).includes(
+                    key.toLowerCase(),
+                ),
+        ),
+    ];
+
+    return orderedKeys.map((key) => ({
+        code: key,
+        codeValue: resolveIdentitasValue(identitas, [key]),
+        labelValue: resolveIdentitasValue(identitas, [metadataLabelKey(key)]),
+    }));
+};
+
+const buildMetadataColumnsFromRows = (
+    rows: KegiatanFrameSampelRow[],
+): MetadataColumn[] => {
+    const columns: MetadataColumn[] = [];
+
+    rows.forEach((row) => {
+        buildMetadataItems(row.identitas_tambahan).forEach((item) => {
+            const normalizedCode = item.code.trim().toLowerCase();
+            if (
+                normalizedCode &&
+                !columns.some(
+                    (existing) =>
+                        existing.code.trim().toLowerCase() === normalizedCode,
+                )
+            ) {
+                columns.push({
+                    code: item.code,
+                    label:
+                        DEFAULT_METADATA_COLUMNS.find(
+                            (column) =>
+                                column.code.toLowerCase() === normalizedCode,
+                        )?.label || item.code,
+                    description:
+                        DEFAULT_METADATA_COLUMNS.find(
+                            (column) =>
+                                column.code.toLowerCase() === normalizedCode,
+                        )?.description || item.code,
+                });
+            }
+        });
+    });
+
+    return columns.length > 0
+        ? columns
+        : DEFAULT_METADATA_COLUMNS.slice(0, 4);
+};
+
 interface KegiatanEditProps {
     kegiatan: Kegiatan;
     ketuaTimUsers: User[];
     tahunOptions: number[];
     pjLainnyaUsers: User[];
+    masterFrameSampel: MasterSampelOption[];
+    masterUnitSampel: MasterSampelOption[];
+    kegiatanFrameSampel: KegiatanFrameSampelRow[];
 }
 
 export default function Edit({
@@ -51,6 +199,9 @@ export default function Edit({
     ketuaTimUsers,
     tahunOptions,
     pjLainnyaUsers,
+    masterFrameSampel,
+    masterUnitSampel,
+    kegiatanFrameSampel,
 }: KegiatanEditProps) {
     const { auth, errors: pageErrors } = usePage<
         SharedData & { errors?: Record<string, string> }
@@ -85,6 +236,15 @@ export default function Edit({
         return Math.round(val).toString();
     };
 
+    const initialMetadataColumns = buildMetadataColumnsFromRows(
+        kegiatanFrameSampel,
+    );
+    const initialFrameTahapan: 'listing' | 'pencacahan' =
+        kegiatanFrameSampel.some((row) => row.tahapan === 'listing')
+            ? 'listing'
+            : 'pencacahan';
+    const initialMetadataSaved = kegiatanFrameSampel.length > 0;
+
     const { data, setData, processing } = useForm({
         kode_kegiatan: kegiatan.kode_kegiatan || '',
         nama_kegiatan: kegiatan.nama_kegiatan || '',
@@ -109,15 +269,83 @@ export default function Edit({
         bulan_pelatihan: kegiatan.bulan_pelatihan
             ? kegiatan.bulan_pelatihan.toString()
             : '',
+        frame_sampel_listing_id: kegiatan.frame_sampel_listing_id
+            ? String(kegiatan.frame_sampel_listing_id)
+            : '',
+        frame_sampel_pencacahan_id: kegiatan.frame_sampel_pencacahan_id
+            ? String(kegiatan.frame_sampel_pencacahan_id)
+            : '',
+        unit_sampel_listing_id: kegiatan.unit_sampel_listing_id
+            ? String(kegiatan.unit_sampel_listing_id)
+            : '',
+        unit_sampel_pencacahan_id: kegiatan.unit_sampel_pencacahan_id
+            ? String(kegiatan.unit_sampel_pencacahan_id)
+            : '',
         ketua_tim_user_id: kegiatan.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: kegiatan.pj_lainnya_id
             ? kegiatan.pj_lainnya_id.toString()
             : '',
         tanggal_mulai: formatDateForInput(kegiatan.tanggal_mulai),
         tanggal_selesai: formatDateForInput(kegiatan.tanggal_selesai),
+        frame_tahapan: initialFrameTahapan,
+        frame_metadata_columns: initialMetadataColumns,
+        kegiatan_frame_sampel:
+            kegiatanFrameSampel.length > 0
+                ? kegiatanFrameSampel.map((row) => ({
+                      tahapan: row.tahapan,
+                      target_unit_sampel: String(row.target_unit_sampel),
+                      metadata_items: buildMetadataItems(
+                          row.identitas_tambahan,
+                      ),
+                  }))
+                : [
+                      {
+                          tahapan: 'pencacahan' as const,
+                          target_unit_sampel: '',
+                          metadata_items: initialMetadataColumns.map(
+                              (column) => ({
+                                  code: column.code,
+                                  codeValue: '',
+                                  labelValue: '',
+                              }),
+                          ),
+                      },
+                  ],
     });
 
     const isSensus = data.jenis_kegiatan === 'sensus';
+    const [isMetadataSaved, setIsMetadataSaved] =
+        useState(initialMetadataSaved);
+    const [isEditingMetadata, setIsEditingMetadata] = useState(
+        !initialMetadataSaved,
+    );
+    const [metadataActionError, setMetadataActionError] = useState('');
+    const [frameImportFile, setFrameImportFile] = useState<File | null>(null);
+    const [frameImportProcessing, setFrameImportProcessing] = useState(false);
+    const [frameImportMessage, setFrameImportMessage] = useState('');
+    const [frameImportError, setFrameImportError] = useState('');
+
+    const isMetadataComplete =
+        data.frame_metadata_columns.length > 0 &&
+        data.frame_metadata_columns.every(
+            (column) =>
+                column.code.trim() !== '' &&
+                column.label.trim() !== '' &&
+                column.description.trim() !== '',
+        );
+    const canManageDetailFrame = isMetadataSaved && !isEditingMetadata;
+    const activeUnitSampelId =
+        data.frame_tahapan === 'listing' && !isSensus && data.has_listing_updating
+            ? data.unit_sampel_listing_id
+            : data.unit_sampel_pencacahan_id;
+    const activeUnitSampelName =
+        masterUnitSampel.find(
+            (item) => String(item.id) === String(activeUnitSampelId),
+        )?.nama || 'unit sampel';
+    const targetUnitLabel = `Jumlah ${activeUnitSampelName} dalam frame`;
+    const activeFrameRows = data.kegiatan_frame_sampel
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => row.tahapan === data.frame_tahapan);
 
     useEffect(() => {
         if (isSensus && data.has_listing_updating) {
@@ -132,6 +360,44 @@ export default function Edit({
             setData('metode_pendataan_listing', '');
         }
 
+        if (isSensus && data.frame_sampel_listing_id !== '') {
+            setData('frame_sampel_listing_id', '');
+        }
+
+        if (isSensus && data.unit_sampel_listing_id !== '') {
+            setData('unit_sampel_listing_id', '');
+        }
+
+        if (!isSensus && !data.has_listing_updating) {
+            if (
+                data.kegiatan_frame_sampel.some(
+                    (row) => row.tahapan === 'listing',
+                )
+            ) {
+                setData(
+                    'kegiatan_frame_sampel',
+                    data.kegiatan_frame_sampel
+                        .filter((row) => row.tahapan !== 'listing')
+                        .map((row) => ({
+                            tahapan: row.tahapan,
+                            target_unit_sampel: row.target_unit_sampel,
+                            metadata_items: row.metadata_items,
+                        })),
+                );
+            }
+
+            if (data.frame_tahapan === 'listing') {
+                setData('frame_tahapan', 'pencacahan');
+                setData(
+                    'kegiatan_frame_sampel',
+                    data.kegiatan_frame_sampel.map((row) => ({
+                        ...row,
+                        tahapan: 'pencacahan',
+                    })),
+                );
+            }
+        }
+
         if (isSensus && data.metode_pelatihan === 'tidak_ada_pelatihan') {
             setData('metode_pelatihan', '');
         }
@@ -140,9 +406,282 @@ export default function Edit({
         data.has_listing_updating,
         data.pagu_listing,
         data.metode_pendataan_listing,
+        data.frame_sampel_listing_id,
+        data.unit_sampel_listing_id,
+        data.frame_tahapan,
+        data.kegiatan_frame_sampel,
         data.metode_pelatihan,
         setData,
     ]);
+
+    const addFrameSampelRow = () => {
+        setData('kegiatan_frame_sampel', [
+            ...data.kegiatan_frame_sampel,
+            {
+                tahapan: data.frame_tahapan,
+                target_unit_sampel: '',
+                metadata_items: data.frame_metadata_columns.map((column) => ({
+                    code: column.code,
+                    codeValue: '',
+                    labelValue: '',
+                })),
+            },
+        ]);
+    };
+
+    const updateFrameTahapan = (value: 'listing' | 'pencacahan') => {
+        setData('frame_tahapan', value);
+    };
+
+    const updateFrameSampelRow = (
+        index: number,
+        key: 'tahapan' | 'target_unit_sampel',
+        value: string,
+    ) => {
+        setData(
+            'kegiatan_frame_sampel',
+            data.kegiatan_frame_sampel.map((row, rowIndex) => {
+                if (rowIndex !== index) {
+                    return row;
+                }
+
+                return {
+                    ...row,
+                    [key]: value,
+                };
+            }),
+        );
+    };
+
+    const addMetadataColumn = () => {
+        if (canManageDetailFrame) {
+            return;
+        }
+
+        setMetadataActionError('');
+        setData('frame_metadata_columns', [
+            ...data.frame_metadata_columns,
+            { code: '', label: '', description: '' },
+        ]);
+    };
+
+    const updateMetadataColumn = (
+        columnIndex: number,
+        key: 'code' | 'label' | 'description',
+        value: string,
+    ) => {
+        const previousCode =
+            data.frame_metadata_columns[columnIndex]?.code ?? '';
+        const nextColumns = [...data.frame_metadata_columns];
+        nextColumns[columnIndex] = {
+            ...nextColumns[columnIndex],
+            [key]: value,
+        };
+        setData('frame_metadata_columns', nextColumns);
+        setMetadataActionError('');
+
+        if (key !== 'code' || previousCode.trim() === '' || previousCode === value) {
+            return;
+        }
+
+        setData(
+            'kegiatan_frame_sampel',
+            data.kegiatan_frame_sampel.map((row) => {
+                return {
+                    ...row,
+                    metadata_items: (row.metadata_items || []).map((item) =>
+                        item.code.trim().toLowerCase() ===
+                        previousCode.trim().toLowerCase()
+                            ? { ...item, code: value }
+                            : item,
+                    ),
+                };
+            }),
+        );
+    };
+
+    const removeMetadataColumn = (columnIndex: number) => {
+        const removedCode = data.frame_metadata_columns[columnIndex]?.code ?? '';
+        setMetadataActionError('');
+
+        setData(
+            'frame_metadata_columns',
+            data.frame_metadata_columns.filter((_, index) => index !== columnIndex),
+        );
+
+        if (!removedCode.trim()) {
+            return;
+        }
+
+        setData(
+            'kegiatan_frame_sampel',
+            data.kegiatan_frame_sampel.map((row) => {
+                return {
+                    ...row,
+                    metadata_items: (row.metadata_items || []).filter(
+                        (item) =>
+                            item.code.trim().toLowerCase() !==
+                            removedCode.trim().toLowerCase(),
+                    ),
+                };
+            }),
+        );
+    };
+
+    const updateFrameMetadataValue = (
+        rowIndex: number,
+        columnCode: string,
+        key: 'codeValue' | 'labelValue',
+        value: string,
+    ) => {
+        setData(
+            'kegiatan_frame_sampel',
+            data.kegiatan_frame_sampel.map((row, currentIndex) => {
+                if (currentIndex !== rowIndex) {
+                    return row;
+                }
+
+                const existingIndex = (row.metadata_items || []).findIndex(
+                    (item) =>
+                        item.code.trim().toLowerCase() ===
+                        columnCode.trim().toLowerCase(),
+                );
+
+                if (existingIndex === -1) {
+                    return {
+                        ...row,
+                        metadata_items: [
+                            ...(row.metadata_items || []),
+                            {
+                                code: columnCode,
+                                codeValue: key === 'codeValue' ? value : '',
+                                labelValue: key === 'labelValue' ? value : '',
+                            },
+                        ],
+                    };
+                }
+
+                return {
+                    ...row,
+                    metadata_items: (row.metadata_items || []).map(
+                        (item, itemIndex) =>
+                            itemIndex === existingIndex
+                                ? { ...item, [key]: value }
+                                : item,
+                    ),
+                };
+            }),
+        );
+    };
+
+    const getFrameMetadataValue = (
+        row: { metadata_items?: MetadataItem[] },
+        columnCode: string,
+        key: 'codeValue' | 'labelValue',
+    ): string => {
+        const found = (row.metadata_items || []).find(
+            (item) =>
+                item.code.trim().toLowerCase() ===
+                columnCode.trim().toLowerCase(),
+        );
+
+        return found?.[key] || '';
+    };
+
+    const removeFrameSampelRow = (index: number) => {
+        setData(
+            'kegiatan_frame_sampel',
+            data.kegiatan_frame_sampel.filter((_, rowIndex) => rowIndex !== index),
+        );
+    };
+
+    const saveMetadataColumns = () => {
+        if (!isMetadataComplete) {
+            setMetadataActionError(
+                'Lengkapi kode, label, dan deskripsi metadata sebelum disimpan.',
+            );
+
+            return;
+        }
+
+        setIsMetadataSaved(true);
+        setIsEditingMetadata(false);
+        setMetadataActionError('');
+    };
+
+    const enableMetadataEditing = () => {
+        setIsMetadataSaved(false);
+        setIsEditingMetadata(true);
+        setMetadataActionError('');
+        setFrameImportMessage('');
+        setFrameImportError('');
+    };
+
+    const handleGenerateFrameTemplate = async () => {
+        try {
+            setFrameImportMessage('');
+            setFrameImportError('');
+
+            await downloadFrameSampelTemplate(data.frame_metadata_columns);
+        } catch (error) {
+            setFrameImportError(
+                error instanceof Error
+                    ? error.message
+                    : 'Gagal menghasilkan template Excel frame sampel.',
+            );
+        }
+    };
+
+    const handleImportFrameSampel = async () => {
+        if (!frameImportFile) {
+            setFrameImportError('Pilih file Excel terlebih dahulu.');
+
+            return;
+        }
+
+        setFrameImportProcessing(true);
+        setFrameImportMessage('');
+        setFrameImportError('');
+
+        try {
+            const payload = await importFrameSampelPreview(
+                frameImportFile,
+                data.frame_metadata_columns,
+            );
+
+            setData(
+                'kegiatan_frame_sampel',
+                [
+                    ...data.kegiatan_frame_sampel.filter(
+                        (row) => row.tahapan !== data.frame_tahapan,
+                    ),
+                    ...payload.rows.map((row) => ({
+                        tahapan: data.frame_tahapan,
+                        target_unit_sampel: row.target_unit_sampel,
+                        metadata_items: buildMetadataItems(
+                            row.identitas_tambahan,
+                        ),
+                    })),
+                ],
+            );
+
+            setFrameImportMessage(
+                `Berhasil memuat ${payload.summary.valid_rows} baris dari file Excel.`,
+            );
+
+            if (payload.errors.length > 0) {
+                setFrameImportError(payload.errors.join(' | '));
+            }
+        } catch (error) {
+            setFrameImportError(
+                error instanceof Error
+                    ? error.message
+                    : 'Gagal mengimpor detail frame sampel.',
+            );
+        } finally {
+            setFrameImportProcessing(false);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -168,6 +707,57 @@ export default function Edit({
             bulan_pelatihan: data.bulan_pelatihan
                 ? Number(data.bulan_pelatihan)
                 : null,
+            frame_sampel_listing_id:
+                !isSensus && data.frame_sampel_listing_id
+                    ? Number(data.frame_sampel_listing_id)
+                    : null,
+            frame_sampel_pencacahan_id: data.frame_sampel_pencacahan_id
+                ? Number(data.frame_sampel_pencacahan_id)
+                : null,
+            unit_sampel_listing_id:
+                !isSensus && data.unit_sampel_listing_id
+                    ? Number(data.unit_sampel_listing_id)
+                    : null,
+            unit_sampel_pencacahan_id: data.unit_sampel_pencacahan_id
+                ? Number(data.unit_sampel_pencacahan_id)
+                : null,
+            kegiatan_frame_sampel: data.kegiatan_frame_sampel
+                .filter((row) => {
+                    if (!row.target_unit_sampel) {
+                        return false;
+                    }
+
+                    if (isSensus || !data.has_listing_updating) {
+                        return row.tahapan === 'pencacahan';
+                    }
+
+                    return true;
+                })
+                .map((row) => ({
+                    tahapan: row.tahapan,
+                    target_unit_sampel: Number(row.target_unit_sampel),
+                    identitas_tambahan: (row.metadata_items || []).reduce<
+                        Record<string, string>
+                    >((accumulator, item: MetadataItem) => {
+                        const code = item.code?.trim();
+                        const codeValue = item.codeValue?.trim();
+                        const labelValue = item.labelValue?.trim();
+
+                        if (!code) {
+                            return accumulator;
+                        }
+
+                        if (codeValue) {
+                            accumulator[code] = codeValue;
+                        }
+
+                        if (labelValue) {
+                            accumulator[metadataLabelKey(code)] = labelValue;
+                        }
+
+                        return accumulator;
+                    }, {}),
+                })),
             ketua_tim_user_id: data.ketua_tim_user_id || null,
             pj_lainnya_id: data.pj_lainnya_id || null,
             tanggal_mulai: data.tanggal_mulai,
@@ -545,6 +1135,470 @@ export default function Edit({
                                     />
                                 </div>
                             )}
+
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                <div>
+                                    <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                        Frame Sampel Pencacahan
+                                    </label>
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: '',
+                                                label: 'Pilih Frame Sampel Pencacahan',
+                                            },
+                                            ...masterFrameSampel.map((item) => ({
+                                                value: String(item.id),
+                                                label: `${item.nama} (${item.kode})`,
+                                            })),
+                                        ]}
+                                        value={data.frame_sampel_pencacahan_id}
+                                        onValueChange={(value) =>
+                                            setData(
+                                                'frame_sampel_pencacahan_id',
+                                                value,
+                                            )
+                                        }
+                                        placeholder="Pilih Frame Sampel Pencacahan"
+                                        searchPlaceholder="Cari frame sampel..."
+                                        className="mt-2"
+                                    />
+                                    <InputError
+                                        message={errors.frame_sampel_pencacahan_id}
+                                        className="mt-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                        Unit Sampel Pencacahan
+                                    </label>
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: '',
+                                                label: 'Pilih Unit Sampel Pencacahan',
+                                            },
+                                            ...masterUnitSampel.map((item) => ({
+                                                value: String(item.id),
+                                                label: `${item.nama} (${item.kode})`,
+                                            })),
+                                        ]}
+                                        value={data.unit_sampel_pencacahan_id}
+                                        onValueChange={(value) =>
+                                            setData(
+                                                'unit_sampel_pencacahan_id',
+                                                value,
+                                            )
+                                        }
+                                        placeholder="Pilih Unit Sampel Pencacahan"
+                                        searchPlaceholder="Cari unit sampel..."
+                                        className="mt-2"
+                                    />
+                                    <InputError
+                                        message={errors.unit_sampel_pencacahan_id}
+                                        className="mt-2"
+                                    />
+                                </div>
+
+                                {!isSensus && data.has_listing_updating && (
+                                    <>
+                                        <div>
+                                            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                Frame Sampel Listing
+                                            </label>
+                                            <SearchableSelect
+                                                options={[
+                                                    {
+                                                        value: '',
+                                                        label: 'Pilih Frame Sampel Listing',
+                                                    },
+                                                    ...masterFrameSampel.map((item) => ({
+                                                        value: String(item.id),
+                                                        label: `${item.nama} (${item.kode})`,
+                                                    })),
+                                                ]}
+                                                value={data.frame_sampel_listing_id}
+                                                onValueChange={(value) =>
+                                                    setData(
+                                                        'frame_sampel_listing_id',
+                                                        value,
+                                                    )
+                                                }
+                                                placeholder="Pilih Frame Sampel Listing"
+                                                searchPlaceholder="Cari frame sampel..."
+                                                className="mt-2"
+                                            />
+                                            <InputError
+                                                message={errors.frame_sampel_listing_id}
+                                                className="mt-2"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                Unit Sampel Listing
+                                            </label>
+                                            <SearchableSelect
+                                                options={[
+                                                    {
+                                                        value: '',
+                                                        label: 'Pilih Unit Sampel Listing',
+                                                    },
+                                                    ...masterUnitSampel.map((item) => ({
+                                                        value: String(item.id),
+                                                        label: `${item.nama} (${item.kode})`,
+                                                    })),
+                                                ]}
+                                                value={data.unit_sampel_listing_id}
+                                                onValueChange={(value) =>
+                                                    setData(
+                                                        'unit_sampel_listing_id',
+                                                        value,
+                                                    )
+                                                }
+                                                placeholder="Pilih Unit Sampel Listing"
+                                                searchPlaceholder="Cari unit sampel..."
+                                                className="mt-2"
+                                            />
+                                            <InputError
+                                                message={errors.unit_sampel_listing_id}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="space-y-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div className="space-y-3">
+                                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                        Frame Sampel
+                                    </h3>
+
+                                    <FrameSampelTahapanSelect
+                                        value={data.frame_tahapan}
+                                        onValueChange={updateFrameTahapan}
+                                        allowListing={
+                                            !isSensus && data.has_listing_updating
+                                        }
+                                        className="w-full md:w-auto"
+                                    />
+
+                                    <div className="space-y-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-700">
+                                        <div className="flex items-center justify-between">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Metadata Frame (isi nama kolom dulu)
+                                            </label>
+                                            {!canManageDetailFrame && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={addMetadataColumn}
+                                                >
+                                                    Tambah Metadata
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Susun berurutan dari tingkat tertinggi ke rendah.
+                                        </p>
+                                        <div className="space-y-2">
+                                            {data.frame_metadata_columns.map(
+                                                (column, columnIndex) => (
+                                                    <div
+                                                        key={`column-${columnIndex}`}
+                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_2fr_auto]"
+                                                    >
+                                                        <input
+                                                            type="text"
+                                                            value={column.code}
+                                                            disabled={canManageDetailFrame}
+                                                            onChange={(e) =>
+                                                                updateMetadataColumn(
+                                                                    columnIndex,
+                                                                    'code',
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                            placeholder="Kode metadata (contoh: kdkec)"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={column.label}
+                                                            disabled={canManageDetailFrame}
+                                                            onChange={(e) =>
+                                                                updateMetadataColumn(
+                                                                    columnIndex,
+                                                                    'label',
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                            placeholder="Label UI (contoh: Kecamatan)"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                column.description
+                                                            }
+                                                            disabled={canManageDetailFrame}
+                                                            onChange={(e) =>
+                                                                updateMetadataColumn(
+                                                                    columnIndex,
+                                                                    'description',
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                            placeholder="Deskripsi (contoh: Kode Kecamatan)"
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={canManageDetailFrame}
+                                                            onClick={() =>
+                                                                removeMetadataColumn(
+                                                                    columnIndex,
+                                                                )
+                                                            }
+                                                        >
+                                                            Hapus
+                                                        </Button>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                        {metadataActionError && (
+                                            <p className="text-sm text-red-600 dark:text-red-400">
+                                                {metadataActionError}
+                                            </p>
+                                        )}
+                                        <div className="flex justify-end gap-2">
+                                            {canManageDetailFrame ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={enableMetadataEditing}
+                                                >
+                                                    Ubah Metadata
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={saveMetadataColumns}
+                                                    disabled={!isMetadataComplete}
+                                                >
+                                                    Simpan Metadata
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {canManageDetailFrame && (
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                    Detail Frame Sampel
+                                                </h4>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleGenerateFrameTemplate}
+                                                    >
+                                                        Generate Excel
+                                                    </Button>
+                                                    <input
+                                                        type="file"
+                                                        accept=".xlsx,.xls,.csv"
+                                                        onChange={(e) =>
+                                                            setFrameImportFile(
+                                                                e.target
+                                                                    .files?.[0] ||
+                                                                    null,
+                                                            )
+                                                        }
+                                                        className="block text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white dark:text-gray-300 dark:file:bg-neutral-200 dark:file:text-neutral-900"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleImportFrameSampel}
+                                                        disabled={
+                                                            frameImportProcessing ||
+                                                            !frameImportFile
+                                                        }
+                                                    >
+                                                        {frameImportProcessing
+                                                            ? 'Mengimpor...'
+                                                            : 'Import Excel'}
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={addFrameSampelRow}
+                                                    >
+                                                        Tambah Frame
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            {frameImportMessage && (
+                                                <p className="text-sm text-green-700 dark:text-green-400">
+                                                    {frameImportMessage}
+                                                </p>
+                                            )}
+                                            {frameImportError && (
+                                                <p className="text-sm text-red-600 dark:text-red-400">
+                                                    {frameImportError}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!canManageDetailFrame && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Simpan metadata terlebih dahulu sebelum mengisi detail frame sampel, generate template, atau import Excel.
+                                    </p>
+                                )}
+
+                                {canManageDetailFrame &&
+                                    activeFrameRows.length === 0 && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Belum ada data frame sampel.
+                                    </p>
+                                    )}
+
+                                {canManageDetailFrame && (
+                                <div className="space-y-3">
+                                    {activeFrameRows.map(({ row, index }) => (
+                                        <div
+                                            key={`frame-row-${row.tahapan}-${index}`}
+                                            className="space-y-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-700"
+                                        >
+                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                {data.frame_metadata_columns.map(
+                                                    (column, columnIndex) => (
+                                                        <div
+                                                            key={`frame-${index}-col-${columnIndex}`}
+                                                        >
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                {column.label ||
+                                                                    `Kolom ${columnIndex + 1}`}
+                                                            </label>
+                                                            <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={getFrameMetadataValue(
+                                                                        row,
+                                                                        column.code,
+                                                                        'codeValue',
+                                                                    )}
+                                                                    onChange={(e) =>
+                                                                        updateFrameMetadataValue(
+                                                                            index,
+                                                                            column.code,
+                                                                            'codeValue',
+                                                                            e.target
+                                                                                .value,
+                                                                        )
+                                                                    }
+                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                    placeholder={`Kode ${column.label || 'metadata'}`}
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={getFrameMetadataValue(
+                                                                        row,
+                                                                        column.code,
+                                                                        'labelValue',
+                                                                    )}
+                                                                    onChange={(e) =>
+                                                                        updateFrameMetadataValue(
+                                                                            index,
+                                                                            column.code,
+                                                                            'labelValue',
+                                                                            e.target
+                                                                                .value,
+                                                                        )
+                                                                    }
+                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                    placeholder={
+                                                                        column.label ||
+                                                                        'metadata'
+                                                                    }
+                                                                />
+                                                            </div>
+                                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                                {column.code}
+                                                                {column.description
+                                                                    ? ` - ${column.description}`
+                                                                    : ''}
+                                                            </p>
+                                                        </div>
+                                                    ),
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-end justify-between gap-3">
+                                                <div className="w-full max-w-xs">
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        {targetUnitLabel}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={row.target_unit_sampel}
+                                                        onChange={(e) =>
+                                                            updateFrameSampelRow(
+                                                                index,
+                                                                'target_unit_sampel',
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                        placeholder="Contoh: 2"
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors[
+                                                                `kegiatan_frame_sampel.${index}.target_unit_sampel`
+                                                            ]
+                                                        }
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        removeFrameSampelRow(
+                                                            index,
+                                                        )
+                                                    }
+                                                >
+                                                    Hapus
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                )}
+                            </div>
 
                             {/* Metode Pelatihan */}
                             <div className="space-y-2">

@@ -12,6 +12,7 @@ use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
+use App\Http\Controllers\KegiatanFrameSampelController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MonitoringPenilaianMitraController;
 use App\Http\Controllers\MonitoringPulsaController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\PetugasReviewController;
 use App\Http\Controllers\ResetUserTwoFactorController;
 use App\Http\Controllers\RoleSwitchController;
+use App\Http\Controllers\SampleMasterController;
 use App\Http\Controllers\SbmlController;
 use App\Http\Controllers\SbmlReportController;
 use App\Http\Controllers\SkKpaController;
@@ -348,6 +350,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('kegiatan/create', [KegiatanController::class, 'create'])->name('kegiatan.create');
         Route::get('kegiatan/{kegiatan}/copy', [KegiatanController::class, 'copy'])->name('kegiatan.copy');
+        Route::post('kegiatan/frame-sampel/template', [KegiatanController::class, 'exportFrameSampelTemplate'])->name('kegiatan.frame-sampel.template');
+        Route::post('kegiatan/frame-sampel/import-preview', [KegiatanController::class, 'importFrameSampelPreview'])->name('kegiatan.frame-sampel.import-preview');
         Route::post('kegiatan/store', [KegiatanController::class, 'store'])->name('kegiatan.store');
         Route::get('kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->name('kegiatan.edit');
         Route::match(['put', 'patch'], 'kegiatan/{kegiatan}/edit', [KegiatanController::class, 'update']);
@@ -508,6 +512,9 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
         // Dasar Hukum - View routes (including PJ for read-only)
         Route::match(['get', 'post'], 'dasar-hukum', [DasarHukumController::class, 'index'])->name('dasar-hukum.index');
+
+        // Master Frame/Unit Sampel - View routes
+        Route::get('master-sampel', [SampleMasterController::class, 'index'])->name('master-sampel.index');
     });
 
     // Master Data modification routes (Admin, Operator only)
@@ -536,6 +543,23 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::match(['get', 'post'], 'dasar-hukum/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
         Route::patch('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'update'])->name('dasar-hukum.update');
         Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
+
+        // Master frame/unit sampel
+        Route::post('master-sampel/frame', [SampleMasterController::class, 'storeFrame'])->name('master-sampel.frame.store');
+        Route::put('master-sampel/frame/{frame}', [SampleMasterController::class, 'updateFrame'])->name('master-sampel.frame.update');
+        Route::delete('master-sampel/frame/{frame}', [SampleMasterController::class, 'destroyFrame'])->name('master-sampel.frame.destroy');
+        Route::post('master-sampel/unit', [SampleMasterController::class, 'storeUnit'])->name('master-sampel.unit.store');
+        Route::put('master-sampel/unit/{unit}', [SampleMasterController::class, 'updateUnit'])->name('master-sampel.unit.update');
+        Route::delete('master-sampel/unit/{unit}', [SampleMasterController::class, 'destroyUnit'])->name('master-sampel.unit.destroy');
+
+    });
+
+    // Daftar frame sampel per kegiatan (Admin, Operator, Ketua Tim)
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('kegiatan/{kegiatan}/frame-sampel', [KegiatanFrameSampelController::class, 'index'])->name('kegiatan.frame-sampel.index');
+        Route::post('kegiatan/{kegiatan}/frame-sampel', [KegiatanFrameSampelController::class, 'store'])->name('kegiatan.frame-sampel.store');
+        Route::put('kegiatan/{kegiatan}/frame-sampel/{frame}', [KegiatanFrameSampelController::class, 'update'])->name('kegiatan.frame-sampel.update');
+        Route::delete('kegiatan/{kegiatan}/frame-sampel/{frame}', [KegiatanFrameSampelController::class, 'destroy'])->name('kegiatan.frame-sampel.destroy');
     });
 
     // SBML Report (Admin, Operator, PJ, Ketua Tim can view)

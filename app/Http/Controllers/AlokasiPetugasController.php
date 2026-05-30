@@ -12,6 +12,7 @@ use App\Imports\AlokasiPetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -27,6 +28,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -413,6 +415,157 @@ class AlokasiPetugasController extends Controller
         return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $alokasiItems
+     * @return array<int, string>
+     */
+    private function validateSampleFrameAllocations(array $alokasiItems, Kegiatan $kegiatan): array
+    {
+        if ($kegiatan->jenis_kegiatan !== 'survei') {
+            return [];
+        }
+
+        $frameById = KegiatanFrameSampel::query()
+            ->where('kegiatan_id', $kegiatan->id)
+            ->get(['id', 'tahapan', 'target_unit_sampel'])
+            ->keyBy('id');
+
+        if ($frameById->isEmpty()) {
+            return [];
+        }
+
+        $errors = [];
+
+        foreach ($alokasiItems as $index => $item) {
+            $rowNumber = $index + 1;
+
+            $frameIds = collect($item['frame_sampel_ids'] ?? [])
+                ->filter(fn ($value) => $value !== null && $value !== '')
+                ->map(fn ($value) => (int) $value)
+                ->unique()
+                ->values();
+
+            $jumlahUnitSampel = (int) ($item['jumlah_unit_sampel'] ?? 0);
+
+            if ($frameIds->isEmpty()) {
+                $errors[] = "Baris #{$rowNumber}: frame sampel wajib dipilih.";
+
+                continue;
+            }
+
+            $invalidFrameIds = $frameIds->filter(fn ($frameId) => ! $frameById->has($frameId));
+            if ($invalidFrameIds->isNotEmpty()) {
+                $errors[] = "Baris #{$rowNumber}: terdapat frame sampel tidak valid untuk kegiatan ini.";
+
+                continue;
+            }
+
+            $expectedTahapan = match ($item['tahapan'] ?? 'both') {
+                'listing_only' => 'listing',
+                'pencacahan_only' => 'pencacahan',
+                default => null,
+            };
+
+            if ($expectedTahapan !== null) {
+                $invalidTahapanFrame = $frameIds->first(function ($frameId) use ($frameById, $expectedTahapan) {
+                    return ($frameById->get($frameId)?->tahapan ?? null) !== $expectedTahapan;
+                });
+
+                if ($invalidTahapanFrame !== null) {
+                    $errors[] = "Baris #{$rowNumber}: frame sampel harus sesuai tahapan {$expectedTahapan}.";
+
+                    continue;
+                }
+            }
+
+            if ($jumlahUnitSampel <= 0) {
+                $errors[] = "Baris #{$rowNumber}: jumlah unit sampel wajib lebih dari 0.";
+
+                continue;
+            }
+
+            $maxUnitSampel = (int) $frameIds->sum(fn ($frameId) => (int) ($frameById->get($frameId)?->target_unit_sampel ?? 0));
+            if ($jumlahUnitSampel > $maxUnitSampel) {
+                $errors[] = "Baris #{$rowNumber}: jumlah unit sampel ({$jumlahUnitSampel}) melebihi kumulatif target frame terpilih ({$maxUnitSampel}).";
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param  array<int, int|string>  $frameIds
+     */
+    private function syncAlokasiFrameSampel(AlokasiPetugas $alokasiPetugas, array $frameIds): void
+    {
+        $normalizedFrameIds = collect($frameIds)
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values();
+
+        $alokasiPetugas->frameSampelAllocations()->delete();
+
+        if ($normalizedFrameIds->isEmpty()) {
+            return;
+        }
+
+        $alokasiPetugas->frameSampelAllocations()->createMany(
+            $normalizedFrameIds
+                ->map(fn ($frameId) => ['kegiatan_frame_sampel_id' => $frameId])
+                ->all()
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $alokasiItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeAlokasiRowsForStorage(array $alokasiItems): array
+    {
+        $merged = [];
+
+        foreach ($alokasiItems as $item) {
+            $key = implode('|', [
+                (string) ($item['petugas_id'] ?? ''),
+                Str::lower((string) ($item['peran'] ?? '')),
+                (string) ($item['bulan'] ?? ''),
+                (string) ($item['tahun'] ?? ''),
+                (string) ($item['jenis_kegiatan'] ?? ''),
+                (string) ($item['tahapan'] ?? 'both'),
+            ]);
+
+            if (! isset($merged[$key])) {
+                $merged[$key] = $item;
+                $merged[$key]['frame_sampel_ids'] = array_values(array_unique(array_map('intval', $item['frame_sampel_ids'] ?? [])));
+
+                continue;
+            }
+
+            $existing = $merged[$key];
+            $mergedFrameIds = array_values(array_unique(array_merge(
+                array_map('intval', $existing['frame_sampel_ids'] ?? []),
+                array_map('intval', $item['frame_sampel_ids'] ?? [])
+            )));
+
+            $merged[$key]['jumlah_satuan'] = (float) ($existing['jumlah_satuan'] ?? 0) + (float) ($item['jumlah_satuan'] ?? 0);
+            $merged[$key]['jumlah_satuan_listing'] = (int) ($existing['jumlah_satuan_listing'] ?? 0) + (int) ($item['jumlah_satuan_listing'] ?? 0);
+            $merged[$key]['jumlah_unit_sampel'] = (int) ($existing['jumlah_unit_sampel'] ?? 0) + (int) ($item['jumlah_unit_sampel'] ?? 0);
+            $merged[$key]['partial_jumlah_satuan'] = (float) ($existing['partial_jumlah_satuan'] ?? 0) + (float) ($item['partial_jumlah_satuan'] ?? 0);
+            $merged[$key]['partial_jumlah_satuan_listing'] = (int) ($existing['partial_jumlah_satuan_listing'] ?? 0) + (int) ($item['partial_jumlah_satuan_listing'] ?? 0);
+            $merged[$key]['is_partial_payment'] = (bool) ($existing['is_partial_payment'] ?? false) || (bool) ($item['is_partial_payment'] ?? false);
+            $merged[$key]['is_partial_payment_listing'] = (bool) ($existing['is_partial_payment_listing'] ?? false) || (bool) ($item['is_partial_payment_listing'] ?? false);
+            $merged[$key]['frame_sampel_ids'] = $mergedFrameIds;
+
+            $existingCatatan = trim((string) ($existing['catatan'] ?? ''));
+            $newCatatan = trim((string) ($item['catatan'] ?? ''));
+            $catatanParts = array_values(array_unique(array_filter([$existingCatatan, $newCatatan], fn (string $text): bool => $text !== '')));
+            $merged[$key]['catatan'] = implode('; ', $catatanParts);
+        }
+
+        return array_values($merged);
+    }
+
     protected function resolveKegiatanRouteBinding(string $kegiatanRouteKey): ?Kegiatan
     {
         return (new Kegiatan)->resolveRouteBinding($kegiatanRouteKey);
@@ -460,7 +613,12 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.partial_jumlah_satuan' => 'nullable|numeric|min:0',
             'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
             'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
+            'alokasi.*.frame_sampel_ids' => 'nullable|array',
+            'alokasi.*.frame_sampel_ids.*' => 'integer|exists:kegiatan_frame_sampel,id',
+            'alokasi.*.jumlah_unit_sampel' => 'nullable|integer|min:0',
         ]);
+
+        $validated['alokasi'] = $this->mergeAlokasiRowsForStorage($validated['alokasi']);
 
         $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
 
@@ -507,6 +665,13 @@ class AlokasiPetugasController extends Controller
         if (! empty($partialValidationErrors)) {
             return back()->withErrors([
                 'partial_validation' => implode("\n", array_unique($partialValidationErrors)),
+            ])->withInput();
+        }
+
+        $sampleFrameValidationErrors = $this->validateSampleFrameAllocations($validated['alokasi'], $kegiatan);
+        if (! empty($sampleFrameValidationErrors)) {
+            return back()->withErrors([
+                'sample_frame_validation' => implode("\n", array_unique($sampleFrameValidationErrors)),
             ])->withInput();
         }
 
@@ -761,6 +926,9 @@ class AlokasiPetugasController extends Controller
                 'petugas_id' => $alokasiData['petugas_id'],
                 'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                 'jumlah_satuan_listing' => $jumlahSatuanListing,
+                'jumlah_frame_sampel' => count(array_unique(array_map('intval', $alokasiData['frame_sampel_ids'] ?? []))),
+                'jumlah_unit_sampel' => (int) ($alokasiData['jumlah_unit_sampel'] ?? 0),
+                'frame_sampel_ids' => array_values(array_unique(array_map('intval', $alokasiData['frame_sampel_ids'] ?? []))),
                 'total_honor' => $totalHonor,
                 'total_honor_listing' => $totalHonorListing,
                 'is_partial_payment' => $isPartialPayment,
@@ -934,6 +1102,8 @@ class AlokasiPetugasController extends Controller
                         'petugas_id' => $alokasiItem['petugas_id'],
                         'jumlah_satuan' => $alokasiItem['jumlah_satuan'],
                         'jumlah_satuan_listing' => $alokasiItem['jumlah_satuan_listing'],
+                        'jumlah_frame_sampel' => $alokasiItem['jumlah_frame_sampel'] ?? 0,
+                        'jumlah_unit_sampel' => $alokasiItem['jumlah_unit_sampel'] ?? 0,
                         'total_honor' => $alokasiItem['total_honor'],
                         'total_honor_listing' => $alokasiItem['total_honor_listing'],
                         'is_partial_payment' => $alokasiItem['is_partial_payment'] ?? false,
@@ -959,7 +1129,8 @@ class AlokasiPetugasController extends Controller
                         $alokasiPayload['tahun'] = (int) $periodeData['tahun'];
                     }
 
-                    AlokasiPetugas::create($alokasiPayload);
+                    $alokasiPetugas = AlokasiPetugas::create($alokasiPayload);
+                    $this->syncAlokasiFrameSampel($alokasiPetugas, $alokasiItem['frame_sampel_ids'] ?? []);
                 }
             }
 
@@ -1059,6 +1230,11 @@ class AlokasiPetugasController extends Controller
                                 'satuanListing:id,kode,nama',
                             ]);
                     },
+                    'kegiatanFrameSampel' => function ($query) {
+                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                            ->orderBy('tahapan')
+                            ->orderBy('id');
+                    },
                 ])
                 ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
                 ->orderBy('created_at', 'desc')
@@ -1079,6 +1255,11 @@ class AlokasiPetugasController extends Controller
                                 'satuan:id,kode,nama',
                                 'satuanListing:id,kode,nama',
                             ]);
+                    },
+                    'kegiatanFrameSampel' => function ($query) {
+                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                            ->orderBy('tahapan')
+                            ->orderBy('id');
                     },
                 ])
                 ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
@@ -1244,6 +1425,11 @@ class AlokasiPetugasController extends Controller
                                         'satuanListing:id,kode,nama',
                                     ]);
                             },
+                            'kegiatanFrameSampel' => function ($query) {
+                                $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                                    ->orderBy('tahapan')
+                                    ->orderBy('id');
+                            },
                         ])
                         ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
                         ->first();
@@ -1287,7 +1473,7 @@ class AlokasiPetugasController extends Controller
                             $sourcePeriodeData = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                                 ->where('tahun', $request->copy_from_tahun)
                                 ->where('bulan', $request->copy_from_bulan)
-                                ->with(['alokasiPetugas.petugas'])
+                                ->with(['alokasiPetugas.petugas', 'alokasiPetugas.frameSampelAllocations'])
                                 ->first();
 
                             if ($sourcePeriodeData && $sourcePeriodeData->alokasiPetugas->isNotEmpty()) {
@@ -1314,6 +1500,8 @@ class AlokasiPetugasController extends Controller
                                             'is_partial_payment_listing' => (bool) $alokasi->is_partial_payment_listing,
                                             'partial_jumlah_satuan_listing' => $alokasi->partial_jumlah_satuan_listing,
                                             'estimasi_honor_partial_listing' => $alokasi->estimasi_honor_partial_listing,
+                                            'jumlah_unit_sampel' => (int) ($alokasi->jumlah_unit_sampel ?? 0),
+                                            'frame_sampel_ids' => $alokasi->frameSampelAllocations->pluck('kegiatan_frame_sampel_id')->map(fn ($value) => (int) $value)->values()->all(),
                                             'catatan' => $alokasi->catatan,
                                         ];
                                     });
@@ -1993,7 +2181,7 @@ class AlokasiPetugasController extends Controller
         if ($isRevisiMode) {
             // Load data from parent periode for revision
             $parentPeriodeId = $request->session()->get('revisi_parent_periode_id');
-            $periode = PeriodeAlokasi::with(['alokasiPetugas.petugas'])->findOrFail($parentPeriodeId);
+            $periode = PeriodeAlokasi::with(['alokasiPetugas.petugas', 'alokasiPetugas.frameSampelAllocations'])->findOrFail($parentPeriodeId);
         } else {
             // Load existing draft/perubahan periode for editing
             $periode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
@@ -2001,7 +2189,7 @@ class AlokasiPetugasController extends Controller
                 ->whereIn('bulan', $bulanCandidates)
                 ->whereIn('status', ['draft', 'perubahan'])
                 ->orderByDesc('revision_number')
-                ->with(['alokasiPetugas.petugas'])
+                ->with(['alokasiPetugas.petugas', 'alokasiPetugas.frameSampelAllocations'])
                 ->first();
 
             if (! $periode) {
@@ -2029,6 +2217,11 @@ class AlokasiPetugasController extends Controller
                             'satuan:id,kode,nama',
                             'satuanListing:id,kode,nama',
                         ]);
+                },
+                'kegiatanFrameSampel' => function ($query) {
+                    $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                        ->orderBy('tahapan')
+                        ->orderBy('id');
                 },
             ])
             ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
@@ -2083,6 +2276,8 @@ class AlokasiPetugasController extends Controller
                 'is_partial_payment_listing' => (bool) $alok->is_partial_payment_listing,
                 'partial_jumlah_satuan_listing' => $alok->partial_jumlah_satuan_listing,
                 'estimasi_honor_partial_listing' => $alok->estimasi_honor_partial_listing,
+                'jumlah_unit_sampel' => (int) ($alok->jumlah_unit_sampel ?? 0),
+                'frame_sampel_ids' => $alok->frameSampelAllocations->pluck('kegiatan_frame_sampel_id')->map(fn ($value) => (int) $value)->values()->all(),
                 'catatan' => $alok->catatan,
             ];
         });
@@ -2430,6 +2625,9 @@ class AlokasiPetugasController extends Controller
             'alokasi.*.partial_jumlah_satuan' => 'nullable|numeric|min:0',
             'alokasi.*.is_partial_payment_listing' => 'nullable|boolean',
             'alokasi.*.partial_jumlah_satuan_listing' => 'nullable|integer|min:0',
+            'alokasi.*.frame_sampel_ids' => 'nullable|array',
+            'alokasi.*.frame_sampel_ids.*' => 'integer|exists:kegiatan_frame_sampel,id',
+            'alokasi.*.jumlah_unit_sampel' => 'nullable|integer|min:0',
             'tanggal_mulai' => 'nullable|date',
             'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
             'tanggal_mulai_listing' => 'nullable|date',
@@ -2525,6 +2723,13 @@ class AlokasiPetugasController extends Controller
         if (! empty($partialValidationErrors)) {
             return redirect()->back()->withErrors([
                 'partial_validation' => implode("\n", array_unique($partialValidationErrors)),
+            ])->withInput();
+        }
+
+        $sampleFrameValidationErrors = $this->validateSampleFrameAllocations($validated['alokasi'], $kegiatan);
+        if (! empty($sampleFrameValidationErrors)) {
+            return redirect()->back()->withErrors([
+                'sample_frame_validation' => implode("\n", array_unique($sampleFrameValidationErrors)),
             ])->withInput();
         }
 
@@ -2766,6 +2971,8 @@ class AlokasiPetugasController extends Controller
                     'petugas_id' => $alokasiData['petugas_id'],
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                     'jumlah_satuan_listing' => $jumlahSatuanListing,
+                    'jumlah_frame_sampel' => count(array_unique(array_map('intval', $alokasiData['frame_sampel_ids'] ?? []))),
+                    'jumlah_unit_sampel' => (int) ($alokasiData['jumlah_unit_sampel'] ?? 0),
                     'total_honor' => $totalHonor,
                     'total_honor_listing' => $totalHonorListing,
                     'is_partial_payment' => $isPartialPayment,
@@ -2791,7 +2998,8 @@ class AlokasiPetugasController extends Controller
                     $alokasiPayload['tahun'] = (int) $tahun;
                 }
 
-                AlokasiPetugas::create($alokasiPayload);
+                $alokasiPetugas = AlokasiPetugas::create($alokasiPayload);
+                $this->syncAlokasiFrameSampel($alokasiPetugas, $alokasiData['frame_sampel_ids'] ?? []);
 
                 $created++;
             }
@@ -3704,6 +3912,19 @@ class AlokasiPetugasController extends Controller
             ->get()
             ->keyBy(fn ($rate) => $rate->status_kepegawaian.'|'.$rate->jenis_penugasan);
         $allowDecimalPencacahan = $kegiatan->jenis_kegiatan === 'sensus';
+        $frameSampelQuery = $kegiatan->kegiatanFrameSampel()->select('id', 'tahapan', 'target_unit_sampel', 'identitas_tambahan');
+
+        if ($tahapan === 'listing_only') {
+            $frameSampelQuery->where('tahapan', 'listing');
+        }
+
+        if ($tahapan === 'pencacahan_only') {
+            $frameSampelQuery->where('tahapan', 'pencacahan');
+        }
+
+        $frameSampelRows = $frameSampelQuery->get()->values();
+        $frameMetadataColumns = $this->extractFrameSampelMetadataColumns($frameSampelRows);
+        $requiresFrameSampelInput = $frameSampelRows->isNotEmpty();
 
         // NIK is encrypted in the DB — load all petugas and build a decrypted NIK → Petugas map.
         $petugasByNik = Petugas::query()
@@ -3751,6 +3972,51 @@ class AlokasiPetugasController extends Controller
             $jumlahSatuanRaw = $row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0;
             $jumlahSatuanPencacahan = $this->parseImportSatuan($jumlahSatuanRaw);
             $jumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_listing'] ?? 0);
+            $metadataValues = $this->extractImportFrameMetadataValues($row, $frameMetadataColumns);
+            $hasAnyMetadataValue = collect($metadataValues)
+                ->contains(fn (string $value): bool => trim($value) !== '');
+
+            if ($requiresFrameSampelInput && ! $hasAnyMetadataValue) {
+                $errors[] = "Baris {$rowNumber}: Kolom metadata frame sampel wajib diisi.";
+
+                continue;
+            }
+
+            $validFrameSampelIds = [];
+            $jumlahUnitSampel = 0;
+
+            if ($hasAnyMetadataValue) {
+                $matchedFrameSampel = $this->resolveFrameSampelByMetadata(
+                    $frameSampelRows,
+                    $metadataValues,
+                    $rowNumber,
+                    $errors
+                );
+
+                if ($matchedFrameSampel === null) {
+                    continue;
+                }
+
+                $validFrameSampelIds[] = (int) $matchedFrameSampel->id;
+                $jumlahUnitSampel = max(0, (int) ($matchedFrameSampel->target_unit_sampel ?? 0));
+            }
+
+            if ($requiresFrameSampelInput && $kegiatan->jenis_kegiatan === 'survei') {
+                $jumlahSatuanPencacahan = (float) $jumlahUnitSampel;
+                $jumlahSatuanListing = $jumlahUnitSampel;
+
+                if ($tahapan === 'listing_only') {
+                    $jumlahSatuanPencacahan = 0;
+                }
+
+                if ($tahapan === 'pencacahan_only') {
+                    $jumlahSatuanListing = 0;
+                }
+            }
+
+            if ($requiresFrameSampelInput && $kegiatan->jenis_kegiatan === 'sensus' && $hasAnyMetadataValue) {
+                $jumlahSatuanPencacahan = (float) $jumlahUnitSampel;
+            }
 
             if (! $allowDecimalPencacahan && $this->hasDecimalPart($jumlahSatuanPencacahan)) {
                 $errors[] = "Baris {$rowNumber}: Jumlah satuan pencacahan desimal hanya diperbolehkan untuk kegiatan sensus.";
@@ -3815,6 +4081,9 @@ class AlokasiPetugasController extends Controller
                 'is_partial_payment_listing' => $isPartialPayment,
                 'partial_jumlah_satuan_listing' => $isPartialPayment ? (string) $partialJumlahSatuanListing : '',
                 'estimasi_honor_partial_listing' => $estimasiHonorPartialListing,
+                'frame_sampel_ids' => array_values($validFrameSampelIds),
+                'jumlah_unit_sampel' => $jumlahUnitSampel,
+                'frame_sampel_metadata' => $metadataValues,
             ];
         }
 
@@ -3825,6 +4094,7 @@ class AlokasiPetugasController extends Controller
         return response()->json([
             'rows' => $previewRows,
             'errors' => $errors,
+            'frame_metadata_columns' => $frameMetadataColumns,
             'summary' => [
                 'total_rows' => $rows->count(),
                 'valid_rows' => count($previewRows),
@@ -4038,6 +4308,124 @@ class AlokasiPetugasController extends Controller
         return '';
     }
 
+    /**
+     * @return array<int, array{code:string,label:string}>
+     */
+    private function extractFrameSampelMetadataColumns(Collection $frameRows): array
+    {
+        $preferredOrder = ['kdkec', 'kddes', 'kdsls', 'kdsubsls', 'idsegmen', 'kdsegmen'];
+        $columns = [];
+
+        foreach ($frameRows as $frameRow) {
+            if (! $frameRow instanceof KegiatanFrameSampel) {
+                continue;
+            }
+
+            $identitas = is_array($frameRow->identitas_tambahan)
+                ? $frameRow->identitas_tambahan
+                : [];
+
+            foreach ($identitas as $key => $value) {
+                if (! is_scalar($value) || Str::endsWith((string) $key, '_label')) {
+                    continue;
+                }
+
+                $code = trim((string) $key);
+                if ($code === '') {
+                    continue;
+                }
+
+                $normalizedCode = Str::lower($code);
+                if (collect($columns)->contains(fn (array $column): bool => Str::lower($column['code']) === $normalizedCode)) {
+                    continue;
+                }
+
+                $columns[] = [
+                    'code' => $code,
+                    'label' => $this->formatMetadataLabel($code),
+                ];
+            }
+        }
+
+        usort($columns, static function (array $left, array $right) use ($preferredOrder): int {
+            $leftIndex = array_search(Str::lower((string) $left['code']), $preferredOrder, true);
+            $rightIndex = array_search(Str::lower((string) $right['code']), $preferredOrder, true);
+
+            $leftOrder = $leftIndex === false ? 999 : $leftIndex;
+            $rightOrder = $rightIndex === false ? 999 : $rightIndex;
+
+            if ($leftOrder === $rightOrder) {
+                return strcmp((string) $left['code'], (string) $right['code']);
+            }
+
+            return $leftOrder <=> $rightOrder;
+        });
+
+        return array_values($columns);
+    }
+
+    private function formatMetadataLabel(string $code): string
+    {
+        $normalizedCode = Str::lower(trim($code));
+
+        return match ($normalizedCode) {
+            'kdkec', 'kode_kecamatan' => 'Kecamatan',
+            'kddes', 'kode_desa' => 'Desa/Kelurahan',
+            'kdsls', 'kode_sls' => 'SLS',
+            'kdsubsls', 'kode_sub_sls' => 'Sub SLS',
+            'idsegmen', 'kdsegmen', 'kode_segmen' => 'ID Segmen',
+            default => Str::title(str_replace('_', ' ', $code)),
+        };
+    }
+
+    /**
+     * @param  array<int, array{code:string,label:string}>  $metadataColumns
+     * @return array<string, string>
+     */
+    private function extractImportFrameMetadataValues(Collection|array $row, array $metadataColumns): array
+    {
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
+        $result = [];
+
+        foreach ($metadataColumns as $metadataColumn) {
+            $code = trim((string) ($metadataColumn['code'] ?? ''));
+            $label = trim((string) ($metadataColumn['label'] ?? ''));
+
+            if ($code === '') {
+                continue;
+            }
+
+            $candidates = array_filter([
+                $code,
+                Str::slug($code, '_'),
+                Str::snake($code),
+                $label,
+                Str::slug($label, '_'),
+                Str::snake($label),
+            ], fn (string $value): bool => trim($value) !== '');
+
+            $value = '';
+
+            foreach ($rowArray as $key => $rawValue) {
+                $normalizedKey = Str::lower(trim((string) $key));
+                $isMatch = collect($candidates)->contains(
+                    fn (string $candidate): bool => $normalizedKey === Str::lower(trim($candidate))
+                );
+
+                if (! $isMatch) {
+                    continue;
+                }
+
+                $value = trim((string) $rawValue);
+                break;
+            }
+
+            $result[$code] = $value;
+        }
+
+        return $result;
+    }
+
     private function isReferencePetugasSheetRow(Collection|array $row): bool
     {
         $rowArray = $row instanceof Collection ? $row->all() : $row;
@@ -4092,6 +4480,64 @@ class AlokasiPetugasController extends Controller
         $normalized = str_replace(['.', ','], '', $stringValue);
 
         return is_numeric($normalized) ? max(0, (int) $normalized) : 0;
+    }
+
+    /**
+     * @param  Collection<int, KegiatanFrameSampel>  $frameRows
+     * @param  array<string, string>  $metadataValues
+     * @param  array<int, string>  $errors
+     */
+    private function resolveFrameSampelByMetadata(Collection $frameRows, array $metadataValues, int $rowNumber, array &$errors): ?KegiatanFrameSampel
+    {
+        $filledMetadata = collect($metadataValues)
+            ->filter(fn (string $value): bool => trim($value) !== '');
+
+        if ($filledMetadata->isEmpty()) {
+            return null;
+        }
+
+        $candidates = $frameRows->filter(function (KegiatanFrameSampel $frameRow) use ($filledMetadata): bool {
+            $identitas = is_array($frameRow->identitas_tambahan)
+                ? $frameRow->identitas_tambahan
+                : [];
+
+            foreach ($filledMetadata as $code => $expectedValue) {
+                $actualValue = '';
+
+                foreach ($identitas as $identitasKey => $identitasValue) {
+                    if (
+                        Str::lower((string) $identitasKey) === Str::lower((string) $code) &&
+                        is_scalar($identitasValue)
+                    ) {
+                        $actualValue = trim((string) $identitasValue);
+                        break;
+                    }
+                }
+
+                if (Str::lower($actualValue) !== Str::lower(trim((string) $expectedValue))) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values();
+
+        if ($candidates->count() === 1) {
+            return $candidates->first();
+        }
+
+        if ($candidates->isEmpty()) {
+            $summary = $filledMetadata
+                ->map(fn (string $value, string $key): string => $key.'='.$value)
+                ->implode(', ');
+            $errors[] = "Baris {$rowNumber}: Frame sampel tidak ditemukan untuk metadata [{$summary}].";
+
+            return null;
+        }
+
+        $errors[] = "Baris {$rowNumber}: Metadata frame sampel ambigu, cocok ke lebih dari satu frame. Lengkapi kolom metadata hingga unik.";
+
+        return null;
     }
 
     private function parseImportBoolean(mixed $value): bool

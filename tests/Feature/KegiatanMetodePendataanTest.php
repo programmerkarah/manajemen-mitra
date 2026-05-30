@@ -3,9 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
+use App\Models\MasterFrameSampel;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class KegiatanMetodePendataanTest extends TestCase
@@ -229,5 +234,319 @@ class KegiatanMetodePendataanTest extends TestCase
 
         $response->assertSessionDoesntHaveErrors(['metode_pelatihan', 'bulan_pelatihan']);
         $response->assertRedirect();
+    }
+
+    public function test_store_kegiatan_persists_kegiatan_frame_sampel_rows(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $framePencacahan = MasterFrameSampel::create([
+            'nama' => 'Frame Pencacahan A',
+            'kode' => 'FPA',
+            'is_active' => true,
+        ]);
+        $frameListing = MasterFrameSampel::create([
+            'nama' => 'Frame Listing A',
+            'kode' => 'FLA',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei dengan Daftar Frame',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'has_listing_updating' => true,
+                'metode_pendataan_listing' => 'PAPI',
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'frame_sampel_pencacahan_id' => $framePencacahan->id,
+                'frame_sampel_listing_id' => $frameListing->id,
+                'kegiatan_frame_sampel' => [
+                    [
+                        'tahapan' => 'pencacahan',
+                        'target_unit_sampel' => 120,
+                        'identitas_tambahan' => [
+                            'kdkec' => '010',
+                            'kddes' => '002',
+                            'kdsls' => '001',
+                            'kdsubsls' => 'A',
+                        ],
+                    ],
+                    [
+                        'tahapan' => 'listing',
+                        'target_unit_sampel' => 80,
+                        'identitas_tambahan' => [
+                            'kdkec' => '020',
+                            'kddes' => '001',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('kegiatan_frame_sampel');
+
+        $kegiatan = Kegiatan::query()->where('nama_kegiatan', 'Survei dengan Daftar Frame')->firstOrFail();
+
+        $this->assertDatabaseHas('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $framePencacahan->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 120,
+            'kode_kecamatan' => '010',
+            'kode_desa' => '002',
+            'kode_sls' => '001',
+            'kode_sub_sls' => 'A',
+        ]);
+        $this->assertDatabaseHas('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $frameListing->id,
+            'tahapan' => 'listing',
+            'target_unit_sampel' => 80,
+        ]);
+
+        $savedPencacahan = KegiatanFrameSampel::query()
+            ->where('kegiatan_id', $kegiatan->id)
+            ->where('tahapan', 'pencacahan')
+            ->firstOrFail();
+
+        $this->assertSame('010', $savedPencacahan->identitas_tambahan['kdkec']);
+        $this->assertSame('002', $savedPencacahan->identitas_tambahan['kddes']);
+    }
+
+    public function test_store_kegiatan_rejects_frame_rows_when_master_frame_tahapan_missing(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->from('/kegiatan/create')
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei Tanpa Master Frame Pencacahan',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'kegiatan_frame_sampel' => [
+                    [
+                        'tahapan' => 'pencacahan',
+                        'target_unit_sampel' => 15,
+                        'identitas_tambahan' => [
+                            'kdkec' => '010',
+                            'kddes' => '002',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response
+            ->assertRedirect('/kegiatan/create')
+            ->assertSessionHasErrors(['frame_sampel_pencacahan_id', 'kegiatan_frame_sampel']);
+
+        $this->assertDatabaseMissing('kegiatan', [
+            'nama_kegiatan' => 'Survei Tanpa Master Frame Pencacahan',
+        ]);
+    }
+
+    public function test_can_download_frame_sampel_detail_template_after_metadata_saved(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/frame-sampel/template', [
+                'metadata' => json_encode([
+                    [
+                        'code' => 'kdkec',
+                        'label' => 'Kecamatan',
+                        'description' => 'Kode wilayah kecamatan',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition', 'attachment; filename=detail-frame-sampel-template.xlsx');
+    }
+
+    public function test_can_import_frame_sampel_detail_preview_from_excel(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $file = $this->makeFrameSampelImportFile([
+            ['Kode Kecamatan', 'Kecamatan', 'Jumlah Sampel Dalam Frame'],
+            ['010', 'Kec. Test', 12],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/frame-sampel/import-preview', [
+                'metadata' => json_encode([
+                    [
+                        'code' => 'kdkec',
+                        'label' => 'Kecamatan',
+                        'description' => 'Kode wilayah kecamatan',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+                'file' => $file,
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('summary.valid_rows', 1);
+        $response->assertJsonPath('summary.error_count', 0);
+        $response->assertJsonPath('rows.0.target_unit_sampel', '12');
+        $response->assertJsonPath('rows.0.identitas_tambahan.kdkec', '010');
+        $response->assertJsonPath('rows.0.identitas_tambahan.kdkec_label', 'Kec. Test');
+    }
+
+    private function makeFrameSampelImportFile(array $rows): UploadedFile
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        foreach ($rows as $rowIndex => $columns) {
+            foreach ($columns as $columnIndex => $value) {
+                $sheet->setCellValueByColumnAndRow($columnIndex + 1, $rowIndex + 1, $value);
+            }
+        }
+
+        $directory = storage_path('framework/testing');
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $path = $directory.'/frame-sampel-import-'.uniqid().'.xlsx';
+
+        (new Xlsx($spreadsheet))->save($path);
+
+        return new UploadedFile(
+            $path,
+            'frame-sampel-import.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+    }
+
+    public function test_update_kegiatan_replaces_kegiatan_frame_sampel_rows(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $framePencacahan = MasterFrameSampel::create([
+            'nama' => 'Frame Pencacahan B',
+            'kode' => 'FPB',
+            'is_active' => true,
+        ]);
+        $frameListing = MasterFrameSampel::create([
+            'nama' => 'Frame Listing B',
+            'kode' => 'FLB',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'status' => 'draft',
+            'jenis_kegiatan' => 'survei',
+            'tanggal_mulai' => '2025-01-01',
+            'tanggal_selesai' => '2025-12-31',
+            'has_listing_updating' => true,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'metode_pendataan_listing' => 'PAPI',
+            'metode_pelatihan' => 'daring',
+            'bulan_pelatihan' => 6,
+            'frame_sampel_pencacahan_id' => $framePencacahan->id,
+            'frame_sampel_listing_id' => $frameListing->id,
+            'tahun_anggaran' => 2025,
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $framePencacahan->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 50,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->put('/kegiatan/'.$kegiatan->hashed_id, [
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'jenis_kegiatan' => 'survei',
+                'deskripsi' => $kegiatan->deskripsi,
+                'tanggal_mulai' => $kegiatan->tanggal_mulai->format('Y-m-d'),
+                'tanggal_selesai' => $kegiatan->tanggal_selesai->format('Y-m-d'),
+                'tahun_anggaran' => $kegiatan->tahun_anggaran,
+                'pagu_pencacahan' => $kegiatan->pagu_pencacahan,
+                'ketua_tim_user_id' => $user->id,
+                'has_listing_updating' => true,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'metode_pendataan_listing' => 'PAPI',
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'frame_sampel_pencacahan_id' => $framePencacahan->id,
+                'frame_sampel_listing_id' => $frameListing->id,
+                'kegiatan_frame_sampel' => [
+                    [
+                        'tahapan' => 'pencacahan',
+                        'target_unit_sampel' => 130,
+                        'identitas_tambahan' => [
+                            'kdkec' => '030',
+                            'kddes' => '002',
+                            'kdsls' => '009',
+                        ],
+                    ],
+                    [
+                        'tahapan' => 'listing',
+                        'target_unit_sampel' => 70,
+                        'identitas_tambahan' => [
+                            'kdkec' => '040',
+                            'kddes' => '008',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('kegiatan_frame_sampel');
+
+        $this->assertDatabaseMissing('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 50,
+        ]);
+        $this->assertDatabaseHas('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $framePencacahan->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => 130,
+            'kode_kecamatan' => '030',
+            'kode_desa' => '002',
+            'kode_sls' => '009',
+        ]);
+        $this->assertDatabaseHas('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $frameListing->id,
+            'tahapan' => 'listing',
+            'target_unit_sampel' => 70,
+        ]);
+
+        $savedListing = KegiatanFrameSampel::query()
+            ->where('kegiatan_id', $kegiatan->id)
+            ->where('tahapan', 'listing')
+            ->firstOrFail();
+
+        $this->assertSame('040', $savedListing->identitas_tambahan['kdkec']);
+        $this->assertSame('008', $savedListing->identitas_tambahan['kddes']);
     }
 }

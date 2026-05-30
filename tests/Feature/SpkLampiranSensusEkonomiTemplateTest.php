@@ -58,6 +58,7 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Waktu Penyelesaian', $html);
+        $this->assertStringContainsString('size: A4 landscape;', $html);
         $this->assertStringContainsString('Persentase', $html);
         $this->assertStringContainsString('Nilai Perjanjian', $html);
         $this->assertStringContainsString('Minimal 1 bulan', $html);
