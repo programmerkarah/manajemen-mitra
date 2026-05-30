@@ -264,6 +264,7 @@ class AlokasiPetugasController extends Controller
             return [
                 'kegiatan_id' => $periode->kegiatan_id,
                 'periode_id' => $periode->id,
+                'periode_hashed_id' => $periode->hashed_id,
                 'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
                 'display_bulan' => $this->resolvePeriodeDisplayBulan($periode),
                 'filter_bulan' => $this->resolvePeriodeFilterBulans($periode),

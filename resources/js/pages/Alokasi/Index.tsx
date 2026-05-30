@@ -50,6 +50,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 interface AlokasiPeriod {
     kegiatan_id: number;
     periode_id: number;
+    periode_hashed_id: string;
     bulan: string;
     display_bulan: string;
     filter_bulan: string[];
@@ -210,6 +211,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         useState<SummaryCardType>('all');
     const [selectedPeriode, setSelectedPeriode] = useState<{
         kegiatanId: number;
+        periodeHashedId?: string;
         kegiatanHashedId?: string;
         bulan: string;
         tahun: number;
@@ -310,6 +312,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const handleKirim = (
+        periodeHashedId: string,
         kegiatanHashedId: string,
         bulan: string,
         tahun: number,
@@ -318,6 +321,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
+            periodeHashedId,
             bulan,
             tahun,
             namaKegiatan,
@@ -328,9 +332,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const confirmKirim = () => {
-        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+        if (
+            selectedPeriode &&
+            (selectedPeriode.periodeHashedId ||
+                selectedPeriode.kegiatanHashedId)
+        ) {
             router.post(
-                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/submit`,
+                `/alokasi/periode/${selectedPeriode.periodeHashedId ?? selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/submit`,
                 {},
                 {
                     onSuccess: () => {
@@ -343,6 +351,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const handleBatalkan = (
+        periodeHashedId: string,
         kegiatanHashedId: string,
         bulan: string,
         tahun: number,
@@ -351,6 +360,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
+            periodeHashedId,
             bulan,
             tahun,
             namaKegiatan,
@@ -361,9 +371,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const confirmBatalkan = () => {
-        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+        if (
+            selectedPeriode &&
+            (selectedPeriode.periodeHashedId ||
+                selectedPeriode.kegiatanHashedId)
+        ) {
             router.delete(
-                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}`,
+                `/alokasi/periode/${selectedPeriode.periodeHashedId ?? selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}`,
                 {
                     onSuccess: () => {
                         setShowBatalkanModal(false);
@@ -375,6 +389,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const handleKembalikanDraft = (
+        periodeHashedId: string,
         kegiatanHashedId: string,
         bulan: string,
         tahun: number,
@@ -383,6 +398,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
+            periodeHashedId,
             bulan,
             tahun,
             namaKegiatan,
@@ -393,9 +409,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const confirmKembalikanDraft = () => {
-        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+        if (
+            selectedPeriode &&
+            (selectedPeriode.periodeHashedId ||
+                selectedPeriode.kegiatanHashedId)
+        ) {
             router.post(
-                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/kembalikan-draft`,
+                `/alokasi/periode/${selectedPeriode.periodeHashedId ?? selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/kembalikan-draft`,
                 {},
                 {
                     onSuccess: () => {
@@ -408,6 +428,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const handleBatalkanRevisi = (
+        periodeHashedId: string,
         kegiatanHashedId: string,
         bulan: string,
         tahun: number,
@@ -416,6 +437,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
+            periodeHashedId,
             bulan,
             tahun,
             namaKegiatan,
@@ -426,9 +448,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const confirmBatalkanRevisi = () => {
-        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+        if (
+            selectedPeriode &&
+            (selectedPeriode.periodeHashedId ||
+                selectedPeriode.kegiatanHashedId)
+        ) {
             router.post(
-                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi/batal`,
+                `/alokasi/periode/${selectedPeriode.periodeHashedId ?? selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi/batal`,
                 {},
                 {
                     onSuccess: () => {
@@ -441,6 +467,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const handleRevisi = (
+        periodeHashedId: string,
         kegiatanHashedId: string,
         bulan: string,
         tahun: number,
@@ -449,6 +476,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
+            periodeHashedId,
             bulan,
             tahun,
             namaKegiatan,
@@ -459,9 +487,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     };
 
     const confirmRevisi = () => {
-        if (selectedPeriode && selectedPeriode.kegiatanHashedId) {
+        if (
+            selectedPeriode &&
+            (selectedPeriode.periodeHashedId ||
+                selectedPeriode.kegiatanHashedId)
+        ) {
             router.post(
-                `/alokasi/periode/${selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi`,
+                `/alokasi/periode/${selectedPeriode.periodeHashedId ?? selectedPeriode.kegiatanHashedId}/${selectedPeriode.tahun}/${selectedPeriode.bulan}/revisi`,
                 {},
                 {
                     onSuccess: () => {
@@ -782,7 +814,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                     title="Lihat Detail"
                                                 >
                                                     <Link
-                                                        href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}`}
+                                                        href={`/alokasi/periode/${periode.periode_hashed_id}/${periode.tahun}/${periode.bulan}`}
                                                     >
                                                         <Eye className="h-3.5 w-3.5" />
                                                         Detail
@@ -811,6 +843,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                     <DropdownMenuItem
                                                                         onClick={() =>
                                                                             handleKirim(
+                                                                                periode.periode_hashed_id,
                                                                                 periode
                                                                                     .kegiatan
                                                                                     .hashed_id,
@@ -829,7 +862,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem className="cursor-pointer gap-2">
                                                                         <Link
-                                                                            href={`/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${periode.bulan}/edit`}
+                                                                            href={`/alokasi/periode/${periode.periode_hashed_id}/${periode.tahun}/${periode.bulan}/edit`}
                                                                             className="flex w-full items-center gap-2"
                                                                         >
                                                                             <Edit2 className="h-4 w-4" />
@@ -850,6 +883,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             <DropdownMenuItem
                                                                                 onClick={() =>
                                                                                     handleBatalkan(
+                                                                                        periode.periode_hashed_id,
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .hashed_id,
@@ -893,6 +927,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             <DropdownMenuItem
                                                                                 onClick={() =>
                                                                                     handleRevisi(
+                                                                                        periode.periode_hashed_id,
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .hashed_id,
@@ -917,6 +952,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             <DropdownMenuItem
                                                                                 onClick={() =>
                                                                                     handleKembalikanDraft(
+                                                                                        periode.periode_hashed_id,
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .hashed_id,
@@ -944,6 +980,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                 <DropdownMenuItem
                                                                     onClick={() =>
                                                                         handleBatalkanRevisi(
+                                                                            periode.periode_hashed_id,
                                                                             periode
                                                                                 .kegiatan
                                                                                 .hashed_id,
@@ -1531,7 +1568,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
 
                                     <Button size="sm" variant="outline" asChild>
                                         <Link
-                                            href={`/alokasi/periode/${item.kegiatan.hashed_id}/${item.tahun}/${item.bulan}`}
+                                            href={`/alokasi/periode/${item.periode_hashed_id}/${item.tahun}/${item.bulan}`}
                                         >
                                             <Eye className="h-3.5 w-3.5" />
                                             Detail
