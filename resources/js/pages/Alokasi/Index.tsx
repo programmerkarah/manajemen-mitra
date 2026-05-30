@@ -51,6 +51,8 @@ interface AlokasiPeriod {
     kegiatan_id: number;
     periode_id: number;
     bulan: string;
+    display_bulan: string;
+    filter_bulan: string[];
     tahun: number;
     jenis_kegiatan: 'sensus' | 'survei';
     status: 'draft' | 'dikirim' | 'direvisi' | 'dihapus' | 'perubahan';
@@ -144,7 +146,9 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
 
         // Filter by bulan
         if (bulan && bulan !== 'all') {
-            result = result.filter((periode) => periode.bulan === bulan);
+            result = result.filter((periode) =>
+                (periode.filter_bulan || [periode.bulan]).includes(bulan),
+            );
         }
 
         return result;
@@ -730,8 +734,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-900 dark:text-white">
-                                            {getBulanLabel(periode.bulan)}{' '}
-                                            {periode.tahun}
+                                            {periode.display_bulan}
                                         </td>
                                         <td className="px-3 py-3 text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
                                             {formatCurrency(
@@ -1528,8 +1531,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                         </p>
                                         <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                             {item.kegiatan.kode_kegiatan} ·{' '}
-                                            {getBulanLabel(item.bulan)}{' '}
-                                            {item.tahun}
+                                            {item.display_bulan}
                                         </p>
                                     </div>
 

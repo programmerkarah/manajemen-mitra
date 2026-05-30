@@ -74,11 +74,9 @@ class AlokasiPetugasController extends Controller
             $baseQuery->where('status', $filters['status']);
         }
 
-        // Filter by bulan (gunakan string dengan leading zero agar cocok dengan frontend)
-        if (! empty($filters['bulan'])) {
-            $bulan = str_pad((string) $filters['bulan'], 2, '0', STR_PAD_LEFT);
-            $baseQuery->where('bulan', $bulan);
-        }
+        $bulanFilter = ! empty($filters['bulan'])
+            ? str_pad((string) $filters['bulan'], 2, '0', STR_PAD_LEFT)
+            : null;
 
         // Filter for Ketua Tim - only their kegiatan (only applies when active role is ketua_tim)
         $effectiveUser = effectiveUser($request);
@@ -132,6 +130,12 @@ class AlokasiPetugasController extends Controller
             // Otherwise, return the first item (most recent by created_at)
             return $group->first();
         })->values();
+
+        if ($bulanFilter) {
+            $deduplicatedPeriodes = $deduplicatedPeriodes
+                ->filter(fn (PeriodeAlokasi $periode) => in_array($bulanFilter, $this->resolvePeriodeFilterBulans($periode), true))
+                ->values();
+        }
 
         // Pre-calculate total honor terpakai per kegiatan per bulan (using ALL deduplicated data before pagination)
         // This ensures we have complete data for cumulative calculation
@@ -261,6 +265,8 @@ class AlokasiPetugasController extends Controller
                 'kegiatan_id' => $periode->kegiatan_id,
                 'periode_id' => $periode->id,
                 'bulan' => str_pad($periode->bulan, 2, '0', STR_PAD_LEFT),
+                'display_bulan' => $this->resolvePeriodeDisplayBulan($periode),
+                'filter_bulan' => $this->resolvePeriodeFilterBulans($periode),
                 'tahun' => $periode->tahun,
                 'jenis_kegiatan' => $periode->jenis_kegiatan,
                 'status' => $periode->status,
@@ -320,6 +326,54 @@ class AlokasiPetugasController extends Controller
             'active_year' => $activeYear,
             'hasKegiatans' => $hasKegiatans,
         ]);
+    }
+
+    private function resolvePeriodeDisplayBulan(PeriodeAlokasi $periode): string
+    {
+        if (! $periode->tanggal_mulai || ! $periode->tanggal_selesai) {
+            return Carbon::create()->month((int) $periode->bulan)->translatedFormat('F').' '.$periode->tahun;
+        }
+
+        $tanggalMulai = $periode->tanggal_mulai->copy()->startOfDay();
+        $tanggalSelesai = $periode->tanggal_selesai->copy()->startOfDay();
+
+        if ($tanggalMulai->format('Y-m') === $tanggalSelesai->format('Y-m')) {
+            return $tanggalMulai->translatedFormat('F Y');
+        }
+
+        if ($tanggalMulai->year === $tanggalSelesai->year) {
+            return $tanggalMulai->translatedFormat('F').' - '.$tanggalSelesai->translatedFormat('F Y');
+        }
+
+        return $tanggalMulai->translatedFormat('F Y').' - '.$tanggalSelesai->translatedFormat('F Y');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolvePeriodeFilterBulans(PeriodeAlokasi $periode): array
+    {
+        if (! $periode->tanggal_mulai || ! $periode->tanggal_selesai) {
+            return [str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT)];
+        }
+
+        $tanggalMulai = $periode->tanggal_mulai->copy()->startOfMonth();
+        $tanggalSelesai = $periode->tanggal_selesai->copy()->startOfMonth();
+        $filterBulans = [];
+
+        while ($tanggalMulai->lte($tanggalSelesai)) {
+            if ((int) $tanggalMulai->year === (int) $periode->tahun) {
+                $filterBulans[] = $tanggalMulai->format('m');
+            }
+
+            $tanggalMulai->addMonth();
+        }
+
+        if ($filterBulans === []) {
+            $filterBulans[] = str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT);
+        }
+
+        return array_values(array_unique($filterBulans));
     }
 
     /**
