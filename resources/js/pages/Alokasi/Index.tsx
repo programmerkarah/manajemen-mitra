@@ -214,6 +214,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string;
         tahun: number;
         namaKegiatan?: string;
+        displayBulan?: string;
     } | null>(null);
 
     const bulanOptions = [
@@ -313,6 +314,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string,
         tahun: number,
         namaKegiatan: string,
+        displayBulan: string,
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
@@ -320,6 +322,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             tahun,
             namaKegiatan,
             kegiatanHashedId,
+            displayBulan,
         });
         setShowKirimModal(true);
     };
@@ -344,6 +347,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string,
         tahun: number,
         namaKegiatan: string,
+        displayBulan: string,
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
@@ -351,6 +355,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             tahun,
             namaKegiatan,
             kegiatanHashedId,
+            displayBulan,
         });
         setShowBatalkanModal(true);
     };
@@ -374,6 +379,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string,
         tahun: number,
         namaKegiatan: string,
+        displayBulan: string,
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
@@ -381,6 +387,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             tahun,
             namaKegiatan,
             kegiatanHashedId,
+            displayBulan,
         });
         setShowKembalikanDraftModal(true);
     };
@@ -405,6 +412,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string,
         tahun: number,
         namaKegiatan: string,
+        displayBulan: string,
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
@@ -412,6 +420,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             tahun,
             namaKegiatan,
             kegiatanHashedId,
+            displayBulan,
         });
         setShowBatalkanRevisiModal(true);
     };
@@ -436,6 +445,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         bulan: string,
         tahun: number,
         namaKegiatan: string,
+        displayBulan: string,
     ) => {
         setSelectedPeriode({
             kegiatanId: 0,
@@ -443,6 +453,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             tahun,
             namaKegiatan,
             kegiatanHashedId,
+            displayBulan,
         });
         setShowRevisiModal(true);
     };
@@ -468,13 +479,6 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
             currency: 'IDR',
             minimumFractionDigits: 0,
         }).format(amount);
-    };
-
-    const getBulanLabel = (bulan: string | number) => {
-        // Convert to string and ensure bulan has leading zero
-        const bulanStr = String(bulan).padStart(2, '0');
-        const bulanObj = bulanOptions.find((b) => b.value === bulanStr);
-        return bulanObj?.label || bulanStr;
     };
 
     return (
@@ -815,6 +819,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                                 periode
                                                                                     .kegiatan
                                                                                     .nama_kegiatan,
+                                                                                periode.display_bulan,
                                                                             )
                                                                         }
                                                                         className="cursor-pointer gap-2"
@@ -853,6 +858,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .nama_kegiatan,
+                                                                                        periode.display_bulan,
                                                                                     )
                                                                                 }
                                                                                 className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
@@ -895,6 +901,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .nama_kegiatan,
+                                                                                        periode.display_bulan,
                                                                                     )
                                                                                 }
                                                                                 className="cursor-pointer gap-2 text-purple-600 dark:text-purple-400"
@@ -918,6 +925,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                                         periode
                                                                                             .kegiatan
                                                                                             .nama_kegiatan,
+                                                                                        periode.display_bulan,
                                                                                     )
                                                                                 }
                                                                                 className="cursor-pointer gap-2 text-amber-600 dark:text-amber-400"
@@ -944,6 +952,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                             periode
                                                                                 .kegiatan
                                                                                 .nama_kegiatan,
+                                                                                        periode.display_bulan,
                                                                         )
                                                                     }
                                                                     className="cursor-pointer gap-2 text-red-600 dark:text-red-400"
@@ -1076,10 +1085,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             Periode
                                         </p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {getBulanLabel(
-                                                selectedPeriode.bulan,
-                                            )}{' '}
-                                            {selectedPeriode.tahun}
+                                            {selectedPeriode.displayBulan}
                                         </p>
                                     </div>
                                 </div>
@@ -1179,10 +1185,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             Periode
                                         </p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {getBulanLabel(
-                                                selectedPeriode.bulan,
-                                            )}{' '}
-                                            {selectedPeriode.tahun}
+                                            {selectedPeriode.displayBulan}
                                         </p>
                                     </div>
                                 </div>
@@ -1269,10 +1272,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             Periode
                                         </p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {getBulanLabel(
-                                                selectedPeriode.bulan,
-                                            )}{' '}
-                                            {selectedPeriode.tahun}
+                                            {selectedPeriode.displayBulan}
                                         </p>
                                     </div>
                                 </div>
@@ -1355,10 +1355,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             Periode
                                         </p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {getBulanLabel(
-                                                selectedPeriode.bulan,
-                                            )}{' '}
-                                            {selectedPeriode.tahun}
+                                            {selectedPeriode.displayBulan}
                                         </p>
                                     </div>
                                 </div>
@@ -1464,10 +1461,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             Periode
                                         </p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {getBulanLabel(
-                                                selectedPeriode.bulan,
-                                            )}{' '}
-                                            {selectedPeriode.tahun}
+                                            {selectedPeriode.displayBulan}
                                         </p>
                                     </div>
                                 </div>
