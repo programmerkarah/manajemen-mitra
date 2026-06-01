@@ -150,7 +150,9 @@ const formatMetadataValue = (
     return normalized === '' ? '-' : normalized;
 };
 
-const formatTargetNumber = (value: string | number | null | undefined): string => {
+const formatTargetNumber = (
+    value: string | number | null | undefined,
+): string => {
     const parsedValue = Number(value || 0);
 
     return new Intl.NumberFormat('id-ID', {
@@ -838,9 +840,7 @@ export default function Create({
 
                     map.set(
                         kegiatanId,
-                        existingItem
-                            ? mergeKegiatan(existingItem, item)
-                            : item,
+                        existingItem ? mergeKegiatan(existingItem, item) : item,
                     );
 
                     return map;
@@ -1190,7 +1190,8 @@ export default function Create({
             const normalizedCode = column.code.trim().toLowerCase();
 
             const labelValue = Object.entries(metadata).find(
-                ([key]) => key.trim().toLowerCase() === `${normalizedCode}_label`,
+                ([key]) =>
+                    key.trim().toLowerCase() === `${normalizedCode}_label`,
             )?.[1];
 
             const resolvedLabel =
@@ -1219,7 +1220,11 @@ export default function Create({
                 unitIndex,
             );
         },
-        [formatFrameTargetSummary, getPreviewFrameForRow, unitTargetDefinitions],
+        [
+            formatFrameTargetSummary,
+            getPreviewFrameForRow,
+            unitTargetDefinitions,
+        ],
     );
 
     const calculateTargetFromFrameSelections = useCallback(

@@ -810,7 +810,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                {calculateUsia(Petugas.tanggal_lahir) ?? '-'}
+                                                {calculateUsia(
+                                                    Petugas.tanggal_lahir,
+                                                ) ?? '-'}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.telepon}
