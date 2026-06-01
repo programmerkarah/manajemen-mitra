@@ -546,15 +546,16 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::match(['get', 'post'], 'dasar-hukum/edit', [DasarHukumController::class, 'edit'])->name('dasar-hukum.edit');
         Route::patch('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'update'])->name('dasar-hukum.update');
         Route::delete('dasar-hukum/{dasarHukum}', [DasarHukumController::class, 'destroy'])->name('dasar-hukum.destroy');
+    });
 
-        // Master frame/unit sampel
+    // Master frame/unit sampel CRUD (Admin, Operator, Ketua Tim)
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::post('master-sampel/frame', [SampleMasterController::class, 'storeFrame'])->name('master-sampel.frame.store');
         Route::put('master-sampel/frame/{frame}', [SampleMasterController::class, 'updateFrame'])->name('master-sampel.frame.update');
         Route::delete('master-sampel/frame/{frame}', [SampleMasterController::class, 'destroyFrame'])->name('master-sampel.frame.destroy');
         Route::post('master-sampel/unit', [SampleMasterController::class, 'storeUnit'])->name('master-sampel.unit.store');
         Route::put('master-sampel/unit/{unit}', [SampleMasterController::class, 'updateUnit'])->name('master-sampel.unit.update');
         Route::delete('master-sampel/unit/{unit}', [SampleMasterController::class, 'destroyUnit'])->name('master-sampel.unit.destroy');
-
     });
 
     // Daftar frame sampel per kegiatan (Admin, Operator, Ketua Tim)

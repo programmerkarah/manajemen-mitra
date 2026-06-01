@@ -336,12 +336,15 @@ class KegiatanController extends Controller
             'pjLainnya',
             'frameSampelListing:id,nama,kode',
             'frameSampelPencacahan:id,nama,kode',
-            'unitSampelListing:id,nama,kode',
-            'unitSampelPencacahan:id,nama,kode',
             'rateHonors.satuan',
             'rateHonors.satuanListing',
             'periodeAlokasi.alokasiPetugas.petugas',
         ]);
+
+        // unitSampelListing and unitSampelPencacahan are now stored as ID arrays,
+        // not Eloquent relationships - resolve them manually.
+        $kegiatan->unit_sampel_listing = $kegiatan->unitSampelListingItems();
+        $kegiatan->unit_sampel_pencacahan = $kegiatan->unitSampelPencacahanItems();
 
         // Flatten periodeAlokasi->alokasiPetugas for backward compatibility
         $alokasi = $kegiatan->periodeAlokasi->flatMap(function ($periode) {

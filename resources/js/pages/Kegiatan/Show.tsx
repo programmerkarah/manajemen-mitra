@@ -61,16 +61,16 @@ interface Props {
             nama: string;
             kode: string;
         } | null;
-        unit_sampel_listing?: {
+        unit_sampel_listing?: Array<{
             id: number;
             nama: string;
             kode: string;
-        } | null;
-        unit_sampel_pencacahan?: {
+        }> | null;
+        unit_sampel_pencacahan?: Array<{
             id: number;
             nama: string;
             kode: string;
-        } | null;
+        }> | null;
         alokasi: Alokasi[];
     };
     auth: {
@@ -314,8 +314,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     Unit Sampel Pencacahan
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.unit_sampel_pencacahan
-                                        ? `${kegiatan.unit_sampel_pencacahan.nama} (${kegiatan.unit_sampel_pencacahan.kode})`
+                                    {kegiatan.unit_sampel_pencacahan?.length
+                                        ? kegiatan.unit_sampel_pencacahan
+                                              .map((u) => `${u.nama} (${u.kode})`)
+                                              .join(', ')
                                         : '-'}
                                 </p>
                             </div>
@@ -336,8 +338,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                     Unit Sampel Listing
                                 </label>
                                 <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.unit_sampel_listing
-                                        ? `${kegiatan.unit_sampel_listing.nama} (${kegiatan.unit_sampel_listing.kode})`
+                                    {kegiatan.unit_sampel_listing?.length
+                                        ? kegiatan.unit_sampel_listing
+                                              .map((u) => `${u.nama} (${u.kode})`)
+                                              .join(', ')
                                         : '-'}
                                 </p>
                             </div>
