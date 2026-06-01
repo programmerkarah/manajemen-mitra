@@ -184,7 +184,7 @@
                 @if($index === 0)
                 <td class="center" rowspan="{{ $groupCount }}">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
                 <td class="center" rowspan="{{ $groupCount }}">{{ $group['persentase'] ?? '-' }}</td>
-                <td class="left volume-cell" rowspan="{{ $groupCount }}">{{ $group['volume'] ?? '-' }}</td>
+                <td class="center volume-cell" rowspan="{{ $groupCount }}">{{ $group['volume'] ?? '-' }}</td>
                 <td class="right money-cell" rowspan="{{ $groupCount }}">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
                 @endif
             </tr>
@@ -196,7 +196,7 @@
                 <td class="left">Total</td>
                 <td class="center">{{ $specialLampiran['total']['waktu_penyelesaian'] ?? '-' }}</td>
                 <td rowspan="2" class="center">{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
-                <td rowspan="2" class="left volume-cell">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
+                <td rowspan="2" class="center volume-cell">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
                 <td rowspan="2" class="right money-cell">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
             </tr>
             <tr class="keep-together-row">
