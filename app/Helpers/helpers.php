@@ -10,7 +10,7 @@ if (! function_exists('terbilang')) {
      */
     function terbilang($nilai)
     {
-        $nilai = abs($nilai);
+        $nilai = (int) abs((int) round($nilai));
         $huruf = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
         $temp = '';
 
@@ -25,21 +25,21 @@ if (! function_exists('terbilang')) {
         } elseif ($nilai < 20) {
             $temp = terbilang($nilai - 10).'belas ';
         } elseif ($nilai < 100) {
-            $temp = terbilang($nilai / 10).'puluh '.terbilang($nilai % 10);
+            $temp = terbilang(intdiv($nilai, 10)).'puluh '.terbilang($nilai % 10);
         } elseif ($nilai < 200) {
             $temp = 'seratus '.terbilang($nilai - 100);
         } elseif ($nilai < 1000) {
-            $temp = terbilang($nilai / 100).'ratus '.terbilang($nilai % 100);
+            $temp = terbilang(intdiv($nilai, 100)).'ratus '.terbilang($nilai % 100);
         } elseif ($nilai < 2000) {
             $temp = 'seribu '.terbilang($nilai - 1000);
         } elseif ($nilai < 1000000) {
-            $temp = terbilang($nilai / 1000).'ribu '.terbilang($nilai % 1000);
+            $temp = terbilang(intdiv($nilai, 1000)).'ribu '.terbilang($nilai % 1000);
         } elseif ($nilai < 1000000000) {
-            $temp = terbilang($nilai / 1000000).'juta '.terbilang($nilai % 1000000);
+            $temp = terbilang(intdiv($nilai, 1000000)).'juta '.terbilang($nilai % 1000000);
         } elseif ($nilai < 1000000000000) {
-            $temp = terbilang($nilai / 1000000000).'milyar '.terbilang(fmod($nilai, 1000000000));
+            $temp = terbilang(intdiv($nilai, 1000000000)).'milyar '.terbilang($nilai % 1000000000);
         } elseif ($nilai < 1000000000000000) {
-            $temp = terbilang($nilai / 1000000000000).'trilyun '.terbilang(fmod($nilai, 1000000000000));
+            $temp = terbilang(intdiv($nilai, 1000000000000)).'trilyun '.terbilang($nilai % 1000000000000);
         }
 
         return $temp;
