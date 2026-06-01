@@ -122,8 +122,7 @@ export default function Index({ periodeList }: IndexProps) {
 
             const canRegenerate =
                 monthData.total_spk >= monthData.total_petugas_non_organik &&
-                monthData.has_new_kegiatan_after_spk &&
-                !monthData.has_been_regenerated;
+                monthData.has_new_kegiatan_after_spk;
 
             return (
                 canCreateSpk &&
@@ -516,14 +515,12 @@ export default function Index({ periodeList }: IndexProps) {
                                                     {/* Re-generate SPK - Show if:
                                                         1. All petugas have SPK (total_spk >= total_petugas_non_organik)
                                                         2. AND there are new kegiatan added after SPK was generated
-                                                        3. AND has NOT been regenerated before
                                                         This will show form with ONLY petugas who have allocation changes
                                                     */}
                                                     {canCreateSpk &&
                                                         monthData.total_spk >=
                                                             monthData.total_petugas_non_organik &&
-                                                        monthData.has_new_kegiatan_after_spk &&
-                                                        !monthData.has_been_regenerated && (
+                                                        monthData.has_new_kegiatan_after_spk && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"

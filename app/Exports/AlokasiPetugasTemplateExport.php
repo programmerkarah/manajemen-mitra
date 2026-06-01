@@ -168,6 +168,17 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return '';
     }
 
+    private function resolveTargetUnitSampelTotal(KegiatanFrameSampel $frameRow): int
+    {
+        $targetUnitSampel = $frameRow->target_unit_sampel;
+
+        if (is_array($targetUnitSampel)) {
+            return (int) array_sum(array_map(fn ($value) => (int) $value, $targetUnitSampel));
+        }
+
+        return (int) ($targetUnitSampel ?? 0);
+    }
+
     private function toNameSafeToken(string $value): string
     {
         $upperValue = strtoupper(trim($value));
@@ -208,12 +219,48 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return $this->frameSampelRows()->isNotEmpty();
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function sensusPencacahanUnitColumns(): array
+    {
+        if ($this->kegiatan === null || $this->kegiatan->jenis_kegiatan !== 'sensus') {
+            return [];
+        }
+
+        $items = $this->kegiatan->unitSampelPencacahanItems();
+
+        if ($items->count() <= 1) {
+            return [];
+        }
+
+        $sortedItems = $items->sortBy(function ($item): array {
+            $name = Str::lower((string) ($item->nama ?? ''));
+
+            if (Str::contains($name, 'usaha')) {
+                return [0, $name];
+            }
+
+            if (Str::contains($name, 'keluarga')) {
+                return [1, $name];
+            }
+
+            return [2, $name];
+        })->values();
+
+        return $sortedItems
+            ->map(fn ($item) => 'Jumlah '.Str::title(Str::lower((string) ($item->nama ?? 'Unit Sampel'))))
+            ->all();
+    }
+
     public function array(): array
     {
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
         $hasFrameSampelColumn = $this->hasFrameSampelColumn();
         $frameMetadataColumns = $this->frameMetadataColumns();
+        $sensusPencacahanUnitColumns = $this->sensusPencacahanUnitColumns();
+        $hasSensusPencacahanSplit = count($sensusPencacahanUnitColumns) > 0;
         $data = [];
 
         if ($this->type === 'edit' && $this->periodeAlokasiId) {
@@ -245,7 +292,13 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                         $row[] = $entry->jumlah_satuan_listing ?? '';
                     }
 
-                    $row[] = $entry->jumlah_satuan ?? '';
+                    if ($hasSensusPencacahanSplit) {
+                        foreach ($sensusPencacahanUnitColumns as $columnIndex => $_columnLabel) {
+                            $row[] = $columnIndex === 0 ? ($entry->jumlah_satuan ?? '') : '';
+                        }
+                    } else {
+                        $row[] = $entry->jumlah_satuan ?? '';
+                    }
 
                     if ($hasParsial) {
                         $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
@@ -275,7 +328,13 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                         $row[] = $entry->jumlah_satuan_listing ?? '';
                     }
 
-                    $row[] = $entry->jumlah_satuan ?? '';
+                    if ($hasSensusPencacahanSplit) {
+                        foreach ($sensusPencacahanUnitColumns as $columnIndex => $_columnLabel) {
+                            $row[] = $columnIndex === 0 ? ($entry->jumlah_satuan ?? '') : '';
+                        }
+                    } else {
+                        $row[] = $entry->jumlah_satuan ?? '';
+                    }
 
                     if ($hasParsial) {
                         $row[] = $entry->is_partial_payment ? 'Ya' : 'Tidak';
@@ -307,7 +366,14 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                 $sampleRow[] = '5';
             }
 
-            $sampleRow[] = '10';
+            if ($hasSensusPencacahanSplit) {
+                foreach ($sensusPencacahanUnitColumns as $columnLabel) {
+                    $isUsahaColumn = Str::contains(Str::lower($columnLabel), 'usaha');
+                    $sampleRow[] = $isUsahaColumn ? '6' : '4';
+                }
+            } else {
+                $sampleRow[] = '10';
+            }
 
             if ($hasParsial) {
                 $sampleRow[] = 'Tidak';
@@ -341,8 +407,15 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             $num++;
         }
 
-        $data[] = ["{$num}. Jumlah Satuan Pencacahan diisi angka bulat >= 0"];
-        $num++;
+        if ($hasSensusPencacahanSplit) {
+            foreach ($sensusPencacahanUnitColumns as $columnLabel) {
+                $data[] = ["{$num}. {$columnLabel} diisi angka bulat >= 0"];
+                $num++;
+            }
+        } else {
+            $data[] = ["{$num}. Jumlah Satuan Pencacahan diisi angka bulat >= 0"];
+            $num++;
+        }
 
         if ($hasParsial) {
             $data[] = ["{$num}. Pembayaran Parsial diisi Ya/Tidak"];
@@ -372,6 +445,8 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $hasParsial = $this->hasParsial();
         $hasFrameSampelColumn = $this->hasFrameSampelColumn();
         $frameMetadataColumns = $this->frameMetadataColumns();
+        $sensusPencacahanUnitColumns = $this->sensusPencacahanUnitColumns();
+        $hasSensusPencacahanSplit = count($sensusPencacahanUnitColumns) > 0;
 
         $columns = ['Nama - NIK', 'Kode Penugasan'];
 
@@ -385,7 +460,13 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             $columns[] = 'Jumlah Satuan Listing';
         }
 
-        $columns[] = 'Jumlah Satuan Pencacahan';
+        if ($hasSensusPencacahanSplit) {
+            foreach ($sensusPencacahanUnitColumns as $columnLabel) {
+                $columns[] = $columnLabel;
+            }
+        } else {
+            $columns[] = 'Jumlah Satuan Pencacahan';
+        }
 
         if ($hasParsial) {
             $columns[] = 'Pembayaran Parsial';
@@ -408,6 +489,8 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $hasParsial = $this->hasParsial();
         $hasFrameSampelColumn = $this->hasFrameSampelColumn();
         $frameMetadataColumns = $this->frameMetadataColumns();
+        $sensusPencacahanUnitColumns = $this->sensusPencacahanUnitColumns();
+        $hasSensusPencacahanSplit = count($sensusPencacahanUnitColumns) > 0;
 
         $widths = [59, 30];
 
@@ -421,7 +504,13 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             $widths[] = 22;
         }
 
-        $widths[] = 26;
+        if ($hasSensusPencacahanSplit) {
+            foreach ($sensusPencacahanUnitColumns as $_columnLabel) {
+                $widths[] = 26;
+            }
+        } else {
+            $widths[] = 26;
+        }
 
         if ($hasParsial) {
             $widths[] = 20;
@@ -455,7 +544,8 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         // Required: NIK, Kode, (Listing?), Pencacahan, (Parsial flag?)
-        $requiredCount = 2 + ($hasFrameSampelColumn ? $frameMetadataColumns->count() : 0) + ($hasListing ? 1 : 0) + 1 + ($hasParsial ? 1 : 0);
+        $requiredPencacahanColumns = $hasSensusPencacahanSplit ? count($sensusPencacahanUnitColumns) : 1;
+        $requiredCount = 2 + ($hasFrameSampelColumn ? $frameMetadataColumns->count() : 0) + ($hasListing ? 1 : 0) + $requiredPencacahanColumns + ($hasParsial ? 1 : 0);
         $requiredLastCol = chr(ord('A') + $requiredCount - 1);
 
         for ($col = 'A'; $col <= $requiredLastCol; $col++) {
@@ -648,7 +738,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                             $rowValues[] = $this->resolveFrameMetadataValue($frame, $column['code']);
                         }
 
-                        $rowValues[] = (int) ($frame->target_unit_sampel ?? 0);
+                        $rowValues[] = $this->resolveTargetUnitSampelTotal($frame);
 
                         $columnLetter = 'A';
                         foreach ($rowValues as $rowValue) {

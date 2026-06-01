@@ -191,18 +191,16 @@ class AlokasiPetugasController extends Controller
                 ->pluck('alokasi_petugas.periode_alokasi_id')
                 ->unique();
 
-            // Non-organik officers in this periode that already have SPK in the same kegiatan (any month)
+            // Non-organik officers in this periode that already have SPK in the same periode
             $periodeIdsWithNonOrganikSpkInKegiatan = DB::table('alokasi_petugas as ap_current')
-                ->join('periode_alokasi as p_current', 'p_current.id', '=', 'ap_current.periode_alokasi_id')
                 ->whereIn('ap_current.periode_alokasi_id', $periodeIds)
                 ->where('ap_current.status_kepegawaian', 'non_organik')
                 ->whereExists(function ($query) {
                     $query->selectRaw('1')
                         ->from('spk')
                         ->join('alokasi_petugas as ap_spk', 'ap_spk.id', '=', 'spk.alokasi_petugas_id')
-                        ->join('periode_alokasi as p_spk', 'p_spk.id', '=', 'ap_spk.periode_alokasi_id')
                         ->whereColumn('ap_spk.petugas_id', 'ap_current.petugas_id')
-                        ->whereColumn('p_spk.kegiatan_id', 'p_current.kegiatan_id')
+                        ->whereColumn('ap_spk.periode_alokasi_id', 'ap_current.periode_alokasi_id')
                         ->whereNull('spk.deleted_at')
                         ->where('spk.status', '!=', 'dibatalkan');
                 })
@@ -3310,18 +3308,16 @@ class AlokasiPetugasController extends Controller
             return back()->with('error', 'Tidak ada alokasi periode berstatus dikirim yang dapat dikembalikan ke draft.');
         }
 
-        // Block if any non-organik officer in this periode already has SPK in the same kegiatan
+        // Block if any non-organik officer in this periode already has SPK in the same periode
         $hasGeneratedSpk = DB::table('alokasi_petugas as ap_current')
-            ->join('periode_alokasi as p_current', 'p_current.id', '=', 'ap_current.periode_alokasi_id')
             ->where('ap_current.periode_alokasi_id', $periode->id)
             ->where('ap_current.status_kepegawaian', 'non_organik')
             ->whereExists(function ($query) {
                 $query->selectRaw('1')
                     ->from('spk')
                     ->join('alokasi_petugas as ap_spk', 'ap_spk.id', '=', 'spk.alokasi_petugas_id')
-                    ->join('periode_alokasi as p_spk', 'p_spk.id', '=', 'ap_spk.periode_alokasi_id')
                     ->whereColumn('ap_spk.petugas_id', 'ap_current.petugas_id')
-                    ->whereColumn('p_spk.kegiatan_id', 'p_current.kegiatan_id')
+                    ->whereColumn('ap_spk.periode_alokasi_id', 'ap_current.periode_alokasi_id')
                     ->whereNull('spk.deleted_at')
                     ->where('spk.status', '!=', 'dibatalkan');
             })
@@ -3925,6 +3921,7 @@ class AlokasiPetugasController extends Controller
         $frameSampelRows = $frameSampelQuery->get()->values();
         $frameMetadataColumns = $this->extractFrameSampelMetadataColumns($frameSampelRows);
         $requiresFrameSampelInput = $frameSampelRows->isNotEmpty();
+        $sensusUnitSampleColumnKeys = $this->sensusUnitSampleColumnKeys($kegiatan);
 
         // NIK is encrypted in the DB — load all petugas and build a decrypted NIK → Petugas map.
         $petugasByNik = Petugas::query()
@@ -3971,6 +3968,18 @@ class AlokasiPetugasController extends Controller
 
             $jumlahSatuanRaw = $row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0;
             $jumlahSatuanPencacahan = $this->parseImportSatuan($jumlahSatuanRaw);
+            $hasSensusUnitSampleInput = false;
+
+            if ($kegiatan->jenis_kegiatan === 'sensus' && ! empty($sensusUnitSampleColumnKeys)) {
+                $jumlahSatuanPencacahan = 0;
+                foreach ($sensusUnitSampleColumnKeys as $columnKey) {
+                    $unitValue = $this->parseImportSatuan($row[$columnKey] ?? 0);
+                    if ($unitValue > 0) {
+                        $hasSensusUnitSampleInput = true;
+                    }
+                    $jumlahSatuanPencacahan += $unitValue;
+                }
+            }
             $jumlahSatuanListing = $this->parseImportInteger($row['jumlah_satuan_listing'] ?? 0);
             $metadataValues = $this->extractImportFrameMetadataValues($row, $frameMetadataColumns);
             $hasAnyMetadataValue = collect($metadataValues)
@@ -4014,7 +4023,7 @@ class AlokasiPetugasController extends Controller
                 }
             }
 
-            if ($requiresFrameSampelInput && $kegiatan->jenis_kegiatan === 'sensus' && $hasAnyMetadataValue) {
+            if ($requiresFrameSampelInput && $kegiatan->jenis_kegiatan === 'sensus' && $hasAnyMetadataValue && ! $hasSensusUnitSampleInput) {
                 $jumlahSatuanPencacahan = (float) $jumlahUnitSampel;
             }
 
@@ -4480,6 +4489,57 @@ class AlokasiPetugasController extends Controller
         $normalized = str_replace(['.', ','], '', $stringValue);
 
         return is_numeric($normalized) ? max(0, (int) $normalized) : 0;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function sensusUnitSampleColumnKeys(Kegiatan $kegiatan): array
+    {
+        if ($kegiatan->jenis_kegiatan !== 'sensus') {
+            return [];
+        }
+
+        $orderedNames = $this->orderedSensusUnitSampleNames($kegiatan);
+        if (count($orderedNames) <= 1) {
+            return [];
+        }
+
+        return array_map(
+            static fn (string $name): string => Str::snake('jumlah '.$name),
+            $orderedNames
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function orderedSensusUnitSampleNames(Kegiatan $kegiatan): array
+    {
+        $items = $kegiatan->unitSampelPencacahanItems();
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        return $items
+            ->sortBy(function ($item): array {
+                $name = Str::lower((string) ($item->nama ?? ''));
+
+                if (Str::contains($name, 'usaha')) {
+                    return [0, $name];
+                }
+
+                if (Str::contains($name, 'keluarga')) {
+                    return [1, $name];
+                }
+
+                return [2, $name];
+            })
+            ->map(fn ($item): string => trim((string) ($item->nama ?? '')))
+            ->filter(fn (string $name): bool => $name !== '')
+            ->values()
+            ->all();
     }
 
     /**

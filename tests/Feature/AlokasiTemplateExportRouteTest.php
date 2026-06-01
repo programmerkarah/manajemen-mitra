@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
+use App\Models\MasterUnitSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -13,6 +14,7 @@ use App\Models\Satuan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -419,6 +421,58 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());
     }
 
+    public function test_export_template_for_sensus_economy_with_two_unit_types_has_two_pencacahan_columns(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Ekonomi',
+            'kode' => 'FSE',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH',
+            'is_active' => true,
+        ]);
+
+        $unitKeluarga = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+            'unit_sampel_pencacahan_ids' => [$unitUsaha->id, $unitKeluarga->id],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-sensus-ekonomi-unit-columns-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+        $this->assertSame('Jumlah Usaha', (string) $mainSheet->getCell('C1')->getValue());
+        $this->assertSame('Jumlah Keluarga', (string) $mainSheet->getCell('D1')->getValue());
+    }
+
     public function test_import_preview_maps_frame_sampel_by_metadata_for_sensus_and_sets_pencacahan_from_frame_sample(): void
     {
         [$admin, $adminRole] = $this->makeUserWithRole('admin');
@@ -584,6 +638,145 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $response->assertJsonPath('summary.valid_rows', 0);
         $response->assertJsonPath('summary.error_count', 1);
         $response->assertJsonPath('errors.0', 'Baris 2: Metadata frame sampel ambigu, cocok ke lebih dari satu frame. Lengkapi kolom metadata hingga unik.');
+    }
+
+    public function test_import_preview_sensus_economy_reads_jumlah_usaha_and_jumlah_keluarga_columns(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'nama_kegiatan' => 'Sensus Ekonomi',
+        ]);
+
+        $unitUsaha = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH2',
+            'is_active' => true,
+        ]);
+
+        $unitKeluarga = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG2',
+            'is_active' => true,
+        ]);
+
+        $kegiatan->update([
+            'unit_sampel_pencacahan_ids' => [$unitUsaha->id, $unitKeluarga->id],
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Rina Sensus',
+            'nik' => '1373026105980012',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $satuan = Satuan::create([
+            'kode' => 'DOC6',
+            'nama' => 'Dokumen 6',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL/PPL',
+            'jenis_kegiatan' => 'sensus',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate sensus ekonomi',
+            'satuan_id' => $satuan->id,
+            'rate' => 10000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => 2026,
+            'status' => 'aktif',
+        ]);
+
+        $file = $this->makePreviewImportFile([
+            ['Nama - NIK/NIP', 'Kode Penugasan', 'Jumlah Usaha', 'Jumlah Keluarga', 'Pembayaran Parsial'],
+            [$petugas->nama.' - '.$petugas->nik, 'PCL/PPL', 4, 6, 'Tidak'],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post('/alokasi/kegiatan/'.$kegiatan->hashed_id.'/import-preview', [
+                'file' => $file,
+            ], [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('summary.valid_rows', 1);
+        $response->assertJsonPath('summary.error_count', 0);
+        $response->assertJsonPath('rows.0.jumlah_satuan', '10');
+        $response->assertJsonPath('rows.0.estimasi_honor', 100000);
+    }
+
+    public function test_export_template_frame_sheet_uses_total_target_for_multiple_unit_types(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Multi Unit',
+            'kode' => 'FMU',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => [
+                '1' => 3,
+                '2' => 4,
+            ],
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-multi-unit-target-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $frameSheet = $spreadsheet->getSheetByName('Daftar Frame Sampel');
+
+        $this->assertNotNull($frameSheet);
+
+        $targetColumn = null;
+        $highestColumnIndex = Coordinate::columnIndexFromString($frameSheet->getHighestColumn());
+        for ($columnIndex = 1; $columnIndex <= $highestColumnIndex; $columnIndex++) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            if ((string) $frameSheet->getCell($columnLetter.'1')->getValue() === 'target_unit_sampel') {
+                $targetColumn = $columnLetter;
+                break;
+            }
+        }
+
+        $this->assertNotNull($targetColumn);
+        $this->assertSame('7', (string) $frameSheet->getCell($targetColumn.'2')->getValue());
     }
 
     private function makePreviewImportFile(array $rows): UploadedFile

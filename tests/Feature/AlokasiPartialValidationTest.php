@@ -593,7 +593,7 @@ class AlokasiPartialValidationTest extends TestCase
         ]);
     }
 
-    public function test_kembalikan_ke_draft_rejects_when_non_organik_petugas_has_spk_in_same_kegiatan_different_month(): void
+    public function test_kembalikan_ke_draft_allows_when_spk_exists_only_in_different_month(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();
         $tahun = ActiveYearService::get();
@@ -642,11 +642,11 @@ class AlokasiPartialValidationTest extends TestCase
             ->withSession(['active_role_id' => $adminRole->id])
             ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/02/kembalikan-draft");
 
-        $response->assertSessionHas('warning');
+        $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('periode_alokasi', [
             'id' => $periodeFebruari->id,
-            'status' => 'dikirim',
+            'status' => 'draft',
         ]);
     }
 
