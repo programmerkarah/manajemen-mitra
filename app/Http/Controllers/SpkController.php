@@ -1549,36 +1549,154 @@ class SpkController extends Controller
             ], 422);
         }
 
-        $nomorSpkPreview = $this->formatPreviewNomorSpkForPeriode(
-            $periode,
-            $this->getNextNomorUrutForPeriode($periode)
-        );
-
-        $pdfPreview = $this->buildMergedSpkPreviewBinary(
+        $finalSignedPdf = $this->resolveFinalSignedSpkPdfBinaryForPublicPreview(
             $periode,
             (int) $petugas->id,
-            $nomorSpkPreview,
-            now()->toDateString(),
             $selectedKegiatanId,
-            $jenisKegiatan
+            $jenisKegiatan,
         );
 
-        if ($pdfPreview === null) {
-            return response()->json([
-                'message' => 'Preview SPK tidak dapat dibuat untuk data ini.',
-            ], 422);
+        $responseFilename = null;
+        $sourcePdfContent = null;
+
+        if ($finalSignedPdf !== null) {
+            $sourcePdfContent = $finalSignedPdf['content'];
+            $responseFilename = $finalSignedPdf['filename'];
+        } else {
+            $nomorSpkPreview = $this->formatPreviewNomorSpkForPeriode(
+                $periode,
+                $this->getNextNomorUrutForPeriode($periode)
+            );
+
+            $pdfPreview = $this->buildMergedSpkPreviewBinary(
+                $periode,
+                (int) $petugas->id,
+                $nomorSpkPreview,
+                now()->toDateString(),
+                $selectedKegiatanId,
+                $jenisKegiatan
+            );
+
+            if ($pdfPreview === null) {
+                return response()->json([
+                    'message' => 'Preview SPK tidak dapat dibuat untuk data ini.',
+                ], 422);
+            }
+
+            $sourcePdfContent = $pdfPreview['content'];
+            $responseFilename = $pdfPreview['filename'];
         }
 
-        $protectedPdfContent = $this->applyDraftWatermarkAndProtection($pdfPreview['content']);
+        $protectedPdfContent = $this->applyDraftWatermarkAndProtection($sourcePdfContent);
         $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
 
         return response($protectedPdfContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$pdfPreview['filename'].'"',
+            'Content-Disposition' => $disposition.'; filename="'.$responseFilename.'"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * @return array{filename:string,content:string}|null
+     */
+    private function resolveFinalSignedSpkPdfBinaryForPublicPreview(
+        PeriodeAlokasi $periode,
+        int $petugasId,
+        ?int $kegiatanId = null,
+        ?string $jenisKegiatan = null,
+    ): ?array {
+        $finalSpk = Spk::query()
+            ->where('petugas_id', $petugasId)
+            ->whereNotNull('signed_file_path')
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($periode, $kegiatanId, $jenisKegiatan): void {
+                $query->where('tahun', $periode->tahun)
+                    ->where('bulan', $periode->bulan)
+                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->when($kegiatanId !== null, function ($periodeQuery) use ($kegiatanId): void {
+                        $periodeQuery->where('kegiatan_id', $kegiatanId);
+                    })
+                    ->when($jenisKegiatan !== null, function ($periodeQuery) use ($jenisKegiatan): void {
+                        $periodeQuery->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan): void {
+                            $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
+                        });
+                    });
+            })
+            ->orderByDesc('addendum_number')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $finalSpk || ! $finalSpk->signed_file_path) {
+            return null;
+        }
+
+        $rootSpkId = $finalSpk->parent_spk_id ?: $finalSpk->id;
+
+        $signedDocuments = Spk::query()
+            ->where('petugas_id', $petugasId)
+            ->where(function ($query) use ($rootSpkId): void {
+                $query->where('id', $rootSpkId)
+                    ->orWhere('parent_spk_id', $rootSpkId);
+            })
+            ->whereNotNull('signed_file_path')
+            ->orderBy('addendum_number')
+            ->orderBy('id')
+            ->get(['id', 'signed_file_path', 'addendum_number']);
+
+        $signedPaths = $signedDocuments
+            ->map(fn (Spk $spk): string => public_path((string) $spk->signed_file_path))
+            ->filter(fn (string $path): bool => is_file($path))
+            ->values()
+            ->all();
+
+        if (empty($signedPaths)) {
+            return null;
+        }
+
+        $baseName = pathinfo((string) $finalSpk->signed_file_path, PATHINFO_FILENAME);
+        $safeBaseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) $baseName) ?: 'spk_final';
+
+        if (count($signedPaths) === 1) {
+            $binaryContent = file_get_contents($signedPaths[0]);
+            if (! is_string($binaryContent) || $binaryContent === '') {
+                return null;
+            }
+
+            return [
+                'filename' => 'Preview_'.$safeBaseName.'.pdf',
+                'content' => $binaryContent,
+            ];
+        }
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $token = time().'_'.uniqid();
+        $mergedPath = $tempPath.'/spk_public_preview_signed_merge_'.$token.'.pdf';
+
+        try {
+            $merged = PdfMergerService::mergePdfFiles($signedPaths, $mergedPath);
+            if (! $merged || ! is_file($mergedPath)) {
+                return null;
+            }
+
+            $mergedContent = file_get_contents($mergedPath);
+            if (! is_string($mergedContent) || $mergedContent === '') {
+                return null;
+            }
+
+            return [
+                'filename' => 'Preview_'.$safeBaseName.'_with_addendum.pdf',
+                'content' => $mergedContent,
+            ];
+        } finally {
+            @unlink($mergedPath);
+        }
     }
 
     private function isValidPublicPreviewRecaptcha(string $token, ?string $ipAddress = null): bool

@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Spk;
+use App\Models\User;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Services\ActiveYearService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
@@ -319,5 +322,210 @@ class SpkPublicPreviewTest extends TestCase
         $response->assertJsonCount(1, 'sensus_kegiatans');
         $response->assertJsonPath('survei_periods.0.value', sprintf('%d-07', $tahun));
         $response->assertJsonPath('sensus_kegiatans.0.label', 'Sensus Ekonomi');
+    }
+
+    public function test_public_preview_uses_signed_final_file_when_available(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Final',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Final',
+            'nik' => '3201123412347777',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'total_honor' => 400000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        $signedDirectory = public_path('spk-export/tests');
+        if (! is_dir($signedDirectory)) {
+            mkdir($signedDirectory, 0755, true);
+        }
+
+        $signedRelativePath = 'spk-export/tests/final_signed_preview_test.pdf';
+        $signedAbsolutePath = public_path($signedRelativePath);
+        file_put_contents($signedAbsolutePath, Pdf::loadHTML('<h1>PK Final Signed</h1>')->output());
+
+        try {
+            Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/123/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasi->id,
+                'addendum_number' => 0,
+                'nomor_urut_base' => 123,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja final signed',
+                'nilai_kontrak' => 400000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => $signedRelativePath,
+                'status' => 'diterbitkan',
+                'created_by' => $creator->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas Final',
+                    'nik' => '3201123412347777',
+                    'jenis_kegiatan' => 'survei',
+                    'survei_periode' => sprintf('%d-06', $tahun),
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'preview',
+                ],
+                [
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertHeader('content-type', 'application/pdf');
+            $response->assertHeader('content-disposition');
+        } finally {
+            @unlink($signedAbsolutePath);
+        }
+    }
+
+    public function test_public_preview_merges_signed_main_and_addendum_when_available(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Addendum Final',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '10',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Addendum Final',
+            'nik' => '3201123412399999',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 5,
+            'total_honor' => 500000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        $signedDirectory = public_path('spk-export/tests');
+        if (! is_dir($signedDirectory)) {
+            mkdir($signedDirectory, 0755, true);
+        }
+
+        $mainSignedRelativePath = 'spk-export/tests/final_signed_main_addendum_test.pdf';
+        $mainSignedAbsolutePath = public_path($mainSignedRelativePath);
+        file_put_contents($mainSignedAbsolutePath, Pdf::loadHTML('<h1>PK Final Main</h1>')->output());
+
+        $addendumSignedRelativePath = 'spk-export/tests/final_signed_addendum_test.pdf';
+        $addendumSignedAbsolutePath = public_path($addendumSignedRelativePath);
+        file_put_contents($addendumSignedAbsolutePath, Pdf::loadHTML('<h1>PK Final Addendum</h1>')->output());
+
+        try {
+            $mainSpk = Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/201/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasi->id,
+                'addendum_number' => 0,
+                'nomor_urut_base' => 201,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja final utama',
+                'nilai_kontrak' => 500000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => $mainSignedRelativePath,
+                'status' => 'diterbitkan',
+                'created_by' => $creator->id,
+            ]);
+
+            Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/201/ADD-1/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasi->id,
+                'parent_spk_id' => $mainSpk->id,
+                'addendum_number' => 1,
+                'nomor_urut_base' => 201,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja final addendum',
+                'nilai_kontrak' => 500000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => $addendumSignedRelativePath,
+                'status' => 'diterbitkan',
+                'created_by' => $creator->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas Addendum Final',
+                    'nik' => '3201123412399999',
+                    'jenis_kegiatan' => 'survei',
+                    'survei_periode' => sprintf('%d-10', $tahun),
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'preview',
+                ],
+                [
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertHeader('content-type', 'application/pdf');
+            $contentDisposition = (string) $response->headers->get('content-disposition');
+            $this->assertStringContainsString('_with_addendum.pdf', $contentDisposition);
+        } finally {
+            @unlink($mainSignedAbsolutePath);
+            @unlink($addendumSignedAbsolutePath);
+        }
     }
 }

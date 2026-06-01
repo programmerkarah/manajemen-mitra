@@ -633,7 +633,7 @@ export default function PublicPreview({
                                     <Eye className="h-4 w-4" />
                                     {processing
                                         ? 'Memproses...'
-                                        : 'Lihat Preview'}
+                                        : 'Pratinjau PDF'}
                                 </Button>
                                 <Button
                                     type="button"
@@ -643,7 +643,9 @@ export default function PublicPreview({
                                     className="min-w-[160px]"
                                 >
                                     <Download className="h-4 w-4" />
-                                    Unduh Preview
+                                    {processing
+                                        ? 'Memproses...'
+                                        : 'Unduh PDF'}
                                 </Button>
                             </div>
                         </CardContent>
