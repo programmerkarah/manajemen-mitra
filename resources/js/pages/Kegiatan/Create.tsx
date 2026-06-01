@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { FrameSampelTahapanSelect } from '@/components/frame-sampel-tahapan-select';
 import InputError from '@/components/input-error';
+import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
 import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,7 @@ interface MasterSampelOption {
 interface KegiatanFrameSampelRow {
     id?: number;
     tahapan: 'listing' | 'pencacahan';
-    target_unit_sampel: number;
+    target_unit_sampel: Record<string, string>;
     identitas_tambahan?: Record<string, string> | null;
 }
 
@@ -268,8 +269,8 @@ export default function Create({
         bulan_pelatihan: '',
         frame_sampel_listing_id: '',
         frame_sampel_pencacahan_id: '',
-        unit_sampel_listing_id: '',
-        unit_sampel_pencacahan_id: '',
+        unit_sampel_listing_ids: [] as number[],
+        unit_sampel_pencacahan_ids: [] as number[],
         ketua_tim_user_id: copyData?.ketua_tim_user_id?.toString() || '',
         pj_lainnya_id: copyData?.pj_lainnya_id?.toString() || '',
         tanggal_mulai: '',
@@ -288,7 +289,7 @@ export default function Create({
                 : [
                       {
                           tahapan: 'pencacahan' as const,
-                          target_unit_sampel: '',
+                          target_unit_sampel: {} as Record<string, string>,
                           metadata_items: initialMetadataColumns.map(
                               (column) => ({
                                   code: column.code,
@@ -320,17 +321,15 @@ export default function Create({
                 column.description.trim() !== '',
         );
     const canManageDetailFrame = isMetadataSaved && !isEditingMetadata;
-    const activeUnitSampelId =
+    const activeUnitSampelIds =
         data.frame_tahapan === 'listing' &&
         !isSensus &&
         data.has_listing_updating
-            ? data.unit_sampel_listing_id
-            : data.unit_sampel_pencacahan_id;
-    const activeUnitSampelName =
-        masterUnitSampel.find(
-            (item) => String(item.id) === String(activeUnitSampelId),
-        )?.nama || 'unit sampel';
-    const targetUnitLabel = `Jumlah ${activeUnitSampelName} dalam frame`;
+            ? data.unit_sampel_listing_ids
+            : data.unit_sampel_pencacahan_ids;
+    const activeUnitSampelList = activeUnitSampelIds
+        .map((id) => masterUnitSampel.find((item) => item.id === id))
+        .filter((item): item is MasterSampelOption => item !== undefined);
     const activeFrameRows = data.kegiatan_frame_sampel
         .map((row, index) => ({ row, index }))
         .filter(({ row }) => row.tahapan === data.frame_tahapan);
@@ -352,8 +351,8 @@ export default function Create({
             setData('frame_sampel_listing_id', '');
         }
 
-        if (isSensus && data.unit_sampel_listing_id !== '') {
-            setData('unit_sampel_listing_id', '');
+        if (isSensus && data.unit_sampel_listing_ids.length > 0) {
+            setData('unit_sampel_listing_ids', []);
         }
 
         if (!isSensus && !data.has_listing_updating) {
@@ -361,8 +360,8 @@ export default function Create({
                 setData('frame_sampel_listing_id', '');
             }
 
-            if (data.unit_sampel_listing_id !== '') {
-                setData('unit_sampel_listing_id', '');
+            if (data.unit_sampel_listing_ids.length > 0) {
+                setData('unit_sampel_listing_ids', []);
             }
 
             if (
@@ -433,9 +432,9 @@ export default function Create({
         setData('frame_tahapan', value);
     };
 
-    const updateFrameSampelRow = (
+    const updateFrameSampelRowTarget = (
         index: number,
-        key: 'tahapan' | 'target_unit_sampel',
+        unitSampelId: string,
         value: string,
     ) => {
         setData(
@@ -447,7 +446,10 @@ export default function Create({
 
                 return {
                     ...row,
-                    [key]: value,
+                    target_unit_sampel: {
+                        ...row.target_unit_sampel,
+                        [unitSampelId]: value,
+                    },
                 };
             }),
         );
@@ -631,7 +633,10 @@ export default function Create({
             setFrameImportMessage('');
             setFrameImportError('');
 
-            await downloadFrameSampelTemplate(data.frame_metadata_columns);
+            await downloadFrameSampelTemplate(
+                data.frame_metadata_columns,
+                activeUnitSampelList,
+            );
         } catch (error) {
             setFrameImportError(
                 error instanceof Error
@@ -656,6 +661,7 @@ export default function Create({
             const payload = await importFrameSampelPreview(
                 frameImportFile,
                 data.frame_metadata_columns,
+                activeUnitSampelList,
             );
 
             setData('kegiatan_frame_sampel', [
@@ -720,18 +726,18 @@ export default function Create({
             frame_sampel_pencacahan_id: data.frame_sampel_pencacahan_id
                 ? Number(data.frame_sampel_pencacahan_id)
                 : null,
-            unit_sampel_listing_id:
-                !isSensus &&
-                data.has_listing_updating &&
-                data.unit_sampel_listing_id
-                    ? Number(data.unit_sampel_listing_id)
+            unit_sampel_listing_ids:
+                !isSensus && data.has_listing_updating
+                    ? data.unit_sampel_listing_ids
                     : null,
-            unit_sampel_pencacahan_id: data.unit_sampel_pencacahan_id
-                ? Number(data.unit_sampel_pencacahan_id)
-                : null,
+            unit_sampel_pencacahan_ids: data.unit_sampel_pencacahan_ids,
             kegiatan_frame_sampel: data.kegiatan_frame_sampel
                 .filter((row) => {
-                    if (!row.target_unit_sampel) {
+                    const hasAnyTarget = Object.values(
+                        row.target_unit_sampel,
+                    ).some((v) => v !== '' && Number(v) >= 1);
+
+                    if (!hasAnyTarget) {
                         return false;
                     }
 
@@ -743,7 +749,11 @@ export default function Create({
                 })
                 .map((row) => ({
                     tahapan: row.tahapan,
-                    target_unit_sampel: Number(row.target_unit_sampel),
+                    target_unit_sampel: Object.fromEntries(
+                        Object.entries(row.target_unit_sampel)
+                            .filter(([, v]) => v !== '' && Number(v) >= 1)
+                            .map(([k, v]) => [k, Number(v)]),
+                    ),
                     identitas_tambahan: (row.metadata_items || []).reduce<
                         Record<string, string>
                     >((accumulator, item: MetadataItem) => {
@@ -1197,33 +1207,34 @@ export default function Create({
 
                                 <div>
                                     <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                        Unit Sampel Pencacahan
+                                        Unit Sampel Pencacahan{' '}
+                                        <span className="text-red-500">*</span>
                                     </label>
-                                    <SearchableSelect
-                                        options={[
-                                            {
-                                                value: '',
-                                                label: 'Pilih Unit Sampel Pencacahan',
-                                            },
-                                            ...masterUnitSampel.map((item) => ({
-                                                value: String(item.id),
-                                                label: `${item.nama} (${item.kode})`,
-                                            })),
-                                        ]}
-                                        value={data.unit_sampel_pencacahan_id}
-                                        onValueChange={(value) =>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Pilih minimal 1 unit sampel. Bisa lebih
+                                        dari 1 (mis. Sensus Ekonomi).
+                                    </p>
+                                    <MultiSelectCheckbox
+                                        className="mt-2"
+                                        options={masterUnitSampel.map(
+                                            (item) => ({
+                                                value: item.id,
+                                                label: item.nama,
+                                                subLabel: item.kode,
+                                            }),
+                                        )}
+                                        values={data.unit_sampel_pencacahan_ids}
+                                        onValuesChange={(values) =>
                                             setData(
-                                                'unit_sampel_pencacahan_id',
-                                                value,
+                                                'unit_sampel_pencacahan_ids',
+                                                values,
                                             )
                                         }
-                                        placeholder="Pilih Unit Sampel Pencacahan"
-                                        searchPlaceholder="Cari unit sampel..."
-                                        className="mt-2"
+                                        placeholder="Pilih unit sampel pencacahan..."
                                     />
                                     <InputError
                                         message={
-                                            errors.unit_sampel_pencacahan_id
+                                            errors.unit_sampel_pencacahan_ids
                                         }
                                         className="mt-2"
                                     />
@@ -1275,37 +1286,33 @@ export default function Create({
                                             <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
                                                 Unit Sampel Listing
                                             </label>
-                                            <SearchableSelect
-                                                options={[
-                                                    {
-                                                        value: '',
-                                                        label: 'Pilih Unit Sampel Listing',
-                                                    },
-                                                    ...masterUnitSampel.map(
-                                                        (item) => ({
-                                                            value: String(
-                                                                item.id,
-                                                            ),
-                                                            label: `${item.nama} (${item.kode})`,
-                                                        }),
-                                                    ),
-                                                ]}
-                                                value={
-                                                    data.unit_sampel_listing_id
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Pilih satu atau lebih unit
+                                                sampel listing.
+                                            </p>
+                                            <MultiSelectCheckbox
+                                                className="mt-2"
+                                                options={masterUnitSampel.map(
+                                                    (item) => ({
+                                                        value: item.id,
+                                                        label: item.nama,
+                                                        subLabel: item.kode,
+                                                    }),
+                                                )}
+                                                values={
+                                                    data.unit_sampel_listing_ids
                                                 }
-                                                onValueChange={(value) =>
+                                                onValuesChange={(values) =>
                                                     setData(
-                                                        'unit_sampel_listing_id',
-                                                        value,
+                                                        'unit_sampel_listing_ids',
+                                                        values,
                                                     )
                                                 }
-                                                placeholder="Pilih Unit Sampel Listing"
-                                                searchPlaceholder="Cari unit sampel..."
-                                                className="mt-2"
+                                                placeholder="Pilih unit sampel listing..."
                                             />
                                             <InputError
                                                 message={
-                                                    errors.unit_sampel_listing_id
+                                                    errors.unit_sampel_listing_ids
                                                 }
                                                 className="mt-2"
                                             />
@@ -1634,37 +1641,78 @@ export default function Create({
                                                     </div>
 
                                                     <div className="flex items-end justify-between gap-3">
-                                                        <div className="w-full max-w-xs">
-                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                                {
-                                                                    targetUnitLabel
-                                                                }
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                min={1}
-                                                                value={
-                                                                    row.target_unit_sampel
-                                                                }
-                                                                onChange={(e) =>
-                                                                    updateFrameSampelRow(
-                                                                        index,
-                                                                        'target_unit_sampel',
-                                                                        e.target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                placeholder="Contoh: 2"
-                                                            />
-                                                            <InputError
-                                                                message={
-                                                                    errors[
-                                                                        `kegiatan_frame_sampel.${index}.target_unit_sampel`
-                                                                    ]
-                                                                }
-                                                                className="mt-1"
-                                                            />
+                                                        <div className="flex flex-wrap gap-3">
+                                                            {activeUnitSampelList.length ===
+                                                            0 ? (
+                                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                    Pilih unit
+                                                                    sampel
+                                                                    terlebih
+                                                                    dahulu untuk
+                                                                    mengisi
+                                                                    jumlah.
+                                                                </p>
+                                                            ) : (
+                                                                activeUnitSampelList.map(
+                                                                    (
+                                                                        unitSampel,
+                                                                    ) => (
+                                                                        <div
+                                                                            key={
+                                                                                unitSampel.id
+                                                                            }
+                                                                            className="w-full max-w-xs"
+                                                                        >
+                                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                Jumlah{' '}
+                                                                                {
+                                                                                    unitSampel.nama
+                                                                                }{' '}
+                                                                                dalam
+                                                                                frame
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                min={
+                                                                                    0
+                                                                                }
+                                                                                value={
+                                                                                    row
+                                                                                        .target_unit_sampel[
+                                                                                        String(
+                                                                                            unitSampel.id,
+                                                                                        )
+                                                                                    ] ??
+                                                                                    ''
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateFrameSampelRowTarget(
+                                                                                        index,
+                                                                                        String(
+                                                                                            unitSampel.id,
+                                                                                        ),
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                placeholder="Contoh: 2"
+                                                                            />
+                                                                            <InputError
+                                                                                message={
+                                                                                    errors[
+                                                                                        `kegiatan_frame_sampel.${index}.target_unit_sampel.${unitSampel.id}`
+                                                                                    ]
+                                                                                }
+                                                                                className="mt-1"
+                                                                            />
+                                                                        </div>
+                                                                    ),
+                                                                )
+                                                            )}
                                                         </div>
 
                                                         <Button

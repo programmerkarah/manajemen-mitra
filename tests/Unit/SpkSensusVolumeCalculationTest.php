@@ -13,7 +13,8 @@ class SpkSensusVolumeCalculationTest extends TestCase
     #[DataProvider('terminSatuVolumeCases')]
     public function test_termin_satu_volume_uses_expected_rounding_rules(
         int $selectedRows,
-        int $prelistTotal,
+        array $perUnitSampelTotals,
+        array $unitSampelNames,
         string $expectedLabel,
     ): void {
         $controller = new SpkController;
@@ -24,26 +25,28 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $formatMethod = new \ReflectionMethod(SpkController::class, 'formatSensusEkonomiVolumeNarrative');
         $formatMethod->setAccessible(true);
 
-        $terminSatuMetrics = $calculateMethod->invoke($controller, $selectedRows, $prelistTotal, 40);
+        $terminSatuMetrics = $calculateMethod->invoke($controller, $selectedRows, $perUnitSampelTotals, 40);
         $actualLabel = $formatMethod->invoke(
             $controller,
             $terminSatuMetrics['selected_rows'],
-            $terminSatuMetrics['prelist_total'],
+            $terminSatuMetrics['per_unit_sampel_totals'],
+            $unitSampelNames,
         );
 
         $this->assertSame($expectedLabel, $actualLabel);
     }
 
     /**
-     * @return array<string, array{0:int,1:int,2:string}>
+     * @return array<string, array{0:int,1:array<int,int>,2:array<int,string>,3:string}>
      */
     public static function terminSatuVolumeCases(): array
     {
         return [
-            '4 sls and 40 prelist' => [4, 40, '2 SLS/sub-SLS dan/atau 16 usaha/keluarga'],
-            '10 sls and 100 prelist' => [10, 100, '4 SLS/sub-SLS dan/atau 40 usaha/keluarga'],
-            '2 sls and 891 prelist' => [2, 891, '1 SLS/sub-SLS dan/atau 356 usaha/keluarga'],
-            '3 sls and 933 prelist' => [3, 933, '1 SLS/sub-SLS dan/atau 373 usaha/keluarga'],
+            '4 sls and 40 prelist single unit' => [4, [1 => 40], [1 => 'usaha/keluarga'], '2 SLS/sub-SLS dan/atau 16 usaha/keluarga'],
+            '10 sls and 100 prelist single unit' => [10, [1 => 100], [1 => 'usaha/keluarga'], '4 SLS/sub-SLS dan/atau 40 usaha/keluarga'],
+            '2 sls and 891 prelist single unit' => [2, [1 => 891], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 356 usaha/keluarga'],
+            '3 sls and 933 prelist single unit' => [3, [1 => 933], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 373 usaha/keluarga'],
+            '2 sls with keluarga and usaha' => [2, [1 => 10, 2 => 5], [1 => 'Keluarga', 2 => 'Usaha'], '1 SLS/sub-SLS dan/atau 4 Keluarga dan/atau 2 Usaha'],
         ];
     }
 

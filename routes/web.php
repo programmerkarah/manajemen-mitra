@@ -513,7 +513,10 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // Dasar Hukum - View routes (including PJ for read-only)
         Route::match(['get', 'post'], 'dasar-hukum', [DasarHukumController::class, 'index'])->name('dasar-hukum.index');
 
-        // Master Frame/Unit Sampel - View routes
+    });
+
+    // Master Frame/Unit Sampel - View (Admin, Operator, PJ, Ketua Tim)
+    Route::middleware(['active.role:admin,operator,pj,ketua_tim'])->group(function () {
         Route::get('master-sampel', [SampleMasterController::class, 'index'])->name('master-sampel.index');
     });
 
@@ -556,6 +559,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
     // Daftar frame sampel per kegiatan (Admin, Operator, Ketua Tim)
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('frame-sampel', [KegiatanFrameSampelController::class, 'overview'])->name('kegiatan.frame-sampel.overview');
         Route::get('kegiatan/{kegiatan}/frame-sampel', [KegiatanFrameSampelController::class, 'index'])->name('kegiatan.frame-sampel.index');
         Route::post('kegiatan/{kegiatan}/frame-sampel', [KegiatanFrameSampelController::class, 'store'])->name('kegiatan.frame-sampel.store');
         Route::put('kegiatan/{kegiatan}/frame-sampel/{frame}', [KegiatanFrameSampelController::class, 'update'])->name('kegiatan.frame-sampel.update');

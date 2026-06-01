@@ -34,7 +34,7 @@ class KegiatanFrameSampel extends Model
     {
         return [
             'identitas_tambahan' => 'array',
-            'target_unit_sampel' => 'integer',
+            'target_unit_sampel' => 'array',
         ];
     }
 

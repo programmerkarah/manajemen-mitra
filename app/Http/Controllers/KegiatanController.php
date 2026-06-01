@@ -610,9 +610,10 @@ class KegiatanController extends Controller
     public function exportFrameSampelTemplate(Request $request): BinaryFileResponse
     {
         $metadata = $this->extractFrameSampelMetadata($request);
+        $unitSampelList = $this->extractFrameSampelUnitSampel($request);
 
         return Excel::download(
-            new FrameSampelDetailTemplateExport($metadata),
+            new FrameSampelDetailTemplateExport($metadata, $unitSampelList),
             'detail-frame-sampel-template.xlsx'
         );
     }
@@ -620,6 +621,7 @@ class KegiatanController extends Controller
     public function importFrameSampelPreview(Request $request): JsonResponse
     {
         $metadata = $this->extractFrameSampelMetadata($request);
+        $unitSampelList = $this->extractFrameSampelUnitSampel($request);
 
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
@@ -631,7 +633,9 @@ class KegiatanController extends Controller
         $spreadsheet = IOFactory::load($validated['file']->getRealPath());
         $rows = $spreadsheet->getSheet(0)->toArray(null, true, true, false);
 
-        $expectedColumnCount = (count($metadata) * 2) + 1;
+        $metadataCount = count($metadata);
+        $unitSampelCount = max(count($unitSampelList), 1);
+        $expectedColumnCount = ($metadataCount * 2) + $unitSampelCount;
         $importedRows = [];
         $errors = [];
 
@@ -639,7 +643,6 @@ class KegiatanController extends Controller
             $rowNumber = $rowIndex + 2;
             $normalizedRow = array_slice(array_pad($row, $expectedColumnCount, null), 0, $expectedColumnCount);
 
-            $targetUnit = trim((string) ($normalizedRow[$expectedColumnCount - 1] ?? ''));
             $identitasTambahan = [];
             $hasMetadataValue = false;
 
@@ -659,18 +662,46 @@ class KegiatanController extends Controller
                 }
             }
 
-            if (! $hasMetadataValue && $targetUnit === '') {
+            // Parse per-unit-sampel counts
+            $targetUnits = [];
+            $hasAnyTarget = false;
+
+            if (! empty($unitSampelList)) {
+                foreach ($unitSampelList as $usIndex => $unitSampel) {
+                    $colIndex = ($metadataCount * 2) + $usIndex;
+                    $countStr = trim((string) ($normalizedRow[$colIndex] ?? ''));
+
+                    if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr >= 0) {
+                        $targetUnits[(string) $unitSampel['id']] = $countStr;
+
+                        if ((int) $countStr > 0) {
+                            $hasAnyTarget = true;
+                        }
+                    }
+                }
+            } else {
+                // Fallback: single generic count column
+                $countStr = trim((string) ($normalizedRow[$expectedColumnCount - 1] ?? ''));
+
+                if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr > 0) {
+                    $targetUnits['0'] = $countStr;
+                    $hasAnyTarget = true;
+                }
+            }
+
+            if (! $hasMetadataValue && ! $hasAnyTarget) {
                 continue;
             }
 
-            if ($targetUnit === '' || ! ctype_digit($targetUnit) || (int) $targetUnit < 1) {
-                $errors[] = "Baris {$rowNumber}: Jumlah Sampel Dalam Frame harus berupa angka bulat minimal 1.";
+            if (! $hasAnyTarget) {
+                $nama = ! empty($unitSampelList) ? $unitSampelList[0]['nama'] : 'Sampel';
+                $errors[] = "Baris {$rowNumber}: Jumlah {$nama} Dalam Frame harus berupa angka bulat minimal 1.";
 
                 continue;
             }
 
             $importedRows[] = [
-                'target_unit_sampel' => $targetUnit,
+                'target_unit_sampel' => $targetUnits,
                 'identitas_tambahan' => $identitasTambahan,
             ];
         }
@@ -687,7 +718,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * @param  array<int, array{tahapan:string,target_unit_sampel:int,identitas_tambahan?:array<string,mixed>}>  $rows
+     * @param  array<int, array{tahapan:string,target_unit_sampel:array<string,int>,identitas_tambahan?:array<string,mixed>}>  $rows
      */
     private function syncKegiatanFrameSampelRows(
         Kegiatan $kegiatan,
@@ -697,18 +728,24 @@ class KegiatanController extends Controller
         $normalizedRows = collect($rows)
             ->map(function (array $row): ?array {
                 $tahapan = $row['tahapan'] ?? null;
-                $targetUnit = isset($row['target_unit_sampel']) ? (int) $row['target_unit_sampel'] : null;
+                $targetUnits = isset($row['target_unit_sampel']) && is_array($row['target_unit_sampel'])
+                    ? $row['target_unit_sampel']
+                    : [];
+                $totalTarget = array_sum($targetUnits);
                 $identitasTambahan = isset($row['identitas_tambahan']) && is_array($row['identitas_tambahan'])
                     ? $row['identitas_tambahan']
                     : null;
 
-                if (! in_array($tahapan, ['listing', 'pencacahan'], true) || $targetUnit === null || $targetUnit < 1) {
+                if (! in_array($tahapan, ['listing', 'pencacahan'], true) || $totalTarget < 1) {
                     return null;
                 }
 
+                // Normalize values to integers
+                $normalizedTargets = array_map('intval', $targetUnits);
+
                 return [
                     'tahapan' => $tahapan,
-                    'target_unit_sampel' => $targetUnit,
+                    'target_unit_sampel' => $normalizedTargets,
                     'identitas_tambahan' => $identitasTambahan,
                 ];
             })
@@ -881,6 +918,34 @@ class KegiatanController extends Controller
         }
 
         return $metadata;
+    }
+
+    /**
+     * Extract and validate the unit sampel list from the request (for frame sampel template/import).
+     *
+     * @return array<int, array{id:int,nama:string}>
+     */
+    private function extractFrameSampelUnitSampel(Request $request): array
+    {
+        $rawUnitSampel = $request->input('unit_sampel', []);
+
+        if (is_string($rawUnitSampel)) {
+            $decoded = json_decode($rawUnitSampel, true);
+            $rawUnitSampel = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($rawUnitSampel)) {
+            return [];
+        }
+
+        return collect($rawUnitSampel)
+            ->filter(fn ($item) => is_array($item) && isset($item['id'], $item['nama']))
+            ->map(fn ($item) => [
+                'id' => (int) $item['id'],
+                'nama' => trim((string) $item['nama']),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

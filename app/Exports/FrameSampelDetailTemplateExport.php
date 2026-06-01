@@ -15,9 +15,11 @@ class FrameSampelDetailTemplateExport implements FromArray, WithHeadings, WithSt
 {
     /**
      * @param  array<int, array{code:string,label:string,description:string}>  $metadata
+     * @param  array<int, array{id:int,nama:string}>  $unitSampelList
      */
     public function __construct(
         protected array $metadata,
+        protected array $unitSampelList = [],
     ) {}
 
     public function headings(): array
@@ -30,7 +32,14 @@ class FrameSampelDetailTemplateExport implements FromArray, WithHeadings, WithSt
             $headings[] = $label;
         }
 
-        $headings[] = 'Jumlah Sampel Dalam Frame';
+        if (empty($this->unitSampelList)) {
+            $headings[] = 'Jumlah Sampel Dalam Frame';
+        } else {
+            foreach ($this->unitSampelList as $unitSampel) {
+                $nama = trim((string) ($unitSampel['nama'] ?? 'Unit Sampel'));
+                $headings[] = 'Jumlah '.$nama.' Dalam Frame';
+            }
+        }
 
         return $headings;
     }
@@ -61,7 +70,7 @@ class FrameSampelDetailTemplateExport implements FromArray, WithHeadings, WithSt
         $columnCount = count($this->headings());
 
         for ($columnIndex = 1; $columnIndex <= $columnCount; $columnIndex++) {
-            $sheet->getColumnDimensionByColumn($columnIndex)->setWidth($columnIndex === $columnCount ? 24 : 22);
+            $sheet->getColumnDimensionByColumn($columnIndex)->setWidth(22);
         }
 
         return [];

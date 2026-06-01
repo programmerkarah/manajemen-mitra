@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasHashedRouteKey;
 use Database\Factories\KegiatanFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,6 +35,8 @@ class Kegiatan extends Model
             'metode_pendataan_listing' => 'string',
             'metode_pelatihan' => 'string',
             'bulan_pelatihan' => 'integer',
+            'unit_sampel_pencacahan_ids' => 'array',
+            'unit_sampel_listing_ids' => 'array',
         ];
     }
 
@@ -56,8 +59,8 @@ class Kegiatan extends Model
         'pj_lainnya_id',
         'frame_sampel_listing_id',
         'frame_sampel_pencacahan_id',
-        'unit_sampel_listing_id',
-        'unit_sampel_pencacahan_id',
+        'unit_sampel_listing_ids',
+        'unit_sampel_pencacahan_ids',
         'metode_pendataan_pencacahan',
         'metode_pendataan_listing',
         'metode_pelatihan',
@@ -94,14 +97,24 @@ class Kegiatan extends Model
         return $this->belongsTo(MasterFrameSampel::class, 'frame_sampel_pencacahan_id');
     }
 
-    public function unitSampelListing(): BelongsTo
+    /**
+     * @return Collection<int, MasterUnitSampel>
+     */
+    public function unitSampelListingItems(): Collection
     {
-        return $this->belongsTo(MasterUnitSampel::class, 'unit_sampel_listing_id');
+        $ids = $this->unit_sampel_listing_ids ?? [];
+
+        return MasterUnitSampel::query()->whereIn('id', $ids)->get();
     }
 
-    public function unitSampelPencacahan(): BelongsTo
+    /**
+     * @return Collection<int, MasterUnitSampel>
+     */
+    public function unitSampelPencacahanItems(): Collection
     {
-        return $this->belongsTo(MasterUnitSampel::class, 'unit_sampel_pencacahan_id');
+        $ids = $this->unit_sampel_pencacahan_ids ?? [];
+
+        return MasterUnitSampel::query()->whereIn('id', $ids)->get();
     }
 
     // Accessor untuk pagu_anggaran (alias untuk pagu_pencacahan)

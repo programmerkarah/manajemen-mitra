@@ -84,6 +84,29 @@ export default function Generate({
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
+    const isSensusEkonomi =
+        periode.kegiatan.jenis_kegiatan === 'sensus' &&
+        periode.kegiatan.nama_kegiatan.toLowerCase().trim() ===
+            'sensus ekonomi';
+
+    const formatNomorSpk = (noUrut: number, tahun: number): string => {
+        if (isSensusEkonomi) {
+            return `B-${String(noUrut).padStart(3, '0')}/SPK-SE2026/1373/PL.200/${tahun}`;
+        }
+        return `PPIS/13730/${noUrut}/K/${tahun}`;
+    };
+
+    const formatNomorSpkSuffix = (
+        baseUrut: number,
+        suffix: string,
+        tahun: number,
+    ): string => {
+        if (isSensusEkonomi) {
+            return `B-${String(baseUrut).padStart(3, '0')}${suffix}/SPK-SE2026/1373/PL.200/${tahun}`;
+        }
+        return `PPIS/13730/${baseUrut}${suffix}/K/${tahun}`;
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },
         {
@@ -145,11 +168,15 @@ export default function Generate({
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpkSuffix(
+                    last_nomor_urut_in_month,
+                    suffix,
+                    tahunSpk,
+                );
             } else {
                 // Use sequential mode: 4, 5, 6...
                 const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
             }
         } else {
             // First time generation - use sequential numbering
@@ -161,7 +188,7 @@ export default function Generate({
                 (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
             );
             const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
         }
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
@@ -219,11 +246,15 @@ export default function Generate({
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpkSuffix(
+                    last_nomor_urut_in_month,
+                    suffix,
+                    tahunSpk,
+                );
             } else {
                 // Use sequential mode: 4, 5, 6...
                 const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
             }
         } else {
             // First time generation - use sequential numbering
@@ -235,7 +266,7 @@ export default function Generate({
                 (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
             );
             const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
         }
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
@@ -295,11 +326,15 @@ export default function Generate({
             if (uses_suffix_for_new_petugas) {
                 // Use suffix mode: 3A, 3B, 3C...
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = `PPIS/13730/${last_nomor_urut_in_month}${suffix}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpkSuffix(
+                    last_nomor_urut_in_month,
+                    suffix,
+                    tahunSpk,
+                );
             } else {
                 // Use sequential mode: 4, 5, 6...
                 const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
             }
         } else {
             // First time generation - use sequential numbering
@@ -311,7 +346,7 @@ export default function Generate({
                 (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
             );
             const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = `PPIS/13730/${noUrut}/K/${tahunSpk}`;
+            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
         }
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
@@ -494,13 +529,31 @@ export default function Generate({
                         </div>
 
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Format Nomor Perjanjian Kerja: PPIS/13730/[No
-                            Urut]/K/[Tahun]
-                            <br />
-                            Contoh: PPIS/13730/1/K/
-                            {formData.tanggal_spk
-                                ? new Date(formData.tanggal_spk).getFullYear()
-                                : '2025'}
+                            {isSensusEkonomi ? (
+                                <>
+                                    Format Nomor Perjanjian Kerja: B-[No
+                                    Urut]/SPK-SE2026/1373/PL.200/[Tahun]
+                                    <br />
+                                    Contoh: B-001/SPK-SE2026/1373/PL.200/
+                                    {formData.tanggal_spk
+                                        ? new Date(
+                                              formData.tanggal_spk,
+                                          ).getFullYear()
+                                        : '2026'}
+                                </>
+                            ) : (
+                                <>
+                                    Format Nomor Perjanjian Kerja:
+                                    PPIS/13730/[No Urut]/K/[Tahun]
+                                    <br />
+                                    Contoh: PPIS/13730/1/K/
+                                    {formData.tanggal_spk
+                                        ? new Date(
+                                              formData.tanggal_spk,
+                                          ).getFullYear()
+                                        : '2025'}
+                                </>
+                            )}
                         </p>
                     </div>
                 </ContentCard>

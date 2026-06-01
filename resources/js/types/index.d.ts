@@ -97,8 +97,8 @@ export interface Kegiatan {
     pagu_listing: number | null;
     frame_sampel_listing_id?: number | null;
     frame_sampel_pencacahan_id?: number | null;
-    unit_sampel_listing_id?: number | null;
-    unit_sampel_pencacahan_id?: number | null;
+    unit_sampel_listing_ids?: number[] | null;
+    unit_sampel_pencacahan_ids?: number[] | null;
     metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
     metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
     metode_pelatihan:

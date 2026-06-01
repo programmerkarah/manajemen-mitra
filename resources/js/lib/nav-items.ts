@@ -4,9 +4,11 @@ import {
     Airplay,
     BarChart3,
     ClipboardList,
+    Database,
     File,
     FileText,
     Gem,
+    Layers,
     LayoutGrid,
     LineChart,
     Package,
@@ -43,6 +45,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                     { title: 'Penandatangan', href: '/penandatangan' },
                     { title: 'DIPA', href: '/dipa' },
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
+                    {
+                        title: 'Master Sampel',
+                        href: '/master-sampel',
+                        icon: Layers,
+                    },
+                    {
+                        title: 'Frame Sampel',
+                        href: '/frame-sampel',
+                        icon: Database,
+                        activeWhen: ['/frame-sampel', '/kegiatan/'],
+                    },
                 ],
             },
             {
@@ -152,6 +165,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/dasar-hukum',
                         icon: Scale,
                     },
+                    {
+                        title: 'Master Sampel',
+                        href: '/master-sampel',
+                        icon: Layers,
+                    },
+                    {
+                        title: 'Frame Sampel',
+                        href: '/frame-sampel',
+                        icon: Database,
+                        activeWhen: ['/frame-sampel', '/kegiatan/'],
+                    },
                 ],
             },
             {
@@ -231,6 +255,17 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                     { title: 'SK KPA', href: '/sk-kpa' },
                     { title: 'Perjanjian Kerja', href: '/spk' },
                     { title: 'BAST', href: '/bast' },
+                    {
+                        title: 'Master Sampel',
+                        href: '/master-sampel',
+                        icon: Layers,
+                    },
+                    {
+                        title: 'Frame Sampel',
+                        href: '/frame-sampel',
+                        icon: Database,
+                        activeWhen: ['/frame-sampel', '/kegiatan/'],
+                    },
                 ],
             },
             {
@@ -283,6 +318,11 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                     { title: 'Penandatangan', href: '/penandatangan' },
                     { title: 'DIPA', href: '/dipa' },
                     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
+                    {
+                        title: 'Master Sampel',
+                        href: '/master-sampel',
+                        icon: Layers,
+                    },
                 ],
             },
             {

@@ -18,15 +18,27 @@ interface KegiatanFrameSampel {
     kode_sls?: string | null;
     kode_sub_sls?: string | null;
     kode_segmen?: string | null;
-    target_unit_sampel: number;
+    target_unit_sampel: Record<string, number>;
+}
+
+interface UnitSampelItem {
+    id: number;
+    nama: string;
 }
 
 interface Props {
     kegiatan: Kegiatan;
     frames: KegiatanFrameSampel[];
+    unitSampelPencacahanItems: UnitSampelItem[];
+    unitSampelListingItems: UnitSampelItem[];
 }
 
-export default function FrameSampel({ kegiatan, frames }: Props) {
+export default function FrameSampel({
+    kegiatan,
+    frames,
+    unitSampelPencacahanItems,
+    unitSampelListingItems,
+}: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Kegiatan', href: '/kegiatan' },
         {
@@ -34,6 +46,8 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
             href: `/kegiatan/${kegiatan.hashed_id}/frame-sampel`,
         },
     ];
+
+    const [targetError, setTargetError] = useState<string | null>(null);
 
     const [form, setForm] = useState({
         tahapan: 'pencacahan' as 'listing' | 'pencacahan',
@@ -43,13 +57,23 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
         kode_sls: '',
         kode_sub_sls: '',
         kode_segmen: '',
-        target_unit_sampel: 0,
+        target_unit_sampel: {} as Record<string, string>,
     });
+
+    const activeUnitSampelItems =
+        form.tahapan === 'listing'
+            ? unitSampelListingItems
+            : unitSampelPencacahanItems;
 
     const totalTarget = useMemo(
         () =>
             frames.reduce(
-                (sum, frame) => sum + Number(frame.target_unit_sampel || 0),
+                (sum, frame) =>
+                    sum +
+                    Object.values(frame.target_unit_sampel || {}).reduce(
+                        (s, v) => s + Number(v),
+                        0,
+                    ),
                 0,
             ),
         [frames],
@@ -169,26 +193,76 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
                         </div>
                         <div className="space-y-2">
                             <Label>Target Unit Sampel</Label>
-                            <Input
-                                type="number"
-                                min={0}
-                                value={form.target_unit_sampel}
-                                onChange={(event) =>
-                                    setForm((prev) => ({
-                                        ...prev,
-                                        target_unit_sampel:
-                                            Number(event.target.value) || 0,
-                                    }))
-                                }
-                            />
+                            {targetError && (
+                                <p className="text-sm text-red-600 dark:text-red-400">
+                                    {targetError}
+                                </p>
+                            )}
+                            {activeUnitSampelItems.length === 0 ? (
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Tidak ada unit sampel untuk tahapan ini.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {activeUnitSampelItems.map((unitSampel) => (
+                                        <div key={unitSampel.id}>
+                                            <Label className="text-sm font-normal">
+                                                {unitSampel.nama}
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={
+                                                    form.target_unit_sampel[
+                                                        String(unitSampel.id)
+                                                    ] ?? ''
+                                                }
+                                                onChange={(event) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        target_unit_sampel: {
+                                                            ...prev.target_unit_sampel,
+                                                            [String(
+                                                                unitSampel.id,
+                                                            )]:
+                                                                event.target
+                                                                    .value,
+                                                        },
+                                                    }))
+                                                }
+                                                placeholder="Contoh: 2"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <Button
-                            onClick={() =>
+                            onClick={() => {
+                                const filtered = Object.fromEntries(
+                                    Object.entries(form.target_unit_sampel)
+                                        .filter(
+                                            ([, v]) =>
+                                                v !== '' && Number(v) >= 0,
+                                        )
+                                        .map(([k, v]) => [k, Number(v)]),
+                                );
+                                const total = Object.values(filtered).reduce(
+                                    (s, v) => s + v,
+                                    0,
+                                );
+                                if (total <= 0) {
+                                    setTargetError(
+                                        'Total target unit sampel harus lebih dari 0.',
+                                    );
+                                    return;
+                                }
+                                setTargetError(null);
                                 router.post(
                                     `/kegiatan/${kegiatan.hashed_id}/frame-sampel`,
-                                    form,
-                                )
-                            }
+                                    { ...form, target_unit_sampel: filtered },
+                                );
+                            }}
                             className="w-full"
                         >
                             Simpan
@@ -223,10 +297,35 @@ export default function FrameSampel({ kegiatan, frames }: Props) {
                                             SLS: {frame.kode_sub_sls || '-'} |
                                             Segmen: {frame.kode_segmen || '-'}
                                         </p>
-                                        <p className="text-xs text-neutral-500">
-                                            Target unit:{' '}
-                                            {frame.target_unit_sampel}
-                                        </p>
+                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">
+                                            {(frame.tahapan === 'listing'
+                                                ? unitSampelListingItems
+                                                : unitSampelPencacahanItems
+                                            ).length > 0 ? (
+                                                (frame.tahapan === 'listing'
+                                                    ? unitSampelListingItems
+                                                    : unitSampelPencacahanItems
+                                                ).map((u) => (
+                                                    <span key={u.id}>
+                                                        {u.nama}:{' '}
+                                                        {(frame.target_unit_sampel ||
+                                                            {})[String(u.id)] ??
+                                                            0}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span>
+                                                    Target:{' '}
+                                                    {Object.values(
+                                                        frame.target_unit_sampel ||
+                                                            {},
+                                                    ).reduce(
+                                                        (s, v) => s + Number(v),
+                                                        0,
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     <Button
                                         size="sm"

@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Dipa;
 use App\Models\Kegiatan;
+use App\Models\MasterUnitSampel;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
@@ -3311,24 +3312,45 @@ class SpkController extends Controller
     private function withLampiranContext(array $data): array
     {
         $kegiatan = $data['kegiatan'] ?? null;
-        $peran = (string) ($data['peran'] ?? '');
+        $peran = mb_strtolower((string) ($data['peran'] ?? ''));
 
-        if (! $kegiatan instanceof Kegiatan || ! $this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
+        if (! $kegiatan instanceof Kegiatan) {
             $data['lampiranTemplate'] = 'default';
             $data['lampiranPayload'] = null;
 
             return $data;
         }
 
-        $data['lampiranTemplate'] = 'sensus_ekonomi';
-        $data['lampiranPayload'] = $this->buildSensusEkonomiLampiranPayload(
-            $data['periode'] ?? null,
-            $data['uraianTugas'] ?? [],
-            (float) ($data['totalHonor'] ?? 0),
-            $kegiatan,
-            $data['allAlokasi'] ?? null,
-            $data['alokasi'] ?? null,
-        );
+        if ($this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
+            $data['lampiranTemplate'] = 'sensus_ekonomi';
+            $data['lampiranPayload'] = $this->buildSensusEkonomiLampiranPayload(
+                $data['periode'] ?? null,
+                $data['uraianTugas'] ?? [],
+                (float) ($data['totalHonor'] ?? 0),
+                $kegiatan,
+                $data['allAlokasi'] ?? null,
+                $data['alokasi'] ?? null,
+            );
+
+            return $data;
+        }
+
+        if ($this->isSensusEkonomi2026($kegiatan) && $peran === 'pml') {
+            $data['lampiranTemplate'] = 'pml_sensus_ekonomi';
+            $data['lampiranPayload'] = $this->buildPmlSensusEkonomiLampiranPayload(
+                $data['periode'] ?? null,
+                $data['uraianTugas'] ?? [],
+                (float) ($data['totalHonor'] ?? 0),
+                $kegiatan,
+                $data['allAlokasi'] ?? null,
+                $data['alokasi'] ?? null,
+            );
+
+            return $data;
+        }
+
+        $data['lampiranTemplate'] = 'default';
+        $data['lampiranPayload'] = null;
 
         return $data;
     }
@@ -3337,6 +3359,10 @@ class SpkController extends Controller
     {
         if ($this->usesSensusEkonomiLampiranTemplate($kegiatan, $peran)) {
             return 'spk-lampiran-sensus-ekonomi';
+        }
+
+        if ($this->isSensusEkonomi2026($kegiatan) && mb_strtolower($peran) === 'pml') {
+            return 'spk-lampiran-pml-sensus-ekonomi';
         }
 
         return 'spk-lampiran';
@@ -3468,9 +3494,10 @@ class SpkController extends Controller
 
         $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($allAlokasi, $alokasi);
         $selectedRows = $metrics['selected_rows'];
-        $prelistTotal = $metrics['prelist_total'];
-        $baseVolumeLabel = ($selectedRows > 0 || $prelistTotal > 0)
-            ? $this->formatSensusEkonomiVolumeNarrative($selectedRows, $prelistTotal)
+        $perUnitSampelTotals = $metrics['per_unit_sampel_totals'];
+        $unitSampelNames = $metrics['unit_sampel_names'];
+        $baseVolumeLabel = ($selectedRows > 0 || array_sum($perUnitSampelTotals) > 0)
+            ? $this->formatSensusEkonomiVolumeNarrative($selectedRows, $perUnitSampelTotals, $unitSampelNames)
             : $fallbackVolumeLabel;
 
         $periodeMulai = $periode?->tanggal_mulai;
@@ -3479,16 +3506,18 @@ class SpkController extends Controller
         $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
         $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
 
-        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $prelistTotal, 40);
-        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $prelistTotal, 60);
+        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 40);
+        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 60);
 
         $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative(
             $terminSatuMetrics['selected_rows'],
-            $terminSatuMetrics['prelist_total']
+            $terminSatuMetrics['per_unit_sampel_totals'],
+            $unitSampelNames
         );
         $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative(
             $terminDuaMetrics['selected_rows'],
-            $terminDuaMetrics['prelist_total']
+            $terminDuaMetrics['per_unit_sampel_totals'],
+            $unitSampelNames
         );
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
@@ -3521,30 +3550,178 @@ class SpkController extends Controller
                 'volume' => $totalVolumeLabel,
                 'nilai_perjanjian' => $totalHonor,
             ],
+            'wilayah_kerja' => $alokasi instanceof AlokasiPetugas
+                ? $this->buildWilayahKerjaList($alokasi)
+                : [],
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $uraianTugas
+     * @return array<string, mixed>
+     */
+    private function buildPmlSensusEkonomiLampiranPayload(
+        mixed $periode,
+        array $uraianTugas,
+        float $totalHonor,
+        Kegiatan $kegiatan,
+        mixed $allAlokasi = null,
+        mixed $alokasi = null,
+    ): array {
+        $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($allAlokasi, $alokasi);
+        $selectedRows = $metrics['selected_rows'];
+        $perUnitSampelTotals = $metrics['per_unit_sampel_totals'];
+        $unitSampelNames = $metrics['unit_sampel_names'];
+
+        $periodeMulai = $periode?->tanggal_mulai;
+        $periodeSelesai = $periode?->tanggal_selesai;
+
+        $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
+        $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
+
+        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 40);
+        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 60);
+
+        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative(
+            $terminSatuMetrics['selected_rows'],
+            $terminSatuMetrics['per_unit_sampel_totals'],
+            $unitSampelNames
+        );
+        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative(
+            $terminDuaMetrics['selected_rows'],
+            $terminDuaMetrics['per_unit_sampel_totals'],
+            $unitSampelNames
+        );
+        $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
+
+        $wilayahKerja = $alokasi instanceof AlokasiPetugas
+            ? $this->buildWilayahKerjaList($alokasi)
+            : [];
+
+        return [
+            'groups' => [
+                [
+                    'items' => [
+                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin I',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                    ],
+                    'waktu_penyelesaian' => 'Minimal 1 bulan',
+                    'persentase' => '40%',
+                    'volume' => $terminSatuVolume,
+                    'nilai_perjanjian' => $terminSatuAmount,
+                ],
+                [
+                    'items' => [
+                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin II',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                    ],
+                    'waktu_penyelesaian' => $this->formatLampiranDate($periodeSelesai),
+                    'persentase' => '60%',
+                    'volume' => $terminDuaVolume,
+                    'nilai_perjanjian' => $terminDuaAmount,
+                ],
+            ],
+            'total' => [
+                'waktu_penyelesaian' => $this->formatLampiranDateRange($periodeMulai, $periodeSelesai),
+                'persentase' => '100%',
+                'volume' => $totalVolumeLabel,
+                'nilai_perjanjian' => $totalHonor,
+            ],
+            'wilayah_kerja' => $wilayahKerja,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildWilayahKerjaList(AlokasiPetugas $pmlAlokasi): array
+    {
+        $pmlAlokasi->loadMissing('frameSampelAllocations.kegiatanFrameSampel');
+        $frames = $pmlAlokasi->frameSampelAllocations;
+
+        if ($frames->isEmpty()) {
+            return [];
+        }
+
+        /** @var array<string, array{kdkec:string,kdkec_label:string,kddes:string,kddes_label:string,count:int}> $grouped */
+        $grouped = [];
+
+        foreach ($frames as $frame) {
+            $kfs = $frame->kegiatanFrameSampel;
+
+            if (! $kfs) {
+                continue;
+            }
+
+            $identitas = is_array($kfs->identitas_tambahan) ? $kfs->identitas_tambahan : [];
+            $kdkec = $identitas['kdkec'] ?? $kfs->kode_kecamatan ?? '';
+            $kdkecLabel = $identitas['kdkec_label'] ?? $kdkec;
+            $kddes = $identitas['kddes'] ?? $kfs->kode_desa ?? '';
+            $kddesLabel = $identitas['kddes_label'] ?? $kddes;
+
+            $key = $kdkec.'_'.$kddes;
+
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'kdkec' => $kdkec,
+                    'kdkec_label' => $kdkecLabel,
+                    'kddes' => $kddes,
+                    'kddes_label' => $kddesLabel,
+                    'count' => 0,
+                ];
+            }
+
+            $grouped[$key]['count']++;
+        }
+
+        $result = [];
+        $no = 1;
+
+        foreach ($grouped as $entry) {
+            $result[] = [
+                'no' => $no++,
+                'kecamatan' => '['.$entry['kdkec'].'] '.$entry['kdkec_label'],
+                'desa' => '['.$entry['kddes'].'] '.$entry['kddes_label'],
+                'jumlah_sls' => $entry['count'],
+            ];
+        }
+
+        return $result;
     }
 
     /**
      * @return array{selected_rows:int,prelist_total:int}
      */
-    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, int $prelistTotal, int $percentage): array
+    /**
+     * @param  array<int, int>  $perUnitSampelTotals
+     * @return array{selected_rows: int, per_unit_sampel_totals: array<int, int>}
+     */
+    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, array $perUnitSampelTotals, int $percentage): array
     {
         $selectedRows = max(0, $selectedRows);
-        $prelistTotal = max(0, $prelistTotal);
 
         $terminSatuSelectedRows = (int) round($selectedRows * 0.4, 0, PHP_ROUND_HALF_UP);
-        $terminSatuPrelistTotal = (int) floor($prelistTotal * 0.4);
+
+        $terminSatuPerUnit = [];
+        foreach ($perUnitSampelTotals as $unitId => $total) {
+            $terminSatuPerUnit[$unitId] = (int) floor(max(0, $total) * 0.4);
+        }
 
         if ($percentage === 40) {
             return [
                 'selected_rows' => $terminSatuSelectedRows,
-                'prelist_total' => $terminSatuPrelistTotal,
+                'per_unit_sampel_totals' => $terminSatuPerUnit,
             ];
+        }
+
+        $terminDuaPerUnit = [];
+        foreach ($perUnitSampelTotals as $unitId => $total) {
+            $terminDuaPerUnit[$unitId] = max(0, max(0, $total) - ($terminSatuPerUnit[$unitId] ?? 0));
         }
 
         return [
             'selected_rows' => max(0, $selectedRows - $terminSatuSelectedRows),
-            'prelist_total' => max(0, $prelistTotal - $terminSatuPrelistTotal),
+            'per_unit_sampel_totals' => $terminDuaPerUnit,
         ];
     }
 
@@ -3572,7 +3749,9 @@ class SpkController extends Controller
             ];
         }
 
-        $alokasiCollection->loadMissing('frameSampelAllocations.kegiatanFrameSampel');
+        $alokasiCollection->each(function (AlokasiPetugas $alokasiPetugas): void {
+            $alokasiPetugas->loadMissing('frameSampelAllocations.kegiatanFrameSampel');
+        });
 
         $frameAllocations = $alokasiCollection
             ->flatMap(function (AlokasiPetugas $alokasiPetugas): array {
@@ -3583,22 +3762,43 @@ class SpkController extends Controller
             ->values();
 
         $selectedRows = $frameAllocations->count();
-        $prelistTotal = (int) $frameAllocations->sum(function ($frameAllocation): int {
-            $targetUnitSampel = $frameAllocation?->kegiatanFrameSampel?->target_unit_sampel;
 
-            return max(0, (int) ($targetUnitSampel ?? 0));
-        });
+        $perUnitSampelTotals = [];
+        foreach ($frameAllocations as $frameAllocation) {
+            $targetUnitSampel = $frameAllocation?->kegiatanFrameSampel?->target_unit_sampel;
+            if (is_array($targetUnitSampel)) {
+                foreach ($targetUnitSampel as $unitSampelId => $count) {
+                    $uid = (int) $unitSampelId;
+                    $perUnitSampelTotals[$uid] = ($perUnitSampelTotals[$uid] ?? 0) + max(0, (int) $count);
+                }
+            } elseif (is_numeric($targetUnitSampel) && (int) $targetUnitSampel > 0) {
+                $perUnitSampelTotals[0] = ($perUnitSampelTotals[0] ?? 0) + (int) $targetUnitSampel;
+            }
+        }
+
+        $unitSampelIds = array_values(array_filter(array_keys($perUnitSampelTotals), fn ($id) => $id > 0));
+        $unitSampelNames = ! empty($unitSampelIds)
+            ? MasterUnitSampel::query()->whereIn('id', $unitSampelIds)->pluck('nama', 'id')->toArray()
+            : [];
+
+        $prelistTotal = array_sum($perUnitSampelTotals);
         $totalVolume = $selectedRows + $prelistTotal;
 
         return [
             'selected_rows' => $selectedRows,
             'prelist_total' => $prelistTotal,
+            'per_unit_sampel_totals' => $perUnitSampelTotals,
+            'unit_sampel_names' => $unitSampelNames,
             'total_volume' => $totalVolume,
-            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows, $prelistTotal),
+            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows, $perUnitSampelTotals, $unitSampelNames),
         ];
     }
 
-    private function formatSensusEkonomiVolumeNarrative(int $selectedRows, int $prelistTotal): string
+    /**
+     * @param  array<int, int>  $perUnitSampelTotals
+     * @param  array<int, string>  $unitSampelNames
+     */
+    private function formatSensusEkonomiVolumeNarrative(int $selectedRows, array $perUnitSampelTotals, array $unitSampelNames): string
     {
         $parts = [];
 
@@ -3606,8 +3806,11 @@ class SpkController extends Controller
             $parts[] = number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
         }
 
-        if ($prelistTotal > 0) {
-            $parts[] = number_format($prelistTotal, 0, ',', '.').' usaha/keluarga';
+        foreach ($perUnitSampelTotals as $unitId => $total) {
+            if ($total > 0) {
+                $name = $unitSampelNames[(int) $unitId] ?? 'usaha/keluarga';
+                $parts[] = number_format($total, 0, ',', '.').' '.$name;
+            }
         }
 
         if (empty($parts)) {

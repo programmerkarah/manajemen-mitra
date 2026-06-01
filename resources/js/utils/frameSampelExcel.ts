@@ -12,8 +12,13 @@ export interface FrameSampelMetadataColumnPayload {
     description: string;
 }
 
+export interface FrameSampelUnitSampelOption {
+    id: number;
+    nama: string;
+}
+
 export interface FrameSampelImportPreviewRow {
-    target_unit_sampel: string;
+    target_unit_sampel: Record<string, string>;
     identitas_tambahan: Record<string, string>;
 }
 
@@ -29,9 +34,11 @@ interface FrameSampelImportPreviewResponse {
 
 export const downloadFrameSampelTemplate = async (
     metadata: FrameSampelMetadataColumnPayload[],
+    unitSampelList: FrameSampelUnitSampelOption[] = [],
 ): Promise<void> => {
     const formData = new FormData();
     formData.append('metadata', JSON.stringify(metadata));
+    formData.append('unit_sampel', JSON.stringify(unitSampelList));
 
     const response = await fetch('/kegiatan/frame-sampel/template', {
         method: 'POST',
@@ -62,10 +69,12 @@ export const downloadFrameSampelTemplate = async (
 export const importFrameSampelPreview = async (
     file: File,
     metadata: FrameSampelMetadataColumnPayload[],
+    unitSampelList: FrameSampelUnitSampelOption[] = [],
 ): Promise<FrameSampelImportPreviewResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('metadata', JSON.stringify(metadata));
+    formData.append('unit_sampel', JSON.stringify(unitSampelList));
 
     const response = await fetch('/kegiatan/frame-sampel/import-preview', {
         method: 'POST',

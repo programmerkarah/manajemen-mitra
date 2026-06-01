@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
+use App\Models\MasterUnitSampel;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,6 +30,15 @@ class KegiatanMetodePendataanTest extends TestCase
         return [$user, $role];
     }
 
+    private function makeUnitSampel(): MasterUnitSampel
+    {
+        return MasterUnitSampel::create([
+            'nama' => 'Rumah Tangga',
+            'kode' => 'RT',
+            'is_active' => true,
+        ]);
+    }
+
     public function test_store_kegiatan_requires_metode_pendataan_pencacahan(): void
     {
         [$user, $role] = $this->makeKetuaTim();
@@ -51,6 +61,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_accepts_valid_metode_pendataan(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
@@ -65,6 +76,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'has_listing_updating' => false,
                 'metode_pelatihan' => 'daring',
                 'bulan_pelatihan' => 6,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
             ]);
 
         $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
@@ -77,6 +89,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_accepts_papi_metode_pendataan(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
@@ -91,6 +104,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'has_listing_updating' => false,
                 'metode_pelatihan' => 'luring',
                 'bulan_pelatihan' => 7,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
             ]);
 
         $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
@@ -103,6 +117,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_sensus_forces_no_listing_updating(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
@@ -118,6 +133,7 @@ class KegiatanMetodePendataanTest extends TestCase
                 'metode_pendataan_listing' => 'CAPI',
                 'metode_pelatihan' => 'daring',
                 'bulan_pelatihan' => 9,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
             ]);
 
         $response->assertSessionDoesntHaveErrors('metode_pendataan_listing');
@@ -131,6 +147,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_survei_accepts_listing_capi(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
@@ -147,6 +164,8 @@ class KegiatanMetodePendataanTest extends TestCase
                 'pagu_listing' => 1000000,
                 'metode_pelatihan' => 'hybrid',
                 'bulan_pelatihan' => 8,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+                'unit_sampel_listing_ids' => [$unitSampel->id],
             ]);
 
         $response->assertSessionDoesntHaveErrors(['metode_pendataan_pencacahan', 'metode_pendataan_listing']);
@@ -239,6 +258,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_persists_kegiatan_frame_sampel_rows(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $framePencacahan = MasterFrameSampel::create([
             'nama' => 'Frame Pencacahan A',
@@ -267,10 +287,12 @@ class KegiatanMetodePendataanTest extends TestCase
                 'bulan_pelatihan' => 6,
                 'frame_sampel_pencacahan_id' => $framePencacahan->id,
                 'frame_sampel_listing_id' => $frameListing->id,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+                'unit_sampel_listing_ids' => [$unitSampel->id],
                 'kegiatan_frame_sampel' => [
                     [
                         'tahapan' => 'pencacahan',
-                        'target_unit_sampel' => 120,
+                        'target_unit_sampel' => [$unitSampel->id => 120],
                         'identitas_tambahan' => [
                             'kdkec' => '010',
                             'kddes' => '002',
@@ -280,7 +302,7 @@ class KegiatanMetodePendataanTest extends TestCase
                     ],
                     [
                         'tahapan' => 'listing',
-                        'target_unit_sampel' => 80,
+                        'target_unit_sampel' => [$unitSampel->id => 80],
                         'identitas_tambahan' => [
                             'kdkec' => '020',
                             'kddes' => '001',
@@ -297,7 +319,7 @@ class KegiatanMetodePendataanTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'frame_sampel_id' => $framePencacahan->id,
             'tahapan' => 'pencacahan',
-            'target_unit_sampel' => 120,
+            'target_unit_sampel->'.$unitSampel->id => 120,
             'kode_kecamatan' => '010',
             'kode_desa' => '002',
             'kode_sls' => '001',
@@ -307,7 +329,7 @@ class KegiatanMetodePendataanTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'frame_sampel_id' => $frameListing->id,
             'tahapan' => 'listing',
-            'target_unit_sampel' => 80,
+            'target_unit_sampel->'.$unitSampel->id => 80,
         ]);
 
         $savedPencacahan = KegiatanFrameSampel::query()
@@ -322,6 +344,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_store_kegiatan_rejects_frame_rows_when_master_frame_tahapan_missing(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $response = $this->actingAs($user)
             ->withSession(['active_role_id' => $role->id])
@@ -337,10 +360,11 @@ class KegiatanMetodePendataanTest extends TestCase
                 'has_listing_updating' => false,
                 'metode_pelatihan' => 'daring',
                 'bulan_pelatihan' => 6,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
                 'kegiatan_frame_sampel' => [
                     [
                         'tahapan' => 'pencacahan',
-                        'target_unit_sampel' => 15,
+                        'target_unit_sampel' => [$unitSampel->id => 15],
                         'identitas_tambahan' => [
                             'kdkec' => '010',
                             'kddes' => '002',
@@ -406,7 +430,7 @@ class KegiatanMetodePendataanTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('summary.valid_rows', 1);
         $response->assertJsonPath('summary.error_count', 0);
-        $response->assertJsonPath('rows.0.target_unit_sampel', '12');
+        $response->assertJsonPath('rows.0.target_unit_sampel.0', '12');
         $response->assertJsonPath('rows.0.identitas_tambahan.kdkec', '010');
         $response->assertJsonPath('rows.0.identitas_tambahan.kdkec_label', 'Kec. Test');
     }
@@ -444,6 +468,7 @@ class KegiatanMetodePendataanTest extends TestCase
     public function test_update_kegiatan_replaces_kegiatan_frame_sampel_rows(): void
     {
         [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
 
         $framePencacahan = MasterFrameSampel::create([
             'nama' => 'Frame Pencacahan B',
@@ -476,7 +501,7 @@ class KegiatanMetodePendataanTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'frame_sampel_id' => $framePencacahan->id,
             'tahapan' => 'pencacahan',
-            'target_unit_sampel' => 50,
+            'target_unit_sampel' => [$unitSampel->id => 50],
         ]);
 
         $response = $this->actingAs($user)
@@ -497,10 +522,12 @@ class KegiatanMetodePendataanTest extends TestCase
                 'bulan_pelatihan' => 6,
                 'frame_sampel_pencacahan_id' => $framePencacahan->id,
                 'frame_sampel_listing_id' => $frameListing->id,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+                'unit_sampel_listing_ids' => [$unitSampel->id],
                 'kegiatan_frame_sampel' => [
                     [
                         'tahapan' => 'pencacahan',
-                        'target_unit_sampel' => 130,
+                        'target_unit_sampel' => [$unitSampel->id => 130],
                         'identitas_tambahan' => [
                             'kdkec' => '030',
                             'kddes' => '002',
@@ -509,7 +536,7 @@ class KegiatanMetodePendataanTest extends TestCase
                     ],
                     [
                         'tahapan' => 'listing',
-                        'target_unit_sampel' => 70,
+                        'target_unit_sampel' => [$unitSampel->id => 70],
                         'identitas_tambahan' => [
                             'kdkec' => '040',
                             'kddes' => '008',
@@ -523,13 +550,13 @@ class KegiatanMetodePendataanTest extends TestCase
         $this->assertDatabaseMissing('kegiatan_frame_sampel', [
             'kegiatan_id' => $kegiatan->id,
             'tahapan' => 'pencacahan',
-            'target_unit_sampel' => 50,
+            'target_unit_sampel->'.$unitSampel->id => 50,
         ]);
         $this->assertDatabaseHas('kegiatan_frame_sampel', [
             'kegiatan_id' => $kegiatan->id,
             'frame_sampel_id' => $framePencacahan->id,
             'tahapan' => 'pencacahan',
-            'target_unit_sampel' => 130,
+            'target_unit_sampel->'.$unitSampel->id => 130,
             'kode_kecamatan' => '030',
             'kode_desa' => '002',
             'kode_sls' => '009',
@@ -538,7 +565,7 @@ class KegiatanMetodePendataanTest extends TestCase
             'kegiatan_id' => $kegiatan->id,
             'frame_sampel_id' => $frameListing->id,
             'tahapan' => 'listing',
-            'target_unit_sampel' => 70,
+            'target_unit_sampel->'.$unitSampel->id => 70,
         ]);
 
         $savedListing = KegiatanFrameSampel::query()

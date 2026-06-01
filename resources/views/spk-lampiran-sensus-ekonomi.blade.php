@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 1.5cm 2cm;
+            margin: 1cm 1.5cm;
         }
 
         @font-face {
@@ -33,31 +33,31 @@
 
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
-            font-size: 11pt;
-            line-height: 1.4;
+            font-size: 10pt;
+            line-height: 1.2;
             color: #000;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 18px;
+            margin-bottom: 8px;
         }
 
         .header-title {
-            font-size: 10.5pt;
-            line-height: 1.25;
+            font-size: 10pt;
+            line-height: 1.2;
         }
 
         .section-title {
-            margin: 14px 0 10px;
-            font-size: 11pt;
+            margin: 6px 0 4px;
+            font-size: 10pt;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 10pt;
+            font-size: 9pt;
         }
 
         thead {
@@ -81,7 +81,7 @@
         th,
         td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 3px 5px;
             vertical-align: top;
         }
 
@@ -103,8 +103,8 @@
             overflow-wrap: normal;
             word-break: normal;
             hyphens: none;
-            line-height: 1.35;
-            font-size: 9.5pt;
+            line-height: 1.2;
+            font-size: 9pt;
         }
 
         td.right {
@@ -115,20 +115,6 @@
         .money-cell {
             white-space: nowrap;
         }
-
-        .nilai-column {
-            width: 14%;
-        }
-
-        .volume-column {
-            width: 24%;
-        }
-
-        table.summary-table {
-            margin-top: 0;
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
     </style>
 </head>
 <body>
@@ -136,7 +122,7 @@
 
     <div class="header">
         <div class="header-title">
-            Lampiran<br>
+            LAMPIRAN<br>
             PERJANJIAN KERJA PETUGAS LAPANGAN<br>
             SENSUS EKONOMI 2026<br>
             PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
@@ -150,13 +136,20 @@
 
     <table>
         <colgroup>
-            <col style="width: 38%;">
-            <col style="width: 17%;">
-            <col style="width: 7%;">
-            <col class="volume-column">
-            <col class="nilai-column">
+            <col style="width: 40%;">
+            <col style="width: 15%;">
+            <col style="width: 9%;">
+            <col style="width: 20%;">
+            <col style="width: 16%;">
         </colgroup>
         <thead>
+            <tr style="height: 0; line-height: 0; font-size: 0;">
+                <td style="width: 40%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 15%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 9%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 20%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 16%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+            </tr>
             <tr>
                 <th rowspan="2">Uraian Pekerjaan</th>
                 <th rowspan="2">Waktu Penyelesaian</th>
@@ -168,57 +161,30 @@
                 <th>Volume</th>
             </tr>
             <tr>
-                <th>(1)</th>
-                <th>(2)</th>
-                <th>(3)</th>
-                <th>(4)</th>
-                <th>(5)</th>
+                <th style="width: 40%;">(1)</th>
+                <th style="width: 15%;">(2)</th>
+                <th style="width: 9%;">(3)</th>
+                <th style="width: 20%;">(4)</th>
+                <th style="width: 16%;">(5)</th>
             </tr>
         </thead>
         @foreach(($specialLampiran['groups'] ?? []) as $group)
+        @php($groupItems = $group['items'] ?? [])
+        @php($groupCount = count($groupItems))
         <tbody class="keep-together">
-                @foreach(($group['items'] ?? []) as $index => $item)
-                <tr>
-                    <td class="left">{{ $index + 1 }}. {{ $item }}</td>
-                    @if($index === 0)
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="center">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="center">{{ $group['persentase'] ?? '-' }}</td>
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="left volume-cell">{{ $group['volume'] ?? '-' }}</td>
-                    <td rowspan="{{ count($group['items'] ?? []) }}" class="right money-cell">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
-                    @endif
-                </tr>
-                @endforeach
+            @foreach($groupItems as $index => $item)
+            <tr class="keep-together-row">
+                <td class="left">{{ $index + 1 }}. {{ $item }}</td>
+                @if($index === 0)
+                <td class="center" rowspan="{{ $groupCount }}">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
+                <td class="center" rowspan="{{ $groupCount }}">{{ $group['persentase'] ?? '-' }}</td>
+                <td class="left volume-cell" rowspan="{{ $groupCount }}">{{ $group['volume'] ?? '-' }}</td>
+                <td class="right money-cell" rowspan="{{ $groupCount }}">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
+                @endif
+            </tr>
+            @endforeach
         </tbody>
         @endforeach
-    </table>
-
-    <table class="summary-table">
-        <colgroup>
-            <col style="width: 38%;">
-            <col style="width: 17%;">
-            <col style="width: 7%;">
-            <col class="volume-column">
-            <col class="nilai-column">
-        </colgroup>
-        <thead>
-            <tr>
-                <th rowspan="2">Uraian Pekerjaan</th>
-                <th rowspan="2">Waktu Penyelesaian</th>
-                <th colspan="2">Target Pekerjaan</th>
-                <th rowspan="2">Nilai Perjanjian</th>
-            </tr>
-            <tr>
-                <th>Persentase</th>
-                <th>Volume</th>
-            </tr>
-            <tr>
-                <th>(1)</th>
-                <th>(2)</th>
-                <th>(3)</th>
-                <th>(4)</th>
-                <th>(5)</th>
-            </tr>
-        </thead>
         <tbody class="keep-together">
             <tr class="keep-together-row">
                 <td class="left">Total</td>
@@ -232,5 +198,62 @@
             </tr>
         </tbody>
     </table>
+
+    @if(!empty($specialLampiran['wilayah_kerja']))
+    <div style="page-break-before: always; break-before: page;">
+        <div class="header">
+            <div class="header-title">
+                LAMPIRAN<br>
+                PERJANJIAN KERJA PETUGAS LAPANGAN<br>
+                SENSUS EKONOMI 2026<br>
+                PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
+                NOMOR: {{ $nomorSpk }}
+            </div>
+        </div>
+
+        <div class="section-title">
+            II. DAFTAR WILAYAH KERJA
+        </div>
+
+        <table>
+            <colgroup>
+                <col style="width: 6%;">
+                <col style="width: 35%;">
+                <col style="width: 40%;">
+                <col style="width: 19%;">
+            </colgroup>
+            <thead>
+                <tr style="height: 0; line-height: 0; font-size: 0;">
+                    <td style="width: 6%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 35%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 40%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 19%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                </tr>
+                <tr>
+                    <th>No</th>
+                    <th>Kecamatan</th>
+                    <th>Desa/Kelurahan</th>
+                    <th>Jumlah SLS/Sub-SLS</th>
+                </tr>
+                <tr>
+                    <th>(1)</th>
+                    <th>(2)</th>
+                    <th>(3)</th>
+                    <th>(4)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(($specialLampiran['wilayah_kerja'] ?? []) as $wilayah)
+                <tr>
+                    <td class="center">{{ $wilayah['no'] }}</td>
+                    <td class="left">{{ $wilayah['kecamatan'] }}</td>
+                    <td class="left">{{ $wilayah['desa'] }}</td>
+                    <td class="center">{{ $wilayah['jumlah_sls'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
 </body>
 </html>

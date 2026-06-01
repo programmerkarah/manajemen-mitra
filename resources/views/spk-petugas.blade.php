@@ -211,6 +211,45 @@
         .signature-name {
             font-weight: bold;
         }
+
+        table.sensus-lampiran-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 10pt;
+        }
+
+        table.sensus-lampiran-table col.col-uraian {
+            width: 66%;
+        }
+
+        table.sensus-lampiran-table col.col-waktu {
+            width: 11%;
+        }
+
+        table.sensus-lampiran-table col.col-persentase {
+            width: 5%;
+        }
+
+        table.sensus-lampiran-table col.col-volume {
+            width: 11%;
+        }
+
+        table.sensus-lampiran-table col.col-nilai {
+            width: 7%;
+        }
+
+        table.sensus-lampiran-table td.volume-cell {
+            overflow-wrap: normal;
+            word-break: normal;
+            hyphens: none;
+            line-height: 1.35;
+            font-size: 9.5pt;
+        }
+
+        table.sensus-lampiran-table td.money-cell {
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -253,7 +292,9 @@
         @endphp
         <h3>PERJANJIAN KERJA</h3>
         <h3>{{ $judulSpk }}</h3>
+        @if($jenisKegiatan !== 'sensus')
         <h3>BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br> BULAN {{strtoupper(bulanIndonesia($periode->bulan))}} TAHUN {{ $periode->tahun }}</h3>
+        @endif
         <h3>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</h3>
         <div style="font-weight: bold; text-align: center; margin-top: 5px;">NOMOR: {{ $nomorSpk }}</div>
     </div>
@@ -277,13 +318,17 @@
             <div class="party-name"><strong>{{ strtoupper($petugas->nama) }}</strong></div>
             <div class="party-colon">:</div>
             <div class="party-detail">
+                @if($jenisKegiatan === 'sensus')
+                {{ ucwords($judulSpkText) }}, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA.</strong>
+                @else
                 Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA.</strong>
+                @endif
             </div>
         </div>
     </div>
 
     <div class="content">
-        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
+        bahwa <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> yang secara bersama-sama disebut <strong>PARA PIHAK</strong>, sepakat untuk mengikatkan diri dalam Perjanjian Kerja {{ ucwords($judulSpkText) }} @if($jenisKegiatan !== 'sensus')Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada @endif Badan Pusat Statistik Kota Sawahlunto Nomor: {{ $nomorSpk }}, yang selanjutnya disebut Perjanjian, dengan ketentuan-ketentuan sebagai berikut:
     </div>
 
     <!-- Pasal 1 -->
@@ -291,7 +336,7 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 1</div>
             <div class="pasal-content">
-                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                <strong>PIHAK PERTAMA</strong> memberikan pekerjaan kepada <strong>PIHAK KEDUA</strong> dan <strong>PIHAK KEDUA</strong> menerima pekerjaan dari <strong>PIHAK PERTAMA</strong> sebagai {{ ucwords($judulSpkText) }} @if($jenisKegiatan !== 'sensus')Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada @endif Badan Pusat Statistik Kota Sawahlunto, dengan lingkup pekerjaan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
             </div>
         </div>
     </div>
@@ -301,7 +346,11 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 2</div>
             <div class="pasal-content">
+                @if($jenisKegiatan === 'sensus')
+                Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, Buku Pedoman Teknis Sensus Ekonomi 2026, dan ketentuan-ketentuan lainnya yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                @else
                 Ruang lingkup pekerjaan dalam Perjanjian ini mengacu pada wilayah kerja dan beban kerja sebagaimana tertuang dalam lampiran Perjanjian, pedoman {{ ucwords($judulSpkText) }} Badan Pusat Statistik Kota Sawahlunto Bulan {{bulanIndonesia($periode->bulan)}} Tahun {{ $periode->tahun }} pada Badan Pusat Statistik Kota Sawahlunto, dan ketentuan-ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                @endif
             </div>
         </div>
     </div>
@@ -324,7 +373,11 @@
                 <div class="pasal-item">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
+                        @if($jenisKegiatan === 'sensus')
+                        <strong>PIHAK KEDUA</strong> berkewajiban menyelesaikan pekerjaan yang diberikan oleh <strong>PIHAK PERTAMA</strong> sesuai ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2.
+                        @else
                         <strong>PIHAK KEDUA</strong> berkewajiban melaksanakan pekerjaan yang diberikan oleh <strong>PIHAK PERTAMA</strong> sesuai ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, dengan menerapkan protokol kesehatan yang berlaku di wilayah kerja masing-masing merujuk pada ketentuan pemerintah.
+                        @endif
                     </div>
                 </div>
             </div>
@@ -359,6 +412,14 @@
                     <strong>PIHAK KEDUA</strong> dilarang memberikan dokumen/data/aset milik <strong>PIHAK PERTAMA</strong> yang berada dalam penguasaan <strong>PIHAK KEDUA</strong>, baik secara langsung maupun tidak langsung, termasuk memberikan akses kepada pihak lain untuk menggunakan, menyalin, memfotokopi, menunjukkan, dan/atau mendokumentasikan dalam bentuk foto atau bentuk apapun, sehingga informasi diketahui oleh pihak lain untuk tujuan apapun.
                 </div>
             </div>
+            @if($jenisKegiatan === 'sensus')
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> dilarang meminta dan/atau menerima imbalan dalam bentuk apapun dari pihak lain untuk kepentingan pribadi ataupun kepentingan lain yang tidak berkaitan dengan tujuan perjanjian ini.
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 
@@ -376,6 +437,14 @@
             </div>
         </div>
         <div class="pasal-remaining-items">
+            @if($jenisKegiatan === 'sensus')
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Selain honorarium sebagaimana dimaksud pada ayat (1), <strong>PIHAK KEDUA</strong> dapat diberikan paket data dan komunikasi selama pelaksanaan pekerjaan sesuai dengan ketentuan yang ditetapkan <strong>PIHAK PERTAMA.</strong>
+                </div>
+            </div>
+            @else
             <div class="pasal-item">
                 <div class="pasal-item-number">(2)</div>
                 <div class="pasal-item-content">
@@ -403,8 +472,241 @@
                 </div>
             </div>
             @endif
+            @endif
         </div>
     </div>
+
+    @if($jenisKegiatan === 'sensus')
+
+    <!-- Pasal 7 - Sensus: Asuransi JKK/JKM -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 7</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        <strong>PIHAK KEDUA</strong> berhak untuk mendapatkan asuransi berupa program perlindungan jaminan kecelakaan kerja (JKK) dan jaminan kematian (JKM) dari <strong>PIHAK PERTAMA</strong> untuk jangka waktu pelaksanaan pendataan pada bulan Juni sampai dengan Agustus 2026.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Asuransi sebagaimana dimaksud pada ayat (1) tidak termasuk dalam honorarium sebagaimana dimaksud dalam Pasal 6.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 8 - Sensus: Pembayaran -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 8</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA.</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Pembayaran sebagaimana dimaksud pada ayat (1) dilakukan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> sesuai dengan ketentuan peraturan perundang-undangan.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Pembayaran honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> dalam 2 (dua) termin yang terdiri atas:
+                    <div class="sub-item">
+                        <div class="sub-item-letter">a.</div>
+                        <div class="sub-item-content">
+                            termin I dibayarkan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan minimal 40% dari seluruh pekerjaan yang ditargetkan dan telah memenuhi minimal 1 bulan pendataan sebagaimana tercantum dalam Berita Acara Pemeriksaan Pekerjaan termin I.
+                        </div>
+                    </div>
+                    <div class="sub-item">
+                        <div class="sub-item-letter">b.</div>
+                        <div class="sub-item-content">
+                            termin II dibayarkan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan seluruh pekerjaan yang ditargetkan sebagaimana tercantum dalam Lampiran Perjanjian, dituangkan dalam Berita Acara Serah Terima Hasil Pekerjaan, dan diserahkan paling lambat tanggal 15 September 2026.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(4)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> tidak diberikan honorarium tambahan apabila melakukan kunjungan di luar jadwal dan/atau terdapat tambahan waktu pelaksanaan pekerjaan di luar jangka waktu Perjanjian sebagaimana dimaksud dalam Pasal 3.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 9 - Sensus: Pemeriksaan dan Evaluasi -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 9</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        <strong>PIHAK PERTAMA</strong> secara berjenjang melalui Ketua tim pelaksana Sensus Ekonomi 2026 di BPS Kota Sawahlunto melakukan pemeriksaan dan evaluasi atas target penyelesaian pekerjaan dan kualitas hasil pekerjaan yang dilaksanakan oleh <strong>PIHAK KEDUA</strong> secara berkala yang dituangkan dalam Berita Acara Pemeriksaan Pekerjaan.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Hasil pemeriksaan dan evaluasi sebagaimana dimaksud pada ayat (1) menjadi dasar pembayaran honorarium <strong>PIHAK KEDUA</strong> oleh <strong>PIHAK PERTAMA</strong> sebagaimana dimaksud dalam Pasal 8 ayat (3), yang dituangkan dalam Berita Acara Serah Terima Hasil Pekerjaan yang ditandatangani oleh <strong>PARA PIHAK.</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 10 - Sensus: Pemutusan -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 10</div>
+            <div class="pasal-content">
+                <strong>PIHAK PERTAMA</strong> dapat memutuskan Perjanjian ini secara sepihak sewaktu-waktu dalam hal <strong>PIHAK KEDUA</strong> tidak dapat melaksanakan kewajibannya sebagaimana dimaksud dalam Pasal 4, dengan menerbitkan Surat Pemutusan Perjanjian Kerja.
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 11 - Sensus: Sanksi -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 11</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dalam pelaksanaan ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
+                        <div class="sub-item">
+                            <div class="sub-item-letter">a.</div>
+                            <div class="sub-item-content">
+                                mengundurkan diri setelah pelatihan dan tidak melaksanakan pekerjaan diberikan sanksi sebesar Rp 1.709.000 (satu juta tujuh ratus sembilan ribu rupiah);
+                            </div>
+                        </div>
+                        <div class="sub-item">
+                            <div class="sub-item-letter">b.</div>
+                            <div class="sub-item-content">
+                                mengundurkan diri pada saat pelaksanaan pekerjaan, diberikan sanksi tidak diberikan honorarium atas pekerjaan yang telah dilaksanakan.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Dikecualikan tidak dikenakan sanksi sebagaimana dimaksud pada ayat (1) oleh <strong>PIHAK PERTAMA</strong>, apabila <strong>PIHAK KEDUA</strong> meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, dan/atau telah diberikan Surat Pemutusan Perjanjian Kerja dari <strong>PIHAK PERTAMA.</strong>
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    <strong>PIHAK KEDUA</strong> yang mengundurkan diri sebagaimana dimaksud pada ayat (1) dan/atau meninggal dunia, mengundurkan diri karena sakit dengan keterangan rawat inap, kecelakaan dengan keterangan kepolisian, telah diberikan Surat Pemutusan Perjanjian Kerja sebagaimana dimaksud pada ayat (2) wajib mengembalikan perlengkapan yang diberikan oleh <strong>PIHAK PERTAMA.</strong>
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(4)</div>
+                <div class="pasal-item-content">
+                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (2), <strong>PIHAK PERTAMA</strong> membayarkan honorarium kepada <strong>PIHAK KEDUA</strong> secara proporsional sesuai pekerjaan yang telah dilaksanakan.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 12 - Sensus: Keadaan Kahar -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 12</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        Apabila terjadi Keadaan Kahar, yang meliputi bencana alam, bencana nonalam, dan bencana sosial, <strong>PIHAK KEDUA</strong> memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 14 (empat belas) hari sejak mengetahui atas kejadian Keadaan Kahar dengan menyertakan bukti.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    @if(isset($peran) && $peran === 'pml')
+                    Apabila terjadi kerusakan perangkat pencacahan yang menyebabkan pelaksanaan Pemeriksaan Lapangan Sensus Ekonomi 2026 tidak dapat dilakukan, <strong>PIHAK KEDUA</strong> memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 7 (tujuh) hari kalender sejak terjadi kerusakan dimaksud.
+                    @else
+                    Apabila terjadi kerusakan perangkat pencacahan yang menyebabkan pelaksanaan Pendataan Lapangan Sensus Ekonomi 2026 tidak dapat dilakukan, <strong>PIHAK KEDUA</strong> melalui Petugas Pemeriksa Lapangan memberitahukan kepada <strong>PIHAK PERTAMA</strong> dalam waktu paling lambat 7 (tujuh) hari kalender sejak terjadi kerusakan dimaksud.
+                    @endif
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Dalam hal terjadi peristiwa sebagaimana dimaksud pada ayat (1) dan/atau ayat (2), pelaksanaan pekerjaan oleh <strong>PIHAK KEDUA</strong> dihentikan sementara dan dilanjutkan kembali setelah Keadaan Kahar berakhir, merujuk pada ketentuan yang ditetapkan oleh <strong>PIHAK PERTAMA.</strong>
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(4)</div>
+                <div class="pasal-item-content">
+                    Apabila akibat Keadaan Kahar tidak memungkinkan dilanjutkan/diselesaikannya pelaksanaan pekerjaan, <strong>PIHAK KEDUA</strong> berhak menerima honorarium secara proporsional sesuai pekerjaan yang telah diselesaikan dan diterima oleh <strong>PIHAK PERTAMA.</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 13 - Sensus: Addendum -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 13</div>
+            <div class="pasal-content">
+                Hal-hal yang belum diatur dalam Perjanjian ini atau segala perubahan terhadap Perjanjian ini diatur lebih lanjut oleh <strong>PARA PIHAK</strong> dalam perjanjian tambahan/adendum dan merupakan bagian tidak terpisahkan dari Perjanjian ini.
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasal 14 - Sensus: Perselisihan -->
+    <div class="pasal">
+        <div class="pasal-header-group">
+            <div class="pasal-title">Pasal 14</div>
+            <div class="pasal-list">
+                <div class="pasal-item">
+                    <div class="pasal-item-number">(1)</div>
+                    <div class="pasal-item-content">
+                        Segala perselisihan atau perbedaan pendapat yang mungkin timbul sebagai akibat dari Perjanjian ini, diselesaikan secara musyawarah untuk mufakat oleh <strong>PARA PIHAK.</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="pasal-remaining-items">
+            <div class="pasal-item">
+                <div class="pasal-item-number">(2)</div>
+                <div class="pasal-item-content">
+                    Apabila musyawarah untuk mufakat sebagaimana dimaksud pada ayat (1) tidak berhasil, maka <strong>PARA PIHAK</strong> sepakat untuk menyelesaikan perselisihan dengan memilih kedudukan/domisili hukum di Kepaniteraan Pengadilan Negeri Sawahlunto.
+                </div>
+            </div>
+            <div class="pasal-item">
+                <div class="pasal-item-number">(3)</div>
+                <div class="pasal-item-content">
+                    Selama perselisihan dalam proses penyelesaian pengadilan, <strong>PIHAK PERTAMA</strong> dan <strong>PIHAK KEDUA</strong> wajib tetap melaksanakan kewajiban masing-masing berdasarkan Perjanjian ini.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @else
 
     <!-- Pasal 7 -->
     <div class="pasal">
@@ -594,6 +896,8 @@
         </div>
     </div>
 
+    @endif
+
     <div style="page-break-inside: avoid;">
         <div class="content">
             Demikian Perjanjian ini dibuat dan ditandatangani oleh <strong>PARA PIHAK</strong> dalam 2 (dua) rangkap asli bermeterai cukup, tanpa paksaan dari <strong>PIHAK</strong> manapun dan untuk dilaksanakan oleh <strong>PARA PIHAK.</strong>
@@ -625,7 +929,7 @@
         @php($specialLampiran = $lampiranPayload ?? [])
         <div class="lampiran-header" style="margin-bottom: 12px;">
             <div class="lampiran-title" style="margin-left: 0; text-align: center; line-height: 1.3;">
-                Lampiran<br>
+                LAMPIRAN<br>
                 PERJANJIAN KERJA PETUGAS LAPANGAN<br>
                 SENSUS EKONOMI 2026<br>
                 PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO<br>
@@ -637,7 +941,14 @@
             DAFTAR URAIAN PEKERJAAN, WAKTU PENYELESAIAN, TARGET PEKERJAAN DAN NILAI PERJANJIAN
         </div>
 
-        <table>
+        <table class="sensus-lampiran-table">
+            <colgroup>
+                <col class="col-uraian">
+                <col class="col-waktu">
+                <col class="col-persentase">
+                <col class="col-volume">
+                <col class="col-nilai">
+            </colgroup>
             <thead>
                 <tr>
                     <th rowspan="2">Uraian Pekerjaan</th>
@@ -650,37 +961,33 @@
                     <th>Volume</th>
                 </tr>
                 <tr>
-                    <th>(1)</th>
-                    <th>(2)</th>
-                    <th>(3)</th>
-                    <th>(4)</th>
-                    <th>(5)</th>
+                    <th style="width: 66%;">(1)</th>
+                    <th style="width: 11%;">(2)</th>
+                    <th style="width: 5%;">(3)</th>
+                    <th style="width: 11%;">(4)</th>
+                    <th style="width: 7%;">(5)</th>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach(($specialLampiran['groups'] ?? []) as $group)
-                    @foreach(($group['items'] ?? []) as $index => $item)
                     <tr>
-                        <td class="left">{{ $index + 1 }}. {{ $item }}</td>
-                        @if($index === 0)
-                        <td rowspan="{{ count($group['items'] ?? []) }}">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
-                        <td rowspan="{{ count($group['items'] ?? []) }}">{{ $group['persentase'] ?? '-' }}</td>
-                        <td rowspan="{{ count($group['items'] ?? []) }}" class="left">{{ $group['volume'] ?? '-' }}</td>
-                        <td rowspan="{{ count($group['items'] ?? []) }}" class="right">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
-                        @endif
+                        <td class="left">
+                            @foreach(($group['items'] ?? []) as $index => $item)
+                                {{ $index + 1 }}. {{ $item }}@if($index < count($group['items'] ?? []) - 1)<br>@endif
+                            @endforeach
+                        </td>
+                        <td>{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
+                        <td>{{ $group['persentase'] ?? '-' }}</td>
+                        <td class="left volume-cell">{{ $group['volume'] ?? '-' }}</td>
+                        <td class="right money-cell">Rp {{ number_format((float) ($group['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
                     </tr>
-                    @endforeach
                 @endforeach
                 <tr>
                     <td class="left">Total</td>
                     <td>{{ $specialLampiran['total']['waktu_penyelesaian'] ?? '-' }}</td>
-                    <td>{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
-                    <td class="left">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
-                    <td class="right">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }}, 00</td>
+                    <td rowspan="2">{{ $specialLampiran['total']['persentase'] ?? '-' }}</td>
+                    <td rowspan="2" class="left volume-cell">{{ $specialLampiran['total']['volume'] ?? '-' }}</td>
+                    <td rowspan="2" class="right money-cell">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
                 </tr>
                 <tr>
                     <td colspan="2" class="table-footer"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
-                    <td colspan="3"></td>
                 </tr>
             </tbody>
         </table>

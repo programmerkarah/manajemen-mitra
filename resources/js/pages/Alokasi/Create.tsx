@@ -67,7 +67,7 @@ interface Kegiatan {
         tahapan: 'listing' | 'pencacahan';
         nama_frame?: string | null;
         identitas_tambahan?: Record<string, string | number | null> | null;
-        target_unit_sampel: number;
+        target_unit_sampel: Record<string, number>;
     }>;
 }
 
@@ -805,7 +805,12 @@ export default function Create({
             new Map(
                 allFrameSampelOptions.map((frameSampel) => [
                     String(frameSampel.id),
-                    Number(frameSampel.target_unit_sampel) || 0,
+                    Object.values(
+                        (frameSampel.target_unit_sampel as Record<
+                            string,
+                            number
+                        >) || {},
+                    ).reduce((s, v) => s + Number(v), 0),
                 ]),
             ),
         [allFrameSampelOptions],
@@ -5428,9 +5433,15 @@ export default function Create({
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">
                                                         Target Unit Sampel:
                                                     </span>{' '}
-                                                    {
-                                                        frameSampel.target_unit_sampel
-                                                    }
+                                                    {Object.values(
+                                                        (frameSampel.target_unit_sampel as Record<
+                                                            string,
+                                                            number
+                                                        >) || {},
+                                                    ).reduce(
+                                                        (s, v) => s + Number(v),
+                                                        0,
+                                                    )}
                                                 </div>
                                             </div>
                                             {buildFrameMetadataDetails(

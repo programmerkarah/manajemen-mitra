@@ -484,7 +484,7 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $maxUnitSampel = (int) $frameIds->sum(fn ($frameId) => (int) ($frameById->get($frameId)?->target_unit_sampel ?? 0));
+            $maxUnitSampel = (int) $frameIds->sum(fn ($frameId) => array_sum((array) ($frameById->get($frameId)?->target_unit_sampel ?? [])));
             if ($jumlahUnitSampel > $maxUnitSampel) {
                 $errors[] = "Baris #{$rowNumber}: jumlah unit sampel ({$jumlahUnitSampel}) melebihi kumulatif target frame terpilih ({$maxUnitSampel}).";
             }
@@ -3998,7 +3998,7 @@ class AlokasiPetugasController extends Controller
                 }
 
                 $validFrameSampelIds[] = (int) $matchedFrameSampel->id;
-                $jumlahUnitSampel = max(0, (int) ($matchedFrameSampel->target_unit_sampel ?? 0));
+                $jumlahUnitSampel = max(0, array_sum((array) ($matchedFrameSampel->target_unit_sampel ?? [])));
             }
 
             if ($requiresFrameSampelInput && $kegiatan->jenis_kegiatan === 'survei') {

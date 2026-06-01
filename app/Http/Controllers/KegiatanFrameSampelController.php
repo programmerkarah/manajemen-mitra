@@ -6,6 +6,7 @@ use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +21,30 @@ class KegiatanFrameSampelController extends Controller
         }
     }
 
+    public function overview(): Response
+    {
+        $effectiveUser = effectiveUser(request());
+
+        $query = Kegiatan::query()
+            ->withCount('kegiatanFrameSampel');
+
+        if ($effectiveUser->hasActiveRole('ketua_tim') && ! $effectiveUser->hasActiveRole('admin')) {
+            $query->where(function ($q) use ($effectiveUser): void {
+                $q->where('ketua_tim_user_id', $effectiveUser->id)
+                    ->orWhere('pj_lainnya_id', $effectiveUser->id);
+            });
+        }
+
+        $kegiatans = $query->latest()->get([
+            'id', 'hashed_id', 'nama_kegiatan', 'kode_kegiatan', 'tahun_anggaran',
+            'ketua_tim_user_id', 'pj_lainnya_id',
+        ]);
+
+        return Inertia::render('FrameSampel/Index', [
+            'kegiatans' => $kegiatans,
+        ]);
+    }
+
     public function index(Kegiatan $kegiatan): Response
     {
         $this->authorizeKegiatanAccess($kegiatan);
@@ -27,14 +52,14 @@ class KegiatanFrameSampelController extends Controller
         $kegiatan->load([
             'frameSampelListing:id,nama,kode',
             'frameSampelPencacahan:id,nama,kode',
-            'unitSampelListing:id,nama,kode',
-            'unitSampelPencacahan:id,nama,kode',
             'kegiatanFrameSampel.frameSampel:id,nama,kode',
         ]);
 
         return Inertia::render('Kegiatan/FrameSampel', [
             'kegiatan' => $kegiatan,
             'frames' => $kegiatan->kegiatanFrameSampel,
+            'unitSampelPencacahanItems' => $kegiatan->unitSampelPencacahanItems(),
+            'unitSampelListingItems' => $kegiatan->unitSampelListingItems(),
         ]);
     }
 
@@ -50,8 +75,15 @@ class KegiatanFrameSampelController extends Controller
             'kode_sls' => ['nullable', 'string', 'max:20'],
             'kode_sub_sls' => ['nullable', 'string', 'max:20'],
             'kode_segmen' => ['nullable', 'string', 'max:20'],
-            'target_unit_sampel' => ['required', 'integer', 'min:0'],
+            'target_unit_sampel' => ['required', 'array', 'min:1'],
+            'target_unit_sampel.*' => ['integer', 'min:0'],
         ]);
+
+        if (array_sum($data['target_unit_sampel']) <= 0) {
+            throw ValidationException::withMessages([
+                'target_unit_sampel' => 'Total target unit sampel harus lebih dari 0.',
+            ]);
+        }
 
         $frameSampelId = $data['tahapan'] === 'listing'
             ? $kegiatan->frame_sampel_listing_id
@@ -87,8 +119,15 @@ class KegiatanFrameSampelController extends Controller
             'kode_sls' => ['nullable', 'string', 'max:20'],
             'kode_sub_sls' => ['nullable', 'string', 'max:20'],
             'kode_segmen' => ['nullable', 'string', 'max:20'],
-            'target_unit_sampel' => ['required', 'integer', 'min:0'],
+            'target_unit_sampel' => ['required', 'array', 'min:1'],
+            'target_unit_sampel.*' => ['integer', 'min:0'],
         ]);
+
+        if (array_sum($data['target_unit_sampel']) <= 0) {
+            throw ValidationException::withMessages([
+                'target_unit_sampel' => 'Total target unit sampel harus lebih dari 0.',
+            ]);
+        }
 
         $frame->update($data);
 
