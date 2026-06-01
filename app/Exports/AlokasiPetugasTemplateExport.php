@@ -179,6 +179,107 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return (int) ($targetUnitSampel ?? 0);
     }
 
+    /**
+     * @return Collection<int, array{header:string, unit_id:int|null, unit_token:string|null, index:int|null}>
+     */
+    private function frameTargetColumns(): Collection
+    {
+        if ($this->kegiatan === null) {
+            return collect([
+                [
+                    'header' => 'target_unit_sampel',
+                    'unit_id' => null,
+                    'unit_token' => null,
+                    'index' => null,
+                ],
+            ]);
+        }
+
+        $unitItems = $this->kegiatan->unitSampelPencacahanItems();
+        if ($unitItems->count() <= 1) {
+            return collect([
+                [
+                    'header' => 'target_unit_sampel',
+                    'unit_id' => null,
+                    'unit_token' => null,
+                    'index' => null,
+                ],
+            ]);
+        }
+
+        $orderedItems = $unitItems->sortBy(function ($item): array {
+            $name = Str::lower((string) ($item->nama ?? ''));
+
+            if (Str::contains($name, 'usaha')) {
+                return [0, $name];
+            }
+
+            if (Str::contains($name, 'keluarga')) {
+                return [1, $name];
+            }
+
+            return [2, $name];
+        })->values();
+
+        return $orderedItems->values()->map(function ($item, $index): array {
+            $unitName = trim((string) ($item->nama ?? 'unit_sampel'));
+            $token = Str::snake(Str::lower($unitName));
+            $token = preg_replace('/[^a-z0-9_]/', '', $token) ?? '';
+            $token = trim($token, '_');
+            if ($token === '') {
+                $token = 'unit_sampel_'.($index + 1);
+            }
+
+            return [
+                'header' => 'target_'.$token,
+                'unit_id' => (int) $item->id,
+                'unit_token' => $token,
+                'index' => $index,
+            ];
+        });
+    }
+
+    /**
+     * @param  array{header:string, unit_id:int|null, unit_token:string|null, index:int|null}  $targetColumn
+     */
+    private function resolveFrameTargetValue(KegiatanFrameSampel $frameRow, array $targetColumn): int
+    {
+        $targetUnitSampel = $frameRow->target_unit_sampel;
+        if (! is_array($targetUnitSampel)) {
+            return (int) ($targetUnitSampel ?? 0);
+        }
+
+        if (($targetColumn['unit_id'] ?? null) !== null) {
+            $unitId = (string) $targetColumn['unit_id'];
+            if (array_key_exists($unitId, $targetUnitSampel)) {
+                return (int) ($targetUnitSampel[$unitId] ?? 0);
+            }
+
+            if (array_key_exists((int) $unitId, $targetUnitSampel)) {
+                return (int) ($targetUnitSampel[(int) $unitId] ?? 0);
+            }
+        }
+
+        $unitToken = trim((string) ($targetColumn['unit_token'] ?? ''));
+        if ($unitToken !== '') {
+            foreach ($targetUnitSampel as $key => $value) {
+                if (Str::snake(Str::lower((string) $key)) === $unitToken) {
+                    return (int) $value;
+                }
+            }
+        }
+
+        $index = $targetColumn['index'] ?? null;
+        if ($index !== null) {
+            $values = array_values($targetUnitSampel);
+            if (array_key_exists($index, $values)) {
+                return (int) ($values[$index] ?? 0);
+            }
+        }
+
+        return (int) array_sum(array_map(fn ($value) => (int) $value, $targetUnitSampel));
+    }
+
     private function toNameSafeToken(string $value): string
     {
         $upperValue = strtoupper(trim($value));
@@ -259,6 +360,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $hasParsial = $this->hasParsial();
         $hasFrameSampelColumn = $this->hasFrameSampelColumn();
         $frameMetadataColumns = $this->frameMetadataColumns();
+        $frameTargetColumns = $this->frameTargetColumns();
         $sensusPencacahanUnitColumns = $this->sensusPencacahanUnitColumns();
         $hasSensusPencacahanSplit = count($sensusPencacahanUnitColumns) > 0;
         $data = [];
@@ -294,6 +396,13 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
                     if ($hasSensusPencacahanSplit) {
                         foreach ($sensusPencacahanUnitColumns as $columnIndex => $_columnLabel) {
+                            $targetColumn = $frameTargetColumns->get($columnIndex);
+                            if (is_array($targetColumn)) {
+                                $row[] = $this->resolveFrameTargetValue($frameRow, $targetColumn);
+
+                                continue;
+                            }
+
                             $row[] = $columnIndex === 0 ? ($entry->jumlah_satuan ?? '') : '';
                         }
                     } else {
@@ -367,7 +476,16 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             }
 
             if ($hasSensusPencacahanSplit) {
-                foreach ($sensusPencacahanUnitColumns as $columnLabel) {
+                foreach ($sensusPencacahanUnitColumns as $columnIndex => $columnLabel) {
+                    if ($hasFrameSampelColumn && $firstFrameRow instanceof KegiatanFrameSampel) {
+                        $targetColumn = $frameTargetColumns->get($columnIndex);
+                        if (is_array($targetColumn)) {
+                            $sampleRow[] = $this->resolveFrameTargetValue($firstFrameRow, $targetColumn);
+
+                            continue;
+                        }
+                    }
+
                     $isUsahaColumn = Str::contains(Str::lower($columnLabel), 'usaha');
                     $sampleRow[] = $isUsahaColumn ? '6' : '4';
                 }
@@ -703,6 +821,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
                 if ($frameRows->isNotEmpty()) {
                     $frameMetadataColumns = $this->frameMetadataColumns();
+                    $frameTargetColumns = $this->frameTargetColumns();
                     $frameSheet = new Worksheet($spreadsheet, 'Daftar Frame Sampel');
                     $dropdownSheet = new Worksheet($spreadsheet, 'Referensi Dropdown Metadata');
                     $spreadsheet->addSheet($frameSheet);
@@ -712,7 +831,9 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     foreach ($frameMetadataColumns as $column) {
                         $headerColumns[] = $column['label'];
                     }
-                    $headerColumns[] = 'target_unit_sampel';
+                    foreach ($frameTargetColumns as $targetColumn) {
+                        $headerColumns[] = $targetColumn['header'];
+                    }
 
                     $columnLetter = 'A';
                     foreach ($headerColumns as $header) {
@@ -738,7 +859,15 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                             $rowValues[] = $this->resolveFrameMetadataValue($frame, $column['code']);
                         }
 
-                        $rowValues[] = $this->resolveTargetUnitSampelTotal($frame);
+                        foreach ($frameTargetColumns as $targetColumn) {
+                            if ($targetColumn['header'] === 'target_unit_sampel') {
+                                $rowValues[] = $this->resolveTargetUnitSampelTotal($frame);
+
+                                continue;
+                            }
+
+                            $rowValues[] = $this->resolveFrameTargetValue($frame, $targetColumn);
+                        }
 
                         $columnLetter = 'A';
                         foreach ($rowValues as $rowValue) {

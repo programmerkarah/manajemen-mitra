@@ -473,6 +473,177 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $this->assertSame('Jumlah Keluarga', (string) $mainSheet->getCell('D1')->getValue());
     }
 
+    public function test_export_template_frame_sheet_for_sensus_economy_uses_target_columns_per_unit_type(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Ekonomi Target',
+            'kode' => 'FSET',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH-T',
+            'is_active' => true,
+        ]);
+
+        $unitKeluarga = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG-T',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+            'unit_sampel_pencacahan_ids' => [$unitUsaha->id, $unitKeluarga->id],
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => [
+                (string) $unitUsaha->id => 8,
+                (string) $unitKeluarga->id => 5,
+            ],
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-sensus-ekonomi-frame-target-columns-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $frameSheet = $spreadsheet->getSheetByName('Daftar Frame Sampel');
+
+        $this->assertNotNull($frameSheet);
+
+        $targetUsahaColumn = null;
+        $targetKeluargaColumn = null;
+        $highestColumnIndex = Coordinate::columnIndexFromString($frameSheet->getHighestColumn());
+        for ($columnIndex = 1; $columnIndex <= $highestColumnIndex; $columnIndex++) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $header = (string) $frameSheet->getCell($columnLetter.'1')->getValue();
+
+            if ($header === 'target_usaha') {
+                $targetUsahaColumn = $columnLetter;
+            }
+
+            if ($header === 'target_keluarga') {
+                $targetKeluargaColumn = $columnLetter;
+            }
+        }
+
+        $this->assertNotNull($targetUsahaColumn);
+        $this->assertNotNull($targetKeluargaColumn);
+        $this->assertSame('8', (string) $frameSheet->getCell($targetUsahaColumn.'2')->getValue());
+        $this->assertSame('5', (string) $frameSheet->getCell($targetKeluargaColumn.'2')->getValue());
+    }
+
+    public function test_export_template_main_sheet_for_sensus_economy_prefills_unit_columns_from_frame_sample(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Ekonomi Main Sheet',
+            'kode' => 'FSEMS',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH-MS',
+            'is_active' => true,
+        ]);
+
+        $unitKeluarga = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG-MS',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+            'unit_sampel_pencacahan_ids' => [$unitUsaha->id, $unitKeluarga->id],
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'target_unit_sampel' => [
+                (string) $unitUsaha->id => 11,
+                (string) $unitKeluarga->id => 9,
+            ],
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kddes' => '001',
+                'kdsls' => '002',
+                'kdsubsls' => '003',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/export/create?kegiatan='.$kegiatan->hashed_id.'&tahapan=pencacahan_only');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-sensus-ekonomi-main-sheet-prefill-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+
+        $jumlahUsahaColumn = null;
+        $jumlahKeluargaColumn = null;
+        $highestColumnIndex = Coordinate::columnIndexFromString($mainSheet->getHighestColumn());
+        for ($columnIndex = 1; $columnIndex <= $highestColumnIndex; $columnIndex++) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $header = (string) $mainSheet->getCell($columnLetter.'1')->getValue();
+
+            if ($header === 'Jumlah Usaha') {
+                $jumlahUsahaColumn = $columnLetter;
+            }
+
+            if ($header === 'Jumlah Keluarga') {
+                $jumlahKeluargaColumn = $columnLetter;
+            }
+        }
+
+        $this->assertNotNull($jumlahUsahaColumn);
+        $this->assertNotNull($jumlahKeluargaColumn);
+        $this->assertSame('11', (string) $mainSheet->getCell($jumlahUsahaColumn.'2')->getValue());
+        $this->assertSame('9', (string) $mainSheet->getCell($jumlahKeluargaColumn.'2')->getValue());
+    }
+
     public function test_import_preview_maps_frame_sampel_by_metadata_for_sensus_and_sets_pencacahan_from_frame_sample(): void
     {
         [$admin, $adminRole] = $this->makeUserWithRole('admin');
