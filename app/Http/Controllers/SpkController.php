@@ -1386,7 +1386,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'nik' => ['required', 'string', 'max:64'],
-            'recaptcha_token' => ['required', 'string', 'max:2048'],
+            'recaptcha_token' => ['required', 'string', 'max:8192'],
         ]);
 
         if (! $this->isValidPublicPreviewRecaptcha((string) $validated['recaptcha_token'], $request->ip())) {
@@ -1426,7 +1426,7 @@ class SpkController extends Controller
             'jenis_kegiatan' => ['required', 'in:survei,sensus'],
             'survei_periode' => ['nullable', 'string'],
             'sensus_kegiatan' => ['nullable', 'string'],
-            'recaptcha_token' => ['required', 'string', 'max:2048'],
+            'recaptcha_token' => ['required', 'string', 'max:8192'],
             'aksi' => ['nullable', 'in:preview,download'],
         ]);
 
@@ -1549,12 +1549,9 @@ class SpkController extends Controller
             ], 422);
         }
 
-        $nomorSpkPreview = sprintf(
-            'PREVIEW/%s/%d/%02d/%s',
-            strtoupper($jenisKegiatan),
-            (int) $periode->tahun,
-            (int) $periode->bulan,
-            preg_replace('/[^0-9A-Za-z]/', '', (string) $petugas->nik)
+        $nomorSpkPreview = $this->formatPreviewNomorSpkForPeriode(
+            $periode,
+            $this->getNextNomorUrutForPeriode($periode)
         );
 
         $pdfPreview = $this->buildMergedSpkPreviewBinary(
@@ -1734,15 +1731,44 @@ class SpkController extends Controller
                 $pdf->AddPage($orientation, [$size['width'], $size['height']]);
                 $pdf->useTemplate($templateId);
 
-                $centerX = ((float) $size['width']) / 2;
-                $centerY = ((float) $size['height']) / 2;
+                $pageWidth = (float) ($size['width'] ?? 210);
+                $pageHeight = (float) ($size['height'] ?? 297);
+                $centerX = $pageWidth / 2;
+                $centerY = $pageHeight / 2;
+                $watermarkText = 'BPS KOTA SAWAHLUNTO';
+                $rotationAngle = 28.0;
+                $fontSize = min(44.0, max(24.0, $pageWidth * 0.18));
 
-                $pdf->SetAlpha(0.07);
+                $pdf->SetAlpha(0.12);
                 $pdf->SetTextColor(95, 95, 95);
-                $pdf->SetFont('helvetica', 'B', 54);
+                $pdf->SetFont('helvetica', 'B', (float) $fontSize);
+
+                $textWidth = (float) $pdf->GetStringWidth($watermarkText);
+
+                // Keep reducing the font until rotated watermark fits safely inside the page.
+                while ($fontSize > 16.0) {
+                    $theta = deg2rad($rotationAngle);
+                    $halfRotatedWidth = (abs($textWidth * cos($theta)) + abs($fontSize * sin($theta))) / 2;
+                    $halfRotatedHeight = (abs($textWidth * sin($theta)) + abs($fontSize * cos($theta))) / 2;
+
+                    $fitsHorizontally = $halfRotatedWidth <= ($pageWidth / 2) - 8;
+                    $fitsVertically = $halfRotatedHeight <= ($pageHeight / 2) - 8;
+
+                    if ($fitsHorizontally && $fitsVertically) {
+                        break;
+                    }
+
+                    $fontSize -= 1.0;
+                    $pdf->SetFont('helvetica', 'B', (float) $fontSize);
+                    $textWidth = (float) $pdf->GetStringWidth($watermarkText);
+                }
+
+                $textX = $centerX - ($textWidth / 2);
+                $textY = $centerY - ($fontSize * 0.35);
+
                 $pdf->StartTransform();
-                $pdf->Rotate(35, $centerX, $centerY);
-                $pdf->Text($centerX - 40, $centerY, 'DRAFT BPS KOTA SAWAHLUNTO');
+                $pdf->Rotate($rotationAngle, $centerX, $centerY);
+                $pdf->Text($textX, $textY, $watermarkText);
                 $pdf->StopTransform();
                 $pdf->SetAlpha(1);
             }
@@ -1757,6 +1783,24 @@ class SpkController extends Controller
             @unlink($inputPath);
             @unlink($outputPath);
         }
+    }
+
+    private function formatPreviewNomorSpkForPeriode(PeriodeAlokasi $periode, int $nomorUrut): string
+    {
+        $nomorSpkAsli = $this->formatNomorSpkForPeriode($periode, $nomorUrut);
+
+        if ($this->usesPeriodBasedSpkFlow($periode)) {
+            return (string) preg_replace('/^B-(\d+)/', 'PREVIEW-$1', $nomorSpkAsli, 1);
+        }
+
+        $parts = explode('/', $nomorSpkAsli);
+        if (isset($parts[3]) && mb_strtoupper((string) $parts[3]) === 'K') {
+            $parts[3] = 'PREVIEW-K';
+
+            return implode('/', $parts);
+        }
+
+        return str_replace('/K/', '/PREVIEW-K/', $nomorSpkAsli);
     }
 
     private function resolvePublicPreviewPetugas(string $nama, string $nik): ?Petugas
