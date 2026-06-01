@@ -262,7 +262,7 @@
     </div>
 
     <div class="content">
-        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalSpk->year) }} ({{ $tanggalSpk->format('d-m-Y') }}), bertempat di Sawahlunto, yang bertanda tangan di bawah ini:
+        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalSpk->year) }} ({{ $tanggalSpk->format('d-m-Y') }}), bertempat di Kota Sawahlunto, yang bertanda tangan di bawah ini:
     </div>
 
     <div class="parties">
@@ -281,9 +281,9 @@
             <div class="party-colon">:</div>
             <div class="party-detail">
                 @if($jenisKegiatan === 'sensus')
-                {{ ucwords($judulSpkText) }}, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA.</strong>
+                {{ ucwords($judulSpkText) }}, berkedudukan di {{ ucwords($petugas->alamat ?? 'Sawahlunto') }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA.</strong>
                 @else
-                Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ $petugas->alamat ?? 'Sawahlunto' }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA.</strong>
+                Mitra Statistik pada Badan Pusat Statistik Kota Sawahlunto, berkedudukan di {{ ucwords($petugas->alamat ?? 'Sawahlunto') }}, bertindak untuk dan atas nama diri sendiri, selanjutnya disebut <strong>PIHAK KEDUA.</strong>
                 @endif
             </div>
         </div>
