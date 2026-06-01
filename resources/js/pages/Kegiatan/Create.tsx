@@ -47,8 +47,17 @@ interface MasterSampelOption {
 interface KegiatanFrameSampelRow {
     id?: number;
     tahapan: 'listing' | 'pencacahan';
-    target_unit_sampel: Record<string, string>;
+    target_unit_sampel:
+        | string
+        | number
+        | Record<string, string | number>;
     identitas_tambahan?: Record<string, string> | null;
+}
+
+interface FormFrameSampelRow {
+    tahapan: 'listing' | 'pencacahan';
+    target_unit_sampel: Record<string, string>;
+    metadata_items: MetadataItem[];
 }
 
 interface MetadataItem {
@@ -180,6 +189,23 @@ const buildMetadataColumnsFromRows = (
     return columns.length > 0 ? columns : DEFAULT_METADATA_COLUMNS.slice(0, 4);
 };
 
+const normalizeTargetUnitSampel = (
+    value: KegiatanFrameSampelRow['target_unit_sampel'],
+): Record<string, string> => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, entryValue]) => [
+                key,
+                entryValue === null || entryValue === undefined
+                    ? ''
+                    : String(entryValue),
+            ]),
+        );
+    }
+
+    return {};
+};
+
 interface KegiatanCreateProps {
     ketuaTimUsers: User[];
     tahunOptions: number[];
@@ -249,7 +275,30 @@ export default function Create({
         return value.replace(/\./g, '');
     };
 
-    const { data, setData, processing } = useForm({
+    const { data, setData, processing } = useForm<{
+        nama_kegiatan: string;
+        jenis_kegiatan: 'sensus' | 'survei';
+        deskripsi: string;
+        tahun_anggaran: number;
+        pagu_pencacahan: string;
+        pagu_listing: string;
+        has_listing_updating: boolean;
+        metode_pendataan_pencacahan: '' | 'PAPI' | 'CAPI';
+        metode_pendataan_listing: '' | 'PAPI' | 'CAPI';
+        metode_pelatihan: '' | 'daring' | 'luring' | 'hybrid' | 'tidak_ada_pelatihan';
+        bulan_pelatihan: string;
+        frame_sampel_listing_id: string;
+        frame_sampel_pencacahan_id: string;
+        unit_sampel_listing_ids: number[];
+        unit_sampel_pencacahan_ids: number[];
+        ketua_tim_user_id: string;
+        pj_lainnya_id: string;
+        tanggal_mulai: string;
+        tanggal_selesai: string;
+        frame_tahapan: 'listing' | 'pencacahan';
+        frame_metadata_columns: MetadataColumn[];
+        kegiatan_frame_sampel: FormFrameSampelRow[];
+    }>({
         nama_kegiatan: copyData?.nama_kegiatan || '',
         jenis_kegiatan:
             copyData?.jenis_kegiatan || ('survei' as 'sensus' | 'survei'),
@@ -281,7 +330,9 @@ export default function Create({
             kegiatanFrameSampel.length > 0
                 ? kegiatanFrameSampel.map((row) => ({
                       tahapan: row.tahapan,
-                      target_unit_sampel: String(row.target_unit_sampel),
+                      target_unit_sampel: normalizeTargetUnitSampel(
+                          row.target_unit_sampel,
+                      ),
                       metadata_items: buildMetadataItems(
                           row.identitas_tambahan,
                       ),
@@ -289,7 +340,7 @@ export default function Create({
                 : [
                       {
                           tahapan: 'pencacahan' as const,
-                          target_unit_sampel: {} as Record<string, string>,
+                          target_unit_sampel: {},
                           metadata_items: initialMetadataColumns.map(
                               (column) => ({
                                   code: column.code,
@@ -402,7 +453,7 @@ export default function Create({
         data.pagu_listing,
         data.metode_pendataan_listing,
         data.frame_sampel_listing_id,
-        data.unit_sampel_listing_id,
+        data.unit_sampel_listing_ids.length,
         data.frame_tahapan,
         data.kegiatan_frame_sampel,
         data.metode_pelatihan,
@@ -418,7 +469,7 @@ export default function Create({
             ...data.kegiatan_frame_sampel,
             {
                 tahapan: data.frame_tahapan,
-                target_unit_sampel: '',
+                target_unit_sampel: {},
                 metadata_items: data.frame_metadata_columns.map((column) => ({
                     code: column.code,
                     codeValue: '',

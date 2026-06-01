@@ -1536,12 +1536,12 @@ class AlokasiPetugasController extends Controller
                                             'petugas_nama' => $alokasi->petugas->nama,
                                             'status_kepegawaian' => $alokasi->status_kepegawaian,
                                             'peran' => $alokasi->peran,
-                                            'jumlah_satuan' => $alokasi->jumlah_satuan,
+                                            'jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->jumlah_satuan),
                                             'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                                             'total_honor' => (float) ($alokasi->total_honor ?? 0),
                                             'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
                                             'is_partial_payment' => (bool) $alokasi->is_partial_payment,
-                                            'partial_jumlah_satuan' => $alokasi->partial_jumlah_satuan,
+                                            'partial_jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->partial_jumlah_satuan),
                                             'estimasi_honor_partial' => $alokasi->estimasi_honor_partial,
                                             'is_partial_payment_listing' => (bool) $alokasi->is_partial_payment_listing,
                                             'partial_jumlah_satuan_listing' => $alokasi->partial_jumlah_satuan_listing,
@@ -2101,8 +2101,8 @@ class AlokasiPetugasController extends Controller
                     ? (float) $alokasi->estimasi_honor_partial_listing
                     : (float) ($alokasi->total_honor_listing ?? 0);
                 $paidJumlahSatuan = $alokasi->is_partial_payment && $alokasi->partial_jumlah_satuan !== null
-                    ? (int) $alokasi->partial_jumlah_satuan
-                    : (int) ($alokasi->jumlah_satuan ?? 0);
+                    ? $this->normalizeSatuanForResponse($alokasi->partial_jumlah_satuan)
+                    : $this->normalizeSatuanForResponse($alokasi->jumlah_satuan);
                 $paidJumlahSatuanListing = $alokasi->is_partial_payment_listing && $alokasi->partial_jumlah_satuan_listing !== null
                     ? (int) $alokasi->partial_jumlah_satuan_listing
                     : (int) ($alokasi->jumlah_satuan_listing ?? 0);
@@ -2116,7 +2116,7 @@ class AlokasiPetugasController extends Controller
                         'jenis_petugas' => $alokasi->petugas->jenis_petugas,
                     ],
                     'peran' => $alokasi->peran,
-                    'jumlah_satuan' => $alokasi->jumlah_satuan,
+                    'jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->jumlah_satuan),
                     'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                     'jumlah_satuan_dibayarkan' => $paidJumlahSatuan,
                     'jumlah_satuan_listing_dibayarkan' => $paidJumlahSatuanListing,
@@ -2171,8 +2171,8 @@ class AlokasiPetugasController extends Controller
                             ? (float) $alokasi->estimasi_honor_partial_listing
                             : (float) ($alokasi->total_honor_listing ?? 0);
                         $paidJumlahSatuan = $alokasi->is_partial_payment && $alokasi->partial_jumlah_satuan !== null
-                            ? (int) $alokasi->partial_jumlah_satuan
-                            : (int) ($alokasi->jumlah_satuan ?? 0);
+                            ? $this->normalizeSatuanForResponse($alokasi->partial_jumlah_satuan)
+                            : $this->normalizeSatuanForResponse($alokasi->jumlah_satuan);
                         $paidJumlahSatuanListing = $alokasi->is_partial_payment_listing && $alokasi->partial_jumlah_satuan_listing !== null
                             ? (int) $alokasi->partial_jumlah_satuan_listing
                             : (int) ($alokasi->jumlah_satuan_listing ?? 0);
@@ -2186,7 +2186,7 @@ class AlokasiPetugasController extends Controller
                                 'jenis_petugas' => $alokasi->petugas->jenis_petugas,
                             ],
                             'peran' => $alokasi->peran,
-                            'jumlah_satuan' => $alokasi->jumlah_satuan,
+                            'jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->jumlah_satuan),
                             'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                             'jumlah_satuan_dibayarkan' => $paidJumlahSatuan,
                             'jumlah_satuan_listing_dibayarkan' => $paidJumlahSatuanListing,
@@ -2316,12 +2316,12 @@ class AlokasiPetugasController extends Controller
                 'petugas_nama' => $alok->petugas->nama,
                 'status_kepegawaian' => $alok->petugas->jenis_petugas,
                 'peran' => $alok->peran,
-                'jumlah_satuan' => $alok->jumlah_satuan,
+                'jumlah_satuan' => $this->normalizeSatuanForResponse($alok->jumlah_satuan),
                 'jumlah_satuan_listing' => $alok->jumlah_satuan_listing,
                 'total_honor' => (float) ($alok->total_honor ?? 0),
                 'total_honor_listing' => (float) ($alok->total_honor_listing ?? 0),
                 'is_partial_payment' => (bool) $alok->is_partial_payment,
-                'partial_jumlah_satuan' => $alok->partial_jumlah_satuan,
+                'partial_jumlah_satuan' => $this->normalizeSatuanForResponse($alok->partial_jumlah_satuan),
                 'estimasi_honor_partial' => $alok->estimasi_honor_partial,
                 'is_partial_payment_listing' => (bool) $alok->is_partial_payment_listing,
                 'partial_jumlah_satuan_listing' => $alok->partial_jumlah_satuan_listing,
@@ -3603,6 +3603,17 @@ class AlokasiPetugasController extends Controller
         return abs($numericValue - round($numericValue)) > 0.000001;
     }
 
+    private function normalizeSatuanForResponse(mixed $value): int|float
+    {
+        $numericValue = (float) ($value ?? 0);
+
+        if (abs($numericValue - round($numericValue)) <= 0.000001) {
+            return (int) round($numericValue);
+        }
+
+        return $numericValue;
+    }
+
     /**
      * Check if total honor exceeds SBML maximum constraint
      */
@@ -4125,14 +4136,10 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $estimasiHonor = $this->isSensusEkonomi2026($kegiatan)
-                ? (float) ($rate->rate ?? 0) * 2.5
-                : (float) ($rate->rate ?? 0) * $this->resolvePencacahanWorkload($kegiatan, $jumlahSatuanPencacahan);
+            $estimasiHonor = (float) ($rate->rate ?? 0) * (float) $jumlahSatuanPencacahan;
             $estimasiHonorListing = (float) ($rate->rate_listing ?? 0) * $jumlahSatuanListing;
             $estimasiHonorPartial = $isPartialPayment
-                ? ($this->isSensusEkonomi2026($kegiatan)
-                    ? (float) ($rate->rate ?? 0) * 2.5
-                    : (float) ($rate->rate ?? 0) * $this->resolvePencacahanWorkload($kegiatan, $partialJumlahSatuan))
+                ? (float) ($rate->rate ?? 0) * (float) $partialJumlahSatuan
                 : 0;
             $estimasiHonorPartialListing = $isPartialPayment ? (float) ($rate->rate_listing ?? 0) * $partialJumlahSatuanListing : 0;
 

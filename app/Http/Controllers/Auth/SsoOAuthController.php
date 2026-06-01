@@ -192,7 +192,7 @@ class SsoOAuthController extends Controller
             ]);
         }
 
-        $ssoUserId = isset($profile['id']) && (is_int($profile['id']) || is_string($profile['id']))
+        $ssoUserId = isset($profile['id']) && is_numeric($profile['id'])
             ? (int) $profile['id']
             : null;
 
@@ -244,6 +244,7 @@ class SsoOAuthController extends Controller
                 fallbackName: $name,
                 fallbackUsername: $localUser->username,
                 fallbackEmail: $localUser->email,
+                fallbackEmailVerifiedAt: $localUser->email_verified_at,
             ),
         ])->save();
 
@@ -467,16 +468,20 @@ class SsoOAuthController extends Controller
 
         $resolvedUsername = $this->resolveProvisionedUsername($username, $email, $ssoUserId);
         $resolvedEmail = $this->resolveProvisionedEmail($email, $resolvedUsername, $ssoUserId);
+        $emailVerifiedAt = $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $resolvedEmail) ?? now();
 
         $user = User::query()->create([
             'sso_user_id' => $ssoUserId,
             'name' => $name,
             'username' => $resolvedUsername,
             'email' => $resolvedEmail,
-            'email_verified_at' => $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $resolvedEmail),
             'password' => Hash::make(Str::random(40)),
             'is_active' => true,
         ]);
+
+        $user->forceFill([
+            'email_verified_at' => $emailVerifiedAt,
+        ])->save();
 
         $this->ensureDefaultRole($user);
 
@@ -541,12 +546,15 @@ class SsoOAuthController extends Controller
         string $fallbackName,
         string $fallbackUsername,
         string $fallbackEmail,
+        mixed $fallbackEmailVerifiedAt,
     ): array {
         $attributes = [
             'name' => $fallbackName,
             'username' => $this->resolveStringValue($profile['username'] ?? null) ?? $fallbackUsername,
             'email' => $this->resolveStringValue($profile['email'] ?? null) ?? $fallbackEmail,
-            'email_verified_at' => $this->resolveEmailVerifiedAt($profile['email_verified_at'] ?? null, $fallbackEmail),
+            'email_verified_at' => array_key_exists('email_verified_at', $profile)
+                ? $this->resolveEmailVerifiedAt($profile['email_verified_at'], $fallbackEmail)
+                : $fallbackEmailVerifiedAt,
         ];
 
         if ($this->hasUserColumn('password')) {

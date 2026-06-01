@@ -509,7 +509,7 @@
                 <div class="pasal-item">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, dilakukan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA.</strong>
+                        Pembayaran honorarium sebagaimana dimaksud dalam Pasal 6, <strong>dilakukan</strong> setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan hasil pekerjaan sebagaimana dimaksud dalam Pasal 2 kepada <strong>PIHAK PERTAMA.</strong>
                     </div>
                 </div>
             </div>
@@ -916,6 +916,26 @@
             </div>
         </div>
     </div>
+
+    <script type="text/php">
+        if (isset($pdf) && isset($fontMetrics)) {
+            $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) {
+                if ($pageNumber <= 1) {
+                    return;
+                }
+                $topMargin = 85.04; // 3 cm
+
+                $font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+                $size = 10;
+                $text = '-' . $pageNumber . '-';
+                $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+                $x = ($canvas->get_width() - $textWidth) / 2;
+                $y = $topMargin / 2;
+
+                $canvas->text($x, $y, $text, $font, $size);
+            });
+        }
+    </script>
 </body>
 </html>
 

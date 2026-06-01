@@ -2703,6 +2703,10 @@ class SpkController extends Controller
         // Set PDF title metadata untuk main
         $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
 
+        $mainOutput = $pdfMain->output();
+        $mainPageCount = max(0, (int) $pdfMain->getDomPDF()->getCanvas()->get_page_count());
+        $data['pageNumberOffset'] = $mainPageCount;
+
         $pdfLampiran = Pdf::loadView($lampiranView, $data)
             ->setPaper('a4', $lampiranPaper);
 
@@ -2720,7 +2724,7 @@ class SpkController extends Controller
         $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
         $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
 
-        file_put_contents($mainPath, $pdfMain->output());
+        file_put_contents($mainPath, $mainOutput);
         file_put_contents($lampiranPath, $pdfLampiran->output());
 
         // Try to merge PDFs with title metadata
@@ -3018,6 +3022,7 @@ class SpkController extends Controller
         $data = [
             'periode' => $periode,
             'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
             'petugas' => $petugas,
             'kegiatan' => $periode->kegiatan,
             'nomorSpk' => $validated['nomor_spk'],
@@ -3032,6 +3037,12 @@ class SpkController extends Controller
             'bebanAnggaran' => $bebanAnggaran,
             'workType' => $this->detectWorkType($allAlokasi),
         ];
+
+        $mainPreviewPdf = Pdf::loadView('spk-main', $data)
+            ->setPaper('a4', 'portrait');
+        $mainPreviewPdf->output();
+        $data['pageNumberOffset'] = max(0, (int) $mainPreviewPdf->getDomPDF()->getCanvas()->get_page_count());
+
         $data = $this->withLampiranContext($data);
 
         $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
@@ -3184,6 +3195,10 @@ class SpkController extends Controller
             $pdfMain = Pdf::loadView('spk-main', $data)
                 ->setPaper('a4', 'portrait');
 
+            $mainOutput = $pdfMain->output();
+            $mainPageCount = max(0, (int) $pdfMain->getDomPDF()->getCanvas()->get_page_count());
+            $data['pageNumberOffset'] = $mainPageCount;
+
             $pdfLampiran = Pdf::loadView($lampiranView, $data)
                 ->setPaper('a4', $lampiranPaper);
 
@@ -3198,7 +3213,7 @@ class SpkController extends Controller
             $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
             $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
 
-            file_put_contents($mainPath, $pdfMain->output());
+            file_put_contents($mainPath, $mainOutput);
             file_put_contents($lampiranPath, $pdfLampiran->output());
 
             // Try to merge PDFs
@@ -3704,7 +3719,7 @@ class SpkController extends Controller
 
         $terminSatuPerUnit = [];
         foreach ($perUnitSampelTotals as $unitId => $total) {
-            $terminSatuPerUnit[$unitId] = (int) floor(max(0, $total) * 0.4);
+            $terminSatuPerUnit[$unitId] = (int) round(max(0, $total) * 0.4, 0, PHP_ROUND_HALF_UP);
         }
 
         if ($percentage === 40) {

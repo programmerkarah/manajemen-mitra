@@ -60,6 +60,7 @@ interface Kegiatan {
     hashed_id: string;
     kode_kegiatan: string;
     nama_kegiatan: string;
+    deskripsi: string | null;
     tahun_anggaran: number;
     pagu_pencacahan: number | null;
     pagu_listing: number | null;

@@ -168,13 +168,15 @@
                 <th style="width: 16%;">(5)</th>
             </tr>
         </thead>
+        @php($itemCounter = 1)
         @foreach(($specialLampiran['groups'] ?? []) as $group)
         @php($groupItems = $group['items'] ?? [])
         @php($groupCount = count($groupItems))
         <tbody class="keep-together">
             @foreach($groupItems as $index => $item)
+            @php($formattedItem = preg_replace('/door to door/i', '<em>$0</em>', e($item)))
             <tr class="keep-together-row">
-                <td class="left">{{ $index + 1 }}. {{ $item }}</td>
+                <td class="left">{{ $itemCounter++ }}. {!! $formattedItem !!}</td>
                 @if($index === 0)
                 <td class="center" rowspan="{{ $groupCount }}">{{ $group['waktu_penyelesaian'] ?? '-' }}</td>
                 <td class="center" rowspan="{{ $groupCount }}">{{ $group['persentase'] ?? '-' }}</td>
@@ -255,5 +257,29 @@
         </table>
     </div>
     @endif
+
+    <script type="text/php">
+        if (isset($pdf) && isset($fontMetrics)) {
+            $pageNumberOffset = {{ (int) ($pageNumberOffset ?? 0) }};
+
+            $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
+                $displayPage = $pageNumber + $pageNumberOffset;
+                if ($displayPage <= 1) {
+                    return;
+                }
+
+                $topMargin = 28.35; // 1 cm
+
+                $font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+                $size = 10;
+                $text = '-' . $displayPage . '-';
+                $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+                $x = ($canvas->get_width() - $textWidth) / 2;
+                $y = $topMargin / 2;
+
+                $canvas->text($x, $y, $text, $font, $size);
+            });
+        }
+    </script>
 </body>
 </html>

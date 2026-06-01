@@ -213,5 +213,29 @@
             </tr>
         </tbody>
     </table>
+
+    <script type="text/php">
+        if (isset($pdf) && isset($fontMetrics)) {
+            $pageNumberOffset = {{ (int) ($pageNumberOffset ?? 0) }};
+
+            $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
+                $displayPage = $pageNumber + $pageNumberOffset;
+                if ($displayPage <= 1) {
+                    return;
+                }
+
+                $topMargin = 56.69; // 2 cm
+
+                $font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+                $size = 10;
+                $text = '-' . $displayPage . '-';
+                $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+                $x = ($canvas->get_width() - $textWidth) / 2;
+                $y = $topMargin / 2;
+
+                $canvas->text($x, $y, $text, $font, $size);
+            });
+        }
+    </script>
 </body>
 </html>

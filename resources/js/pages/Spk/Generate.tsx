@@ -131,6 +131,54 @@ export default function Generate({
         );
     };
 
+    const getTahunSpk = (): number => {
+        if (formData.tanggal_spk) {
+            return new Date(formData.tanggal_spk).getFullYear();
+        }
+
+        return periode.tahun;
+    };
+
+    const getNomorSpkForAlokasi = (alokasi: AlokasiPetugas): string => {
+        const tahunSpk = getTahunSpk();
+
+        const existingSpk = existing_spk_map[alokasi.petugas.id];
+        if (existingSpk) {
+            return existingSpk.nomor_spk;
+        }
+
+        const sortedPetugas = [...petugas_list].sort((a, b) =>
+            a.petugas.nama.localeCompare(b.petugas.nama),
+        );
+
+        if (is_regenerate) {
+            const newPetugasOnly = sortedPetugas.filter(
+                (p) => !existing_spk_map[p.petugas.id],
+            );
+            const indexAmongNew = newPetugasOnly.findIndex(
+                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
+            );
+
+            if (uses_suffix_for_new_petugas) {
+                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
+                return formatNomorSpkSuffix(
+                    last_nomor_urut_in_month,
+                    suffix,
+                    tahunSpk,
+                );
+            }
+
+            const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
+            return formatNomorSpk(noUrut, tahunSpk);
+        }
+
+        const petugasIndex = sortedPetugas.findIndex(
+            (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
+        );
+        const noUrut = next_nomor_urut + petugasIndex;
+        return formatNomorSpk(noUrut, tahunSpk);
+    };
+
     const handlePreview = async (alokasi: AlokasiPetugas) => {
         if (!formData.tanggal_spk) {
             setModalMessage(
@@ -140,56 +188,7 @@ export default function Generate({
             return;
         }
 
-        // Get year from tanggal_spk
-        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-
-        // Check if this petugas already has an existing SPK
-        const existingSpk = existing_spk_map[alokasi.petugas.id];
-        let nomorSpk: string;
-
-        if (existingSpk) {
-            // Use existing SPK number from database
-            nomorSpk = existingSpk.nomor_spk;
-        } else if (is_regenerate) {
-            // New petugas in regenerate mode
-            // Need to calculate position among new petugas only
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            // Filter only new petugas (those without existing SPK)
-            const newPetugasOnly = sortedPetugas.filter(
-                (p) => !existing_spk_map[p.petugas.id],
-            );
-            const indexAmongNew = newPetugasOnly.findIndex(
-                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-
-            if (uses_suffix_for_new_petugas) {
-                // Use suffix mode: 3A, 3B, 3C...
-                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = formatNomorSpkSuffix(
-                    last_nomor_urut_in_month,
-                    suffix,
-                    tahunSpk,
-                );
-            } else {
-                // Use sequential mode: 4, 5, 6...
-                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-            }
-        } else {
-            // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            const petugasIndex = sortedPetugas.findIndex(
-                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-            const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-        }
+        const nomorSpk = getNomorSpkForAlokasi(alokasi);
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
             /[^A-Za-z0-9_-]/g,
@@ -220,54 +219,7 @@ export default function Generate({
             return;
         }
 
-        // Get year from tanggal_spk
-        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-
-        // Check if this petugas already has an existing SPK
-        const existingSpk = existing_spk_map[alokasi.petugas.id];
-        let nomorSpk: string;
-
-        if (existingSpk) {
-            // Use existing SPK number from database
-            nomorSpk = existingSpk.nomor_spk;
-        } else if (is_regenerate) {
-            // New petugas in regenerate mode
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            const newPetugasOnly = sortedPetugas.filter(
-                (p) => !existing_spk_map[p.petugas.id],
-            );
-            const indexAmongNew = newPetugasOnly.findIndex(
-                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-
-            if (uses_suffix_for_new_petugas) {
-                // Use suffix mode: 3A, 3B, 3C...
-                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = formatNomorSpkSuffix(
-                    last_nomor_urut_in_month,
-                    suffix,
-                    tahunSpk,
-                );
-            } else {
-                // Use sequential mode: 4, 5, 6...
-                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-            }
-        } else {
-            // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            const petugasIndex = sortedPetugas.findIndex(
-                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-            const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-        }
+        const nomorSpk = getNomorSpkForAlokasi(alokasi);
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
             /[^A-Za-z0-9_-]/g,
@@ -300,54 +252,7 @@ export default function Generate({
             return;
         }
 
-        // Get year from tanggal_spk
-        const tahunSpk = new Date(formData.tanggal_spk).getFullYear();
-
-        // Check if this petugas already has an existing SPK
-        const existingSpk = existing_spk_map[alokasi.petugas.id];
-        let nomorSpk: string;
-
-        if (existingSpk) {
-            // Use existing SPK number from database
-            nomorSpk = existingSpk.nomor_spk;
-        } else if (is_regenerate) {
-            // New petugas in regenerate mode
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            const newPetugasOnly = sortedPetugas.filter(
-                (p) => !existing_spk_map[p.petugas.id],
-            );
-            const indexAmongNew = newPetugasOnly.findIndex(
-                (p) => p.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-
-            if (uses_suffix_for_new_petugas) {
-                // Use suffix mode: 3A, 3B, 3C...
-                const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                nomorSpk = formatNomorSpkSuffix(
-                    last_nomor_urut_in_month,
-                    suffix,
-                    tahunSpk,
-                );
-            } else {
-                // Use sequential mode: 4, 5, 6...
-                const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
-                nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-            }
-        } else {
-            // First time generation - use sequential numbering
-            const sortedPetugas = [...petugas_list].sort((a, b) =>
-                a.petugas.nama.localeCompare(b.petugas.nama),
-            );
-
-            const petugasIndex = sortedPetugas.findIndex(
-                (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
-            );
-            const noUrut = next_nomor_urut + petugasIndex;
-            nomorSpk = formatNomorSpk(noUrut, tahunSpk);
-        }
+        const nomorSpk = getNomorSpkForAlokasi(alokasi);
 
         const sanitizedPetugasName = alokasi.petugas.nama.replace(
             /[^A-Za-z0-9_-]/g,
@@ -599,6 +504,9 @@ export default function Generate({
                                             Peran
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                            Nomor Dokumen Perjanjian Kerja
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Jumlah Kegiatan
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
@@ -686,6 +594,11 @@ export default function Generate({
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                                                    {getNomorSpkForAlokasi(
+                                                        alokasi,
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
                                                     {alokasi.jumlah_kegiatan}{' '}
                                                     kegiatan
@@ -713,7 +626,7 @@ export default function Generate({
                                                             }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
-                                                            Preview
+                                                            Preview (Hal. 1+)
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -731,6 +644,7 @@ export default function Generate({
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
                                                             Perjanjian Kerja
+                                                            (Hal. 1)
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -747,7 +661,7 @@ export default function Generate({
                                                             }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
-                                                            Lampiran
+                                                            Lampiran (Hal. 2+)
                                                         </Button>
                                                     </div>
                                                 </td>
