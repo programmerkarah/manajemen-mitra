@@ -77,6 +77,40 @@ const resolveJenisPenugasan = (peran: string): string => {
     return '';
 };
 
+const normalizePeranForSubmission = (peran: string): string => {
+    const normalizedPeran = peran.trim().toLowerCase();
+
+    if (
+        normalizedPeran === 'pcl' ||
+        normalizedPeran === 'ppl' ||
+        normalizedPeran === 'pcl/ppl'
+    ) {
+        return 'PCL';
+    }
+
+    if (normalizedPeran === 'pml') {
+        return 'PML';
+    }
+
+    if (normalizedPeran === 'koseka') {
+        return 'Koseka';
+    }
+
+    if (normalizedPeran === 'pengolahan') {
+        return 'Pengolahan';
+    }
+
+    if (normalizedPeran === 'petugas pengolahan') {
+        return 'Petugas Pengolahan';
+    }
+
+    if (normalizedPeran === 'pengawas pengolahan') {
+        return 'Pengawas Pengolahan';
+    }
+
+    return peran;
+};
+
 const mergeKegiatan = (base: Kegiatan, incoming: Kegiatan): Kegiatan => ({
     ...base,
     ...incoming,
@@ -2661,7 +2695,7 @@ export default function Create({
             alokasi: alokasiItems.map((item) => {
                 const base = {
                     petugas_id: item.petugas_id,
-                    peran: item.peran,
+                    peran: normalizePeranForSubmission(item.peran),
                     bulan: effectiveBulan,
                     tahun: active_year,
                     jenis_kegiatan: jenisKegiatan,
