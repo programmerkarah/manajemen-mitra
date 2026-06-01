@@ -3,6 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Spk;
+use App\Models\RateHonor;
+use App\Models\AlokasiPetugasFrameSampel;
+use App\Models\KegiatanFrameSampel;
+use App\Models\MasterFrameSampel;
+use App\Models\MasterUnitSampel;
+use App\Models\Satuan;
 use App\Models\User;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
@@ -218,6 +224,12 @@ class SpkPublicPreviewTest extends TestCase
     {
         $tahun = ActiveYearService::get();
 
+        $satuan = Satuan::factory()->create([
+            'kode' => 'RT',
+            'nama' => 'Rumah Tangga',
+            'status' => 'aktif',
+        ]);
+
         $kegiatanSurveiOwned = Kegiatan::factory()->create([
             'tahun_anggaran' => $tahun,
             'jenis_kegiatan' => 'survei',
@@ -245,6 +257,19 @@ class SpkPublicPreviewTest extends TestCase
             'tahun' => $tahun,
             'status' => 'dikirim',
             'jenis_kegiatan' => 'survei',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatanSurveiOwned->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor survei',
+            'satuan_id' => $satuan->id,
+            'rate' => 48000,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
         ]);
 
         $periodeSensusOwned = PeriodeAlokasi::factory()->create([
@@ -300,6 +325,9 @@ class SpkPublicPreviewTest extends TestCase
             'petugas_id' => $otherPetugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'is_partial_payment' => false,
+            'partial_jumlah_satuan' => null,
             'total_honor' => 210000,
             'total_honor_listing' => 0,
         ]);
@@ -320,8 +348,160 @@ class SpkPublicPreviewTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'survei_periods');
         $response->assertJsonCount(1, 'sensus_kegiatans');
+        $response->assertJsonCount(2, 'penugasan_list');
         $response->assertJsonPath('survei_periods.0.value', sprintf('%d-07', $tahun));
         $response->assertJsonPath('sensus_kegiatans.0.label', 'Sensus Ekonomi');
+        $response->assertJsonPath('penugasan_list.0.nama_kegiatan', 'Survei Harga Komoditas');
+        $this->assertStringContainsString('Rumah Tangga', $response->getContent());
+    }
+
+    public function test_public_options_use_period_final_status_for_all_penugasan_in_same_month(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $satuan = Satuan::factory()->create([
+            'kode' => 'RT2',
+            'nama' => 'Rumah Tangga',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Final Seragam',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor survei final',
+            'satuan_id' => $satuan->id,
+            'rate' => 50000,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanLain = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Final Seragam Lain',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatanLain->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor survei final lain',
+            'satuan_id' => $satuan->id,
+            'rate' => 50000,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '11',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeLain = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanLain->id,
+            'bulan' => '11',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Final Bulanan',
+            'nik' => '3201123412399999',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $alokasiFinal = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'is_partial_payment' => false,
+            'partial_jumlah_satuan' => null,
+            'total_honor' => 150000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiLain = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeLain->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'is_partial_payment' => false,
+            'partial_jumlah_satuan' => null,
+            'total_honor' => 100000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $signedDirectory = public_path('spk-export/tests');
+        if (! is_dir($signedDirectory)) {
+            mkdir($signedDirectory, 0755, true);
+        }
+
+        $signedRelativePath = 'spk-export/tests/final_same_month_test.pdf';
+        $signedAbsolutePath = public_path($signedRelativePath);
+        file_put_contents($signedAbsolutePath, Pdf::loadHTML('<h1>PK Final Bulanan</h1>')->output());
+
+        try {
+            Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/123/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasiFinal->id,
+                'addendum_number' => 0,
+                'nomor_urut_base' => 123,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja final bulanan',
+                'nilai_kontrak' => 150000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => $signedRelativePath,
+                'status' => 'diterbitkan',
+                'created_by' => User::factory()->create()->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra/options',
+                [
+                    'nama' => 'Petugas Final Bulanan',
+                    'nik' => '3201123412399999',
+                    'recaptcha_token' => 'test-recaptcha-token',
+                ],
+                [
+                    'Accept' => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertJsonCount(2, 'penugasan_list');
+            $response->assertJsonPath('penugasan_list.0.document_status', 'PK Final');
+            $response->assertJsonPath('penugasan_list.1.document_status', 'PK Final');
+        } finally {
+            @unlink($signedAbsolutePath);
+        }
     }
 
     public function test_public_preview_uses_signed_final_file_when_available(): void
@@ -527,5 +707,155 @@ class SpkPublicPreviewTest extends TestCase
             @unlink($mainSignedAbsolutePath);
             @unlink($addendumSignedAbsolutePath);
         }
+    }
+
+    public function test_public_options_falls_back_to_non_empty_target_when_honor_exists(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Tanpa Rate Honor',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '12',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Fallback',
+            'nik' => '3201123412348888',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'is_partial_payment' => false,
+            'partial_jumlah_satuan' => null,
+            'total_honor' => 238000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra/options',
+            [
+                'nama' => 'Petugas Fallback',
+                'nik' => '3201123412348888',
+                'recaptcha_token' => 'test-recaptcha-token',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertOk();
+        $response->assertJsonPath('penugasan_list.0.target_pekerjaan', '1 paket');
+    }
+
+    public function test_public_options_use_frame_sample_narrative_for_sensus_target(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Sensus Frame Sampel',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Frame',
+            'nik' => '3201123412344444',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $unitRumahTangga = MasterUnitSampel::query()->create([
+            'nama' => 'Rumah Tangga',
+            'kode' => 'RTX',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::query()->create([
+            'nama' => 'Usaha',
+            'kode' => 'USX',
+            'is_active' => true,
+        ]);
+
+        $masterFrame = MasterFrameSampel::query()->create([
+            'nama' => 'Frame Sampel Utama',
+            'kode' => 'FSX',
+            'is_active' => true,
+        ]);
+
+        $frameRow = KegiatanFrameSampel::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'nama_frame' => 'Frame Sampel Utama',
+            'target_unit_sampel' => [
+                $unitRumahTangga->id => 2,
+                $unitUsaha->id => 1,
+            ],
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 0,
+            'is_partial_payment' => false,
+            'partial_jumlah_satuan' => null,
+            'total_honor' => 125000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugasFrameSampel::query()->create([
+            'alokasi_petugas_id' => $alokasi->id,
+            'kegiatan_frame_sampel_id' => $frameRow->id,
+        ]);
+
+        $response = $this->post(
+            '/mitra/options',
+            [
+                'nama' => 'Petugas Frame',
+                'nik' => '3201123412344444',
+                'recaptcha_token' => 'test-recaptcha-token',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'penugasan_list');
+        $response->assertJsonPath(
+            'penugasan_list.0.target_pekerjaan',
+            '1 SLS/sub-SLS dan/atau 2 Rumah Tangga dan/atau 1 Usaha',
+        );
     }
 }

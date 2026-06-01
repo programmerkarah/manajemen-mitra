@@ -1376,6 +1376,7 @@ class SpkController extends Controller
         return Inertia::render('Spk/PublicPreview', [
             'survei_periods' => [],
             'sensus_kegiatans' => [],
+            'penugasan_list' => [],
             'active_year' => $activeYear,
             'recaptcha_site_key' => (string) config('services.recaptcha.site_key', ''),
         ]);
@@ -1412,6 +1413,7 @@ class SpkController extends Controller
             'petugas_nama' => $petugas->nama,
             'survei_periods' => $options['survei_periods'],
             'sensus_kegiatans' => $options['sensus_kegiatans'],
+            'penugasan_list' => $options['penugasan_list'],
         ]);
     }
 
@@ -1738,7 +1740,11 @@ class SpkController extends Controller
     private function resolvePublicPreviewOptionsForPetugas(Petugas $petugas, int $activeYear): array
     {
         $alokasiCollection = AlokasiPetugas::query()
-            ->with(['periodeAlokasi.kegiatan:id,nama_kegiatan,jenis_kegiatan'])
+            ->with([
+                'periodeAlokasi.kegiatan.rateHonors.satuan',
+                'periodeAlokasi.kegiatan.rateHonors.satuanListing',
+                'frameSampelAllocations.kegiatanFrameSampel.frameSampel',
+            ])
             ->where('petugas_id', $petugas->id)
             ->where(function ($query): void {
                 $query->where('total_honor', '>', 0)
@@ -1749,6 +1755,35 @@ class SpkController extends Controller
                     ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->get();
+
+        $penugasanList = $alokasiCollection
+            ->map(function (AlokasiPetugas $alokasi) use ($petugas): ?array {
+                $periode = $alokasi->periodeAlokasi;
+                $kegiatan = $periode?->kegiatan;
+
+                if (! $periode || ! $kegiatan) {
+                    return null;
+                }
+
+                $periodKey = sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
+                $documentStatus = $this->resolvePublicPreviewDocumentStatusForPeriod($petugas->id, $periodKey);
+
+                return [
+                    'id' => $alokasi->id,
+                    'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                    'kegiatan_hashed_id' => $kegiatan->hashed_id,
+                    'periode_key' => $periodKey,
+                    'periode_label' => $this->getBulanLabel((int) $periode->bulan).' '.(int) $periode->tahun,
+                    'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                    'target_pekerjaan' => $this->resolvePublicPreviewTargetPekerjaan($alokasi),
+                    'honor' => (float) $alokasi->getEffectiveCombinedHonor(),
+                    'honor_label' => 'Rp '.number_format((float) $alokasi->getEffectiveCombinedHonor(), 0, ',', '.'),
+                    'document_status' => $documentStatus,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
 
         $surveiPeriods = $alokasiCollection
             ->filter(function (AlokasiPetugas $alokasi): bool {
@@ -1815,7 +1850,98 @@ class SpkController extends Controller
         return [
             'survei_periods' => $surveiPeriods,
             'sensus_kegiatans' => $sensusKegiatans,
+            'penugasan_list' => $penugasanList,
         ];
+    }
+
+    private function resolvePublicPreviewTargetPekerjaan(AlokasiPetugas $alokasi): string
+    {
+        if (mb_strtolower((string) $alokasi->periodeAlokasi?->kegiatan?->jenis_kegiatan) === 'sensus') {
+            $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($alokasi, $alokasi);
+            if (($metrics['narrative'] ?? '-') !== '-') {
+                return (string) $metrics['narrative'];
+            }
+        }
+
+        $rateHonor = $this->resolvePublicPreviewRateHonorForAlokasi($alokasi);
+
+        if (! $rateHonor || ! $rateHonor->satuan) {
+            if ($alokasi->getEffectiveCombinedHonor() > 0) {
+                return '1 paket';
+            }
+
+            return '-';
+        }
+
+        $targetValue = $alokasi->getEffectiveJumlahSatuan();
+        if ($targetValue <= 0 && $alokasi->getEffectiveCombinedHonor() > 0) {
+            $targetValue = 1;
+        }
+
+        if ($targetValue <= 0) {
+            return '-';
+        }
+
+        return number_format($targetValue, 0, ',', '.').' '.$rateHonor->satuan->nama;
+    }
+
+    private function resolvePublicPreviewRateHonorForAlokasi(AlokasiPetugas $alokasi): ?RateHonor
+    {
+        $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+
+        if (! $kegiatan) {
+            return null;
+        }
+
+        $kegiatan->loadMissing([
+            'rateHonors.satuan',
+            'rateHonors.satuanListing',
+        ]);
+
+        $rateHonorByKey = $kegiatan->rateHonors->keyBy(function (RateHonor $rateHonor): string {
+            return $rateHonor->status_kepegawaian.'|'.$rateHonor->jenis_penugasan;
+        });
+
+        $statusKepegawaian = $alokasi->status_kepegawaian
+            ?? (($alokasi->petugas->jenis_petugas ?? 'non-organik') === 'organik' ? 'organik' : 'non_organik');
+
+        return $rateHonorByKey->get($statusKepegawaian.'|'.$alokasi->peran)
+            ?? $kegiatan->rateHonors->firstWhere('status', 'aktif');
+    }
+
+    private function resolvePublicPreviewDocumentStatusForPeriod(int $petugasId, string $periodKey): string
+    {
+        [$tahun, $bulan] = explode('-', $periodKey);
+
+        $documents = Spk::query()
+            ->where('petugas_id', $petugasId)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($tahun, $bulan): void {
+                $query->where('tahun', (int) $tahun)
+                    ->where('bulan', (int) $bulan);
+            })
+            ->orderBy('addendum_number')
+            ->get(['id', 'signed_file_path', 'addendum_number']);
+
+        if ($documents->isEmpty()) {
+            return 'Belum ada PK';
+        }
+
+        $hasMainSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
+        $hasAddendumSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
+
+        if ($hasMainSigned && $hasAddendumSigned) {
+            return 'PK Final + Addendum';
+        }
+
+        if ($hasAddendumSigned) {
+            return 'Addendum Final';
+        }
+
+        if ($hasMainSigned) {
+            return 'PK Final';
+        }
+
+        return 'PK Draft';
     }
 
     private function applyDraftWatermarkAndProtection(string $pdfBinary): string
