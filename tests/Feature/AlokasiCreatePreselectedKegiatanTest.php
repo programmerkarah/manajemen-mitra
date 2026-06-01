@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\MasterFrameSampel;
+use App\Models\MasterUnitSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -129,6 +130,65 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kdkec_label', 'Kecamatan Utara')
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kddes', '020')
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kddes_label', 'Desa Mekar')
+        );
+    }
+
+    public function test_create_alokasi_includes_unit_sample_labels_for_selected_kegiatan(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+        $activeYear = ActiveYearService::get();
+
+        $unitKeluarga = MasterUnitSampel::query()->create([
+            'kode' => 'KLG-'.$activeYear,
+            'nama' => 'keluarga',
+            'deskripsi' => 'Unit keluarga',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::query()->create([
+            'kode' => 'USH-'.$activeYear,
+            'nama' => 'usaha',
+            'deskripsi' => 'Unit usaha',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'tahun_anggaran' => $activeYear,
+            'jenis_kegiatan' => 'sensus',
+            'unit_sampel_pencacahan_ids' => [$unitKeluarga->id, $unitUsaha->id],
+        ]);
+
+        $satuan = Satuan::query()->create([
+            'kode' => 'SSE-'.$activeYear,
+            'nama' => 'Dokumen',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'sensus',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate honor PCL',
+            'satuan_id' => $satuan->id,
+            'rate' => 100000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => $activeYear,
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/create?kegiatan_id='.$kegiatan->hashed_id);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Alokasi/Create')
+            ->where('selectedKegiatan.unit_sampel_pencacahan_items.0.nama', 'keluarga')
+            ->where('selectedKegiatan.unit_sampel_pencacahan_items.1.nama', 'usaha')
         );
     }
 

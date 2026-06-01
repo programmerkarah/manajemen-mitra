@@ -77,6 +77,52 @@ class AlokasiPartialValidationTest extends TestCase
         return [$kegiatan, $rateHonor];
     }
 
+    private function setupSensusEkonomiKegiatanWithRateHonor(int $tahun): array
+    {
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'nama_kegiatan' => 'Sensus Ekonomi',
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "$tahun-01-01",
+            'tanggal_selesai' => "$tahun-12-31",
+            'pagu_pencacahan' => 100000000,
+            'has_listing_updating' => false,
+        ]);
+
+        $satuan = Satuan::query()->create([
+            'kode' => 'SE-'.$tahun,
+            'nama' => 'Dokumen',
+            'status' => 'aktif',
+        ]);
+
+        RateHonor::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'sensus',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate sensus ekonomi',
+            'satuan_id' => $satuan->id,
+            'rate' => 1000,
+            'rate_listing' => null,
+            'satuan_listing_id' => null,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
+        ]);
+
+        Sbml::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 5000000,
+            'status' => 'aktif',
+        ]);
+
+        return [$kegiatan];
+    }
+
     private function createSpkForAlokasi(AlokasiPetugas $alokasi, User $user, int $sequence = 1): Spk
     {
         return Spk::query()->create([
@@ -198,6 +244,47 @@ class AlokasiPartialValidationTest extends TestCase
             'partial_jumlah_satuan' => 1,
             'estimasi_honor_partial' => 1083000,
             'total_honor' => 2166000,
+        ]);
+    }
+
+    public function test_store_multiple_uses_fixed_honor_for_sensus_economy(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupSensusEkonomiKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $payload = [
+            'tanggal_mulai' => "$tahun-03-01",
+            'tanggal_selesai' => "$tahun-03-31",
+            'alokasi' => [
+                [
+                    'petugas_id' => $petugas->id,
+                    'peran' => 'PCL',
+                    'bulan' => 3,
+                    'tahun' => $tahun,
+                    'jumlah_satuan' => 3044860,
+                    'jenis_kegiatan' => 'sensus',
+                    'tahapan' => 'pencacahan_only',
+                    'is_partial_payment' => false,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/alokasi/kegiatan/{$kegiatan->hashed_id}/store-multiple", $payload);
+
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('alokasi_petugas', [
+            'petugas_id' => $petugas->id,
+            'total_honor' => 2500,
+            'jumlah_satuan' => 3044860,
         ]);
     }
 

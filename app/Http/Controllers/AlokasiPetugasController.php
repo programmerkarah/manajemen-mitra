@@ -829,7 +829,9 @@ class AlokasiPetugasController extends Controller
                 $kegiatan,
                 (float) ($alokasiData['jumlah_satuan'] ?? 0)
             );
-            $totalHonor = $rateHonor->rate * $pencacahanWorkload;
+            $totalHonor = $this->isSensusEkonomi2026($kegiatan)
+                ? (float) $rateHonor->rate * 2.5
+                : (float) $rateHonor->rate * $pencacahanWorkload;
 
             // Calculate listing honor if kegiatan has listing phase
             $totalHonorListing = 0;
@@ -850,7 +852,9 @@ class AlokasiPetugasController extends Controller
                     $kegiatan,
                     (float) $partialJumlahSatuan
                 );
-                $estimasiHonorPartial = $rateHonor->rate * $partialWorkload;
+                $estimasiHonorPartial = $this->isSensusEkonomi2026($kegiatan)
+                    ? (float) $rateHonor->rate * 2.5
+                    : $rateHonor->rate * $partialWorkload;
             }
 
             $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
@@ -1234,7 +1238,7 @@ class AlokasiPetugasController extends Controller
                             ->orderBy('id');
                     },
                 ])
-                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->filter(function ($kegiatan) {
@@ -1260,7 +1264,7 @@ class AlokasiPetugasController extends Controller
                             ->orderBy('id');
                     },
                 ])
-                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+                ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->filter(function ($kegiatan) {
@@ -1291,6 +1295,28 @@ class AlokasiPetugasController extends Controller
 
                 $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
             }
+
+            $kegiatan->setAttribute(
+                'unit_sampel_pencacahan_items',
+                $kegiatan->unitSampelPencacahanItems()
+                    ->map(fn ($item) => [
+                        'id' => $item->id,
+                        'nama' => $item->nama,
+                    ])
+                    ->values()
+                    ->all()
+            );
+
+            $kegiatan->setAttribute(
+                'unit_sampel_listing_items',
+                $kegiatan->unitSampelListingItems()
+                    ->map(fn ($item) => [
+                        'id' => $item->id,
+                        'nama' => $item->nama,
+                    ])
+                    ->values()
+                    ->all()
+            );
         }
         // Calculate budget info for all kegiatans
         $budgetInfo = [];
@@ -1429,7 +1455,7 @@ class AlokasiPetugasController extends Controller
                                     ->orderBy('id');
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
                         ->first();
 
                     // Add SBML limits to selected kegiatan's rate honors
@@ -1444,6 +1470,28 @@ class AlokasiPetugasController extends Controller
 
                             $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
                         }
+
+                        $selectedKegiatan->setAttribute(
+                            'unit_sampel_pencacahan_items',
+                            $selectedKegiatan->unitSampelPencacahanItems()
+                                ->map(fn ($item) => [
+                                    'id' => $item->id,
+                                    'nama' => $item->nama,
+                                ])
+                                ->values()
+                                ->all()
+                        );
+
+                        $selectedKegiatan->setAttribute(
+                            'unit_sampel_listing_items',
+                            $selectedKegiatan->unitSampelListingItems()
+                                ->map(fn ($item) => [
+                                    'id' => $item->id,
+                                    'nama' => $item->nama,
+                                ])
+                                ->values()
+                                ->all()
+                        );
                     }
                 }
             } catch (\Exception $e) {
@@ -1627,7 +1675,9 @@ class AlokasiPetugasController extends Controller
             $kegiatan,
             (float) ($data['jumlah_satuan'] ?? 0)
         );
-        $totalHonor = $rateHonor->rate * $pencacahanWorkload;
+        $totalHonor = $this->isSensusEkonomi2026($kegiatan)
+            ? (float) $rateHonor->rate * 2.5
+            : (float) $rateHonor->rate * $pencacahanWorkload;
 
         // Calculate total honor for listing if present
         $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
@@ -1742,7 +1792,9 @@ class AlokasiPetugasController extends Controller
             $kegiatan,
             (float) ($data['jumlah_satuan'] ?? 0)
         );
-        $totalHonor = $rateHonor->rate * $pencacahanWorkload;
+        $totalHonor = $this->isSensusEkonomi2026($kegiatan)
+            ? (float) $rateHonor->rate * 2.5
+            : (float) $rateHonor->rate * $pencacahanWorkload;
 
         // Calculate total honor for listing if present
         $jumlahSatuanListing = $data['jumlah_satuan_listing'] ?? null;
@@ -2222,7 +2274,7 @@ class AlokasiPetugasController extends Controller
                         ->orderBy('id');
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
             ->firstOrFail();
 
         foreach ($kegiatanWithRates->rateHonors as $rateHonor) {
@@ -2879,7 +2931,9 @@ class AlokasiPetugasController extends Controller
                     $kegiatan,
                     (float) ($alokasiData['jumlah_satuan'] ?? 0)
                 );
-                $totalHonor = $rateHonor->rate * $pencacahanWorkload;
+                $totalHonor = $this->isSensusEkonomi2026($kegiatan)
+                    ? (float) $rateHonor->rate * 2.5
+                    : (float) $rateHonor->rate * $pencacahanWorkload;
 
                 // Calculate listing honor if kegiatan has listing phase
                 $totalHonorListing = 0;
@@ -2900,7 +2954,9 @@ class AlokasiPetugasController extends Controller
                         $kegiatan,
                         (float) $partialJumlahSatuan
                     );
-                    $estimasiHonorPartial = $rateHonor->rate * $partialWorkload;
+                    $estimasiHonorPartial = $this->isSensusEkonomi2026($kegiatan)
+                        ? (float) $rateHonor->rate * 2.5
+                        : $rateHonor->rate * $partialWorkload;
                 }
 
                 $isPartialPaymentListing = (bool) ($alokasiData['is_partial_payment_listing'] ?? false);
@@ -4069,9 +4125,15 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $estimasiHonor = (float) ($rate->rate ?? 0) * $jumlahSatuanPencacahan;
+            $estimasiHonor = $this->isSensusEkonomi2026($kegiatan)
+                ? (float) ($rate->rate ?? 0) * 2.5
+                : (float) ($rate->rate ?? 0) * $this->resolvePencacahanWorkload($kegiatan, $jumlahSatuanPencacahan);
             $estimasiHonorListing = (float) ($rate->rate_listing ?? 0) * $jumlahSatuanListing;
-            $estimasiHonorPartial = $isPartialPayment ? (float) ($rate->rate ?? 0) * $partialJumlahSatuan : 0;
+            $estimasiHonorPartial = $isPartialPayment
+                ? ($this->isSensusEkonomi2026($kegiatan)
+                    ? (float) ($rate->rate ?? 0) * 2.5
+                    : (float) ($rate->rate ?? 0) * $this->resolvePencacahanWorkload($kegiatan, $partialJumlahSatuan))
+                : 0;
             $estimasiHonorPartialListing = $isPartialPayment ? (float) ($rate->rate_listing ?? 0) * $partialJumlahSatuanListing : 0;
 
             $previewRows[] = [

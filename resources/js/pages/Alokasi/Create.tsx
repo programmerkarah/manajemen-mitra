@@ -47,6 +47,57 @@ const breadcrumbs: BreadcrumbItem[] = [
 const SENSUS_EKONOMI_2026_NAME = 'sensus ekonomi';
 const SENSUS_EKONOMI_2026_OB_FACTOR = 2.5;
 
+const resolveJenisPenugasan = (peran: string): string => {
+    const normalizedPeran = peran.trim().toLowerCase();
+
+    if (
+        normalizedPeran === 'pcl' ||
+        normalizedPeran === 'ppl' ||
+        normalizedPeran === 'pcl/ppl'
+    ) {
+        return 'pcl_ppl';
+    }
+
+    if (normalizedPeran === 'pml') {
+        return 'pml';
+    }
+
+    if (normalizedPeran === 'koseka') {
+        return 'koseka';
+    }
+
+    if (normalizedPeran === 'petugas pengolahan') {
+        return 'pengolahan';
+    }
+
+    if (normalizedPeran === 'pengawas pengolahan') {
+        return 'pengawas_pengolahan';
+    }
+
+    return '';
+};
+
+const mergeKegiatan = (base: Kegiatan, incoming: Kegiatan): Kegiatan => ({
+    ...base,
+    ...incoming,
+    rate_honors:
+        incoming.rate_honors?.length > 0
+            ? incoming.rate_honors
+            : base.rate_honors,
+    kegiatan_frame_sampel:
+        (incoming.kegiatan_frame_sampel?.length ?? 0) > 0
+            ? incoming.kegiatan_frame_sampel
+            : base.kegiatan_frame_sampel,
+    unit_sampel_pencacahan_items:
+        (incoming.unit_sampel_pencacahan_items?.length ?? 0) > 0
+            ? incoming.unit_sampel_pencacahan_items
+            : base.unit_sampel_pencacahan_items,
+    unit_sampel_listing_items:
+        (incoming.unit_sampel_listing_items?.length ?? 0) > 0
+            ? incoming.unit_sampel_listing_items
+            : base.unit_sampel_listing_items,
+});
+
 interface Kegiatan {
     pj_lainnya_id: number;
     id: string;
@@ -69,6 +120,14 @@ interface Kegiatan {
         identitas_tambahan?: Record<string, string | number | null> | null;
         target_unit_sampel: Record<string, number>;
     }>;
+    unit_sampel_pencacahan_items?: Array<{
+        id: number;
+        nama: string;
+    }>;
+    unit_sampel_listing_items?: Array<{
+        id: number;
+        nama: string;
+    }>;
 }
 
 type FrameSampelOption = NonNullable<Kegiatan['kegiatan_frame_sampel']>[number];
@@ -89,6 +148,14 @@ const formatMetadataValue = (
     const normalized = String(value).trim();
 
     return normalized === '' ? '-' : normalized;
+};
+
+const formatTargetNumber = (value: string | number | null | undefined): string => {
+    const parsedValue = Number(value || 0);
+
+    return new Intl.NumberFormat('id-ID', {
+        maximumFractionDigits: 0,
+    }).format(Number.isFinite(parsedValue) ? parsedValue : 0);
 };
 
 const buildFrameMetadataDetails = (
@@ -281,6 +348,12 @@ interface ImportPreviewRow extends AlokasiItem {
 interface FrameMetadataColumn {
     code: string;
     label: string;
+}
+
+interface UnitTargetDefinition {
+    id?: number;
+    name: string;
+    keyHints: string[];
 }
 
 /** Shape of alokasi data coming from the backend (edit/copy mode) */
@@ -758,9 +831,21 @@ export default function Create({
             : kegiatans;
 
         const uniqueKegiatans = Array.from(
-            new Map(
-                combinedKegiatans.map((item) => [String(item.id), item]),
-            ).values(),
+            combinedKegiatans
+                .reduce((map, item) => {
+                    const kegiatanId = String(item.id);
+                    const existingItem = map.get(kegiatanId);
+
+                    map.set(
+                        kegiatanId,
+                        existingItem
+                            ? mergeKegiatan(existingItem, item)
+                            : item,
+                    );
+
+                    return map;
+                }, new Map<string, Kegiatan>())
+                .values(),
         );
 
         const availableKegiatans = uniqueKegiatans.filter((item) =>
@@ -840,24 +925,175 @@ export default function Create({
           : 1;
     const effectiveBulan = isSensusKegiatan ? sensusFixedMonth : bulan;
 
-    const applySensusWorkloadFactor = useCallback(
-        (jumlahSatuan: number): number => {
-            if (!isSensusEkonomi2026 || jumlahSatuan <= 0) {
-                return jumlahSatuan;
-            }
+    const orderedPencacahanUnitItems = useMemo(() => {
+        const unitItems = selectedKegiatan?.unit_sampel_pencacahan_items || [];
 
-            return jumlahSatuan * SENSUS_EKONOMI_2026_OB_FACTOR;
-        },
-        [isSensusEkonomi2026],
+        return [...unitItems].sort((left, right) => {
+            const leftName = left.nama.trim().toLowerCase();
+            const rightName = right.nama.trim().toLowerCase();
+
+            const getPriority = (name: string): number => {
+                if (name.includes('usaha')) {
+                    return 0;
+                }
+
+                if (name.includes('keluarga')) {
+                    return 1;
+                }
+
+                return 2;
+            };
+
+            return getPriority(leftName) - getPriority(rightName);
+        });
+    }, [selectedKegiatan?.unit_sampel_pencacahan_items]);
+
+    const frameSampelById = useMemo(
+        () =>
+            new Map(
+                allFrameSampelOptions.map((frameSampel) => [
+                    String(frameSampel.id),
+                    frameSampel,
+                ]),
+            ),
+        [allFrameSampelOptions],
     );
 
-    const getFrameSampelLabel = useCallback(
-        (frameSampel: FrameSampelOption) => {
-            const primaryLabel = getFramePrimaryIdentity(frameSampel).title;
+    const unitTargetDefinitions = useMemo<UnitTargetDefinition[]>(() => {
+        if (orderedPencacahanUnitItems.length > 0) {
+            return orderedPencacahanUnitItems.map((item) => {
+                const normalizedName = item.nama
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '');
 
-            return `${primaryLabel} (${frameSampel.tahapan})`;
+                return {
+                    id: Number(item.id),
+                    name: item.nama,
+                    keyHints: [
+                        String(item.id),
+                        item.nama,
+                        normalizedName,
+                        `target_${normalizedName}`,
+                    ],
+                };
+            });
+        }
+
+        const keySet = new Set<string>();
+        allFrameSampelOptions.forEach((frameSampel) => {
+            Object.keys(frameSampel.target_unit_sampel || {}).forEach((key) => {
+                keySet.add(String(key));
+            });
+        });
+
+        const keys = Array.from(keySet);
+
+        return keys
+            .map((key) => {
+                const normalizedKey = key
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '');
+
+                const readableName = normalizedKey
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+                return {
+                    name: readableName || key,
+                    keyHints: [key, normalizedKey, `target_${normalizedKey}`],
+                };
+            })
+            .sort((left, right) => {
+                const leftName = left.name.toLowerCase();
+                const rightName = right.name.toLowerCase();
+
+                const getPriority = (name: string): number => {
+                    if (name.includes('usaha')) {
+                        return 0;
+                    }
+
+                    if (name.includes('keluarga')) {
+                        return 1;
+                    }
+
+                    return 2;
+                };
+
+                return getPriority(leftName) - getPriority(rightName);
+            });
+    }, [allFrameSampelOptions, orderedPencacahanUnitItems]);
+
+    const formatFrameTargetSummary = useCallback(
+        (
+            frameSampel: FrameSampelOption,
+            unitItem?: UnitTargetDefinition,
+            fallbackIndex = 0,
+        ): number => {
+            const targetUnitSampel = frameSampel.target_unit_sampel || {};
+            const definitions = unitTargetDefinitions;
+
+            if (definitions.length === 0 || !targetUnitSampel) {
+                return Object.values(targetUnitSampel).reduce(
+                    (sum, value) => sum + Number(value || 0),
+                    0,
+                );
+            }
+
+            const matchingDefinition = unitItem || definitions[fallbackIndex];
+            const candidateKeys = (matchingDefinition?.keyHints || []).filter(
+                (candidate): candidate is string => candidate.trim() !== '',
+            );
+
+            for (const candidate of candidateKeys) {
+                const foundEntry = Object.entries(targetUnitSampel).find(
+                    ([key]) =>
+                        String(key).trim().toLowerCase() ===
+                        candidate.trim().toLowerCase(),
+                );
+
+                if (foundEntry) {
+                    return Number(foundEntry[1] || 0);
+                }
+            }
+
+            const targetValues = Object.values(targetUnitSampel);
+
+            return Number(targetValues[fallbackIndex] || 0);
         },
-        [],
+        [unitTargetDefinitions],
+    );
+
+    const getFrameTargetBreakdown = useCallback(
+        (frameSampel: FrameSampelOption): string[] => {
+            if (unitTargetDefinitions.length === 0) {
+                const totalTarget = Object.values(
+                    frameSampel.target_unit_sampel || {},
+                ).reduce((sum, value) => sum + Number(value || 0), 0);
+
+                return [`${formatTargetNumber(totalTarget)} target`];
+            }
+
+            return unitTargetDefinitions
+                .map((unitDefinition, unitIndex) => {
+                    const targetValue = formatFrameTargetSummary(
+                        frameSampel,
+                        unitDefinition,
+                        unitIndex,
+                    );
+
+                    if (targetValue <= 0) {
+                        return null;
+                    }
+
+                    return `${formatTargetNumber(targetValue)} ${unitDefinition.name}`;
+                })
+                .filter((value): value is string => value !== null);
+        },
+        [formatFrameTargetSummary, unitTargetDefinitions],
     );
 
     const getSelectedFrameSampelDetails = useCallback(
@@ -871,26 +1107,119 @@ export default function Create({
         [allFrameSampelOptions],
     );
 
-    const getSelectedFrameSampelSummary = useCallback(
-        (frameIds?: string[]) => {
-            const selectedFrames = getSelectedFrameSampelDetails(frameIds);
+    const formatTargetBreakdownText = useCallback((items: string[]): string => {
+        if (items.length <= 1) {
+            return items.join('');
+        }
 
-            if (selectedFrames.length === 0) {
-                return 'Belum ada sampel dipilih.';
+        if (items.length === 2) {
+            return `${items[0]} dan ${items[1]}`;
+        }
+
+        return `${items.slice(0, -1).join(', ')}, dan ${items[items.length - 1]}`;
+    }, []);
+
+    const getSelectedFrameSampelSummary = (frameIds?: string[]) => {
+        const selectedFrames = getSelectedFrameSampelDetails(frameIds);
+
+        if (selectedFrames.length === 0) {
+            return 'Belum ada sampel dipilih.';
+        }
+
+        const targetBreakdown = unitTargetDefinitions
+            .map((unitDefinition, unitIndex) => {
+                const totalTarget = selectedFrames.reduce(
+                    (sum, frameSampel) =>
+                        sum +
+                        formatFrameTargetSummary(
+                            frameSampel,
+                            unitDefinition,
+                            unitIndex,
+                        ),
+                    0,
+                );
+
+                if (totalTarget <= 0) {
+                    return null;
+                }
+
+                return `${formatTargetNumber(totalTarget)} ${unitDefinition.name}`;
+            })
+            .filter((value): value is string => value !== null);
+
+        if (targetBreakdown.length > 0) {
+            return `${selectedFrames.length} SLS/sub-SLS, ${formatTargetBreakdownText(targetBreakdown)}`;
+        }
+
+        const totalTarget = selectedFrames.reduce((sum, frameSampel) => {
+            return (
+                sum +
+                Object.values(frameSampel.target_unit_sampel || {}).reduce(
+                    (frameSum, value) => frameSum + Number(value || 0),
+                    0,
+                )
+            );
+        }, 0);
+
+        return `${selectedFrames.length} SLS/sub-SLS, ${formatTargetNumber(totalTarget)} target`;
+    };
+
+    const getPreviewFrameForRow = useCallback(
+        (row: ImportPreviewRow): FrameSampelOption | undefined => {
+            const firstFrameId = row.frame_sampel_ids?.[0];
+
+            if (!firstFrameId) {
+                return undefined;
             }
 
-            const preview = selectedFrames
-                .slice(0, 2)
-                .map((frameSampel) => getFrameSampelLabel(frameSampel))
-                .join(', ');
-
-            if (selectedFrames.length <= 2) {
-                return preview;
-            }
-
-            return `${preview}, +${selectedFrames.length - 2} lainnya`;
+            return frameSampelById.get(String(firstFrameId));
         },
-        [getFrameSampelLabel, getSelectedFrameSampelDetails],
+        [frameSampelById],
+    );
+
+    const getPreviewMetadataDisplayValue = useCallback(
+        (row: ImportPreviewRow, column: FrameMetadataColumn): string => {
+            const codeValue = row.frame_sampel_metadata?.[column.code];
+
+            if (!codeValue || String(codeValue).trim() === '') {
+                return '-';
+            }
+
+            const matchedFrame = getPreviewFrameForRow(row);
+            const metadata = matchedFrame?.identitas_tambahan || {};
+            const normalizedCode = column.code.trim().toLowerCase();
+
+            const labelValue = Object.entries(metadata).find(
+                ([key]) => key.trim().toLowerCase() === `${normalizedCode}_label`,
+            )?.[1];
+
+            const resolvedLabel =
+                labelValue !== null &&
+                labelValue !== undefined &&
+                String(labelValue).trim() !== ''
+                    ? String(labelValue).trim()
+                    : column.label;
+
+            return `[${codeValue}] ${resolvedLabel}`;
+        },
+        [getPreviewFrameForRow],
+    );
+
+    const getImportPreviewRowPencacahanValue = useCallback(
+        (row: ImportPreviewRow, unitIndex: number): number => {
+            const matchedFrame = getPreviewFrameForRow(row);
+
+            if (!matchedFrame) {
+                return unitIndex === 0 ? Number(row.jumlah_satuan || 0) : 0;
+            }
+
+            return formatFrameTargetSummary(
+                matchedFrame,
+                unitTargetDefinitions[unitIndex],
+                unitIndex,
+            );
+        },
+        [formatFrameTargetSummary, getPreviewFrameForRow, unitTargetDefinitions],
     );
 
     const calculateTargetFromFrameSelections = useCallback(
@@ -1224,14 +1553,7 @@ export default function Create({
                 selectedPetugas.jenis_petugas === 'organik'
                     ? 'organik'
                     : 'non_organik';
-            let jenisPenugasan = '';
-            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-            else if (peran === 'PML') jenisPenugasan = 'pml';
-            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
-            else if (peran === 'Petugas Pengolahan')
-                jenisPenugasan = 'pengolahan';
-            else if (peran === 'Pengawas Pengolahan')
-                jenisPenugasan = 'pengawas_pengolahan';
+            const jenisPenugasan = resolveJenisPenugasan(peran);
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -1239,11 +1561,14 @@ export default function Create({
                     r.jenis_penugasan === jenisPenugasan,
             );
             if (!matchingRateHonor) return 0;
+            if (isSensusEkonomi2026) {
+                return matchingRateHonor.rate * SENSUS_EKONOMI_2026_OB_FACTOR;
+            }
+
             const parsedJumlah = parseFloat(jumlahSatuan) || 0;
-            const effectiveJumlah = applySensusWorkloadFactor(parsedJumlah);
-            return matchingRateHonor.rate * effectiveJumlah;
+            return matchingRateHonor.rate * parsedJumlah;
         },
-        [selectedKegiatan, petugas, applySensusWorkloadFactor],
+        [selectedKegiatan, petugas, isSensusEkonomi2026],
     );
 
     // Calculate estimasi honor for listing phase
@@ -1265,14 +1590,7 @@ export default function Create({
                 selectedPetugas.jenis_petugas === 'organik'
                     ? 'organik'
                     : 'non_organik';
-            let jenisPenugasan = '';
-            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-            else if (peran === 'PML') jenisPenugasan = 'pml';
-            else if (peran === 'Petugas Pengolahan')
-                jenisPenugasan = 'pengolahan';
-            else if (peran === 'Pengawas Pengolahan')
-                jenisPenugasan = 'pengawas_pengolahan';
-            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
+            const jenisPenugasan = resolveJenisPenugasan(peran);
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -1304,14 +1622,7 @@ export default function Create({
                 selectedPetugas.jenis_petugas === 'organik'
                     ? 'organik'
                     : 'non_organik';
-            let jenisPenugasan = '';
-            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-            else if (peran === 'PML') jenisPenugasan = 'pml';
-            else if (peran === 'Petugas Pengolahan')
-                jenisPenugasan = 'pengolahan';
-            else if (peran === 'Pengawas Pengolahan')
-                jenisPenugasan = 'pengawas_pengolahan';
-            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
+            const jenisPenugasan = resolveJenisPenugasan(peran);
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -1319,11 +1630,14 @@ export default function Create({
                     r.jenis_penugasan === jenisPenugasan,
             );
             if (!matchingRateHonor) return 0;
+            if (isSensusEkonomi2026) {
+                return matchingRateHonor.rate * SENSUS_EKONOMI_2026_OB_FACTOR;
+            }
+
             const parsedJumlah = parseFloat(partialJumlahSatuan) || 0;
-            const effectiveJumlah = applySensusWorkloadFactor(parsedJumlah);
-            return matchingRateHonor.rate * effectiveJumlah;
+            return matchingRateHonor.rate * parsedJumlah;
         },
-        [selectedKegiatan, petugas, applySensusWorkloadFactor],
+        [selectedKegiatan, petugas, isSensusEkonomi2026],
     );
 
     // Calculate estimasi honor for partial payment listing
@@ -1349,14 +1663,7 @@ export default function Create({
                 selectedPetugas.jenis_petugas === 'organik'
                     ? 'organik'
                     : 'non_organik';
-            let jenisPenugasan = '';
-            if (peran === 'PCL') jenisPenugasan = 'pcl_ppl';
-            else if (peran === 'PML') jenisPenugasan = 'pml';
-            else if (peran === 'Petugas Pengolahan')
-                jenisPenugasan = 'pengolahan';
-            else if (peran === 'Pengawas Pengolahan')
-                jenisPenugasan = 'pengawas_pengolahan';
-            else if (peran === 'Koseka') jenisPenugasan = 'koseka';
+            const jenisPenugasan = resolveJenisPenugasan(peran);
             if (!jenisPenugasan) return 0;
             const matchingRateHonor = selectedKegiatan.rate_honors?.find(
                 (r) =>
@@ -1369,6 +1676,60 @@ export default function Create({
             return matchingRateHonor.rate_listing * parsedJumlahListing;
         },
         [selectedKegiatan, petugas],
+    );
+
+    const getCurrentEstimasiPencacahan = useCallback(
+        (item: AlokasiItem): number => {
+            if (item.is_partial_payment) {
+                return (
+                    calculateEstimasiPartial(
+                        item.petugas_id,
+                        item.peran,
+                        item.partial_jumlah_satuan || '',
+                    ) || 0
+                );
+            }
+
+            return (
+                calculateEstimasi(
+                    item.petugas_id,
+                    item.peran,
+                    item.jumlah_satuan || '',
+                ) || 0
+            );
+        },
+        [calculateEstimasi, calculateEstimasiPartial],
+    );
+
+    const getCurrentEstimasiListing = useCallback(
+        (item: AlokasiItem): number => {
+            if (!selectedKegiatan?.has_listing_updating) {
+                return 0;
+            }
+
+            if (item.is_partial_payment_listing) {
+                return (
+                    calculateEstimasiPartialListing(
+                        item.petugas_id,
+                        item.peran,
+                        item.partial_jumlah_satuan_listing || '',
+                    ) || 0
+                );
+            }
+
+            return (
+                calculateEstimasiListing(
+                    item.petugas_id,
+                    item.peran,
+                    item.jumlah_satuan_listing || '',
+                ) || 0
+            );
+        },
+        [
+            calculateEstimasiListing,
+            calculateEstimasiPartialListing,
+            selectedKegiatan?.has_listing_updating,
+        ],
     );
 
     const parseWorkloadNumber = useCallback(
@@ -2026,21 +2387,38 @@ export default function Create({
 
     // Calculate total estimasi for each phase
     // If partial payment is enabled, use partial honor instead
-    const totalEstimasiPencacahan = alokasiItems.reduce(
-        (sum, item) =>
-            sum +
-            (item.is_partial_payment
-                ? item.estimasi_honor_partial || 0
-                : item.estimasi_honor || 0),
-        0,
-    );
+    const totalEstimasiPencacahan = useMemo(() => {
+        if (!isSensusEkonomi2026) {
+            return alokasiItems.reduce(
+                (sum, item) => sum + getCurrentEstimasiPencacahan(item),
+                0,
+            );
+        }
+
+        const estimasiByUniquePetugas = new Map<string, number>();
+
+        alokasiItems.forEach((item) => {
+            const petugasId = String(item.petugas_id || '').trim();
+            const peran = String(item.peran || '').trim();
+
+            if (petugasId === '' || peran === '') {
+                return;
+            }
+
+            estimasiByUniquePetugas.set(
+                `${petugasId}::${peran}`,
+                getCurrentEstimasiPencacahan(item),
+            );
+        });
+
+        return Array.from(estimasiByUniquePetugas.values()).reduce(
+            (sum, estimasi) => sum + estimasi,
+            0,
+        );
+    }, [alokasiItems, getCurrentEstimasiPencacahan, isSensusEkonomi2026]);
     const totalEstimasiListing = selectedKegiatan?.has_listing_updating
         ? alokasiItems.reduce(
-              (sum, item) =>
-                  sum +
-                  (item.is_partial_payment_listing
-                      ? item.estimasi_honor_partial_listing || 0
-                      : item.estimasi_honor_listing || 0),
+              (sum, item) => sum + getCurrentEstimasiListing(item),
               0,
           )
         : 0;
@@ -2589,25 +2967,54 @@ export default function Create({
 
         const mergedPreviewRows = Array.from(mergedRows.values());
 
-        const mappedItems: AlokasiItem[] = mergedPreviewRows.map((row) => ({
-            petugas_id: row.petugas_id,
-            peran: row.peran,
-            jumlah_satuan: row.jumlah_satuan,
-            estimasi_honor: row.estimasi_honor,
-            jumlah_satuan_listing: row.jumlah_satuan_listing,
-            estimasi_honor_listing: row.estimasi_honor_listing,
-            catatan: row.catatan || '',
-            is_partial_payment: row.is_partial_payment,
-            partial_jumlah_satuan: row.partial_jumlah_satuan,
-            estimasi_honor_partial: row.estimasi_honor_partial,
-            is_partial_payment_listing: row.is_partial_payment_listing,
-            partial_jumlah_satuan_listing: row.partial_jumlah_satuan_listing,
-            estimasi_honor_partial_listing: row.estimasi_honor_partial_listing,
-            frame_sampel_ids: (row.frame_sampel_ids || []).map((frameId) =>
-                String(frameId),
-            ),
-            jumlah_unit_sampel: String(row.jumlah_unit_sampel || ''),
-        }));
+        const mappedItems: AlokasiItem[] = mergedPreviewRows.map((row) => {
+            const jumlahSatuan = String(row.jumlah_satuan || '');
+            const jumlahSatuanListing = String(row.jumlah_satuan_listing || '');
+            const partialJumlahSatuan = String(row.partial_jumlah_satuan || '');
+            const partialJumlahSatuanListing = String(
+                row.partial_jumlah_satuan_listing || '',
+            );
+
+            return {
+                petugas_id: row.petugas_id,
+                peran: row.peran,
+                jumlah_satuan: jumlahSatuan,
+                estimasi_honor: calculateEstimasi(
+                    row.petugas_id,
+                    row.peran,
+                    jumlahSatuan,
+                ),
+                jumlah_satuan_listing: jumlahSatuanListing,
+                estimasi_honor_listing: calculateEstimasiListing(
+                    row.petugas_id,
+                    row.peran,
+                    jumlahSatuanListing,
+                ),
+                catatan: row.catatan || '',
+                is_partial_payment: row.is_partial_payment,
+                partial_jumlah_satuan: partialJumlahSatuan,
+                estimasi_honor_partial: row.is_partial_payment
+                    ? calculateEstimasiPartial(
+                          row.petugas_id,
+                          row.peran,
+                          partialJumlahSatuan,
+                      )
+                    : 0,
+                is_partial_payment_listing: row.is_partial_payment_listing,
+                partial_jumlah_satuan_listing: partialJumlahSatuanListing,
+                estimasi_honor_partial_listing: row.is_partial_payment_listing
+                    ? calculateEstimasiPartialListing(
+                          row.petugas_id,
+                          row.peran,
+                          partialJumlahSatuanListing,
+                      )
+                    : 0,
+                frame_sampel_ids: (row.frame_sampel_ids || []).map((frameId) =>
+                    String(frameId),
+                ),
+                jumlah_unit_sampel: String(row.jumlah_unit_sampel || ''),
+            };
+        });
 
         setAlokasiItems(mappedItems);
         setJumlahPetugas(mappedItems.length);
@@ -3764,12 +4171,37 @@ export default function Create({
                                                             </th>
                                                         ),
                                                     )}
-                                                    <th className="px-2 py-1 text-right">
-                                                        Pencacahan
-                                                    </th>
-                                                    <th className="px-2 py-1 text-right">
-                                                        Listing
-                                                    </th>
+                                                    {isSensusKegiatan &&
+                                                    unitTargetDefinitions.length >
+                                                        1
+                                                        ? unitTargetDefinitions.map(
+                                                              (
+                                                                  unitDefinition,
+                                                              ) => (
+                                                                  <th
+                                                                      key={`preview-pencacahan-${unitDefinition.name}`}
+                                                                      className="px-2 py-1 text-right"
+                                                                  >
+                                                                      Target{' '}
+                                                                      {
+                                                                          unitDefinition.name
+                                                                      }
+                                                                  </th>
+                                                              ),
+                                                          )
+                                                        : [
+                                                              <th
+                                                                  key="preview-pencacahan"
+                                                                  className="px-2 py-1 text-right"
+                                                              >
+                                                                  Pencacahan
+                                                              </th>,
+                                                          ]}
+                                                    {selectedKegiatan?.has_listing_updating && (
+                                                        <th className="px-2 py-1 text-right">
+                                                            Listing
+                                                        </th>
+                                                    )}
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -3796,24 +4228,52 @@ export default function Create({
                                                                         key={`${row.petugas_id}-${index}-${column.code}`}
                                                                         className="px-2 py-1"
                                                                     >
-                                                                        {row
-                                                                            .frame_sampel_metadata?.[
-                                                                            column
-                                                                                .code
-                                                                        ] ||
-                                                                            '-'}
+                                                                        {getPreviewMetadataDisplayValue(
+                                                                            row,
+                                                                            column,
+                                                                        )}
                                                                     </td>
                                                                 ),
                                                             )}
-                                                            <td className="px-2 py-1 text-right">
-                                                                {
-                                                                    row.jumlah_satuan
-                                                                }
-                                                            </td>
-                                                            <td className="px-2 py-1 text-right">
-                                                                {row.jumlah_satuan_listing ||
-                                                                    0}
-                                                            </td>
+                                                            {isSensusKegiatan &&
+                                                            unitTargetDefinitions.length >
+                                                                1
+                                                                ? unitTargetDefinitions.map(
+                                                                      (
+                                                                          unitDefinition,
+                                                                          unitIndex,
+                                                                      ) => (
+                                                                          <td
+                                                                              key={`${row.petugas_id}-${index}-target-${unitDefinition.name}`}
+                                                                              className="px-2 py-1 text-right"
+                                                                          >
+                                                                              {formatTargetNumber(
+                                                                                  getImportPreviewRowPencacahanValue(
+                                                                                      row,
+                                                                                      unitIndex,
+                                                                                  ),
+                                                                              )}
+                                                                          </td>
+                                                                      ),
+                                                                  )
+                                                                : [
+                                                                      <td
+                                                                          key={`${row.petugas_id}-${index}-pencacahan`}
+                                                                          className="px-2 py-1 text-right"
+                                                                      >
+                                                                          {formatTargetNumber(
+                                                                              row.jumlah_satuan,
+                                                                          )}
+                                                                      </td>,
+                                                                  ]}
+                                                            {selectedKegiatan?.has_listing_updating && (
+                                                                <td className="px-2 py-1 text-right">
+                                                                    {formatTargetNumber(
+                                                                        row.jumlah_satuan_listing ||
+                                                                            0,
+                                                                    )}
+                                                                </td>
+                                                            )}
                                                         </tr>
                                                     ),
                                                 )}
@@ -5433,14 +5893,10 @@ export default function Create({
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">
                                                         Target Unit Sampel:
                                                     </span>{' '}
-                                                    {Object.values(
-                                                        (frameSampel.target_unit_sampel as Record<
-                                                            string,
-                                                            number
-                                                        >) || {},
-                                                    ).reduce(
-                                                        (s, v) => s + Number(v),
-                                                        0,
+                                                    {formatTargetBreakdownText(
+                                                        getFrameTargetBreakdown(
+                                                            frameSampel,
+                                                        ),
                                                     )}
                                                 </div>
                                             </div>

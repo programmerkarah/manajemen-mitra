@@ -292,23 +292,6 @@ export default function Create() {
                                 <InputError message={errors.pendidikan} />
                             </div>
 
-                            {/* Tanggal Lahir */}
-                            <div className="space-y-2">
-                                <Label htmlFor="tanggal_lahir">
-                                    Tanggal Lahir
-                                </Label>
-                                <DatePicker
-                                    id="tanggal_lahir"
-                                    value={data.tanggal_lahir}
-                                    onChange={(value) =>
-                                        setData('tanggal_lahir', value)
-                                    }
-                                    max={new Date().toISOString().split('T')[0]}
-                                    className="h-10"
-                                />
-                                <InputError message={errors.tanggal_lahir} />
-                            </div>
-
                             {/* Tahun Bergabung */}
                             <div className="space-y-2">
                                 <Label htmlFor="tahun_bergabung">

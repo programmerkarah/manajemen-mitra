@@ -280,6 +280,49 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return (int) array_sum(array_map(fn ($value) => (int) $value, $targetUnitSampel));
     }
 
+    /**
+     * @param  Collection<int, array{code:string,label:string}>  $frameMetadataColumns
+     * @param  Collection<int, array{header:string, unit_id:int|null, unit_token:string|null, index:int|null}>  $frameTargetColumns
+     */
+    private function buildFrameTargetFormula(
+        int $rowNumber,
+        Collection $frameMetadataColumns,
+        Collection $frameTargetColumns,
+        int $targetColumnIndex,
+        int $frameLastRow,
+    ): string {
+        $mainMetadataStartColumn = 3;
+        $mainTargetStartColumn = $mainMetadataStartColumn + $frameMetadataColumns->count() + ($this->hasListing() ? 1 : 0);
+        $frameMetadataStartColumn = 4;
+        $frameTargetStartColumn = $frameMetadataStartColumn + $frameMetadataColumns->count();
+
+        if (! is_array($frameTargetColumns->get($targetColumnIndex))) {
+            return '';
+        }
+
+        $metadataCells = [];
+        $sumRange = null;
+        $criteriaParts = [];
+
+        foreach ($frameMetadataColumns as $metadataIndex => $_column) {
+            $mainMetadataColumnLetter = Coordinate::stringFromColumnIndex($mainMetadataStartColumn + $metadataIndex);
+            $frameMetadataColumnLetter = Coordinate::stringFromColumnIndex($frameMetadataStartColumn + $metadataIndex);
+
+            $metadataCells[] = $mainMetadataColumnLetter.$rowNumber;
+            $criteriaParts[] = "'Daftar Frame Sampel'!$".$frameMetadataColumnLetter.'$2:$'.$frameMetadataColumnLetter.'$'.$frameLastRow;
+            $criteriaParts[] = $mainMetadataColumnLetter.$rowNumber;
+        }
+
+        $frameTargetColumnLetter = Coordinate::stringFromColumnIndex($frameTargetStartColumn + $targetColumnIndex);
+        $sumRange = "'Daftar Frame Sampel'!$".$frameTargetColumnLetter.'$2:$'.$frameTargetColumnLetter.'$'.$frameLastRow;
+
+        if ($metadataCells === []) {
+            return '='.$sumRange;
+        }
+
+        return '=IF(COUNTA('.implode(',', $metadataCells).')<'.$frameMetadataColumns->count().',"",SUMIFS('.$sumRange.','.implode(',', $criteriaParts).'))';
+    }
+
     private function toNameSafeToken(string $value): string
     {
         $upperValue = strtoupper(trim($value));
@@ -462,6 +505,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             }
         } else {
             $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
+            $firstFrameRow = null;
 
             if ($hasFrameSampelColumn) {
                 $firstFrameRow = $this->frameSampelRows()->first();
@@ -820,8 +864,10 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                 $frameRows = $this->frameSampelRows();
 
                 if ($frameRows->isNotEmpty()) {
+                    $hasListing = $this->hasListing();
                     $frameMetadataColumns = $this->frameMetadataColumns();
                     $frameTargetColumns = $this->frameTargetColumns();
+                    $frameLastRow = 1 + $frameRows->count();
                     $frameSheet = new Worksheet($spreadsheet, 'Daftar Frame Sampel');
                     $dropdownSheet = new Worksheet($spreadsheet, 'Referensi Dropdown Metadata');
                     $spreadsheet->addSheet($frameSheet);
@@ -1004,6 +1050,24 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     }
 
                     $dropdownSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+                    $mainTargetStartColumn = 3 + $frameMetadataColumns->count() + ($hasListing ? 1 : 0);
+                    foreach (range(2, 100) as $rowNumber) {
+                        foreach ($frameTargetColumns as $targetIndex => $_targetColumn) {
+                            $formula = $this->buildFrameTargetFormula(
+                                $rowNumber,
+                                $frameMetadataColumns,
+                                $frameTargetColumns,
+                                $targetIndex,
+                                $frameLastRow,
+                            );
+
+                            if ($formula !== '') {
+                                $targetColumnLetter = Coordinate::stringFromColumnIndex($mainTargetStartColumn + $targetIndex);
+                                $mainSheet->setCellValue($targetColumnLetter.$rowNumber, $formula);
+                            }
+                        }
+                    }
                 }
             },
         ];

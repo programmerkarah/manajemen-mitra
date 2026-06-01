@@ -193,6 +193,29 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const [showBatchEdit, setShowBatchEdit] = useState(false);
     const [batchEditItems, setBatchEditItems] = useState<BatchEditItem[]>([]);
     const [batchProcessing, setBatchProcessing] = useState(false);
+    const calculateUsia = (tanggalLahir: string | null) => {
+        if (!tanggalLahir) {
+            return null;
+        }
+
+        const birthDate = new Date(tanggalLahir);
+        if (Number.isNaN(birthDate.getTime())) {
+            return null;
+        }
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (
+            monthDiff < 0 ||
+            (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ) {
+            age--;
+        }
+
+        return age >= 0 ? age : null;
+    };
 
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null as File | null,
@@ -691,6 +714,12 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                     </th>
                                     <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         <div className="flex items-center gap-1.5">
+                                            <UserIcon className="h-4 w-4" />
+                                            Usia
+                                        </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        <div className="flex items-center gap-1.5">
                                             <Phone className="h-4 w-4" />
                                             Telepon
                                         </div>
@@ -716,7 +745,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 {paginatedPetugas.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={isPJ ? 7 : 8}
+                                            colSpan={isPJ ? 8 : 9}
                                             className="px-6 py-12 text-center"
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -779,6 +808,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 >
                                                     {Petugas.email}
                                                 </div>
+                                            </td>
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                                {calculateUsia(Petugas.tanggal_lahir) ?? '-'}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.telepon}

@@ -640,8 +640,18 @@ class AlokasiTemplateExportRouteTest extends TestCase
 
         $this->assertNotNull($jumlahUsahaColumn);
         $this->assertNotNull($jumlahKeluargaColumn);
-        $this->assertSame('11', (string) $mainSheet->getCell($jumlahUsahaColumn.'2')->getValue());
-        $this->assertSame('9', (string) $mainSheet->getCell($jumlahKeluargaColumn.'2')->getValue());
+        $jumlahUsahaFormula = (string) $mainSheet->getCell($jumlahUsahaColumn.'2')->getValue();
+        $jumlahKeluargaFormula = (string) $mainSheet->getCell($jumlahKeluargaColumn.'2')->getValue();
+
+        $this->assertStringStartsWith('=IF(COUNTA(', $jumlahUsahaFormula);
+        $this->assertStringContainsString('SUMIFS(', $jumlahUsahaFormula);
+        $this->assertStringContainsString("'Daftar Frame Sampel'!\$H\$2:\$H\$2", $jumlahUsahaFormula);
+        $this->assertStringContainsString('C2', $jumlahUsahaFormula);
+
+        $this->assertStringStartsWith('=IF(COUNTA(', $jumlahKeluargaFormula);
+        $this->assertStringContainsString('SUMIFS(', $jumlahKeluargaFormula);
+        $this->assertStringContainsString("'Daftar Frame Sampel'!\$I\$2:\$I\$2", $jumlahKeluargaFormula);
+        $this->assertStringContainsString('D2', $jumlahKeluargaFormula);
     }
 
     public function test_import_preview_maps_frame_sampel_by_metadata_for_sensus_and_sets_pencacahan_from_frame_sample(): void

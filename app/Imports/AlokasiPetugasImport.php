@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\AlokasiPetugas;
+use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use Closure;
@@ -40,12 +41,22 @@ class AlokasiPetugasImport implements WithMultipleSheets
     public function processRows(Collection $rows): void
     {
         $rowNumber = 1;
-        $allowDecimalPencacahan = PeriodeAlokasi::query()
+        $periode = PeriodeAlokasi::query()
             ->whereKey($this->periodeAlokasiId)
-            ->with('kegiatan:id,jenis_kegiatan')
-            ->first()
-            ?->kegiatan
-            ?->jenis_kegiatan === 'sensus';
+            ->with('kegiatan:id,jenis_kegiatan,nama_kegiatan')
+            ->first();
+        $kegiatan = $periode?->kegiatan;
+        $allowDecimalPencacahan = $kegiatan?->jenis_kegiatan === 'sensus';
+        $isSensusEkonomi = $kegiatan !== null && $this->isSensusEkonomi($kegiatan);
+        $rateByKey = $kegiatan
+            ? $kegiatan->rateHonors()
+                ->where('status', 'aktif')
+                ->get()
+                ->keyBy(fn ($rate) => $rate->status_kepegawaian.'|'.$rate->jenis_penugasan)
+            : collect();
+        $petugasByNik = Petugas::query()
+            ->get()
+            ->keyBy(fn (Petugas $petugas) => $petugas->getAttribute('nik'));
 
         // Delete existing entries if this is an edit operation
         if (! $this->isCreate) {
@@ -63,7 +74,7 @@ class AlokasiPetugasImport implements WithMultipleSheets
                 continue;
             }
 
-            $petugas = Petugas::where('nik', $nik)->first();
+            $petugas = $petugasByNik->get($nik);
             if (! $petugas) {
                 $this->errors[$rowNumber] = ["Petugas dengan NIK {$nik} tidak ditemukan"];
 
@@ -75,6 +86,7 @@ class AlokasiPetugasImport implements WithMultipleSheets
             $peran = $this->mapPeran((string) $this->extractPeranCellValue($row));
             $jumlahSatuanRaw = $row['jumlah_satuan_pencacahan'] ?? $row['jumlah_satuan'] ?? 0;
             $partialJumlahSatuanRaw = $row['jumlah_satuan_parsial'] ?? null;
+            $isPartialPayment = strtolower(trim($row['pembayaran_parsial'] ?? 'tidak')) === 'ya';
 
             $data = [
                 'periode_alokasi_id' => $this->periodeAlokasiId,
@@ -83,7 +95,7 @@ class AlokasiPetugasImport implements WithMultipleSheets
                 'peran' => $peran,
                 'jumlah_satuan' => $this->parseImportSatuan($jumlahSatuanRaw),
                 'total_honor' => isset($row['honor_pencacahan']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_pencacahan'])) : 0,
-                'is_partial_payment' => strtolower(trim($row['pembayaran_parsial'] ?? 'tidak')) === 'ya',
+                'is_partial_payment' => $isPartialPayment,
                 'partial_jumlah_satuan' => $this->parseImportSatuan($partialJumlahSatuanRaw, true),
                 'estimasi_honor_partial' => isset($row['honor_parsial']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_parsial'])) : null,
                 'jumlah_satuan_listing' => isset($row['jumlah_satuan_listing']) ? (int) str_replace(['.', ','], ['', ''], trim((string) $row['jumlah_satuan_listing'])) : null,
@@ -92,6 +104,19 @@ class AlokasiPetugasImport implements WithMultipleSheets
                 'non_response_listing' => isset($row['non_response_listing']) ? (int) str_replace(['.', ','], ['', ''], trim((string) $row['non_response_listing'])) : null,
                 'catatan' => $row['catatan'] ?? null,
             ];
+
+            $rate = $rateByKey->get($status_kepegawaian.'|'.$peran);
+            $jumlahSatuanPencacahan = (float) $data['jumlah_satuan'];
+            $estimasiHonorPencacahan = $rate
+                ? (float) ($rate->rate ?? 0) * ($isSensusEkonomi ? 2.5 : $jumlahSatuanPencacahan)
+                : 0;
+
+            if ($isSensusEkonomi) {
+                $data['total_honor'] = $estimasiHonorPencacahan;
+                $data['estimasi_honor_partial'] = $isPartialPayment ? (float) ($rate?->rate ?? 0) * 2.5 : null;
+            } else {
+                $data['total_honor'] = isset($row['honor_pencacahan']) ? (float) str_replace(['.', ','], ['', '.'], trim((string) $row['honor_pencacahan'])) : 0;
+            }
 
             // Validate the row
             $validator = Validator::make($data, [
@@ -193,13 +218,28 @@ class AlokasiPetugasImport implements WithMultipleSheets
         $value = strtolower(trim($value));
 
         return match (true) {
+            str_contains($value, 'non') => 'non_organik',
             str_contains($value, 'organik') && str_contains($value, 'pns') => 'organik',
             str_contains($value, 'organik') => 'organik',
-            str_contains($value, 'non') => 'non_organik',
             $value === 'organik' => 'organik',
             $value === 'non_organik' => 'non_organik',
             default => $value,
         };
+    }
+
+    private function isSensusEkonomi(Kegiatan $kegiatan): bool
+    {
+        return $kegiatan->jenis_kegiatan === 'sensus'
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+    }
+
+    private function resolvePencacahanWorkload(float $jumlahSatuan): float
+    {
+        if ($jumlahSatuan <= 0) {
+            return 0;
+        }
+
+        return $jumlahSatuan * 2.5;
     }
 
     private function mapPeran(string $value): string
@@ -270,9 +310,9 @@ class AlokasiPetugasImport implements WithMultipleSheets
         return $value;
     }
 
-    private function extractNikCellValue(Collection $row): mixed
+    private function extractNikCellValue(array|Collection $row): mixed
     {
-        $rowArray = $row->all();
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
 
         foreach (['nik', 'nik_petugas', 'nama_nik', 'nama_nik_nip', 'nama_niknip'] as $key) {
             if (array_key_exists($key, $rowArray)) {
@@ -291,9 +331,9 @@ class AlokasiPetugasImport implements WithMultipleSheets
         return '';
     }
 
-    private function extractPeranCellValue(Collection $row): mixed
+    private function extractPeranCellValue(array|Collection $row): mixed
     {
-        $rowArray = $row->all();
+        $rowArray = $row instanceof Collection ? $row->all() : $row;
 
         foreach (['kode_penugasan', 'jenis_penugasan', 'jenis_penugasan_kode', 'peran'] as $key) {
             if (array_key_exists($key, $rowArray)) {
