@@ -1387,6 +1387,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'nik' => ['required', 'string', 'max:64'],
+            'telepon_4_digit' => ['required', 'string', 'regex:/^\d{4}$/'],
             'recaptcha_token' => ['required', 'string', 'max:8192'],
         ]);
 
@@ -1407,6 +1408,12 @@ class SpkController extends Controller
             ], 404);
         }
 
+        if (! $this->matchesPublicPreviewPhoneVerification($petugas, (string) $validated['telepon_4_digit'])) {
+            return response()->json([
+                'message' => 'Verifikasi 4 digit nomor HP tidak sesuai.',
+            ], 422);
+        }
+
         $options = $this->resolvePublicPreviewOptionsForPetugas($petugas, ActiveYearService::get());
 
         return response()->json([
@@ -1425,6 +1432,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'nik' => ['required', 'string', 'max:64'],
+            'telepon_4_digit' => ['required', 'string', 'regex:/^\d{4}$/'],
             'jenis_kegiatan' => ['required', 'in:survei,sensus'],
             'survei_periode' => ['nullable', 'string'],
             'sensus_kegiatan' => ['nullable', 'string'],
@@ -1447,6 +1455,12 @@ class SpkController extends Controller
             return response()->json([
                 'message' => 'Petugas dengan Nama dan NIK tersebut tidak ditemukan.',
             ], 404);
+        }
+
+        if (! $this->matchesPublicPreviewPhoneVerification($petugas, (string) $validated['telepon_4_digit'])) {
+            return response()->json([
+                'message' => 'Verifikasi 4 digit nomor HP tidak sesuai.',
+            ], 422);
         }
 
         $jenisKegiatan = (string) $validated['jenis_kegiatan'];
@@ -2061,6 +2075,23 @@ class SpkController extends Controller
 
                 return $petugasNik === $normalizedNik && $petugasNama === $normalizedNama;
             });
+    }
+
+    private function matchesPublicPreviewPhoneVerification(Petugas $petugas, string $telepon4Digit): bool
+    {
+        $normalizedPhoneVerification = preg_replace('/\D+/', '', trim($telepon4Digit)) ?? '';
+
+        if (strlen($normalizedPhoneVerification) !== 4) {
+            return false;
+        }
+
+        $petugasPhoneDigits = preg_replace('/\D+/', '', (string) $petugas->telepon) ?? '';
+
+        if (strlen($petugasPhoneDigits) < 4) {
+            return false;
+        }
+
+        return substr($petugasPhoneDigits, -4) === $normalizedPhoneVerification;
     }
 
     /**

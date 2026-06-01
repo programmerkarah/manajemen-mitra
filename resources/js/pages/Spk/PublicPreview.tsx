@@ -96,6 +96,7 @@ export default function PublicPreview({
 }: PublicPreviewProps) {
     const [nama, setNama] = useState('');
     const [nik, setNik] = useState('');
+    const [telepon4Digit, setTelepon4Digit] = useState('');
     const [jenisKegiatan, setJenisKegiatan] = useState<
         'survei' | 'sensus' | ''
     >('');
@@ -153,7 +154,7 @@ export default function PublicPreview({
     }, [recaptcha_site_key, recaptchaReady]);
 
     useEffect(() => {
-        if (!nama.trim() || !nik.trim()) {
+        if (!nama.trim() || !nik.trim() || telepon4Digit.length !== 4) {
             setIsOptionsLoaded(false);
             setLoadedPetugasName(null);
             setOwnedSurveiPeriods([]);
@@ -173,7 +174,7 @@ export default function PublicPreview({
         setJenisKegiatan('');
         setSurveiPeriode('');
         setSensusKegiatan('');
-    }, [nama, nik]);
+    }, [nama, nik, telepon4Digit]);
 
     const availableJenisOptions = useMemo(() => {
         const options: Array<{ value: 'survei' | 'sensus'; label: string }> =
@@ -205,8 +206,8 @@ export default function PublicPreview({
     const loadPetugasOptions = async (): Promise<void> => {
         setErrorMessage(null);
 
-        if (!nama.trim() || !nik.trim()) {
-            setErrorMessage('Isi Nama dan NIK terlebih dahulu.');
+        if (!nama.trim() || !nik.trim() || telepon4Digit.length !== 4) {
+            setErrorMessage('Isi Nama, NIK, dan 4 digit nomor HP terlebih dahulu.');
             return;
         }
 
@@ -218,6 +219,7 @@ export default function PublicPreview({
             const formData = new FormData();
             formData.append('nama', nama.trim());
             formData.append('nik', nik.trim());
+            formData.append('telepon_4_digit', telepon4Digit);
             formData.append('recaptcha_token', recaptchaToken.trim());
 
             const response = await fetch('/mitra/options', {
@@ -296,7 +298,7 @@ export default function PublicPreview({
     };
 
     const canSubmit = useMemo(() => {
-        if (!nama.trim() || !nik.trim()) {
+        if (!nama.trim() || !nik.trim() || telepon4Digit.length !== 4) {
             return false;
         }
 
@@ -312,6 +314,7 @@ export default function PublicPreview({
     }, [
         nama,
         nik,
+        telepon4Digit,
         isOptionsLoaded,
         jenisKegiatan,
         surveiPeriode,
@@ -439,6 +442,7 @@ export default function PublicPreview({
             const formData = new FormData();
             formData.append('nama', nama.trim());
             formData.append('nik', nik.trim());
+            formData.append('telepon_4_digit', telepon4Digit);
             formData.append('jenis_kegiatan', jenisKegiatan);
             formData.append('recaptcha_token', recaptchaToken.trim());
             formData.append('aksi', aksi);
@@ -559,7 +563,7 @@ export default function PublicPreview({
                             )}
 
                             <div className="rounded-3xl border border-neutral-200 bg-white/80 p-4 shadow-sm backdrop-blur sm:p-5 dark:border-neutral-800 dark:bg-neutral-900/70">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,300px)_auto] lg:items-end">
                                     <div className="space-y-2">
                                         <Label htmlFor="nama">
                                             Nama Lengkap
@@ -585,6 +589,27 @@ export default function PublicPreview({
                                             }
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="telepon-4-digit">
+                                            4 Digit No. HP SOBAT
+                                        </Label>
+                                        <Input
+                                            id="telepon-4-digit"
+                                            value={telepon4Digit}
+                                            onChange={(event) =>
+                                                setTelepon4Digit(
+                                                    event.target.value
+                                                        .replace(/\D/g, '')
+                                                        .slice(0, 4),
+                                                )
+                                            }
+                                            placeholder="Contoh: 1234"
+                                            inputMode="numeric"
+                                            maxLength={4}
                                             autoComplete="off"
                                         />
                                     </div>

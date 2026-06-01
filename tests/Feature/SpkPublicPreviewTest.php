@@ -2,19 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\Spk;
-use App\Models\RateHonor;
+use App\Models\AlokasiPetugas;
 use App\Models\AlokasiPetugasFrameSampel;
+use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
 use App\Models\MasterUnitSampel;
-use App\Models\Satuan;
-use App\Models\User;
-use App\Models\AlokasiPetugas;
-use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Models\RateHonor;
+use App\Models\Satuan;
+use App\Models\Spk;
+use App\Models\User;
 use App\Services\ActiveYearService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,6 +89,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Petugas Survei',
                 'nik' => '3201123412345678',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'jenis_kegiatan' => 'survei',
                 'survei_periode' => sprintf('%d-03', $tahun),
                 'recaptcha_token' => 'test-recaptcha-token',
@@ -137,6 +138,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Petugas Sensus',
                 'nik' => '3201123412340001',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'jenis_kegiatan' => 'sensus',
                 'sensus_kegiatan' => $kegiatanSensus->hashed_id,
                 'recaptcha_token' => 'test-recaptcha-token',
@@ -206,6 +208,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Petugas Valid',
                 'nik' => '3201123412349999',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'jenis_kegiatan' => 'survei',
                 'survei_periode' => sprintf('%d-05', $tahun),
                 'recaptcha_token' => 'test-recaptcha-token',
@@ -337,6 +340,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Mitra Opsi',
                 'nik' => '3201123412311111',
+                'telepon_4_digit' => $this->lastFourDigits((string) $ownedPetugas->telepon),
                 'recaptcha_token' => 'test-recaptcha-token',
             ],
             [
@@ -487,6 +491,7 @@ class SpkPublicPreviewTest extends TestCase
                 [
                     'nama' => 'Petugas Final Bulanan',
                     'nik' => '3201123412399999',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                     'recaptcha_token' => 'test-recaptcha-token',
                 ],
                 [
@@ -502,6 +507,62 @@ class SpkPublicPreviewTest extends TestCase
         } finally {
             @unlink($signedAbsolutePath);
         }
+    }
+
+    public function test_public_options_reject_when_phone_verification_does_not_match(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Verifikasi HP',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Verifikasi HP',
+            'nik' => '3201123412310101',
+            'telepon' => '081299991234',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 125000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra/options',
+            [
+                'nama' => 'Petugas Verifikasi HP',
+                'nik' => '3201123412310101',
+                'telepon_4_digit' => '9999',
+                'recaptcha_token' => 'test-recaptcha-token',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'message' => 'Verifikasi 4 digit nomor HP tidak sesuai.',
+        ]);
     }
 
     public function test_public_preview_uses_signed_final_file_when_available(): void
@@ -576,6 +637,7 @@ class SpkPublicPreviewTest extends TestCase
                 [
                     'nama' => 'Petugas Final',
                     'nik' => '3201123412347777',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                     'jenis_kegiatan' => 'survei',
                     'survei_periode' => sprintf('%d-06', $tahun),
                     'recaptcha_token' => 'test-recaptcha-token',
@@ -689,6 +751,7 @@ class SpkPublicPreviewTest extends TestCase
                 [
                     'nama' => 'Petugas Addendum Final',
                     'nik' => '3201123412399999',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                     'jenis_kegiatan' => 'survei',
                     'survei_periode' => sprintf('%d-10', $tahun),
                     'recaptcha_token' => 'test-recaptcha-token',
@@ -753,6 +816,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Petugas Fallback',
                 'nik' => '3201123412348888',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'recaptcha_token' => 'test-recaptcha-token',
             ],
             [
@@ -843,6 +907,7 @@ class SpkPublicPreviewTest extends TestCase
             [
                 'nama' => 'Petugas Frame',
                 'nik' => '3201123412344444',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'recaptcha_token' => 'test-recaptcha-token',
             ],
             [
@@ -857,5 +922,12 @@ class SpkPublicPreviewTest extends TestCase
             'penugasan_list.0.target_pekerjaan',
             '1 SLS/sub-SLS dan/atau 2 Rumah Tangga dan/atau 1 Usaha',
         );
+    }
+
+    private function lastFourDigits(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        return substr(str_pad($digits, 4, '0', STR_PAD_LEFT), -4);
     }
 }
