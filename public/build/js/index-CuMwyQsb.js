@@ -1,0 +1,1 @@
+import{q as o}from"./index-kwMATVaW.js";const t=o=>({url:t.url(o),method:"post"});t.definition={methods:["post"],url:"/user/confirm-password"},t.url=s=>t.definition.url+o(s),t.post=o=>({url:t.url(o),method:"post"});const s=o=>({action:t.url(o),method:"post"});s.post=o=>({action:t.url(o),method:"post"}),t.form=s;const r={store:Object.assign(t,t)};export{r as c,t as s};

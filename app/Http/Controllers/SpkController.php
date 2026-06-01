@@ -24,9 +24,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use setasign\Fpdi\Tcpdf\Fpdi;
 use Vinkla\Hashids\Facades\Hashids;
 
 class SpkController extends Controller
@@ -1365,6 +1367,415 @@ class SpkController extends Controller
     }
 
     /**
+     * Public page for petugas to find and preview/download SPK draft document.
+     */
+    public function publicPreviewForm(Request $request): Response
+    {
+        $activeYear = ActiveYearService::get();
+
+        return Inertia::render('Spk/PublicPreview', [
+            'survei_periods' => [],
+            'sensus_kegiatans' => [],
+            'active_year' => $activeYear,
+            'recaptcha_site_key' => (string) config('services.recaptcha.site_key', ''),
+        ]);
+    }
+
+    public function publicPreviewOptions(Request $request)
+    {
+        $validated = $request->validate([
+            'nama' => ['required', 'string', 'max:255'],
+            'nik' => ['required', 'string', 'max:64'],
+            'recaptcha_token' => ['required', 'string', 'max:2048'],
+        ]);
+
+        if (! $this->isValidPublicPreviewRecaptcha((string) $validated['recaptcha_token'], $request->ip())) {
+            return response()->json([
+                'message' => 'Verifikasi reCAPTCHA gagal. Silakan coba lagi.',
+            ], 422);
+        }
+
+        $petugas = $this->resolvePublicPreviewPetugas(
+            (string) $validated['nama'],
+            (string) $validated['nik']
+        );
+
+        if (! $petugas) {
+            return response()->json([
+                'message' => 'Petugas dengan Nama dan NIK tersebut tidak ditemukan.',
+            ], 404);
+        }
+
+        $options = $this->resolvePublicPreviewOptionsForPetugas($petugas, ActiveYearService::get());
+
+        return response()->json([
+            'petugas_nama' => $petugas->nama,
+            'survei_periods' => $options['survei_periods'],
+            'sensus_kegiatans' => $options['sensus_kegiatans'],
+        ]);
+    }
+
+    /**
+     * Public preview/download action for SPK.
+     */
+    public function publicPreviewDownload(Request $request)
+    {
+        $validated = $request->validate([
+            'nama' => ['required', 'string', 'max:255'],
+            'nik' => ['required', 'string', 'max:64'],
+            'jenis_kegiatan' => ['required', 'in:survei,sensus'],
+            'survei_periode' => ['nullable', 'string'],
+            'sensus_kegiatan' => ['nullable', 'string'],
+            'recaptcha_token' => ['required', 'string', 'max:2048'],
+            'aksi' => ['nullable', 'in:preview,download'],
+        ]);
+
+        if (! $this->isValidPublicPreviewRecaptcha((string) $validated['recaptcha_token'], $request->ip())) {
+            return response()->json([
+                'message' => 'Verifikasi reCAPTCHA gagal. Silakan coba lagi.',
+            ], 422);
+        }
+
+        $petugas = $this->resolvePublicPreviewPetugas(
+            (string) $validated['nama'],
+            (string) $validated['nik']
+        );
+
+        if (! $petugas) {
+            return response()->json([
+                'message' => 'Petugas dengan Nama dan NIK tersebut tidak ditemukan.',
+            ], 404);
+        }
+
+        $jenisKegiatan = (string) $validated['jenis_kegiatan'];
+        $periode = null;
+        $selectedKegiatanId = null;
+
+        if ($jenisKegiatan === 'survei') {
+            $surveiPeriode = (string) ($validated['survei_periode'] ?? '');
+            if (! preg_match('/^\d{4}-\d{2}$/', $surveiPeriode)) {
+                return response()->json([
+                    'message' => 'Periode survei tidak valid.',
+                ], 422);
+            }
+
+            [$tahun, $bulan] = explode('-', $surveiPeriode);
+            $bulanFormatted = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+            $hasDraftSurvei = PeriodeAlokasi::query()
+                ->where('tahun', (int) $tahun)
+                ->where('bulan', $bulanFormatted)
+                ->where('status', 'draft')
+                ->whereHas('kegiatan', function ($query): void {
+                    $query->where('jenis_kegiatan', 'survei');
+                })
+                ->exists();
+
+            if ($hasDraftSurvei) {
+                return response()->json([
+                    'message' => 'Preview SPK survei belum dapat dilakukan karena masih ada kegiatan draft pada bulan tersebut.',
+                ], 422);
+            }
+
+            $periode = PeriodeAlokasi::query()
+                ->where('tahun', (int) $tahun)
+                ->where('bulan', $bulanFormatted)
+                ->whereIn('status', ['dikirim', 'perubahan'])
+                ->whereHas('kegiatan', function ($query): void {
+                    $query->where('jenis_kegiatan', 'survei');
+                })
+                ->first();
+
+            if (! $periode) {
+                return response()->json([
+                    'message' => 'Periode survei yang dipilih belum siap untuk preview SPK.',
+                ], 422);
+            }
+        }
+
+        if ($jenisKegiatan === 'sensus') {
+            $kegiatanHashedId = (string) ($validated['sensus_kegiatan'] ?? '');
+            $selectedKegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
+
+            if (! $selectedKegiatanId) {
+                return response()->json([
+                    'message' => 'Jenis kegiatan sensus tidak valid.',
+                ], 422);
+            }
+
+            $periode = PeriodeAlokasi::query()
+                ->where('kegiatan_id', (int) $selectedKegiatanId)
+                ->whereIn('status', ['dikirim', 'perubahan'])
+                ->orderByDesc('revision_number')
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $periode) {
+                return response()->json([
+                    'message' => 'Kegiatan sensus belum dikirim sehingga preview belum tersedia.',
+                ], 422);
+            }
+        }
+
+        if (! $periode) {
+            return response()->json([
+                'message' => 'Data periode tidak ditemukan.',
+            ], 422);
+        }
+
+        $hasMatchingAlokasi = AlokasiPetugas::query()
+            ->where('petugas_id', $petugas->id)
+            ->whereHas('periodeAlokasi', function ($query) use ($periode, $jenisKegiatan, $selectedKegiatanId): void {
+                $query->where('tahun', $periode->tahun)
+                    ->where('bulan', $periode->bulan)
+                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan, $selectedKegiatanId): void {
+                        $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
+
+                        if ($selectedKegiatanId !== null) {
+                            $kegiatanQuery->where('id', $selectedKegiatanId);
+                        }
+                    });
+            })
+            ->where(function ($query): void {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->exists();
+
+        if (! $hasMatchingAlokasi) {
+            return response()->json([
+                'message' => 'Petugas tidak memiliki alokasi Perjanjian Kerja yang sesuai kriteria.',
+            ], 422);
+        }
+
+        $nomorSpkPreview = sprintf(
+            'PREVIEW/%s/%d/%02d/%s',
+            strtoupper($jenisKegiatan),
+            (int) $periode->tahun,
+            (int) $periode->bulan,
+            preg_replace('/[^0-9A-Za-z]/', '', (string) $petugas->nik)
+        );
+
+        $pdfPreview = $this->buildMergedSpkPreviewBinary(
+            $periode,
+            (int) $petugas->id,
+            $nomorSpkPreview,
+            now()->toDateString(),
+            $selectedKegiatanId,
+            $jenisKegiatan
+        );
+
+        if ($pdfPreview === null) {
+            return response()->json([
+                'message' => 'Preview SPK tidak dapat dibuat untuk data ini.',
+            ], 422);
+        }
+
+        $protectedPdfContent = $this->applyDraftWatermarkAndProtection($pdfPreview['content']);
+        $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+
+        return response($protectedPdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $disposition.'; filename="'.$pdfPreview['filename'].'"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function isValidPublicPreviewRecaptcha(string $token, ?string $ipAddress = null): bool
+    {
+        if (! (bool) config('services.recaptcha.enabled', false)) {
+            return true;
+        }
+
+        $secretKey = trim((string) config('services.recaptcha.secret_key', ''));
+
+        if ($secretKey === '' || trim($token) === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::asForm()
+                ->timeout(8)
+                ->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => $secretKey,
+                    'response' => $token,
+                    'remoteip' => $ipAddress,
+                ]);
+
+            if (! $response->ok()) {
+                return false;
+            }
+
+            $payload = $response->json();
+
+            return (bool) ($payload['success'] ?? false);
+        } catch (\Throwable $exception) {
+            return false;
+        }
+    }
+
+    /**
+     * @return array{survei_periods:array<int,array{value:string,label:string}>,sensus_kegiatans:array<int,array{value:string,label:string}>}
+     */
+    private function resolvePublicPreviewOptionsForPetugas(Petugas $petugas, int $activeYear): array
+    {
+        $alokasiCollection = AlokasiPetugas::query()
+            ->with(['periodeAlokasi.kegiatan:id,nama_kegiatan,jenis_kegiatan'])
+            ->where('petugas_id', $petugas->id)
+            ->where(function ($query): void {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->whereHas('periodeAlokasi', function ($query) use ($activeYear): void {
+                $query->where('tahun', $activeYear)
+                    ->whereIn('status', ['dikirim', 'perubahan']);
+            })
+            ->get();
+
+        $surveiPeriods = $alokasiCollection
+            ->filter(function (AlokasiPetugas $alokasi): bool {
+                return mb_strtolower((string) $alokasi->periodeAlokasi?->kegiatan?->jenis_kegiatan) === 'survei';
+            })
+            ->map(function (AlokasiPetugas $alokasi): ?string {
+                $periode = $alokasi->periodeAlokasi;
+
+                if (! $periode) {
+                    return null;
+                }
+
+                $hasDraft = PeriodeAlokasi::query()
+                    ->where('tahun', (int) $periode->tahun)
+                    ->where('bulan', $periode->bulan)
+                    ->where('status', 'draft')
+                    ->whereHas('kegiatan', function ($query): void {
+                        $query->where('jenis_kegiatan', 'survei');
+                    })
+                    ->exists();
+
+                if ($hasDraft) {
+                    return null;
+                }
+
+                return sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
+            })
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->map(function (string $periodKey): array {
+                [$tahun, $bulan] = explode('-', $periodKey);
+
+                return [
+                    'value' => $periodKey,
+                    'label' => $this->getBulanLabel((int) $bulan).' '.(int) $tahun,
+                ];
+            })
+            ->all();
+
+        $sensusKegiatans = $alokasiCollection
+            ->filter(function (AlokasiPetugas $alokasi): bool {
+                return mb_strtolower((string) $alokasi->periodeAlokasi?->kegiatan?->jenis_kegiatan) === 'sensus';
+            })
+            ->map(function (AlokasiPetugas $alokasi): ?array {
+                $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+
+                if (! $kegiatan) {
+                    return null;
+                }
+
+                return [
+                    'value' => $kegiatan->hashed_id,
+                    'label' => $kegiatan->nama_kegiatan,
+                ];
+            })
+            ->filter()
+            ->unique('value')
+            ->sortBy('label')
+            ->values()
+            ->all();
+
+        return [
+            'survei_periods' => $surveiPeriods,
+            'sensus_kegiatans' => $sensusKegiatans,
+        ];
+    }
+
+    private function applyDraftWatermarkAndProtection(string $pdfBinary): string
+    {
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $token = time().'_'.uniqid();
+        $inputPath = $tempPath.'/spk_public_preview_input_'.$token.'.pdf';
+        $outputPath = $tempPath.'/spk_public_preview_output_'.$token.'.pdf';
+
+        try {
+            file_put_contents($inputPath, $pdfBinary);
+
+            $pdf = new Fpdi('P', 'mm', 'A4', true, 'UTF-8', false);
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            $pdf->SetMargins(0, 0, 0);
+            $pdf->SetAutoPageBreak(false, 0);
+            $pdf->setProtection(['modify', 'annot-forms', 'fill-forms', 'assemble'], '', '@dm1n_SIMANTIK');
+
+            $pageCount = $pdf->setSourceFile($inputPath);
+
+            for ($page = 1; $page <= $pageCount; $page++) {
+                $templateId = $pdf->importPage($page);
+                $size = $pdf->getTemplateSize($templateId);
+                $orientation = (($size['width'] ?? 210) > ($size['height'] ?? 297)) ? 'L' : 'P';
+
+                $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+                $pdf->useTemplate($templateId);
+
+                $centerX = ((float) $size['width']) / 2;
+                $centerY = ((float) $size['height']) / 2;
+
+                $pdf->SetAlpha(0.07);
+                $pdf->SetTextColor(95, 95, 95);
+                $pdf->SetFont('helvetica', 'B', 54);
+                $pdf->StartTransform();
+                $pdf->Rotate(35, $centerX, $centerY);
+                $pdf->Text($centerX - 40, $centerY, 'DRAFT BPS KOTA SAWAHLUNTO');
+                $pdf->StopTransform();
+                $pdf->SetAlpha(1);
+            }
+
+            $pdf->Output($outputPath, 'F');
+            $securedBinary = file_get_contents($outputPath);
+
+            return is_string($securedBinary) && $securedBinary !== '' ? $securedBinary : $pdfBinary;
+        } catch (\Throwable $exception) {
+            return $pdfBinary;
+        } finally {
+            @unlink($inputPath);
+            @unlink($outputPath);
+        }
+    }
+
+    private function resolvePublicPreviewPetugas(string $nama, string $nik): ?Petugas
+    {
+        $normalizedNama = mb_strtolower(trim($nama));
+        $normalizedNik = trim($nik);
+
+        return Petugas::query()
+            ->where('status', 'aktif')
+            ->get()
+            ->first(function (Petugas $petugas) use ($normalizedNama, $normalizedNik): bool {
+                $petugasNik = trim((string) $petugas->getAttribute('nik'));
+                $petugasNama = mb_strtolower(trim((string) $petugas->nama));
+
+                return $petugasNik === $normalizedNik && $petugasNama === $normalizedNama;
+            });
+    }
+
+    /**
      * Show the form to generate SPKs for a periode
      */
     public function create(string $periodeHashedId): Response|RedirectResponse
@@ -2558,6 +2969,113 @@ class SpkController extends Controller
     }
 
     /**
+     * Download all SPK previews in a periode as ZIP without persisting generated documents.
+     */
+    public function previewAllSpk(Request $request, string $periodeHashedId)
+    {
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+
+        if (! $periodeId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'tanggal_spk' => ['required', 'date'],
+            'preview_items_json' => ['required', 'string'],
+        ]);
+
+        $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
+
+        if ($this->hasDraftPeriodeInSpkScope($periode)) {
+            return response()->json([
+                'message' => 'Masih terdapat periode draft. Preview semua belum dapat diunduh.',
+            ], 422);
+        }
+
+        $decodedPreviewItems = json_decode((string) $validated['preview_items_json'], true);
+
+        if (! is_array($decodedPreviewItems)) {
+            return response()->json([
+                'message' => 'Format daftar preview tidak valid.',
+            ], 422);
+        }
+
+        $previewItems = collect($decodedPreviewItems)
+            ->filter(fn ($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
+            ->unique('petugas_hashed_id')
+            ->values();
+
+        if ($previewItems->isEmpty()) {
+            return response()->json([
+                'message' => 'Daftar petugas preview tidak valid.',
+            ], 422);
+        }
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $zipFileName = 'Preview_SPK_'.$this->getBulanLabel((int) $periode->bulan).'_'.$periode->tahun.'.zip';
+        $zipPath = $tempPath.'/preview_spk_'.$periode->id.'_'.time().'_'.uniqid().'.zip';
+
+        $zip = new \ZipArchive;
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return response()->json([
+                'message' => 'Gagal membuat arsip ZIP preview.',
+            ], 500);
+        }
+
+        $usedFileNames = [];
+        $filesAdded = 0;
+
+        foreach ($previewItems as $item) {
+            $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
+
+            if (! $petugasId) {
+                continue;
+            }
+
+            $pdfPreview = $this->buildMergedSpkPreviewBinary(
+                $periode,
+                (int) $petugasId,
+                (string) $item['nomor_spk'],
+                (string) $validated['tanggal_spk'],
+            );
+
+            if ($pdfPreview === null) {
+                continue;
+            }
+
+            $archiveFilename = $pdfPreview['filename'];
+            $suffixCounter = 2;
+            while (isset($usedFileNames[$archiveFilename])) {
+                $archiveFilename = preg_replace('/\.pdf$/i', '', $pdfPreview['filename']).'_'.($suffixCounter++).'.pdf';
+            }
+
+            $usedFileNames[$archiveFilename] = true;
+            $zip->addFromString($archiveFilename, $pdfPreview['content']);
+            $filesAdded++;
+        }
+
+        $zip->close();
+
+        if ($filesAdded === 0 || ! file_exists($zipPath)) {
+            @unlink($zipPath);
+
+            return response()->json([
+                'message' => 'Tidak ada preview SPK yang dapat dibuat untuk petugas terpilih.',
+            ], 422);
+        }
+
+        return response()->download($zipPath, $zipFileName, [
+            'Content-Type' => 'application/zip',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
      * Preview SPK for a petugas in a periode
      */
     public function previewSpk(Request $request, string $periodeHashedId, string $petugasHashedId)
@@ -2766,6 +3284,172 @@ class SpkController extends Controller
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
 
         return $pdf->stream($filename);
+    }
+
+    /**
+     * @return array{filename:string,content:string}|null
+     */
+    private function buildMergedSpkPreviewBinary(
+        PeriodeAlokasi $periode,
+        int $petugasId,
+        string $nomorSpk,
+        string $tanggalSpk,
+        ?int $kegiatanId = null,
+        ?string $jenisKegiatan = null,
+    ): ?array {
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode, $kegiatanId, $jenisKegiatan) {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->when($kegiatanId !== null, function ($periodeQuery) use ($kegiatanId): void {
+                        $periodeQuery->where('kegiatan_id', $kegiatanId);
+                    })
+                    ->when($jenisKegiatan !== null, function ($periodeQuery) use ($jenisKegiatan): void {
+                        $periodeQuery->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan): void {
+                            $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
+                        });
+                    });
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            return null;
+        }
+
+        $latestEndDate = null;
+        foreach ($allAlokasi as $alokasiItem) {
+            $periodeItem = $alokasiItem->periodeAlokasi;
+            $isPengolahanRole = in_array($alokasiItem->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        if ($latestEndDate === null) {
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
+        $petugas = $allAlokasi->first()->petugas;
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
+
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $kegiatanData = [];
+
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+
+            $kegiatanData[] = [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_coa' => $kegiatan->kode_coa,
+                'alokasi_id' => $alokasi->id,
+            ];
+        }
+
+        $bebanAnggaran = $allAlokasi->isNotEmpty()
+            ? $this->getBebanAnggaran($allAlokasi->first()->periodeAlokasi->kegiatan)
+            : '';
+
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
+            'petugas' => $petugas,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
+            'kegiatanData' => $kegiatanData,
+            'nomorSpk' => $nomorSpk,
+            'tanggalSpk' => Carbon::parse($tanggalSpk),
+            'sampaiTanggal' => Carbon::parse($calculatedSampaiTanggal),
+            'tanggalPerpanjangan' => null,
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+            'pdfTitle' => $filename,
+            'workType' => $this->detectWorkType($allAlokasi),
+        ];
+        $data = $this->withLampiranContext($data);
+
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
+
+        $pdfMain = Pdf::loadView('spk-main', $data)
+            ->setPaper('a4', 'portrait');
+        $pdfMain->getDomPDF()->set_option('pdfTitle', $filename);
+
+        $mainOutput = $pdfMain->output();
+        $mainPageCount = max(0, (int) $pdfMain->getDomPDF()->getCanvas()->get_page_count());
+        $data['pageNumberOffset'] = $mainPageCount;
+
+        $pdfLampiran = Pdf::loadView($lampiranView, $data)
+            ->setPaper('a4', $lampiranPaper);
+        $pdfLampiran->getDomPDF()->set_option('pdfTitle', $filename);
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $timestamp = time().'_'.uniqid();
+        $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
+        $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
+        $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+
+        file_put_contents($mainPath, $mainOutput);
+        file_put_contents($lampiranPath, $pdfLampiran->output());
+
+        $merged = PdfMergerService::mergePdfFiles(
+            [$mainPath, $lampiranPath],
+            $mergedPath,
+            $filename
+        );
+
+        $pdfOutput = null;
+        if ($merged && file_exists($mergedPath)) {
+            $pdfOutput = file_get_contents($mergedPath) ?: null;
+        }
+
+        @unlink($mainPath);
+        @unlink($lampiranPath);
+        @unlink($mergedPath);
+
+        if ($pdfOutput === null) {
+            $pdf = Pdf::loadView('spk-petugas', $data)
+                ->setPaper('a4', 'portrait');
+            $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+            $pdfOutput = $pdf->output();
+        }
+
+        return [
+            'filename' => $filename,
+            'content' => $pdfOutput,
+        ];
     }
 
     /**

@@ -88,6 +88,14 @@ Route::get('/auth/sso/sync-complete', function (Request $request) {
     )->header('Content-Type', 'text/html; charset=UTF-8');
 })->name('sso.sync-complete');
 
+Route::get('/mitra', [SpkController::class, 'publicPreviewForm'])
+    ->name('spk.public-preview.form');
+Route::post('/mitra/options', [SpkController::class, 'publicPreviewOptions'])
+    ->name('spk.public-preview.options');
+Route::post('/mitra', [SpkController::class, 'publicPreviewDownload'])
+    ->name('spk.public-preview.download');
+Route::redirect('/preview-perjanjian-kerja', '/mitra', 301);
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -667,6 +675,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview', [SpkController::class, 'previewSpk'])->name('spk.preview');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-main', [SpkController::class, 'previewSpkMain'])->name('spk.preview.main');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-lampiran', [SpkController::class, 'previewSpkLampiran'])->name('spk.preview.lampiran');
+        Route::post('spk/periode/{periodeHashedId}/preview-all', [SpkController::class, 'previewAllSpk'])->name('spk.preview.all');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-addendum', [SpkController::class, 'previewAddendum'])->name('spk.preview-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate-addendum', [SpkController::class, 'generateAddendum'])->name('spk.generate-addendum');

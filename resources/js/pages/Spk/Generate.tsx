@@ -6,9 +6,12 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { previewFileFromPost } from '@/utils/downloadUtils';
+import {
+    downloadFileFromPost,
+    previewFileFromPost,
+} from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -79,6 +82,7 @@ export default function Generate({
     });
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
+    const [previewAllProcessing, setPreviewAllProcessing] = useState(false);
     const [showFormModal, setShowFormModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -322,6 +326,47 @@ export default function Generate({
                 },
             },
         );
+    };
+
+    const handleDownloadAllPreview = async () => {
+        if (!formData.tanggal_spk) {
+            setModalMessage(
+                'Lengkapi form terlebih dahulu (Tanggal Perjanjian Kerja wajib diisi)',
+            );
+            setShowFormModal(true);
+            return;
+        }
+
+        if (has_draft_periode) {
+            setModalMessage(
+                'Masih ada periode draft. Download semua preview belum dapat dilakukan.',
+            );
+            setShowFormModal(true);
+            return;
+        }
+
+        setPreviewAllProcessing(true);
+
+        try {
+            const previewItems = petugas_list.map((alokasi) => ({
+                petugas_hashed_id: alokasi.petugas.hashed_id,
+                nomor_spk: getNomorSpkForAlokasi(alokasi),
+            }));
+
+            await downloadFileFromPost(
+                `/spk/periode/${periode.hashed_id}/preview-all`,
+                {
+                    tanggal_spk: formData.tanggal_spk,
+                    preview_items_json: JSON.stringify(previewItems),
+                },
+                `Preview_SPK_${periode.bulan_label}_${periode.tahun}.zip`,
+            );
+        } catch {
+            setModalMessage('Gagal mengunduh semua preview Perjanjian Kerja.');
+            setShowFormModal(true);
+        } finally {
+            setPreviewAllProcessing(false);
+        }
     };
 
     const getPeranLabel = (peran: string) => {
@@ -676,9 +721,32 @@ export default function Generate({
 
                 {/* Action Buttons */}
                 <ContentCard>
-                    <div className="flex justify-end gap-4">
+                    <div className="flex flex-wrap justify-end gap-4">
                         <Button variant="outline" asChild>
                             <Link href="/spk">Batal</Link>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleDownloadAllPreview}
+                            disabled={
+                                previewAllProcessing ||
+                                !formData.tanggal_spk ||
+                                has_draft_periode ||
+                                petugas_list.length === 0
+                            }
+                            className="gap-2"
+                        >
+                            {previewAllProcessing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Menyiapkan ZIP Preview...
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="h-4 w-4" />
+                                    Download Semua Preview
+                                </>
+                            )}
                         </Button>
                         <Button
                             onClick={handleGenerateAll}
