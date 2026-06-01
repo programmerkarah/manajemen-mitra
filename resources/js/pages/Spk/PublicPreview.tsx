@@ -207,7 +207,9 @@ export default function PublicPreview({
         setErrorMessage(null);
 
         if (!nama.trim() || !nik.trim() || telepon4Digit.length !== 4) {
-            setErrorMessage('Isi Nama, NIK, dan 4 digit nomor HP terlebih dahulu.');
+            setErrorMessage(
+                'Isi Nama, NIK, dan 4 digit nomor HP terlebih dahulu.',
+            );
             return;
         }
 
@@ -547,11 +549,11 @@ export default function PublicPreview({
                                 Layanan Mitra
                             </p>
                             <CardTitle className="text-2xl">
-                                Cari Perjanjian Kerja
+                                Riwayat Pekerjaan dan Preview Perjanjian Kerja
                             </CardTitle>
                             <CardDescription className="text-sm">
-                                Cari dokumen preview perjanjian kerja tahun{' '}
-                                {active_year}.
+                                Cari dokumen riwayat pekerjaan dan preview
+                                perjanjian kerja tahun {active_year}.
                             </CardDescription>
                         </CardHeader>
 
@@ -563,7 +565,7 @@ export default function PublicPreview({
                             )}
 
                             <div className="rounded-3xl border border-neutral-200 bg-white/80 p-4 shadow-sm backdrop-blur sm:p-5 dark:border-neutral-800 dark:bg-neutral-900/70">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,300px)_auto] lg:items-end">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,450px)_auto] lg:items-end">
                                     <div className="space-y-2">
                                         <Label htmlFor="nama">
                                             Nama Lengkap
@@ -595,7 +597,8 @@ export default function PublicPreview({
 
                                     <div className="space-y-2">
                                         <Label htmlFor="telepon-4-digit">
-                                            4 Digit No. HP SOBAT
+                                            4 Digit Terakhir No. HP terdaftar di
+                                            SOBAT
                                         </Label>
                                         <Input
                                             id="telepon-4-digit"
