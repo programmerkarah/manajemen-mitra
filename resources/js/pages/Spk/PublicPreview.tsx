@@ -549,11 +549,11 @@ export default function PublicPreview({
                                 Layanan Mitra
                             </p>
                             <CardTitle className="text-2xl">
-                                Riwayat Pekerjaan dan Preview Perjanjian Kerja
+                                Riwayat Pekerjaan Survei/Sensus {active_year}.
                             </CardTitle>
                             <CardDescription className="text-sm">
-                                Cari dokumen riwayat pekerjaan dan preview
-                                perjanjian kerja tahun {active_year}.
+                                Lihat riwayat pekerjaan dan preview perjanjian
+                                kerja tahun {active_year}.
                             </CardDescription>
                         </CardHeader>
 
@@ -914,8 +914,7 @@ export default function PublicPreview({
 
                             <div className="rounded-xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-300">
                                 Data yang ditampilkan hanya milik petugas yang
-                                diinput. Status dokumen menunjukkan apakah sudah
-                                PK final atau masih ada addendum final.
+                                diinput.
                             </div>
 
                             <div className="flex flex-wrap gap-3 pt-1">
