@@ -79,6 +79,12 @@ class KegiatanFrameSampelController extends Controller
             'target_unit_sampel.*' => ['integer', 'min:0'],
         ]);
 
+        if ($data['tahapan'] === 'listing' && ! $kegiatan->has_listing_updating) {
+            throw ValidationException::withMessages([
+                'tahapan' => 'Tahapan listing tidak aktif untuk kegiatan ini.',
+            ]);
+        }
+
         if (array_sum($data['target_unit_sampel']) <= 0) {
             throw ValidationException::withMessages([
                 'target_unit_sampel' => 'Total target unit sampel harus lebih dari 0.',
@@ -110,6 +116,12 @@ class KegiatanFrameSampelController extends Controller
 
         if ((int) $frame->kegiatan_id !== (int) $kegiatan->id) {
             abort(404);
+        }
+
+        if ($frame->tahapan === 'listing' && ! $kegiatan->has_listing_updating) {
+            throw ValidationException::withMessages([
+                'tahapan' => 'Tahapan listing tidak aktif untuk kegiatan ini.',
+            ]);
         }
 
         $data = $request->validate([

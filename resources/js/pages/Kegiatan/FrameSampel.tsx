@@ -48,9 +48,15 @@ export default function FrameSampel({
     ];
 
     const [targetError, setTargetError] = useState<string | null>(null);
+    const isListingEnabled = Boolean(kegiatan.has_listing_updating);
+    const [activeTab, setActiveTab] = useState<'listing' | 'pencacahan'>(
+        isListingEnabled ? 'listing' : 'pencacahan',
+    );
 
     const [form, setForm] = useState({
-        tahapan: 'pencacahan' as 'listing' | 'pencacahan',
+        tahapan: (isListingEnabled ? 'listing' : 'pencacahan') as
+            | 'listing'
+            | 'pencacahan',
         nama_frame: '',
         kode_kecamatan: '',
         kode_desa: '',
@@ -61,13 +67,18 @@ export default function FrameSampel({
     });
 
     const activeUnitSampelItems =
-        form.tahapan === 'listing'
+        activeTab === 'listing'
             ? unitSampelListingItems
             : unitSampelPencacahanItems;
 
+    const visibleFrames = useMemo(
+        () => frames.filter((frame) => frame.tahapan === activeTab),
+        [activeTab, frames],
+    );
+
     const totalTarget = useMemo(
         () =>
-            frames.reduce(
+            visibleFrames.reduce(
                 (sum, frame) =>
                     sum +
                     Object.values(frame.target_unit_sampel || {}).reduce(
@@ -76,7 +87,7 @@ export default function FrameSampel({
                     ),
                 0,
             ),
-        [frames],
+        [visibleFrames],
     );
 
     return (
@@ -100,22 +111,69 @@ export default function FrameSampel({
                     <div className="space-y-3">
                         <h3 className="text-lg font-semibold">Tambah Frame</h3>
                         <div className="space-y-2">
-                            <Label>Tahapan</Label>
-                            <select
-                                value={form.tahapan}
-                                onChange={(event) =>
-                                    setForm((prev) => ({
-                                        ...prev,
-                                        tahapan: event.target.value as
-                                            | 'listing'
-                                            | 'pencacahan',
-                                    }))
+                            <Label>Mode Tahapan</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {isListingEnabled && (
+                                    <Button
+                                        type="button"
+                                        variant={
+                                            activeTab === 'listing'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        onClick={() => {
+                                            setActiveTab('listing');
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                tahapan: 'listing',
+                                                target_unit_sampel: {},
+                                            }));
+                                            setTargetError(null);
+                                        }}
+                                    >
+                                        Listing
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    variant={
+                                        activeTab === 'pencacahan'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    className={
+                                        isListingEnabled ? '' : 'col-span-2'
+                                    }
+                                    onClick={() => {
+                                        setActiveTab('pencacahan');
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            tahapan: 'pencacahan',
+                                            target_unit_sampel: {},
+                                        }));
+                                        setTargetError(null);
+                                    }}
+                                >
+                                    Pencacahan
+                                </Button>
+                            </div>
+                            {!isListingEnabled && (
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Listing tidak aktif di master kegiatan, jadi
+                                    hanya mode pencacahan yang tersedia.
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tahapan Aktif</Label>
+                            <Input
+                                value={
+                                    activeTab === 'listing'
+                                        ? 'Listing'
+                                        : 'Pencacahan'
                                 }
-                                className="h-10 w-full rounded border border-neutral-300 px-3 dark:border-neutral-700 dark:bg-neutral-900"
-                            >
-                                <option value="listing">Listing</option>
-                                <option value="pencacahan">Pencacahan</option>
-                            </select>
+                                readOnly
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Nama Frame</Label>
@@ -260,7 +318,11 @@ export default function FrameSampel({
                                 setTargetError(null);
                                 router.post(
                                     `/kegiatan/${kegiatan.hashed_id}/frame-sampel`,
-                                    { ...form, target_unit_sampel: filtered },
+                                    {
+                                        ...form,
+                                        tahapan: activeTab,
+                                        target_unit_sampel: filtered,
+                                    },
                                 );
                             }}
                             className="w-full"
@@ -273,14 +335,15 @@ export default function FrameSampel({
                 <ContentCard className="lg:col-span-2">
                     <div className="space-y-3">
                         <h3 className="text-lg font-semibold">
-                            Daftar Frame Sampel
+                            Daftar Frame Sampel{' '}
+                            {activeTab === 'listing' ? 'Listing' : 'Pencacahan'}
                         </h3>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             Total target unit sampel: {totalTarget}
                         </p>
 
                         <div className="space-y-2">
-                            {frames.map((frame) => (
+                            {visibleFrames.map((frame) => (
                                 <div
                                     key={frame.id}
                                     className="flex items-center justify-between rounded border p-3"

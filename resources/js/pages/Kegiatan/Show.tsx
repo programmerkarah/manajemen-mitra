@@ -316,7 +316,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <p className="mt-1 text-gray-900 dark:text-white">
                                     {kegiatan.unit_sampel_pencacahan?.length
                                         ? kegiatan.unit_sampel_pencacahan
-                                              .map((u) => `${u.nama} (${u.kode})`)
+                                              .map(
+                                                  (u) =>
+                                                      `${u.nama} (${u.kode})`,
+                                              )
                                               .join(', ')
                                         : '-'}
                                 </p>
@@ -340,7 +343,10 @@ export default function Show({ kegiatan, auth, can }: Props) {
                                 <p className="mt-1 text-gray-900 dark:text-white">
                                     {kegiatan.unit_sampel_listing?.length
                                         ? kegiatan.unit_sampel_listing
-                                              .map((u) => `${u.nama} (${u.kode})`)
+                                              .map(
+                                                  (u) =>
+                                                      `${u.nama} (${u.kode})`,
+                                              )
                                               .join(', ')
                                         : '-'}
                                 </p>

@@ -22,6 +22,7 @@ import { useState } from 'react';
 
 interface MasterItem {
     id: number;
+    hashed_id: string;
     nama: string;
     kode: string;
     deskripsi?: string | null;
@@ -61,8 +62,8 @@ function SampelSection({
     title: string;
     items: MasterItem[];
     storeUrl: string;
-    updateUrl: (id: number) => string;
-    destroyUrl: (id: number) => string;
+    updateUrl: (hashedId: string) => string;
+    destroyUrl: (hashedId: string) => string;
 }) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<MasterItem | null>(null);
@@ -100,7 +101,7 @@ function SampelSection({
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (editingItem) {
-            put(updateUrl(editingItem.id), {
+            put(updateUrl(editingItem.hashed_id), {
                 onSuccess: () => setDialogOpen(false),
             });
         } else {
@@ -115,7 +116,7 @@ function SampelSection({
 
     function handleDelete() {
         if (!deleteTarget) return;
-        router.delete(destroyUrl(deleteTarget.id), {
+        router.delete(destroyUrl(deleteTarget.hashed_id), {
             onFinish: () => setDeleteTarget(null),
         });
     }
@@ -361,15 +362,17 @@ export default function Index({ frames, units }: Props) {
                     title="Frame Sampel"
                     items={frames}
                     storeUrl="/master-sampel/frame"
-                    updateUrl={(id) => `/master-sampel/frame/${id}`}
-                    destroyUrl={(id) => `/master-sampel/frame/${id}`}
+                    updateUrl={(hashedId) => `/master-sampel/frame/${hashedId}`}
+                    destroyUrl={(hashedId) =>
+                        `/master-sampel/frame/${hashedId}`
+                    }
                 />
                 <SampelSection
                     title="Unit Sampel"
                     items={units}
                     storeUrl="/master-sampel/unit"
-                    updateUrl={(id) => `/master-sampel/unit/${id}`}
-                    destroyUrl={(id) => `/master-sampel/unit/${id}`}
+                    updateUrl={(hashedId) => `/master-sampel/unit/${hashedId}`}
+                    destroyUrl={(hashedId) => `/master-sampel/unit/${hashedId}`}
                 />
             </div>
         </AppLayout>
