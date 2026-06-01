@@ -47,10 +47,7 @@ interface MasterSampelOption {
 interface KegiatanFrameSampelRow {
     id?: number;
     tahapan: 'listing' | 'pencacahan';
-    target_unit_sampel:
-        | string
-        | number
-        | Record<string, string | number>;
+    target_unit_sampel: string | number | Record<string, string | number>;
     identitas_tambahan?: Record<string, string> | null;
 }
 
@@ -285,7 +282,12 @@ export default function Create({
         has_listing_updating: boolean;
         metode_pendataan_pencacahan: '' | 'PAPI' | 'CAPI';
         metode_pendataan_listing: '' | 'PAPI' | 'CAPI';
-        metode_pelatihan: '' | 'daring' | 'luring' | 'hybrid' | 'tidak_ada_pelatihan';
+        metode_pelatihan:
+            | ''
+            | 'daring'
+            | 'luring'
+            | 'hybrid'
+            | 'tidak_ada_pelatihan';
         bulan_pelatihan: string;
         frame_sampel_listing_id: string;
         frame_sampel_pencacahan_id: string;
