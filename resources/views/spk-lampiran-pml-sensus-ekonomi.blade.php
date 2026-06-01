@@ -142,17 +142,17 @@
         <colgroup>
             <col style="width: 40%;">
             <col style="width: 20%;">
-            <col style="width: 9%;">
+            <col style="width: 8%;">
             <col style="width: 20%;">
-            <col style="width: 11%;">
+            <col style="width: 12%;">
         </colgroup>
         <thead>
             <tr style="height: 0; line-height: 0; font-size: 0;">
                 <td style="width: 40%; padding: 0; border: none; height: 0; line-height: 0;"></td>
                 <td style="width: 20%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                <td style="width: 9%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 8%; padding: 0; border: none; height: 0; line-height: 0;"></td>
                 <td style="width: 20%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                <td style="width: 11%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 12%; padding: 0; border: none; height: 0; line-height: 0;"></td>
             </tr>
             <tr>
                 <th rowspan="2">Uraian Pekerjaan</th>
@@ -167,9 +167,9 @@
             <tr>
                 <th style="width: 40%;">(1)</th>
                 <th style="width: 20%;">(2)</th>
-                <th style="width: 9%;">(3)</th>
+                <th style="width: 8%;">(3)</th>
                 <th style="width: 20%;">(4)</th>
-                <th style="width: 11%;">(5)</th>
+                <th style="width: 12%;">(5)</th>
             </tr>
         </thead>
         @php($itemCounter = 1)
