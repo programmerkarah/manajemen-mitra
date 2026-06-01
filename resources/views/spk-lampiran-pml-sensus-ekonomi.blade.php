@@ -200,7 +200,7 @@
                 <td rowspan="2" class="right money-cell">Rp {{ number_format((float) ($specialLampiran['total']['nilai_perjanjian'] ?? 0), 0, ',', '.') }},00</td>
             </tr>
             <tr class="keep-together-row">
-                <td colspan="2" class="left"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
+                <td colspan="2" class="center"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
             </tr>
         </tbody>
     </table>
