@@ -262,7 +262,7 @@
     <!-- CONTENT -->
     <div class="content">
         <p style="margin-bottom: 15px;">
-            Pada hari ini, {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} tahun {{ tahunTerbilang($tanggalSpk->year) }}, yang bertanda tangan di bawah ini:
+            Pada hari ini, {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }} {{ $tanggalSpk->locale('id')->translatedFormat('F') }} tahun {{ tahunTerbilang($tanggalSpk->year) }} ({{ $tanggalSpk->format('d-m-Y') }}), yang bertanda tangan di bawah ini:
         </p>
 
         <div class="parties">

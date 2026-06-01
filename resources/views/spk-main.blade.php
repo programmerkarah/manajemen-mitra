@@ -262,7 +262,7 @@
     </div>
 
     <div class="content">
-        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalSpk->year) }}, bertempat di Sawahlunto, yang bertanda tangan di bawah ini:
+        Pada hari ini {{ $tanggalSpk->locale('id')->translatedFormat('l') }}, tanggal {{ tanggalTerbilang($tanggalSpk->day) }}, bulan {{ $tanggalSpk->locale('id')->translatedFormat('F') }}, tahun {{ tahunTerbilang($tanggalSpk->year) }} ({{ $tanggalSpk->format('d-m-Y') }}), bertempat di Sawahlunto, yang bertanda tangan di bawah ini:
     </div>
 
     <div class="parties">
