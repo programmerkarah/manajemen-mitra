@@ -3,7 +3,10 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\SpkController;
+use App\Models\AlokasiPetugas;
+use App\Models\AlokasiPetugasFrameSampel;
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
 use App\Models\PeriodeAlokasi;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -114,5 +117,39 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $method->setAccessible(true);
 
         $this->assertSame(1, $method->invoke($controller, 'B-001/SPK-SE2026/1373/PL.200/2026'));
+    }
+
+    public function test_build_wilayah_kerja_list_includes_prelist_usaha_dan_keluarga(): void
+    {
+        $controller = new SpkController;
+
+        $alokasi = new AlokasiPetugas;
+        $alokasiFrame = new AlokasiPetugasFrameSampel;
+        $kegiatanFrame = new KegiatanFrameSampel([
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Talawi',
+                'kddes' => '002',
+                'kddes_label' => 'Talawi Mudiak',
+            ],
+            'target_unit_sampel' => [
+                'usaha' => 12,
+                'keluarga' => 7,
+            ],
+        ]);
+
+        $alokasiFrame->setRelation('kegiatanFrameSampel', $kegiatanFrame);
+        $alokasi->setRelation('frameSampelAllocations', collect([$alokasiFrame]));
+
+        $method = new \ReflectionMethod(SpkController::class, 'buildWilayahKerjaList');
+        $method->setAccessible(true);
+
+        $rows = $method->invoke($controller, $alokasi);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('[010] Talawi', $rows[0]['kecamatan']);
+        $this->assertSame('[002] Talawi Mudiak', $rows[0]['desa']);
+        $this->assertSame(1, $rows[0]['jumlah_sls']);
+        $this->assertSame('12 usaha dan 7 keluarga', $rows[0]['muatan_prelist']);
     }
 }

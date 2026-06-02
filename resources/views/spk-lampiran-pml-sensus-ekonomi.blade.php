@@ -224,28 +224,32 @@
         <table class="daftar-pl-table">
             <colgroup>
                 <col style="width: 6%;">
-                <col style="width: 35%;">
-                <col style="width: 40%;">
-                <col style="width: 19%;">
+                <col style="width: 22%;">
+                <col style="width: 30%;">
+                <col style="width: 14%;">
+                <col style="width: 28%;">
             </colgroup>
             <thead>
                 <tr style="height: 0; line-height: 0; font-size: 0;">
                     <td style="width: 6%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                    <td style="width: 35%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                    <td style="width: 40%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                    <td style="width: 19%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 22%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 30%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 14%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                    <td style="width: 28%; padding: 0; border: none; height: 0; line-height: 0;"></td>
                 </tr>
                 <tr>
                     <th>No</th>
                     <th>Kecamatan</th>
                     <th>Desa/Kelurahan</th>
                     <th>Jumlah SLS/Sub-SLS</th>
+                    <th>Muatan Prelist usaha/keluarga</th>
                 </tr>
                 <tr>
                     <th>(1)</th>
                     <th>(2)</th>
                     <th>(3)</th>
                     <th>(4)</th>
+                    <th>(5)</th>
                 </tr>
             </thead>
             <tbody>
@@ -255,6 +259,7 @@
                     <td class="left">{{ $wilayah['kecamatan'] }}</td>
                     <td class="left">{{ $wilayah['desa'] }}</td>
                     <td class="center">{{ $wilayah['jumlah_sls'] }}</td>
+                    <td class="center">{{ $wilayah['muatan_prelist'] ?? '0 usaha dan 0 keluarga' }}</td>
                 </tr>
                 @endforeach
             </tbody>

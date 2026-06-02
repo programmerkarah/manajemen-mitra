@@ -4661,7 +4661,29 @@ class SpkController extends Controller
             return [];
         }
 
-        /** @var array<string, array{kdkec:string,kdkec_label:string,kddes:string,kddes_label:string,count:int}> $grouped */
+        $unitIds = $frames
+            ->map(function ($frame): array {
+                $targetUnitSampel = $frame->kegiatanFrameSampel?->target_unit_sampel;
+
+                return is_array($targetUnitSampel)
+                    ? array_values(array_map('intval', array_keys($targetUnitSampel)))
+                    : [];
+            })
+            ->flatten()
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $unitNameById = ! empty($unitIds)
+            ? MasterUnitSampel::query()
+                ->whereIn('id', $unitIds)
+                ->pluck('nama', 'id')
+                ->map(fn ($name) => mb_strtolower(trim((string) $name)))
+                ->toArray()
+            : [];
+
+        /** @var array<string, array{kdkec:string,kdkec_label:string,kddes:string,kddes_label:string,count:int,prelist_usaha:int,prelist_keluarga:int}> $grouped */
         $grouped = [];
 
         foreach ($frames as $frame) {
@@ -4686,10 +4708,38 @@ class SpkController extends Controller
                     'kddes' => $kddes,
                     'kddes_label' => $kddesLabel,
                     'count' => 0,
+                    'prelist_usaha' => 0,
+                    'prelist_keluarga' => 0,
                 ];
             }
 
             $grouped[$key]['count']++;
+
+            $targetUnitSampel = is_array($kfs->target_unit_sampel) ? $kfs->target_unit_sampel : [];
+
+            foreach ($targetUnitSampel as $unitId => $total) {
+                $totalValue = max(0, (int) $total);
+
+                if ($totalValue === 0) {
+                    continue;
+                }
+
+                $normalizedUnitName = '';
+
+                if (is_numeric($unitId) && (int) $unitId > 0) {
+                    $normalizedUnitName = $unitNameById[(int) $unitId] ?? '';
+                } else {
+                    $normalizedUnitName = mb_strtolower(trim((string) $unitId));
+                }
+
+                if (str_contains($normalizedUnitName, 'usaha')) {
+                    $grouped[$key]['prelist_usaha'] += $totalValue;
+                }
+
+                if (str_contains($normalizedUnitName, 'keluarga') || str_contains($normalizedUnitName, 'rumah tangga')) {
+                    $grouped[$key]['prelist_keluarga'] += $totalValue;
+                }
+            }
         }
 
         $result = [];
@@ -4701,6 +4751,7 @@ class SpkController extends Controller
                 'kecamatan' => '['.$entry['kdkec'].'] '.$entry['kdkec_label'],
                 'desa' => '['.$entry['kddes'].'] '.$entry['kddes_label'],
                 'jumlah_sls' => $entry['count'],
+                'muatan_prelist' => $entry['prelist_usaha'].' usaha dan '.$entry['prelist_keluarga'].' keluarga',
             ];
         }
 
