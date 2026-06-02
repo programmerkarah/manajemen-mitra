@@ -920,7 +920,7 @@ class SpkPublicPreviewTest extends TestCase
         $response->assertJsonCount(1, 'penugasan_list');
         $response->assertJsonPath(
             'penugasan_list.0.target_pekerjaan',
-            '1 SLS/sub-SLS dan/atau 2 Rumah Tangga dan/atau 1 Usaha',
+            '1 SLS/sub-SLS dan/atau 2 rumah tangga/1 usaha',
         );
     }
 

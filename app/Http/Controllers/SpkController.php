@@ -4819,6 +4819,7 @@ class SpkController extends Controller
     private function formatSensusEkonomiVolumeNarrative(int $selectedRows, array $perUnitSampelTotals, array $unitSampelNames): string
     {
         $parts = [];
+        $unitParts = [];
 
         if ($selectedRows > 0) {
             $parts[] = number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
@@ -4827,8 +4828,12 @@ class SpkController extends Controller
         foreach ($perUnitSampelTotals as $unitId => $total) {
             if ($total > 0) {
                 $name = $unitSampelNames[(int) $unitId] ?? 'usaha/keluarga';
-                $parts[] = number_format($total, 0, ',', '.').' '.$name;
+                $unitParts[] = number_format($total, 0, ',', '.').' '.mb_strtolower(trim((string) $name));
             }
+        }
+
+        if (! empty($unitParts)) {
+            $parts[] = implode('/', $unitParts);
         }
 
         if (empty($parts)) {

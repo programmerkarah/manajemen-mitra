@@ -46,8 +46,8 @@ class SpkSensusVolumeCalculationTest extends TestCase
             '10 sls and 100 prelist single unit' => [10, [1 => 100], [1 => 'usaha/keluarga'], '4 SLS/sub-SLS dan/atau 40 usaha/keluarga'],
             '2 sls and 891 prelist single unit' => [2, [1 => 891], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 356 usaha/keluarga'],
             '3 sls and 933 prelist single unit' => [3, [1 => 933], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 373 usaha/keluarga'],
-            '2 sls with keluarga and usaha' => [2, [1 => 10, 2 => 5], [1 => 'Keluarga', 2 => 'Usaha'], '1 SLS/sub-SLS dan/atau 4 Keluarga dan/atau 2 Usaha'],
-            '4 sls with large keluarga and usaha totals' => [4, [1 => 457, 2 => 112], [1 => 'Keluarga', 2 => 'Usaha'], '2 SLS/sub-SLS dan/atau 183 Keluarga dan/atau 45 Usaha'],
+            '2 sls with keluarga and usaha' => [2, [1 => 10, 2 => 5], [1 => 'Keluarga', 2 => 'Usaha'], '1 SLS/sub-SLS dan/atau 4 keluarga/2 usaha'],
+            '4 sls with large keluarga and usaha totals' => [4, [1 => 457, 2 => 112], [1 => 'Keluarga', 2 => 'Usaha'], '2 SLS/sub-SLS dan/atau 183 keluarga/45 usaha'],
         ];
     }
 
@@ -69,7 +69,7 @@ class SpkSensusVolumeCalculationTest extends TestCase
             [1 => 'Keluarga', 2 => 'Usaha'],
         );
 
-        $this->assertSame('2 SLS/sub-SLS dan/atau 274 Keluarga dan/atau 67 Usaha', $actualLabel);
+        $this->assertSame('2 SLS/sub-SLS dan/atau 274 keluarga/67 usaha', $actualLabel);
     }
 
     public function test_total_volume_label_uses_only_sls_subsls_count(): void
