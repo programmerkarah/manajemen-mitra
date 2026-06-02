@@ -359,7 +359,7 @@ class SpkPublicPreviewTest extends TestCase
         $this->assertStringContainsString('Rumah Tangga', $response->getContent());
     }
 
-    public function test_public_options_use_period_final_status_for_all_penugasan_in_same_month(): void
+    public function test_public_options_show_document_status_per_penugasan_in_same_month(): void
     {
         $tahun = ActiveYearService::get();
 
@@ -502,8 +502,14 @@ class SpkPublicPreviewTest extends TestCase
 
             $response->assertOk();
             $response->assertJsonCount(2, 'penugasan_list');
-            $response->assertJsonPath('penugasan_list.0.document_status', 'PK Final');
-            $response->assertJsonPath('penugasan_list.1.document_status', 'PK Final');
+
+            $statuses = collect($response->json('penugasan_list'))
+                ->pluck('document_status')
+                ->sort()
+                ->values()
+                ->all();
+
+            $this->assertSame(['PK Draft', 'PK Final'], $statuses);
         } finally {
             @unlink($signedAbsolutePath);
         }
@@ -769,6 +775,134 @@ class SpkPublicPreviewTest extends TestCase
         } finally {
             @unlink($mainSignedAbsolutePath);
             @unlink($addendumSignedAbsolutePath);
+        }
+    }
+
+    public function test_public_preview_uses_main_signed_when_addendum_exists_but_not_signed(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Addendum Draft',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '09',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Addendum Draft',
+            'nik' => '3201123412319191',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'total_honor' => 420000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        $signedDirectory = public_path('spk-export/tests');
+        if (! is_dir($signedDirectory)) {
+            mkdir($signedDirectory, 0755, true);
+        }
+
+        $mainSignedRelativePath = 'spk-export/tests/final_signed_main_addendum_draft_test.pdf';
+        $mainSignedAbsolutePath = public_path($mainSignedRelativePath);
+        file_put_contents($mainSignedAbsolutePath, Pdf::loadHTML('<h1>PK Final Main Draft Addendum</h1>')->output());
+
+        try {
+            $mainSpk = Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/301/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasi->id,
+                'addendum_number' => 0,
+                'nomor_urut_base' => 301,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja final utama',
+                'nilai_kontrak' => 420000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => $mainSignedRelativePath,
+                'status' => 'diterbitkan',
+                'created_by' => $creator->id,
+            ]);
+
+            Spk::query()->create([
+                'nomor_spk' => 'PPIS/13730/301/ADD-1/K/'.$tahun,
+                'petugas_id' => $petugas->id,
+                'alokasi_petugas_id' => $alokasi->id,
+                'parent_spk_id' => $mainSpk->id,
+                'addendum_number' => 1,
+                'nomor_urut_base' => 301,
+                'tanggal_spk' => now()->toDateString(),
+                'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+                'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+                'uraian_pekerjaan' => 'Perjanjian kerja addendum draft',
+                'nilai_kontrak' => 420000,
+                'nama_ppk' => 'PPK Final',
+                'nip_ppk' => '198001012010011001',
+                'signed_file_path' => null,
+                'status' => 'diterbitkan',
+                'created_by' => $creator->id,
+            ]);
+
+            $optionsResponse = $this->post(
+                '/mitra/options',
+                [
+                    'nama' => 'Petugas Addendum Draft',
+                    'nik' => '3201123412319191',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'recaptcha_token' => 'test-recaptcha-token',
+                ],
+                [
+                    'Accept' => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $optionsResponse->assertOk();
+            $optionsResponse->assertJsonPath('penugasan_list.0.document_status', 'PK Final + Addendum(draft)');
+
+            $downloadResponse = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas Addendum Draft',
+                    'nik' => '3201123412319191',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'jenis_kegiatan' => 'survei',
+                    'survei_periode' => sprintf('%d-09', $tahun),
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'download',
+                ],
+                [
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $downloadResponse->assertOk();
+            $downloadResponse->assertHeader('content-type', 'application/pdf');
+            $contentDisposition = (string) $downloadResponse->headers->get('content-disposition');
+            $this->assertStringNotContainsString('_with_addendum.pdf', $contentDisposition);
+        } finally {
+            @unlink($mainSignedAbsolutePath);
         }
     }
 

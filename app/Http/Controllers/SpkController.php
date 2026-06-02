@@ -1544,7 +1544,7 @@ class SpkController extends Controller
             ->whereHas('periodeAlokasi', function ($query) use ($periode, $jenisKegiatan, $selectedKegiatanId): void {
                 $query->where('tahun', $periode->tahun)
                     ->where('bulan', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
                     ->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan, $selectedKegiatanId): void {
                         $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
 
@@ -1630,7 +1630,7 @@ class SpkController extends Controller
             ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($periode, $kegiatanId, $jenisKegiatan): void {
                 $query->where('tahun', $periode->tahun)
                     ->where('bulan', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
                     ->when($kegiatanId !== null, function ($periodeQuery) use ($kegiatanId): void {
                         $periodeQuery->where('kegiatan_id', $kegiatanId);
                     })
@@ -1766,7 +1766,7 @@ class SpkController extends Controller
             })
             ->whereHas('periodeAlokasi', function ($query) use ($activeYear): void {
                 $query->where('tahun', $activeYear)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
             ->get();
 
@@ -1780,7 +1780,12 @@ class SpkController extends Controller
                 }
 
                 $periodKey = sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
-                $documentStatus = $this->resolvePublicPreviewDocumentStatusForPeriod($petugas->id, $periodKey);
+                $documentStatus = $this->resolvePublicPreviewDocumentStatusForPeriod(
+                    $petugas->id,
+                    $periodKey,
+                    (string) $kegiatan->jenis_kegiatan,
+                    (int) $kegiatan->id,
+                );
 
                 return [
                     'id' => $alokasi->id,
@@ -1923,15 +1928,28 @@ class SpkController extends Controller
             ?? $kegiatan->rateHonors->firstWhere('status', 'aktif');
     }
 
-    private function resolvePublicPreviewDocumentStatusForPeriod(int $petugasId, string $periodKey): string
+    private function resolvePublicPreviewDocumentStatusForPeriod(
+        int $petugasId,
+        string $periodKey,
+        ?string $jenisKegiatan = null,
+        ?int $kegiatanId = null,
+    ): string
     {
         [$tahun, $bulan] = explode('-', $periodKey);
 
         $documents = Spk::query()
             ->where('petugas_id', $petugasId)
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($tahun, $bulan): void {
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($tahun, $bulan, $jenisKegiatan, $kegiatanId): void {
                 $query->where('tahun', (int) $tahun)
-                    ->where('bulan', (int) $bulan);
+                    ->where('bulan', (int) $bulan)
+                    ->when($kegiatanId !== null, function ($periodeQuery) use ($kegiatanId): void {
+                        $periodeQuery->where('kegiatan_id', $kegiatanId);
+                    })
+                    ->when($jenisKegiatan !== null, function ($periodeQuery) use ($jenisKegiatan): void {
+                        $periodeQuery->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan): void {
+                            $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
+                        });
+                    });
             })
             ->orderBy('addendum_number')
             ->get(['id', 'signed_file_path', 'addendum_number']);
@@ -1941,10 +1959,15 @@ class SpkController extends Controller
         }
 
         $hasMainSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
+        $hasAddendumDraft = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
         $hasAddendumSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
 
         if ($hasMainSigned && $hasAddendumSigned) {
             return 'PK Final + Addendum';
+        }
+
+        if ($hasMainSigned && $hasAddendumDraft) {
+            return 'PK Final + Addendum(draft)';
         }
 
         if ($hasAddendumSigned) {
