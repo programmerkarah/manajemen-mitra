@@ -179,16 +179,11 @@
             text-align: justify;
         }
 
-        .ayat-lead-text {
-            text-align: justify;
-            page-break-after: avoid;
-        }
-
         .pasal-item-with-sub-items {
             page-break-inside: auto;
         }
 
-        .pasal-item-with-sub-items > .pasal-item-content > .ayat-lead-text + .sub-item-first {
+        .sub-item-first {
             page-break-before: avoid;
             page-break-inside: avoid;
         }
@@ -538,9 +533,7 @@
             <div class="pasal-item pasal-item-with-sub-items">
                 <div class="pasal-item-number">(3)</div>
                 <div class="pasal-item-content">
-                    <div class="ayat-lead-text">
-                        Pembayaran honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> dalam 2 (dua) termin yang terdiri atas:
-                    </div>
+                    Pembayaran honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> dalam 2 (dua) termin yang terdiri atas:
                     <div class="sub-item sub-item-first">
                         <div class="sub-item-letter">a.</div>
                         <div class="sub-item-content">
@@ -605,9 +598,7 @@
                 <div class="pasal-item pasal-item-with-sub-items">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        <div class="ayat-lead-text">
-                            Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dalam pelaksanaan ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
-                        </div>
+                        Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dalam pelaksanaan ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
                         <div class="sub-item sub-item-first">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
@@ -790,9 +781,7 @@
                 <div class="pasal-item pasal-item-with-sub-items">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
-                        <div class="ayat-lead-text">
-                            Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
-                        </div>
+                        Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
                         <div class="sub-item sub-item-first">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
