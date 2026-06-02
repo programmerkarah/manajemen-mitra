@@ -3862,6 +3862,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'tanggal_spk' => ['required', 'date'],
             'preview_items_json' => ['required', 'string'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
