@@ -75,6 +75,10 @@ type DownloadPayload = Record<
     DownloadPayloadValue | DownloadPayloadValue[]
 >;
 
+interface PreviewFromPostOptions {
+    responseMode?: 'binary' | 'url';
+}
+
 const appendPayloadToForm = (
     form: HTMLFormElement,
     payload: DownloadPayload,
@@ -387,8 +391,11 @@ export const previewFileFromPost = async (
     url: string,
     payload: DownloadPayload,
     defaultFilename: string,
+    options: PreviewFromPostOptions = {},
 ): Promise<void> => {
     void defaultFilename;
+
+    const responseMode = options.responseMode ?? 'binary';
 
     const { hide, setProgress } = showPdfLoadingOverlayWithProgress();
 
@@ -426,6 +433,56 @@ export const previewFileFromPost = async (
                 formData.append(key, String(value));
             }
         });
+
+        if (responseMode === 'url') {
+            formData.append('response_mode', 'url');
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    `Server mengembalikan status ${response.status}.`,
+                );
+            }
+
+            const payloadJson = (await response.json()) as {
+                preview_url?: string;
+                message?: string;
+            };
+
+            const previewUrl = payloadJson.preview_url;
+            if (!previewUrl) {
+                throw new Error(
+                    payloadJson.message || 'URL preview tidak tersedia.',
+                );
+            }
+
+            useFakeProgress = false;
+            window.clearInterval(fakeInterval);
+            setProgress(100);
+
+            await new Promise<void>((resolve) =>
+                window.setTimeout(resolve, 500),
+            );
+
+            const previewWindow = window.open(previewUrl, '_blank');
+            if (!previewWindow || previewWindow.closed) {
+                throw new Error('Browser memblokir popup.');
+            }
+
+            previewWindow.opener = null;
+            previewWindow.focus();
+
+            return;
+        }
 
         const blob = await new Promise<Blob>((resolve, reject) => {
             const xhr = new XMLHttpRequest();

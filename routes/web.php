@@ -94,6 +94,9 @@ Route::post('/mitra/options', [SpkController::class, 'publicPreviewOptions'])
     ->name('spk.public-preview.options');
 Route::post('/mitra', [SpkController::class, 'publicPreviewDownload'])
     ->name('spk.public-preview.download');
+Route::get('/mitra/preview-file/{file}', [SpkController::class, 'publicPreviewFile'])
+    ->where('file', '[A-Za-z0-9._-]+')
+    ->name('spk.public-preview.file');
 Route::redirect('/preview-perjanjian-kerja', '/mitra', 301);
 
 Route::middleware('guest')->group(function () {

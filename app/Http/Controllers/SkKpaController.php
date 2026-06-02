@@ -20,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 use Vinkla\Hashids\Facades\Hashids;
@@ -500,6 +501,7 @@ class SkKpaController extends Controller
         $validated = $request->validate([
             'nomor_sk' => ['required', 'string', 'max:255'],
             'tanggal_sk' => ['required', 'date'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         // Get tahun from tanggal_sk
@@ -685,6 +687,24 @@ class SkKpaController extends Controller
         }
         $tempFile = $tempPath.'/sk_preview_'.time().'_'.uniqid().'.pdf';
         file_put_contents($tempFile, $pdf->output());
+
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $safeFilename = preg_replace('/[^A-Za-z0-9_\-.]/', '_', $filename) ?: 'Preview_SK.pdf';
+            $previewUrl = URL::temporarySignedRoute(
+                'spk.public-preview.file',
+                now()->addMinutes(10),
+                [
+                    'file' => basename($tempFile),
+                    'filename' => $safeFilename,
+                    'disposition' => 'inline',
+                ],
+            );
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $safeFilename,
+            ]);
+        }
 
         return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',

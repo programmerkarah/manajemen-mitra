@@ -154,6 +154,9 @@ export default function Create({
                     tanggal_sk: formData.tanggal_sk,
                 },
                 `Preview_SK_${sanitizedKegiatanName}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             showModalAlert(

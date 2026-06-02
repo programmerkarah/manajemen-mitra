@@ -125,6 +125,9 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     addendum_number: petugasData.next_addendum_number,
                 },
                 `Preview_Addendum_${sanitizedName}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage('Gagal mengunduh file preview Addendum.');

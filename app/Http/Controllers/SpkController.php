@@ -1447,6 +1447,7 @@ class SpkController extends Controller
             'sensus_kegiatan' => ['nullable', 'string'],
             'recaptcha_token' => ['nullable', 'string', 'max:8192'],
             'aksi' => ['nullable', 'in:preview,download'],
+            'response_mode' => ['nullable', 'in:binary,url'],
             'download_token' => ['nullable', 'string', 'max:120'],
         ]);
 
@@ -1645,7 +1646,43 @@ class SpkController extends Controller
         }
 
         $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+        $responseMode = (string) ($validated['response_mode'] ?? 'binary');
         $downloadToken = (string) ($validated['download_token'] ?? '');
+
+        if ($responseMode === 'url' && $disposition === 'inline') {
+            if (! is_string($protectedPdfPath) || ! is_file($protectedPdfPath)) {
+                if (! is_string($protectedPdfContent) || $protectedPdfContent === '') {
+                    return response()->json([
+                        'message' => 'File preview tidak tersedia. Silakan coba beberapa saat lagi.',
+                    ], 422);
+                }
+
+                $protectedPdfPath = $this->storePublicPreviewTemporaryPdf($protectedPdfContent);
+            }
+
+            if (! is_string($protectedPdfPath) || ! is_file($protectedPdfPath)) {
+                return response()->json([
+                    'message' => 'File preview tidak tersedia. Silakan coba beberapa saat lagi.',
+                ], 422);
+            }
+
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl(
+                $protectedPdfPath,
+                (string) $responseFilename,
+                'inline',
+            );
+
+            if ($previewUrl === null) {
+                return response()->json([
+                    'message' => 'URL preview tidak tersedia. Silakan coba beberapa saat lagi.',
+                ], 422);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => (string) $responseFilename,
+            ]);
+        }
 
         if (is_string($protectedPdfPath) && is_file($protectedPdfPath)) {
             return $this->buildPublicPreviewFileResponse($protectedPdfPath, (string) $responseFilename, $disposition, $downloadToken);
@@ -1850,6 +1887,75 @@ class SpkController extends Controller
         }
 
         @file_put_contents($tempPath.'/public_preview_protected_'.$cacheKey.'.pdf', $protectedPdfContent);
+    }
+
+    private function storePublicPreviewTemporaryPdf(string $pdfContent): ?string
+    {
+        $tempPath = storage_path('app/temp');
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return null;
+        }
+
+        try {
+            $filename = 'public_preview_runtime_'.bin2hex(random_bytes(16)).'.pdf';
+        } catch (\Throwable) {
+            $filename = 'public_preview_runtime_'.uniqid('', true).'.pdf';
+        }
+
+        $filePath = $tempPath.'/'.$filename;
+        if (@file_put_contents($filePath, $pdfContent) === false) {
+            return null;
+        }
+
+        return $filePath;
+    }
+
+    private function buildPublicPreviewSignedFileUrl(string $filePath, string $responseFilename, string $disposition = 'inline'): ?string
+    {
+        if (! is_file($filePath)) {
+            return null;
+        }
+
+        $file = basename($filePath);
+        if ($file === '' || ! preg_match('/^[A-Za-z0-9._-]+$/', $file)) {
+            return null;
+        }
+
+        $safeFilename = preg_replace('/[^A-Za-z0-9_\-.]/', '_', $responseFilename) ?: 'Preview_SPK.pdf';
+        $safeDisposition = $disposition === 'attachment' ? 'attachment' : 'inline';
+
+        return URL::temporarySignedRoute(
+            'spk.public-preview.file',
+            now()->addMinutes(10),
+            [
+                'file' => $file,
+                'filename' => $safeFilename,
+                'disposition' => $safeDisposition,
+            ],
+        );
+    }
+
+    public function publicPreviewFile(Request $request, string $file)
+    {
+        if (! $request->hasValidSignature()) {
+            abort(403);
+        }
+
+        if (! preg_match('/^[A-Za-z0-9._-]+$/', $file)) {
+            abort(404);
+        }
+
+        $filePath = storage_path('app/temp/'.$file);
+        if (! is_file($filePath)) {
+            abort(404);
+        }
+
+        $filename = (string) $request->query('filename', 'Preview_SPK.pdf');
+        $safeFilename = preg_replace('/[^A-Za-z0-9_\-.]/', '_', $filename) ?: 'Preview_SPK.pdf';
+        $disposition = (string) $request->query('disposition', 'inline');
+        $safeDisposition = $disposition === 'attachment' ? 'attachment' : 'inline';
+
+        return $this->buildPublicPreviewFileResponse($filePath, $safeFilename, $safeDisposition);
     }
 
     private function ensureDirectoryExists(string $path): bool
@@ -2942,6 +3048,7 @@ class SpkController extends Controller
             'sampai_tanggal' => 'required|date',
             'parent_spk_id' => 'required|exists:spk,id',
             'addendum_number' => 'required|integer|min:1',
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         // Get parent SPK to retrieve original details
@@ -3046,6 +3153,23 @@ class SpkController extends Controller
             // Sanitize filename untuk menghindari masalah karakter khusus
             $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
             $filename = 'preview-addendum-spk-'.$sanitizedName.'.pdf';
+
+            if (($validated['response_mode'] ?? 'binary') === 'url') {
+                $tempFile = $this->storePublicPreviewTemporaryPdf($pdfContent);
+                if (! $tempFile) {
+                    return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+                }
+
+                $previewUrl = $this->buildPublicPreviewSignedFileUrl($tempFile, $filename, 'inline');
+                if (! $previewUrl) {
+                    return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+                }
+
+                return response()->json([
+                    'preview_url' => $previewUrl,
+                    'filename' => $filename,
+                ]);
+            }
 
             // Return with proper headers for inline display
             return response($pdfContent, 200)
@@ -3630,6 +3754,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'tanggal_spk' => ['required', 'date'],
             'preview_items_json' => ['required', 'string'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
@@ -3795,6 +3920,19 @@ class SpkController extends Controller
             return response()->json(['message' => 'Gagal menggabungkan PDF.'], 500);
         }
 
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($mergedPath, $filename, 'inline');
+
+            if ($previewUrl === null) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
+        }
+
         return response()->file($mergedPath, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
@@ -3817,6 +3955,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'tanggal_spk' => ['required', 'date'],
             'preview_items_json' => ['required', 'string'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
@@ -3873,6 +4012,19 @@ class SpkController extends Controller
 
         if (! $merged || ! file_exists($mergedPath)) {
             return response()->json(['message' => 'Gagal menggabungkan PDF.'], 500);
+        }
+
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($mergedPath, $filename, 'inline');
+
+            if ($previewUrl === null) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
         }
 
         return response()->file($mergedPath, [
@@ -4139,6 +4291,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -4306,6 +4459,18 @@ class SpkController extends Controller
             @unlink($mainPath);
             @unlink($lampiranPath);
 
+            if (($validated['response_mode'] ?? 'binary') === 'url') {
+                $previewUrl = $this->buildPublicPreviewSignedFileUrl($mergedPath, $filename, 'inline');
+                if (! $previewUrl) {
+                    return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+                }
+
+                return response()->json([
+                    'preview_url' => $previewUrl,
+                    'filename' => $filename,
+                ]);
+            }
+
             // Stream merged PDF directly from disk — avoids loading entire file into memory
             return response()->file($mergedPath, [
                 'Content-Type' => 'application/pdf',
@@ -4331,6 +4496,23 @@ class SpkController extends Controller
 
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $fallbackTemp = $this->storePublicPreviewTemporaryPdf($pdf->output());
+            if (! $fallbackTemp) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($fallbackTemp, $filename, 'inline');
+            if (! $previewUrl) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
+        }
 
         return $pdf->stream($filename);
     }
@@ -4516,6 +4698,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -4641,6 +4824,18 @@ class SpkController extends Controller
         $tempFile = $tempPath.'/spk_main_preview_'.time().'_'.uniqid().'.pdf';
         file_put_contents($tempFile, $pdf->output());
 
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($tempFile, $filename, 'inline');
+            if (! $previewUrl) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
+        }
+
         return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
@@ -4666,6 +4861,7 @@ class SpkController extends Controller
         $validated = $request->validate([
             'nomor_spk' => ['required', 'string', 'max:255'],
             'tanggal_spk' => ['required', 'date'],
+            'response_mode' => ['nullable', 'in:binary,url'],
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
@@ -4798,6 +4994,18 @@ class SpkController extends Controller
         }
         $tempFile = $tempPath.'/spk_lampiran_preview_'.time().'_'.uniqid().'.pdf';
         file_put_contents($tempFile, $pdf->output());
+
+        if (($validated['response_mode'] ?? 'binary') === 'url') {
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($tempFile, $filename, 'inline');
+            if (! $previewUrl) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
+        }
 
         return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',

@@ -210,6 +210,9 @@ export default function Generate({
                     tanggal_spk: formData.tanggal_spk,
                 },
                 `Preview_SPK_${sanitizedPetugasName}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage('Gagal mengunduh file preview Perjanjian Kerja.');
@@ -241,6 +244,9 @@ export default function Generate({
                     tanggal_spk: formData.tanggal_spk,
                 },
                 `Preview_SPK_Main_${sanitizedPetugasName}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage(
@@ -274,6 +280,9 @@ export default function Generate({
                     tanggal_spk: formData.tanggal_spk,
                 },
                 `Preview_SPK_Lampiran_${sanitizedPetugasName}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage(
@@ -323,6 +332,9 @@ export default function Generate({
                     preview_items_json: JSON.stringify(buildSortedPrintItems()),
                 },
                 `Print_PK_Main_${periode.bulan_label}_${periode.tahun}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage(
@@ -359,6 +371,9 @@ export default function Generate({
                     preview_items_json: JSON.stringify(buildSortedPrintItems()),
                 },
                 `Print_Lampiran_${periode.bulan_label}_${periode.tahun}.pdf`,
+                {
+                    responseMode: 'url',
+                },
             );
         } catch {
             setModalMessage(
@@ -680,9 +695,10 @@ export default function Generate({
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                     {petugas_list.map((alokasi) => {
-                                        const isSelected = selectedPetugas.includes(
-                                            alokasi.petugas.hashed_id,
-                                        );
+                                        const isSelected =
+                                            selectedPetugas.includes(
+                                                alokasi.petugas.hashed_id,
+                                            );
 
                                         return (
                                             <tr
@@ -718,13 +734,11 @@ export default function Generate({
                                                     <div className="flex items-center gap-2">
                                                         <div>
                                                             <div className="font-medium text-neutral-900 dark:text-white">
-                                                                {
-                                                                    formatPetugasDisplayName(
-                                                                        alokasi
-                                                                            .petugas
-                                                                            .nama,
-                                                                    )
-                                                                }
+                                                                {formatPetugasDisplayName(
+                                                                    alokasi
+                                                                        .petugas
+                                                                        .nama,
+                                                                )}
                                                             </div>
                                                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
                                                                 {

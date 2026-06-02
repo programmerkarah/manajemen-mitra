@@ -463,6 +463,23 @@ export default function PublicPreview({
 
         setProcessing(true);
 
+        let previewProgressTimer: number | null = null;
+        if (aksi === 'preview') {
+            setDocumentProgressPercent(3);
+            previewProgressTimer = window.setInterval(() => {
+                setDocumentProgressPercent((current) => {
+                    if (current >= 92) {
+                        return current;
+                    }
+
+                    const next =
+                        current +
+                        Math.max(1, Math.round((92 - current) * 0.15));
+                    return Math.min(92, next);
+                });
+            }, 250);
+        }
+
         try {
             const formData = new FormData();
             formData.append('nama', nama.trim());
@@ -470,6 +487,10 @@ export default function PublicPreview({
             formData.append('telepon_4_digit', telepon4Digit);
             formData.append('jenis_kegiatan', jenisKegiatan);
             formData.append('aksi', aksi);
+
+            if (aksi === 'preview') {
+                formData.append('response_mode', 'url');
+            }
 
             if (jenisKegiatan === 'survei') {
                 formData.append('survei_periode', surveiPeriode);
@@ -492,7 +513,10 @@ export default function PublicPreview({
                     headers: {
                         'X-CSRF-TOKEN': csrfToken(),
                         'X-Requested-With': 'XMLHttpRequest',
-                        Accept: 'application/pdf,application/json,*/*',
+                        Accept:
+                            aksi === 'preview'
+                                ? 'application/json'
+                                : 'application/pdf,application/json,*/*',
                     },
                     body: formData,
                     signal: controller.signal,
@@ -516,6 +540,52 @@ export default function PublicPreview({
 
                 setErrorMessage(message);
                 setDocumentProgressOpen(false);
+                return;
+            }
+
+            if (aksi === 'preview') {
+                if (previewProgressTimer !== null) {
+                    window.clearInterval(previewProgressTimer);
+                    previewProgressTimer = null;
+                }
+
+                const payload = (await response.json()) as {
+                    preview_url?: string;
+                    message?: string;
+                };
+
+                if (!payload.preview_url) {
+                    setErrorMessage(
+                        payload.message ||
+                            'URL preview tidak tersedia. Silakan coba lagi.',
+                    );
+                    setDocumentProgressOpen(false);
+                    return;
+                }
+
+                setDocumentProgressTitle('Membuka tab Print/Preview...');
+                setDocumentProgressStatus(
+                    'File siap. Membuka tab print/preview...',
+                );
+                setDocumentProgressPercent(100);
+
+                window.setTimeout(() => {
+                    const previewTab = window.open(
+                        payload.preview_url,
+                        '_blank',
+                    );
+                    if (!previewTab || previewTab.closed) {
+                        setErrorMessage(
+                            'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
+                        );
+                    } else {
+                        previewTab.opener = null;
+                        previewTab.focus();
+                    }
+
+                    setDocumentProgressOpen(false);
+                }, 250);
+
                 return;
             }
 
@@ -644,6 +714,10 @@ export default function PublicPreview({
                 'Terjadi kesalahan saat mengakses preview perjanjian kerja.',
             );
         } finally {
+            if (previewProgressTimer !== null) {
+                window.clearInterval(previewProgressTimer);
+            }
+
             setProcessing(false);
         }
     };
