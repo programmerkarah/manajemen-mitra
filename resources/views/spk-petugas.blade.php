@@ -151,7 +151,8 @@
 
         .pasal-item {
             margin: 8px 0;
-            page-break-inside: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .pasal-item-number {
@@ -163,6 +164,8 @@
             margin-left: 40px;
             width: calc(100% - 40px);
             text-align: justify;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .sub-item {
