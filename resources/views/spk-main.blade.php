@@ -180,6 +180,15 @@
             text-align: justify;
         }
 
+        .pasal-item-with-sub-items {
+            page-break-inside: avoid;
+        }
+
+        .pasal-item-with-sub-items > .pasal-item-content > .sub-item-first {
+            page-break-before: avoid;
+            page-break-inside: avoid;
+        }
+
         .signature {
             margin-top: 40px;
             page-break-inside: avoid;
@@ -468,11 +477,11 @@
                     Pembayaran sebagaimana dimaksud pada ayat (1) dilakukan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> sesuai dengan ketentuan peraturan perundang-undangan.
                 </div>
             </div>
-            <div class="pasal-item">
+            <div class="pasal-item pasal-item-with-sub-items">
                 <div class="pasal-item-number">(3)</div>
                 <div class="pasal-item-content">
                     Pembayaran honorarium sebagaimana dimaksud pada ayat (1) dibayarkan oleh <strong>PIHAK PERTAMA</strong> kepada <strong>PIHAK KEDUA</strong> dalam 2 (dua) termin yang terdiri atas:
-                    <div class="sub-item">
+                    <div class="sub-item sub-item-first">
                         <div class="sub-item-letter">a.</div>
                         <div class="sub-item-content">
                             termin I dibayarkan setelah <strong>PIHAK KEDUA</strong> menyelesaikan dan menyerahkan minimal 40% dari seluruh pekerjaan yang ditargetkan dan telah memenuhi minimal 1 bulan pendataan sebagaimana tercantum dalam Berita Acara Pemeriksaan Pekerjaan termin I.
@@ -533,11 +542,11 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 11</div>
             <div class="pasal-list">
-                <div class="pasal-item">
+                <div class="pasal-item pasal-item-with-sub-items">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
                         Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dalam pelaksanaan ruang lingkup pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
-                        <div class="sub-item">
+                        <div class="sub-item sub-item-first">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
                                 mengundurkan diri setelah pelatihan dan tidak melaksanakan pekerjaan diberikan sanksi sebesar Rp 1.727.440 (satu juta tujuh ratus dua puluh tujuh ribu empat ratus empat puluh rupiah);
@@ -716,11 +725,11 @@
         <div class="pasal-header-group">
             <div class="pasal-title">Pasal 10</div>
             <div class="pasal-list">
-                <div class="pasal-item">
+                <div class="pasal-item pasal-item-with-sub-items">
                     <div class="pasal-item-number">(1)</div>
                     <div class="pasal-item-content">
                         Apabila <strong>PIHAK KEDUA</strong> mengundurkan diri dengan tidak menyelesaikan pekerjaan sebagaimana dimaksud dalam Pasal 2, maka akan diberikan sanksi oleh <strong>PIHAK PERTAMA</strong>, sebagai berikut:
-                        <div class="sub-item">
+                        <div class="sub-item sub-item-first">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
                                 mengundurkan diri setelah pelatihan pada kegiatan yang diberikan pelatihan diberikan sanksi sebesar biaya pelatihan tersebut yang dikeluarkan oleh BPS Kota Sawahlunto;
