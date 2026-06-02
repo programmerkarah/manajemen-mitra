@@ -540,7 +540,7 @@
                         <div class="sub-item">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri setelah pelatihan dan tidak melaksanakan pekerjaan diberikan sanksi sebesar Rp 1.709.000 (satu juta tujuh ratus sembilan ribu rupiah);
+                                mengundurkan diri setelah pelatihan dan tidak melaksanakan pekerjaan diberikan sanksi sebesar Rp 1.727.440 (satu juta tujuh ratus dua puluh tujuh ribu empat ratus empat puluh rupiah);
                             </div>
                         </div>
                         <div class="sub-item">
